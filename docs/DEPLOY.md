@@ -66,7 +66,7 @@ Never commit real `.env` files.
 ### Vercel — `@shopynn/web`
 
 - Public API base URL pointing at the Railway API (whatever env name the app already uses, e.g. `NEXT_PUBLIC_*` / existing config)
-- Auth / OAuth secrets as already configured in the former `apps/web` (`@shopynn/web`) project
+- Auth / OAuth secrets as already configured in the former `ims-web` project
 
 ### Vercel — `@shopynn/site`
 
@@ -80,7 +80,7 @@ Never commit real `.env` files.
 
 ## Git cutover (old Bitbucket remotes)
 
-Previously each app was a separate Bitbucket repo (`apps/api` (`@shopynn/api`), `apps/web` (`@shopynn/web`), `ims-checkr`, `apps/print` (`@shopynn/print`)).
+Previously each app was a separate Bitbucket repo (`ims-services`, `ims-web`, `ims-checkr` / Cheqstock mobile, `ims-print-service`).
 
 1. Create a new empty remote for this monorepo (e.g. `shopynn`).
 2. Push this repo as the single source of truth.
