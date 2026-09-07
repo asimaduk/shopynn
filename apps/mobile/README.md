@@ -1,0 +1,1 @@
+Repo for inventory management services

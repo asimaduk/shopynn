@@ -1,0 +1,25 @@
+{
+  "name": "shopynn",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev -w @shopynn/api",
+    "dev:web": "npm run dev -w @shopynn/web",
+    "dev:site": "npm run dev -w @shopynn/site",
+    "dev:mobile": "npm run start -w @shopynn/mobile",
+    "dev:print": "npm run dev -w @shopynn/print",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "build:web": "npm run build -w @shopynn/web",
+    "build:site": "npm run build -w @shopynn/site"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.4"
+  },
+  "packageManager": "npm@10.9.2",
+  "engines": {
+    "node": ">=20"
+  }
+}

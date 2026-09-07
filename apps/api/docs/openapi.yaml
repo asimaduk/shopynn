@@ -1,0 +1,771 @@
+openapi: 3.0.3
+info:
+  title: IMS (Inventory Management System) API
+  description: API for the Inventory Management System. Most endpoints require a Bearer JWT and an active subscription.
+  version: 1.0.0
+
+servers:
+  - url: /api
+    description: API base path (prepend your host, e.g. https://example.com/api)
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  security:
+    - bearerAuth: []
+
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        status: { type: integer, example: 200 }
+        message: { type: string }
+        data: {}
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+    ForgotPasswordRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email }
+
+paths:
+  /users/login:
+    post:
+      summary: Log in
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200': { description: 'Success', content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+        '400': { description: 'Invalid credentials' }
+
+  /users/forgot-password:
+    post:
+      summary: Request password reset
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ForgotPasswordRequest' }
+      responses:
+        '200': { description: 'If account exists, email sent' }
+        '400': { description: 'Email required' }
+
+  /users/me:
+    get:
+      summary: Get current user
+      responses:
+        '200': { description: 'User profile', content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+
+  /users/me/profile-image:
+    post:
+      summary: Set my profile image
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image:
+                  type: string
+                  format: binary
+      responses:
+        '200': { description: 'Profile image updated', content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+        '400': { description: 'Profile image file is required' }
+    delete:
+      summary: Remove my profile image
+      responses:
+        '200': { description: 'Profile image removed', content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+
+  /users/me/preferences:
+    get:
+      summary: Get my preferences
+      responses:
+        '200': { description: 'User preferences (notifications, locale, etc.)' }
+    put:
+      summary: Update my preferences
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notifications: { type: object }
+                locale: { type: string }
+                timezone: { type: string }
+      responses:
+        '200': { description: 'Updated preferences' }
+
+  /users/reset-password:
+    post:
+      summary: Set new password (authenticated)
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, required: [password], properties: { password: { type: string } } }
+      responses:
+        '201': { description: 'Password updated' }
+
+  /dashboard:
+    get:
+      summary: Dashboard data
+      parameters:
+        - name: recentLimit
+          in: query
+          schema: { type: integer }
+      responses:
+        '200': { description: 'Dashboard stats and recent data' }
+
+  /dashboard/profit-and-loss:
+    get:
+      summary: Profit and loss report
+      parameters:
+        - name: startDate
+          in: query
+          schema: { type: string, format: date }
+        - name: endDate
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: 'P&L (revenue, cogs, expenses, netProfit)' }
+
+  /dashboard/cash-flow:
+    get:
+      summary: Cash flow report
+      parameters:
+        - name: startDate
+          in: query
+          schema: { type: string, format: date }
+        - name: endDate
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: 'Inflows, outflows, netFlow, records' }
+
+  /sales:
+    get:
+      summary: List sales
+      parameters:
+        - name: startDate
+          in: query
+          schema: { type: string, format: date }
+        - name: endDate
+          in: query
+          schema: { type: string, format: date }
+        - name: payment_status
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { description: 'List of sales' }
+    post:
+      summary: Create sale
+      responses:
+        '201': { description: 'Sale created' }
+
+  /sales/me/mtd-total:
+    get:
+      summary: My Month-To-Date sales total
+      responses:
+        '200': { description: 'MTD total sales for logged-in user', content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+
+  /sales/summary:
+    get:
+      summary: Sales summary
+      parameters:
+        - name: startDate
+          in: query
+          schema: { type: string, format: date }
+        - name: endDate
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: 'Totals, this week, last week, this month' }
+
+  /sales/revenue:
+    get:
+      summary: Revenue report (daily)
+      parameters:
+        - name: startDate
+          in: query
+          schema: { type: string, format: date }
+        - name: endDate
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: 'Daily revenue breakdown' }
+
+  /sales/cogs:
+    get:
+      summary: COGS report
+      parameters:
+        - name: startDate
+          in: query
+          schema: { type: string, format: date }
+        - name: endDate
+          in: query
+          schema: { type: string, format: date }
+        - name: productId
+          in: query
+          schema: { type: string }
+        - name: warehouseId
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { description: 'Revenue, cogs, gross margin, items' }
+
+  /sales/customers-summary:
+    get:
+      summary: Sales by customer
+      parameters:
+        - name: startDate
+          in: query
+          schema: { type: string, format: date }
+        - name: endDate
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: 'Per-customer totals and order count' }
+
+  /sales/{id}:
+    get:
+      summary: Get sale by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: 'Sale details' }
+
+  /purchases:
+    get:
+      summary: List purchases
+      parameters:
+        - name: startDate
+          in: query
+          schema: { type: string, format: date }
+        - name: endDate
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: 'List of purchases' }
+    post:
+      summary: Create purchase
+      responses:
+        '201': { description: 'Purchase created' }
+
+  /purchases/summary:
+    get:
+      summary: Purchases summary (MTD)
+      parameters:
+        - name: startDate
+          in: query
+          schema: { type: string, format: date }
+        - name: endDate
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: 'Totals and supplier purchases list' }
+
+  /purchases/suppliers-summary:
+    get:
+      summary: Suppliers summary
+      parameters:
+        - name: startDate
+          in: query
+          schema: { type: string, format: date }
+        - name: endDate
+          in: query
+          schema: { type: string, format: date }
+        - name: warehouseId
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { description: 'Per-supplier purchase count and totals' }
+
+  /purchases/{id}:
+    get:
+      summary: Get purchase by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: 'Purchase details' }
+
+  /inventories:
+    get:
+      summary: List inventories
+      responses:
+        '200': { description: 'List of inventories' }
+
+  /inventories/summary:
+    get:
+      summary: Stock summary
+      responses:
+        '200': { description: 'Count, units, value, low stock, items' }
+
+  /inventories/low-stock:
+    get:
+      summary: Low stock items
+      responses:
+        '200': { description: 'Inventories below minimum' }
+
+  /inventories/slow-moving:
+    get:
+      summary: Slow-moving items
+      parameters:
+        - name: days
+          in: query
+          schema: { type: integer }
+      responses:
+        '200': { description: 'Items with low/zero sales in period' }
+
+  /inventories/expiring:
+    get:
+      summary: Expiring items
+      parameters:
+        - name: days
+          in: query
+          schema: { type: integer }
+      responses:
+        '200': { description: 'Items expiring within window' }
+
+  /inventories/top-selling:
+    get:
+      summary: Top-selling items
+      parameters:
+        - name: startDate
+          in: query
+          schema: { type: string, format: date }
+        - name: endDate
+          in: query
+          schema: { type: string, format: date }
+        - name: limit
+          in: query
+          schema: { type: integer }
+      responses:
+        '200': { description: 'Top selling by quantity' }
+
+  /adjustments:
+    get:
+      summary: List adjustments
+      parameters:
+        - name: startDate
+          in: query
+          schema: { type: string, format: date }
+        - name: endDate
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: 'List of adjustments' }
+    post:
+      summary: Create adjustment
+      responses:
+        '201': { description: 'Adjustment created' }
+
+  /adjustments/summary:
+    get:
+      summary: Adjustments summary
+      parameters:
+        - name: startDate
+          in: query
+          schema: { type: string, format: date }
+        - name: endDate
+          in: query
+          schema: { type: string, format: date }
+        - name: warehouseId
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { description: 'Count, items adjusted, list with product/type/quantity/date/reason' }
+
+  /transfers:
+    get:
+      summary: List transfers
+      parameters:
+        - name: startDate
+          in: query
+          schema: { type: string, format: date }
+        - name: endDate
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: 'List of transfers' }
+    post:
+      summary: Create transfer
+      responses:
+        '201': { description: 'Transfer created' }
+
+  /transfers/summary:
+    get:
+      summary: Transfers summary
+      parameters:
+        - name: startDate
+          in: query
+          schema: { type: string, format: date }
+        - name: endDate
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: 'Count, units moved, movements list' }
+
+  /customers:
+    get:
+      summary: List customers
+      responses:
+        '200': { description: 'List of customers' }
+    post:
+      summary: Create customer
+      responses:
+        '201': { description: 'Customer created' }
+
+  /customers/{id}:
+    get:
+      summary: Get customer by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: 'Customer details' }
+    put:
+      summary: Update customer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: 'Updated' }
+    delete:
+      summary: Delete customer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: 'Deleted' }
+
+  /customers/{id}/sales:
+    get:
+      summary: Sales for customer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: startDate
+          in: query
+          schema: { type: string, format: date }
+        - name: endDate
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: 'Sales list' }
+
+  /suppliers:
+    get:
+      summary: List suppliers
+      responses:
+        '200': { description: 'List of suppliers' }
+    post:
+      summary: Create supplier
+      responses:
+        '201': { description: 'Supplier created' }
+
+  /suppliers/{id}:
+    get:
+      summary: Get supplier by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: 'Supplier details' }
+    put:
+      summary: Update supplier
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: 'Updated' }
+
+  /suppliers/{id}/purchases:
+    get:
+      summary: Purchases for supplier
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: startDate
+          in: query
+          schema: { type: string, format: date }
+        - name: endDate
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: 'Purchases list' }
+
+  /payments/webhook:
+    post:
+      summary: Paystack webhook (public, raw body)
+      security: []
+      responses:
+        '200': { description: 'Processed' }
+
+  /payments/initiate:
+    post:
+      summary: Initiate payment (card or mobile money)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount: { type: number }
+                payment_method: { type: string, enum: [card, mobile_money] }
+                email: { type: string }
+                phone: { type: string }
+                provider: { type: string }
+      responses:
+        '200': { description: 'Redirect URL (card) or charge status (mobile money)' }
+
+  /payments/verify/{reference}:
+    get:
+      summary: Verify transaction
+      parameters:
+        - name: reference
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: 'Transaction status' }
+
+  /notifications:
+    get:
+      summary: List notifications
+      parameters:
+        - name: read
+          in: query
+          schema: { type: boolean }
+        - name: limit
+          in: query
+          schema: { type: integer }
+      responses:
+        '200': { description: 'Notifications list' }
+    post:
+      summary: Create notification
+      responses:
+        '201': { description: 'Created' }
+
+  /notifications/{id}/read:
+    patch:
+      summary: Mark notification as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: 'Updated' }
+
+  /subscriptions/current:
+    get:
+      summary: Current subscription
+      responses:
+        '200': { description: 'Tenant subscription and features' }
+
+  /roles:
+    get:
+      summary: List roles
+      responses:
+        '200': { description: 'Roles list' }
+    post:
+      summary: Create role
+      responses:
+        '201': { description: 'Created' }
+
+  /roles/{id}:
+    get:
+      summary: Get role by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: 'Role details' }
+    put:
+      summary: Update role
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: 'Updated' }
+    delete:
+      summary: Delete role
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: 'Deleted' }
+
+  /roles/{id}/permissions:
+    get:
+      summary: Get role permissions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: 'Permissions list' }
+    post:
+      summary: Add permission to role
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                permissionId: { type: string }
+      responses:
+        '200': { description: 'Updated' }
+    put:
+      summary: Set role permissions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                permissionIds: { type: array, items: { type: string } }
+      responses:
+        '200': { description: 'Updated' }
+
+  /permissions:
+    get:
+      summary: List permissions
+      responses:
+        '200': { description: 'Permissions list' }
+
+  /user-management/me/permissions:
+    get:
+      summary: My permission codes
+      responses:
+        '200': { description: 'Array of permission codes' }
+
+  /user-management/me/roles:
+    get:
+      summary: My roles
+      responses:
+        '200': { description: 'Roles list' }
+
+  /user-management/users:
+    get:
+      summary: Users with roles
+      responses:
+        '200': { description: 'Users and their roles' }
+
+  /user-management/users/{userId}/roles:
+    get:
+      summary: Get user roles
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: 'Roles list' }
+    post:
+      summary: Assign role to user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                roleId: { type: string }
+      responses:
+        '200': { description: 'Assigned' }
+    put:
+      summary: Set user roles
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                roleIds: { type: array, items: { type: string } }
+      responses:
+        '200': { description: 'Updated' }
+    delete:
+      summary: Remove role from user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: roleId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: 'Removed' }
+
+  /audit-logs:
+    get:
+      summary: List audit logs
+      parameters:
+        - name: startDate
+          in: query
+          schema: { type: string, format: date }
+        - name: endDate
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: 'Audit log entries' }

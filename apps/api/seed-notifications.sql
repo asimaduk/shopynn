@@ -1,0 +1,78 @@
+-- Sample notifications seed (run after tenants/users exist)
+INSERT INTO notifications (
+    id,
+    tenant_id,
+    user_id,
+    type,
+    title,
+    message,
+    read_at,
+    metadata,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    icon,
+    link,
+    link_params,
+    mobile_params,
+    mobile_screen
+)
+VALUES
+(
+    gen_random_uuid(),
+    'a8ed449a-c5e6-47e4-8126-285a3f9e6293',                      -- replace with real tenant id
+    '75b9fb57-7aa4-4209-b055-4fd7097d5174',                        -- replace with real user id
+    'stock_low',
+    'Low stock alert',
+    'Product "Coca Cola 500ml" has reached the minimum stock level.',
+    NULL,
+    '{"product_id":"PRODUCT_ID_1","warehouse_id":"WAREHOUSE_ID_1"}',
+    NOW(),
+    NOW(),
+    false,
+    NULL,
+    'warning',
+    '/inventories',
+    'productId=PRODUCT_ID_1&warehouseId=WAREHOUSE_ID_1',
+    '{"productId":"PRODUCT_ID_1","warehouseId":"WAREHOUSE_ID_1"}'::jsonb,
+    'InventoryDetails'
+),
+(
+    gen_random_uuid(),
+    'a8ed449a-c5e6-47e4-8126-285a3f9e6293',
+    '75b9fb57-7aa4-4209-b055-4fd7097d5174',
+    'payment_received',
+    'Payment received',
+    'A payment of GHS 500.00 has been received from Customer ABC.',
+    NULL,
+    '{"payment_id":"PAYMENT_ID_1","amount":500.00}',
+    NOW(),
+    NOW(),
+    false,
+    NULL,
+    'payment',
+    '/payments',
+    'paymentId=PAYMENT_ID_1',
+    '{"paymentId":"PAYMENT_ID_1"}'::jsonb,
+    'PaymentDetails'
+),
+(
+    gen_random_uuid(),
+    'a8ed449a-c5e6-47e4-8126-285a3f9e6293',
+    '75b9fb57-7aa4-4209-b055-4fd7097d5174',
+    'subscription_expiring',
+    'Subscription expiring soon',
+    'Your Standard subscription will expire in 5 days.',
+    NULL,
+    '{"subscription_id":"SUBSCRIPTION_ID_1","days_remaining":5}',
+    NOW(),
+    NOW(),
+    false,
+    NULL,
+    'info',
+    '/subscriptions/current',
+    '',
+    '{"subscriptionId":"SUBSCRIPTION_ID_1"}'::jsonb,
+    'SubscriptionDetails'
+);

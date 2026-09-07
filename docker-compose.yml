@@ -1,0 +1,38 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: shopynn
+      POSTGRES_PASSWORD: shopynn
+      POSTGRES_DB: shopynn
+    ports:
+      - "5432:5432"
+    volumes:
+      - shopynn_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shopynn -d shopynn"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    ports:
+      - "4000:4000"
+    environment:
+      APP_PORT: 4000
+      NODE_ENV: production
+      PGHOST: db
+      PGPORT: 5432
+      PGUSER: shopynn
+      PGPASSWORD: shopynn
+      PGDATABASE: shopynn
+      JWT_SECRET: local-dev-secret-change-me
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  shopynn_pg:

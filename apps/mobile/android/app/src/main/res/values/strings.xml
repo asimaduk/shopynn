@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Shopynn</string>
+    <string name="facebook_app_id">YOUR_FACEBOOK_APP_ID</string>
+    <string name="facebook_client_token">YOUR_FACEBOOK_CLIENT_TOKEN</string>
+</resources>
