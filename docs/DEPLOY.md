@@ -27,11 +27,15 @@ Create **two** Vercel projects from the **same** Git repo:
 
 2. **shopynn-site**
    - Root Directory: `apps/site`
+   - Framework: **TanStack Start** (not Next.js — this app is Vite + TanStack Start)
+   - Leave Build Command / Output Directory empty (Nitro writes `.vercel/output`)
+   - `apps/site/vercel.json` sets `"framework": "tanstack-start"`
    - Ignored Build Step:
      ```bash
      bash scripts/vercel-ignore-site.sh
      ```
    - Equivalent: `npx turbo-ignore @shopynn/site`
+   - Env: `VITE_API_BASE_URL` (Railway API origin), `VITE_WEB_APP_URL` (Vercel web origin)
 
 `turbo-ignore` / these scripts exit `0` to **skip** the deploy when the commit does not touch that app (so an API-only push will not rebuild Vercel).
 
@@ -71,7 +75,8 @@ Never commit real `.env` files.
 
 ### Vercel — `@shopynn/site`
 
-- Marketing/API catalog URL if used
+- `VITE_API_BASE_URL` — Railway API origin (no trailing slash), e.g. `https://shopynn-production.up.railway.app`
+- `VITE_WEB_APP_URL` — Vercel web app origin for sign-in links
 - Any analytics keys
 
 ### Mobile — `@shopynn/mobile`
