@@ -30,6 +30,7 @@ export default defineConfig({
 	nitro: false,
 	plugins: onVercel ? [nitro()] : [],
 	// On Vercel, bake dashboard env into the client bundle (Vite inlines import.meta.env at build time).
+	// Requires VITE_* listed in root turbo.json `build.env` or Turbo strips them on Vercel.
 	// Locally, leave Lovable's loadEnv(.env) alone.
 	vite: onVercel
 		? {
