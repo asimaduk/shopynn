@@ -3,7 +3,19 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**", "build/**"]
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**", "build/**", ".vercel/output/**"],
+      "env": [
+        "VERCEL",
+        "VITE_API_BASE_URL",
+        "VITE_WEB_APP_URL",
+        "NEXT_PUBLIC_API_BASE_URL",
+        "NEXT_PUBLIC_BASE_URL",
+        "NEXT_PUBLIC_PORT",
+        "NEXT_PUBLIC_MAP_KEY",
+        "NEXT_PUBLIC_FEATURE_PURCHASE_ORDERS",
+        "NEXT_PUBLIC_FEATURE_RECEIPT_SETTINGS",
+        "NEXT_PUBLIC_FEATURE_DATA_EXPORT"
+      ]
     },
     "lint": {
       "dependsOn": ["^lint"]

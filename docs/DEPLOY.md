@@ -36,6 +36,7 @@ Create **two** Vercel projects from the **same** Git repo:
      ```
    - Equivalent: `npx turbo-ignore @shopynn/site`
    - Env: `VITE_API_BASE_URL` (Railway API origin), `VITE_WEB_APP_URL` (Vercel web origin)
+   - These must also be listed under `build.env` in root `turbo.json` (Turbo strips undeclared Vercel envs)
 
 `turbo-ignore` / these scripts exit `0` to **skip** the deploy when the commit does not touch that app (so an API-only push will not rebuild Vercel).
 
