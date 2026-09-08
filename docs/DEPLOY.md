@@ -55,7 +55,8 @@ curl -s http://localhost:4000/health
 
 Copy from `apps/api/.env.example`. Required at minimum:
 
-- `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`
+- `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE` (or Railway `DATABASE_URL`)
+- Listen on Railway’s `PORT` (app reads `PORT` then `APP_PORT`; do not hard-pin a different port)
 - `JWT_SECRET`
 - `PAYSTACK_SECRET_KEY` (production payments / withdrawals)
 - `FRONTEND_URL` / `PAYMENT_CALLBACK_URL` (point at Vercel web URL)

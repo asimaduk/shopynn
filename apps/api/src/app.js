@@ -9,7 +9,8 @@ import { startSubscriptionStatusJob } from "./jobs/subscriptionStatusJob.js";
 import { startDailySalesSummaryNotificationJob } from "./jobs/dailySalesSummaryNotificationJob.js";
 
 const app = express();
-const port = process.env.APP_PORT || 4000;
+// Railway injects PORT; fall back to APP_PORT for local/Docker.
+const port = Number(process.env.PORT || process.env.APP_PORT || 4000);
 
 //middlewares
 app.use(express.json());
@@ -29,6 +30,6 @@ app.use(errorhandling);
 startSubscriptionStatusJob();
 startDailySalesSummaryNotificationJob();
 
-app.listen(port, () => {
+app.listen(port, "0.0.0.0", () => {
     console.log(`Server is running on port ${port}`);
 });
