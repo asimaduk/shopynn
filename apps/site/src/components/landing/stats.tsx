@@ -26,7 +26,7 @@ export function Stats() {
   return (
     <section className="py-12">
       <div className="mx-auto max-w-6xl px-4">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 rounded-[5px] glass p-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 rounded-xl border border-border bg-card p-8 shadow-card">
           {stats.map((s, i) => (
             <motion.div
               key={s.l}

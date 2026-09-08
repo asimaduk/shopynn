@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
@@ -26,6 +27,7 @@ import toast from 'react-hot-toast';
 import PageBreadcrumb from 'src/components/PageBreadcrumb';
 import { useGetAdminMerchantDetailQuery, useMarkCommissionPaidMutation } from './MerchantApi';
 import { formatDate, formatMoney, userDisplayName } from './merchantFormatters';
+import SwitchServingMerchantDialog from '../tenants-directory/SwitchServingMerchantDialog';
 
 function initialsFromName(name: string) {
 	const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -49,6 +51,7 @@ export default function MerchantDetailPage({ merchantId }: MerchantDetailPagePro
 	});
 
 	const [markPaid, { isLoading: marking }] = useMarkCommissionPaidMutation();
+	const [switchTenant, setSwitchTenant] = useState<{ id: string; name: string | null } | null>(null);
 
 	const merchant = data?.merchant;
 	const tenants = data?.tenants ?? [];
@@ -218,13 +221,17 @@ export default function MerchantDetailPage({ merchantId }: MerchantDetailPagePro
 												<TableCell sx={{ fontWeight: 700 }}>Organization</TableCell>
 												<TableCell sx={{ fontWeight: 700 }}>Phone</TableCell>
 												<TableCell sx={{ fontWeight: 700 }}>Subscription</TableCell>
+												<TableCell sx={{ fontWeight: 700 }}>Serving</TableCell>
 												<TableCell sx={{ fontWeight: 700 }}>Created</TableCell>
+												<TableCell align="right" sx={{ fontWeight: 700 }}>
+													Actions
+												</TableCell>
 											</TableRow>
 										</TableHead>
 										<TableBody>
 											{tenants.length === 0 ? (
 												<TableRow>
-													<TableCell colSpan={5}>
+													<TableCell colSpan={7}>
 														<Typography color="text.secondary" className="py-4 text-center">
 															No businesses linked yet.
 														</Typography>
@@ -238,9 +245,29 @@ export default function MerchantDetailPage({ merchantId }: MerchantDetailPagePro
 														<TableCell>{t.phone ?? '—'}</TableCell>
 														<TableCell>
 															{t.subscription_name ?? '—'}
-															{t.subscription_amount != null ? ` (₵${formatMoney(t.subscription_amount)})` : ''}
+															{t.subscription_amount != null
+																? ` (₵${formatMoney(t.subscription_amount)})`
+																: ''}
+														</TableCell>
+														<TableCell>
+															{(t as { is_serving_agent?: boolean }).is_serving_agent ? (
+																<Chip size="small" color="success" label="Yes" variant="outlined" />
+															) : (
+																<Chip size="small" label="No" variant="outlined" />
+															)}
 														</TableCell>
 														<TableCell>{formatDate(t.created_at)}</TableCell>
+														<TableCell align="right">
+															<Button
+																size="small"
+																variant="outlined"
+																onClick={() =>
+																	setSwitchTenant({ id: t.id, name: t.name ?? null })
+																}
+															>
+																Switch agent
+															</Button>
+														</TableCell>
 													</TableRow>
 												))
 											)}
@@ -323,6 +350,20 @@ export default function MerchantDetailPage({ merchantId }: MerchantDetailPagePro
 					</>
 				)}
 			</Container>
+
+			<SwitchServingMerchantDialog
+				open={Boolean(switchTenant)}
+				onClose={() => setSwitchTenant(null)}
+				tenantId={switchTenant?.id ?? null}
+				tenantName={switchTenant?.name}
+				currentMerchantId={
+					switchTenant
+						? (tenants.find((t) => t.id === switchTenant.id)?.serving_merchant_id ??
+							(tenants.find((t) => t.id === switchTenant.id)?.is_serving_agent ? merchantId : null))
+						: null
+				}
+				onSaved={() => refetch()}
+			/>
 		</Box>
 	);
 }

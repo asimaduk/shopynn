@@ -47,7 +47,7 @@ function useNavigation() {
         /** Merchants see their portal as “Clients / Users” (same as MerchantsPage). */
         const merchantsNavTitle =
           item.id === "adminTools.merchants" && isLinkedMerchantUser
-            ? { title: "Clients / Users" }
+            ? { title: "Clients / Shops" }
             : {};
 
         // console.log('title', item?.title);

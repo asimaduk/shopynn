@@ -106,7 +106,8 @@ const StyledNavbar = styled('div')<StyledNavBarProps>(({ theme }) => ({
 				'& .NavbarStyle2-content': {
 					'& .logo-icon': {
 						width: 44,
-						height: 44
+						height: 44,
+						borderRadius: '50%'
 					},
 					'& .logo-text': {
 						opacity: 0

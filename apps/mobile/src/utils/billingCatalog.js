@@ -1,5 +1,16 @@
 import { CHOOSEABLE_SUBSCRIPTION_PLANS, SUBSCRIPTION_PLANS } from '../constants/subscriptionPlans';
 
+/** Folded into assisted go-live — never offer as separate add-ons. */
+export const FOLDED_SETUP_ADDON_CODES = new Set(['addon_csv_import', 'addon_opening_stock']);
+
+export function isFoldedSetupAddon(code) {
+    return FOLDED_SETUP_ADDON_CODES.has(String(code || ''));
+}
+
+export function filterSellableAddons(addons = []) {
+    return (addons || []).filter((a) => a && !isFoldedSetupAddon(a.code) && a.is_active !== false);
+}
+
 const TIER_TO_TYPE = { free: 1, basic: 2, standard: 3, premium: 4 };
 const TYPE_TO_TIER = { 1: 'free', 2: 'basic', 3: 'standard', 4: 'premium' };
 
@@ -70,7 +81,7 @@ export function computeQuoteTotalFromSelection(catalog, planType, addonCodes = [
         if (monthly) total += Number(monthly.amount_ghs) || 0;
     }
     const codes = new Set(addonCodes);
-    for (const a of catalog.addons || []) {
+    for (const a of filterSellableAddons(catalog.addons)) {
         if (codes.has(a.code)) total += Number(a.amount_ghs) || 0;
     }
     return Math.round(total * 100) / 100;

@@ -4,9 +4,11 @@ import {
     QUOTE_STATUS,
     QUOTE_KIND,
     ONBOARDING_COMMISSION_RATE,
-    SUBSCRIPTION_FIRST_MONTH_COMMISSION_RATE,
+    SUBSCRIPTION_RESIDUAL_COMMISSION_RATE,
     ONBOARDING_COMMISSION_CLAWBACK_DAYS,
     SUBSCRIPTION_TYPE_TO_TIER,
+    COMMISSION_KIND,
+    COMMISSION_ELIGIBLE,
 } from "../constants/billingCatalog.js";
 import {
     resolveSubscriptionTypeConfigService,
@@ -78,7 +80,7 @@ export const buildQuoteLinesForOnboardService = async (subscription_type, addon_
             line_type: "subscription_monthly",
             label: `${subConfig.name} — first month`,
             amount_ghs: subConfig.amount,
-            commission_eligible: "subscription_first_month_10",
+            commission_eligible: COMMISSION_ELIGIBLE.SUBSCRIPTION_RESIDUAL_5,
             sort_order: sort++,
         });
     }
@@ -208,6 +210,11 @@ export const getPendingQuoteForTenantService = async (tenantId) => {
 };
 
 export const merchantCanAccessTenantService = async (merchantId, tenantId) => {
+    const serving = await pool.query(
+        `SELECT 1 FROM tenants WHERE id = $1 AND serving_merchant_id = $2 LIMIT 1`,
+        [tenantId, merchantId]
+    );
+    if (serving.rowCount > 0) return true;
     const r = await pool.query(
         `SELECT 1 FROM merchant_commissions WHERE merchant_id = $1 AND tenant_id = $2 LIMIT 1`,
         [merchantId, tenantId]
@@ -220,16 +227,20 @@ export const merchantCanAccessTenantService = async (merchantId, tenantId) => {
     return q.rowCount > 0;
 };
 
+const isSubscriptionResidualEligible = (tag) =>
+    tag === COMMISSION_ELIGIBLE.SUBSCRIPTION_RESIDUAL_5 ||
+    tag === COMMISSION_ELIGIBLE.SUBSCRIPTION_FIRST_MONTH_10;
+
 export const computeCommissionFromLines = (lines) => {
     let onboardingBase = 0;
     let subscriptionBase = 0;
     for (const line of lines) {
         const amt = Number(line.amount_ghs) || 0;
-        if (line.commission_eligible === "onboarding_15") onboardingBase += amt;
-        if (line.commission_eligible === "subscription_first_month_10") subscriptionBase += amt;
+        if (line.commission_eligible === COMMISSION_ELIGIBLE.ONBOARDING_15) onboardingBase += amt;
+        if (isSubscriptionResidualEligible(line.commission_eligible)) subscriptionBase += amt;
     }
     const onboarding_commission_amount = round2(onboardingBase * ONBOARDING_COMMISSION_RATE);
-    const subscription_commission_amount = round2(subscriptionBase * SUBSCRIPTION_FIRST_MONTH_COMMISSION_RATE);
+    const subscription_commission_amount = round2(subscriptionBase * SUBSCRIPTION_RESIDUAL_COMMISSION_RATE);
     const commission_amount = round2(onboarding_commission_amount + subscription_commission_amount);
     const base_amount = round2(onboardingBase + subscriptionBase);
     return {
@@ -271,8 +282,8 @@ export const finalizeMerchantCommissionForQuoteService = async (quoteId, merchan
             id, merchant_id, tenant_id, subscription_id, quote_id,
             base_amount, commission_percent, commission_amount,
             onboarding_commission_amount, subscription_commission_amount,
-            status, payable_after, created_at
-        ) VALUES ($1,$2,$3,$4,$5,$6,0,$7,$8,$9,'pending',$10,now())`,
+            status, payable_after, commission_kind, created_at
+        ) VALUES ($1,$2,$3,$4,$5,$6,0,$7,$8,$9,'pending',$10,$11,now())`,
         [
             commId,
             merchantId,
@@ -284,6 +295,7 @@ export const finalizeMerchantCommissionForQuoteService = async (quoteId, merchan
             comm.onboarding_commission_amount,
             comm.subscription_commission_amount,
             payableAfter,
+            COMMISSION_KIND.ACQUISITION,
         ]
     );
     return { id: commId, ...comm, status: "pending", payable_after: payableAfter };

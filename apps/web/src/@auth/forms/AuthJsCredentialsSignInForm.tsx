@@ -1,6 +1,6 @@
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { z } from 'zod';
 import _ from 'lodash';
 import TextField from '@mui/material/TextField';
@@ -14,10 +14,14 @@ import { getSession, signIn } from 'next-auth/react';
 import { Alert } from '@mui/material';
 import toast from 'react-hot-toast';
 import signinErrors from './signinErrors';
-import FuseLoading from '@fuse/core/FuseLoading';
 import useNavigate from '@fuse/hooks/useNavigate';
 import { hasPermissionCodes } from '@auth/permissions';
 import type { User } from '@auth/user';
+import {
+	endAuthTransition,
+	startAuthTransition,
+	updateAuthTransition
+} from 'src/utils/authTransition';
 
 /**
  * Form Validation Schema
@@ -75,58 +79,75 @@ function AuthJsCredentialsSignInForm() {
 
 	async function onSubmit(formData: FormType) {
 		const { email, password } = formData;
+		startAuthTransition('Signing you in…');
 		setProcessing(true);
-		const result = await signIn('credentials', {
-			email,
-			password,
-			formType: 'signin',
-			redirect: false
-		});
 
-		setProcessing(false);
+		try {
+			const result = await signIn('credentials', {
+				email,
+				password,
+				formType: 'signin',
+				redirect: false
+			});
 
-		if (result?.code === 'password_expired') {
-			toast.error('Your password has expired. Request a reset link below.');
-			const q = new URLSearchParams({ email: formData.email.trim().toLowerCase() });
-			navigate(`/forgot-password?${q.toString()}`);
+			if (result?.code === 'password_expired') {
+				endAuthTransition();
+				setProcessing(false);
+				toast.error('Your password has expired. Request a reset link below.');
+				const q = new URLSearchParams({ email: formData.email.trim().toLowerCase() });
+				navigate(`/forgot-password?${q.toString()}`);
+				return false;
+			}
+
+			if (result?.error) {
+				endAuthTransition();
+				setProcessing(false);
+				setError('root', { type: 'manual', message: signinErrors[result.error] ?? signinErrors.default });
+				return false;
+			}
+
+			updateAuthTransition('Preparing your workspace…');
+
+			const session = await getSession();
+			if (session?.requiresPasswordReset) {
+				updateAuthTransition('Opening password reset…');
+				navigate('/reset-password');
+				return true;
+			}
+
+			const callbackParam =
+				typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('callbackUrl') : null;
+			if (callbackParam && callbackParam.startsWith('/') && !callbackParam.startsWith('//')) {
+				updateAuthTransition('Taking you there…');
+				navigate(callbackParam);
+				return true;
+			}
+
+			const db = session?.db as User | undefined;
+			const merchantId = db?.merchant_id;
+			updateAuthTransition('Opening your dashboard…');
+
+			if (merchantId && hasPermissionCodes(db, 'merchants.operate')) {
+				navigate('/merchants');
+				return true;
+			}
+			if (hasPermissionCodes(db, 'dashboard.view')) {
+				navigate('/dashboards/analytics');
+				return true;
+			}
+			if (hasPermissionCodes(db, ['merchants.operate', 'merchants.view'])) {
+				navigate('/merchants');
+				return true;
+			}
+
+			navigate('/');
+			return true;
+		} catch {
+			endAuthTransition();
+			setProcessing(false);
+			setError('root', { type: 'manual', message: signinErrors.default });
 			return false;
 		}
-
-		if (result?.error) {
-			setError('root', { type: 'manual', message: signinErrors[result.error] ?? signinErrors.default });
-			return false;
-		}
-
-		const session = await getSession();
-		if (session?.requiresPasswordReset) {
-			navigate('/reset-password');
-			return true;
-		}
-
-		const callbackParam =
-			typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('callbackUrl') : null;
-		if (callbackParam && callbackParam.startsWith('/') && !callbackParam.startsWith('//')) {
-			navigate(callbackParam);
-			return true;
-		}
-
-		const db = session?.db as User | undefined;
-		const merchantId = db?.merchant_id;
-		if (merchantId && hasPermissionCodes(db, 'merchants.operate')) {
-			navigate('/merchants');
-			return true;
-		}
-		if (hasPermissionCodes(db, 'dashboard.view')) {
-			navigate('/dashboards/analytics');
-			return true;
-		}
-		if (hasPermissionCodes(db, ['merchants.operate', 'merchants.view'])) {
-			navigate('/merchants');
-			return true;
-		}
-
-		navigate('/');
-		return true;
 	}
 
 	return (
@@ -136,11 +157,6 @@ function AuthJsCredentialsSignInForm() {
 			className="mt-8 flex w-full flex-col justify-center"
 			onSubmit={handleSubmit(onSubmit)}
 		>
-			{processing && (
-				<div style={{position:'absolute',top:0,left:0,right:0,bottom:0,backgroundColor:'rgba(0,0,0,.5)',zIndex:99}}>
-                    <FuseLoading />
-                </div>
-			)}
 			{errors?.root?.message && (
 				<Alert
 					className="mb-8"
@@ -218,11 +234,11 @@ function AuthJsCredentialsSignInForm() {
 				color="secondary"
 				className="mt-4 w-full"
 				aria-label="Sign in"
-				disabled={_.isEmpty(dirtyFields) || !isValid}
+				disabled={processing || _.isEmpty(dirtyFields) || !isValid}
 				type="submit"
 				size="large"
 			>
-				Sign in
+				{processing ? 'Signing in…' : 'Sign in'}
 			</Button>
 		</form>
 	);

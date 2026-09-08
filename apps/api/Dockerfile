@@ -12,12 +12,22 @@ FROM node:20-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV APP_PORT=4000
-RUN useradd --system --uid 1001 shopynn
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    postgresql-client \
+    bash \
+  && rm -rf /var/lib/apt/lists/* \
+  && useradd --system --uid 1001 shopynn
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json ./
 COPY src ./src
 COPY migrations ./migrations
+COPY scripts ./scripts
+COPY schema.sql ./schema.sql
+COPY seed-permissions.sql ./seed-permissions.sql
+COPY industries.sql ./industries.sql
 COPY docs ./docs
+RUN chmod +x scripts/db-migrate.sh
 USER shopynn
 EXPOSE 4000
-CMD ["node", "src/app.js"]
+# Same idea as FoaabMart (`prisma migrate deploy && start`): migrate then serve.
+CMD ["bash", "-c", "bash scripts/db-migrate.sh && node src/app.js"]

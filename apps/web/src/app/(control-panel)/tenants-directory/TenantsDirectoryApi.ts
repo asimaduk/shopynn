@@ -52,6 +52,23 @@ export type TenantDirectoryDetail = {
 		updated_at: string | null;
 	} | null;
 	recentPayments: TenantDirectoryDetailPayment[];
+	serving_merchant?: {
+		id: string;
+		first_name?: string | null;
+		last_name?: string | null;
+		email?: string | null;
+		phone?: string | null;
+	} | null;
+	assignment_history?: {
+		id: string;
+		merchant_id: string | null;
+		previous_merchant_id: string | null;
+		reason: string | null;
+		created_at: string;
+		merchant_first_name?: string | null;
+		merchant_last_name?: string | null;
+		merchant_email?: string | null;
+	}[];
 };
 
 const TenantsDirectoryApi = api
@@ -118,6 +135,22 @@ const TenantsDirectoryApi = api
 					body: { reason }
 				}),
 				invalidatesTags: ['tenantsDirectory']
+			}),
+			assignTenantServingMerchant: build.mutation<
+				{
+					tenant_id: string;
+					serving_merchant_id: string | null;
+					previous_merchant_id: string | null;
+					unchanged?: boolean;
+				},
+				{ tenantId: string; merchant_id: string | null; reason?: string }
+			>({
+				query: ({ tenantId, ...body }) => ({
+					url: `/api/tenants/admin/${tenantId}/serving-merchant`,
+					method: 'PUT',
+					body
+				}),
+				invalidatesTags: ['tenantsDirectory']
 			})
 		}),
 		overrideExisting: false
@@ -135,5 +168,6 @@ export const {
 	useMarkAdminSettlementPaidMutation,
 	useListAdminWithdrawalRequestsQuery,
 	useApproveAdminSettlementMutation,
-	useRejectAdminSettlementMutation
+	useRejectAdminSettlementMutation,
+	useAssignTenantServingMerchantMutation
 } = TenantsDirectoryApi;

@@ -37,6 +37,7 @@ function ProfileApp() {
 	const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 	const [pendingPhotoUrl, setPendingPhotoUrl] = useState<string | null>(null);
 	const [uploading, setUploading] = useState(false);
+	const [uploadError, setUploadError] = useState<string | null>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const [pendingFile, setPendingFile] = useState<File | null>(null);
 	const { data: me } = useGetMeQuery(undefined, { skip: status !== 'authenticated' });
@@ -59,28 +60,39 @@ function ProfileApp() {
 		const url = URL.createObjectURL(file);
 		setPendingPhotoUrl(url);
 		setPendingFile(file);
+		setUploadError(null);
 		e.target.value = '';
 	}, [pendingPhotoUrl]);
 
 	const handleClosePreviewModal = useCallback(() => {
+		if (uploading) return;
 		if (pendingPhotoUrl) {
 			URL.revokeObjectURL(pendingPhotoUrl);
 			setPendingPhotoUrl(null);
 		}
 		setPendingFile(null);
-	}, [pendingPhotoUrl]);
+		setUploadError(null);
+	}, [pendingPhotoUrl, uploading]);
 
 	const handleUploadPhoto = useCallback(async () => {
 		if (!pendingPhotoUrl || !pendingFile) return;
-		if (photoPreview && photoPreview.startsWith('blob:')) URL.revokeObjectURL(photoPreview);
-		setPhotoPreview(pendingPhotoUrl);
 		setUploading(true);
+		setUploadError(null);
 		try {
 			await uploadMyProfileImage(pendingFile).unwrap();
-		} finally {
-			setUploading(false);
+			if (photoPreview && photoPreview.startsWith('blob:')) URL.revokeObjectURL(photoPreview);
+			setPhotoPreview(pendingPhotoUrl);
 			setPendingPhotoUrl(null);
 			setPendingFile(null);
+		} catch (err: any) {
+			const message =
+				err?.data?.message ||
+				err?.error ||
+				(typeof err?.data === 'string' ? err.data : null) ||
+				'Upload failed. Please try again.';
+			setUploadError(String(message));
+		} finally {
+			setUploading(false);
 		}
 	}, [pendingPhotoUrl, pendingFile, photoPreview, uploadMyProfileImage]);
 
@@ -472,6 +484,11 @@ function ProfileApp() {
 					Preview profile photo
 				</DialogTitle>
 				<DialogContent>
+					{uploadError && (
+						<Alert severity="error" className="mb-4">
+							{uploadError}
+						</Alert>
+					)}
 					{pendingPhotoUrl && (
 						<Box className="flex justify-center p-2">
 							<Box
@@ -485,11 +502,28 @@ function ProfileApp() {
 					)}
 				</DialogContent>
 				<DialogActions className="gap-2 px-6 pb-4">
-					<Button variant="outlined" onClick={handleClosePreviewModal} startIcon={<FuseSvgIcon size={18}>heroicons-outline:x-mark</FuseSvgIcon>}>
+					<Button
+						variant="outlined"
+						onClick={handleClosePreviewModal}
+						disabled={uploading}
+						startIcon={<FuseSvgIcon size={18}>heroicons-outline:x-mark</FuseSvgIcon>}
+					>
 						Cancel
 					</Button>
-					<Button variant="contained" color="primary" onClick={handleUploadPhoto} startIcon={<FuseSvgIcon size={18}>heroicons-outline:arrow-up-tray</FuseSvgIcon>}>
-						Upload
+					<Button
+						variant="contained"
+						color="primary"
+						onClick={handleUploadPhoto}
+						disabled={uploading}
+						startIcon={
+							uploading ? (
+								<FuseSvgIcon size={18}>heroicons-outline:arrow-path</FuseSvgIcon>
+							) : (
+								<FuseSvgIcon size={18}>heroicons-outline:arrow-up-tray</FuseSvgIcon>
+							)
+						}
+					>
+						{uploading ? 'Uploading…' : 'Upload'}
 					</Button>
 				</DialogActions>
 			</Dialog>

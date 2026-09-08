@@ -22,10 +22,19 @@ Budget-friendly monthly tiers (Ghana), hosting included, WhatsApp support.
 - Limits: up to 10 branches, up to 25 users (custom for larger teams)
 - Support: priority WhatsApp support
 
-## One-time onboarding (GHS)
+## One-time assisted go-live (GHS, optional)
 
-- Onboarding/setup/training + go-live support: **GHS 2,500 – 6,000**
-- Data migration (optional): priced based on volume and source format
+Includes product import (CSV) and opening stock setup for a typical shop.
+
+- Basic assisted go-live: **GHS 1,000**
+- Standard assisted go-live: **GHS 2,500**
+- Premium assisted go-live: **GHS 4,000**
+- Self-serve (owner sets up alone): **GHS 0**
+
+**Add-ons (true extras only):**
+
+- Data migration from another system: catalog price (default **GHS 3,000**)
+- Extra training day: catalog price (default **GHS 1,000**)
 
 ## Notes
 

@@ -15,7 +15,7 @@ import AppText from '../../components/text';
 import useTheme from '../../hooks/useTheme';
 import config from '../../config';
 import { merchants as merchantsApi, billing as billingApi } from '../../services/api';
-import { buildPlansFromCatalog, computeQuoteTotalFromSelection } from '../../utils/billingCatalog';
+import { buildPlansFromCatalog, computeQuoteTotalFromSelection, filterSellableAddons } from '../../utils/billingCatalog';
 
 const BORDER_RADIUS = 5;
 
@@ -188,10 +188,10 @@ const MerchantUpgradeCollect = ({ navigation, route }) => {
                     );
                 })}
 
-                {(catalog?.addons?.length > 0) ? (
+                {(filterSellableAddons(catalog?.addons).length > 0) ? (
                     <View style={{ marginTop: 8 }}>
                         <AppText label="Optional add-ons" variant={1} fontSize={14} color={colors.text} />
-                        {catalog.addons.map((a) => {
+                        {filterSellableAddons(catalog.addons).map((a) => {
                             const on = addonCodes.includes(a.code);
                             return (
                                 <TouchableOpacity

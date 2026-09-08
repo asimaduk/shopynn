@@ -42,6 +42,8 @@ export type OnboardedTenantRow = {
 	quote_id?: string | null;
 	quote_status?: string | null;
 	quote_total_ghs?: string | number | null;
+	serving_merchant_id?: string | null;
+	is_serving_agent?: boolean;
 };
 
 export type MerchantCommissionRow = {

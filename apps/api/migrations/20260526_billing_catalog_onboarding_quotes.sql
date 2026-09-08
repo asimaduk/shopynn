@@ -67,14 +67,19 @@ ALTER TABLE merchant_commissions ADD COLUMN IF NOT EXISTS payable_after timestam
 INSERT INTO billing_catalog_items (id, code, item_type, plan_tier, label, description, amount_ghs, commission_eligible, sort_order)
 VALUES
     (gen_random_uuid()::text, 'plan_free_monthly', 'subscription_monthly', 'free', 'Free trial', '14-day trial', 0, 'none', 0),
-    (gen_random_uuid()::text, 'plan_basic_monthly', 'subscription_monthly', 'basic', 'Basic monthly', 'Monthly subscription', 229, 'subscription_first_month_10', 10),
-    (gen_random_uuid()::text, 'plan_standard_monthly', 'subscription_monthly', 'standard', 'Standard monthly', 'Monthly subscription', 429, 'subscription_first_month_10', 20),
-    (gen_random_uuid()::text, 'plan_premium_monthly', 'subscription_monthly', 'premium', 'Premium monthly', 'Monthly subscription', 799, 'subscription_first_month_10', 30),
-    (gen_random_uuid()::text, 'onboarding_basic', 'onboarding', 'basic', 'Basic onboarding', 'Setup and training', 2000, 'onboarding_15', 11),
-    (gen_random_uuid()::text, 'onboarding_standard', 'onboarding', 'standard', 'Standard onboarding', 'Setup and training', 4000, 'onboarding_15', 21),
-    (gen_random_uuid()::text, 'onboarding_premium', 'onboarding', 'premium', 'Premium onboarding', 'Setup and training', 6000, 'onboarding_15', 31),
-    (gen_random_uuid()::text, 'addon_csv_import', 'addon', NULL, 'CSV product import', 'Import products from spreadsheet', 500, 'none', 100),
-    (gen_random_uuid()::text, 'addon_opening_stock', 'addon', NULL, 'Opening stock setup', 'Initial stock configuration', 1000, 'none', 110),
-    (gen_random_uuid()::text, 'addon_data_migration', 'addon', NULL, 'Data migration', 'Migrate from another system', 3000, 'none', 120),
-    (gen_random_uuid()::text, 'addon_extra_training_day', 'addon', NULL, 'Extra training day', 'Additional on-site or remote training', 1000, 'none', 130)
-ON CONFLICT (code) DO NOTHING;
+    (gen_random_uuid()::text, 'plan_basic_monthly', 'subscription_monthly', 'basic', 'Basic monthly', 'Monthly subscription', 229, 'subscription_residual_5', 10),
+    (gen_random_uuid()::text, 'plan_standard_monthly', 'subscription_monthly', 'standard', 'Standard monthly', 'Monthly subscription', 429, 'subscription_residual_5', 20),
+    (gen_random_uuid()::text, 'plan_premium_monthly', 'subscription_monthly', 'premium', 'Premium monthly', 'Monthly subscription', 799, 'subscription_residual_5', 30),
+    (gen_random_uuid()::text, 'onboarding_basic', 'onboarding', 'basic', 'Basic assisted go-live', 'Setup & training including product import and opening stock for a typical single shop.', 1000, 'onboarding_15', 11),
+    (gen_random_uuid()::text, 'onboarding_standard', 'onboarding', 'standard', 'Standard assisted go-live', 'Setup & training including product import and opening stock; multi-branch basics as needed.', 2500, 'onboarding_15', 21),
+    (gen_random_uuid()::text, 'onboarding_premium', 'onboarding', 'premium', 'Premium assisted go-live', 'Setup & training including product import and opening stock; multi-user / multi-branch handoff.', 4000, 'onboarding_15', 31),
+    (gen_random_uuid()::text, 'addon_csv_import', 'addon', NULL, 'CSV product import', 'Included in assisted go-live — no longer sold separately.', 500, 'none', 100),
+    (gen_random_uuid()::text, 'addon_opening_stock', 'addon', NULL, 'Opening stock setup', 'Included in assisted go-live — no longer sold separately.', 1000, 'none', 110),
+    (gen_random_uuid()::text, 'addon_data_migration', 'addon', NULL, 'Data migration', 'Migrate products/stock from another system (beyond normal CSV / opening stock included in go-live).', 3000, 'none', 120),
+    (gen_random_uuid()::text, 'addon_extra_training_day', 'addon', NULL, 'Extra training day', 'Additional training day beyond assisted go-live.', 1000, 'none', 130)
+    ON CONFLICT (code) DO NOTHING;
+
+-- Soft-retire setup add-ons that are now part of go-live (safe if rows already existed).
+UPDATE billing_catalog_items
+SET is_active = false, updated_at = now()
+WHERE code IN ('addon_csv_import', 'addon_opening_stock');

@@ -1,15 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { Moon, Sun, Menu, X, Boxes } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useTheme } from "./theme-provider";
 import { cn } from "@/lib/utils";
 import { SIGN_IN_URL } from "@/lib/config";
 import { LANDING_NAV_LINKS, LANDING_SECTIONS } from "@/lib/landing-nav";
 
 export function Navbar() {
-  const { theme, toggle } = useTheme();
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -38,9 +36,13 @@ export function Navbar() {
           )}
         >
           <Link to="/" hash={LANDING_SECTIONS.top} className="flex items-center gap-2">
-            <span className="grid place-items-center h-8 w-8 rounded-lg bg-gradient-brand shadow-glow">
-              <Boxes className="h-4 w-4 text-primary-foreground" />
-            </span>
+            <img
+              src="/logo/shopynn-icon.png"
+              alt="Shopynn"
+              className="h-8 w-8 object-contain"
+              width={32}
+              height={32}
+            />
             <span className="font-display text-lg font-semibold">Shopynn</span>
           </Link>
 
@@ -55,17 +57,10 @@ export function Navbar() {
           </ul>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={toggle}
-              aria-label="Toggle theme"
-              className="h-9 w-9 grid place-items-center rounded-lg hover:bg-muted transition-colors"
-            >
-              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </button>
             <Button variant="ghost" size="sm" className="hidden sm:inline-flex" asChild>
               <a href={SIGN_IN_URL}>Login</a>
             </Button>
-            <Button size="sm" className="bg-gradient-brand text-primary-foreground hover:opacity-90 shadow-glow" asChild>
+            <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90" asChild>
               <Link to="/start-trial">Get Started</Link>
             </Button>
             <button

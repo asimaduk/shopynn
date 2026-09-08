@@ -40,8 +40,7 @@ export function MobileApp() {
   );
 
   return (
-    <section id="mobile" className="relative py-24 overflow-hidden">
-      <div className="absolute inset-0 bg-radial-brand pointer-events-none opacity-60" />
+    <section id="mobile" className="relative py-24 overflow-hidden bg-background">
       <div className="relative mx-auto max-w-6xl px-4 grid lg:grid-cols-2 gap-12 items-center">
         <motion.div
           initial={{ opacity: 0, x: -20 }}
@@ -53,12 +52,12 @@ export function MobileApp() {
             Your store, <span className="text-gradient">in every pocket.</span>
           </h2>
           <p className="mt-4 text-muted-foreground max-w-lg">
-            Customers browse, order and pay in seconds. You get push notifications for every order and live delivery tracking — all from a beautiful native app.
+            Customers browse, order and pay in seconds. You get notifications for every order — from a clean native app.
           </p>
 
           <ul className="mt-6 space-y-3 text-sm">
             <li className="flex items-center gap-3"><BellRing className="h-4 w-4 text-primary" /> Real-time push notifications</li>
-            <li className="flex items-center gap-3"><MapPin className="h-4 w-4 text-primary" /> Live order & delivery tracking</li>
+            <li className="flex items-center gap-3"><MapPin className="h-4 w-4 text-[var(--orange)]" /> Live order & delivery tracking</li>
             <li className="flex items-center gap-3"><QrCode className="h-4 w-4 text-primary" /> Offline-first with auto-sync</li>
           </ul>
 
@@ -66,32 +65,31 @@ export function MobileApp() {
             {platform === "android" ? <>{playStore}{appStore}</> : <>{appStore}{playStore}</>}
           </div>
 
-          <div className="mt-8 inline-flex items-center gap-4 rounded-[5px] glass p-4">
-            <div className="h-20 w-20 rounded-lg bg-gradient-brand grid place-items-center">
-              <QrCode className="h-12 w-12 text-primary-foreground" />
+          <div className="mt-8 inline-flex items-center gap-4 rounded-xl border border-border bg-card p-4 shadow-card">
+            <div className="h-20 w-20 rounded-lg bg-primary/10 text-primary grid place-items-center">
+              <QrCode className="h-12 w-12" />
             </div>
             <div className="text-sm">
               <div className="font-semibold">Scan to download</div>
-              <div className="text-muted-foreground text-xs">Point your camera here</div>
+              <div className="text-muted-foreground text-xs">App Store & Google Play coming soon</div>
             </div>
           </div>
         </motion.div>
 
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
+          initial={{ opacity: 0, scale: 0.98 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 0.7 }}
           className="relative"
         >
-          <div className="absolute -inset-8 bg-gradient-brand opacity-30 blur-3xl rounded-[3rem]" />
           <img
             src={mobile}
             alt="Shopynn mobile app on iOS and Android"
             width={1280}
             height={1280}
             loading="lazy"
-            className="relative rounded-[5px] w-full h-auto"
+            className="relative rounded-xl border border-border w-full h-auto shadow-card"
           />
         </motion.div>
       </div>

@@ -82,14 +82,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:site", content: "@Lovable" },
       { name: "twitter:title", content: "Shopynn" },
       { name: "twitter:description", content: "Shopynn is a modern SaaS platform for streamlined inventory and customer ordering." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a540c1eb-20d7-49c3-9d07-d45dcd503998/id-preview-bd14f0be--cf6bc431-bddc-48a6-b193-e3b9edd6aecd.lovable.app-1778847693386.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a540c1eb-20d7-49c3-9d07-d45dcd503998/id-preview-bd14f0be--cf6bc431-bddc-48a6-b193-e3b9edd6aecd.lovable.app-1778847693386.png" },
+      { property: "og:image", content: "/og-image.png" },
+      { name: "twitter:image", content: "/og-image.png" },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
       },
+      { rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon-32.png" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+      { rel: "shortcut icon", href: "/favicon-32.png" },
     ],
   }),
   shellComponent: RootShell,
@@ -100,11 +103,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className="light" style={{ colorScheme: "light" }}>
       <head>
         <HeadContent />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `document.documentElement.classList.remove("dark");document.documentElement.classList.add("light");try{localStorage.setItem("theme","light")}catch(e){}`,
+          }}
+        />
       </head>
-      <body>
+      <body className="bg-background text-foreground" style={{ backgroundColor: "#faf9f7", color: "#1c1917" }}>
         {children}
         <Scripts />
       </body>

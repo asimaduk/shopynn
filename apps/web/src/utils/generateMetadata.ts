@@ -9,15 +9,27 @@ async function generateMetadata(meta: {
 	url: string;
 }): Promise<Metadata> {
 	return {
+		applicationName: meta.title,
 		title: meta.title,
 		description: meta.description,
 		referrer: 'origin-when-cross-origin',
-		keywords: ['ims-ghana', 'ims'],
+		keywords: ['ims-ghana', 'ims', 'shopynn'],
 		authors: [{ name: 'Kingsford', url: '' }],
 		creator: 'Kingsford',
 		publisher: 'Kingsford',
 		robots: meta.robots,
-		icons: { icon: meta.favicon },
+		icons: {
+			icon: meta.favicon,
+			apple: '/assets/icons/icon-192.png'
+		},
+		appleWebApp: {
+			capable: true,
+			statusBarStyle: 'default',
+			title: meta.title
+		},
+		formatDetection: {
+			telephone: false
+		},
 		// metadataBase: new URL(meta.url),
 		// openGraph: {
 		// 	url: meta.url,

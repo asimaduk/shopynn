@@ -108,7 +108,7 @@ export default function MerchantsPage() {
 
 	const loadingPortal = !skipLists && (loadingTenants || loadingCommissions);
 
-	const title = useMemo(() => 'Clients / Users', []);
+	const title = useMemo(() => 'Clients / Shops', []);
 
 	if (loadingMe) {
 		return (

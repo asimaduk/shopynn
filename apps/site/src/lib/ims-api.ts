@@ -114,22 +114,22 @@ export type BillingCatalogGrouped = {
   addons: { code: string; label: string; amount_ghs: number }[];
 };
 
-export async function fetchPublicBillingCatalog(): Promise<BillingCatalogGrouped | null> {
-  const base = import.meta.env.VITE_IMS_API_URL || "http://localhost:4000/api";
-  try {
-    const res = await fetch(`${base}/public/billing/catalog`, { headers: { Accept: "application/json" } });
-    const json = await res.json();
-    return (json?.data ?? json) as BillingCatalogGrouped;
-  } catch {
-    return null;
-  }
-}
-
 export function planPriceFromCatalog(catalog: BillingCatalogGrouped | null, tier: string): string {
   const monthly = catalog?.plans?.[tier]?.subscription_monthly;
   if (monthly) return `GHS ${Number(monthly.amount_ghs).toFixed(0)}`;
   const fallback: Record<string, string> = { basic: "GHS 229", standard: "GHS 429", premium: "GHS 799" };
   return fallback[tier] || "—";
+}
+
+export async function fetchPublicBillingCatalog(): Promise<BillingCatalogGrouped | null> {
+  const base = (import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:4001").replace(/\/$/, "");
+  try {
+    const res = await fetch(`${base}/api/public/billing/catalog`, { headers: { Accept: "application/json" } });
+    const json = await res.json();
+    return (json?.data ?? json) as BillingCatalogGrouped;
+  } catch {
+    return null;
+  }
 }
 
 export type ChatMessage = {

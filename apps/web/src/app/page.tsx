@@ -13,6 +13,7 @@ import useUser from '@auth/useUser';
 import FuseLoading from '@fuse/core/FuseLoading';
 import { hasPermissionCodes } from '@auth/permissions';
 import { useGetCompanyProfileQuery, isCompanyProfileSet } from 'src/app/(control-panel)/company-profile/CompanyProfileApi';
+import ClearAuthTransition from 'src/components/ClearAuthTransition';
 
 function NoAppAccessYet() {
 	const theme = useTheme();
@@ -38,6 +39,7 @@ function NoAppAccessYet() {
 				}
 			}}
 		>
+			<ClearAuthTransition />
 			<Paper
 				elevation={0}
 				className="relative w-full max-w-[440px] overflow-hidden rounded-2xl"
@@ -65,7 +67,7 @@ function NoAppAccessYet() {
 							}}
 						>
 							<img
-								src="/assets/images/logo/ims.svg"
+								src="/assets/images/logo/shopynn-icon.png"
 								alt=""
 								className="h-7 w-7"
 								width={28}

@@ -15,6 +15,7 @@ import AppText from '../../components/text';
 import useTheme from '../../hooks/useTheme';
 import config from '../../config';
 import { merchants as merchantsApi, billing as billingApi } from '../../services/api';
+import { filterSellableAddons } from '../../utils/billingCatalog';
 
 const MerchantAddServices = ({ navigation, route }) => {
     const { colors } = useTheme();
@@ -47,7 +48,7 @@ const MerchantAddServices = ({ navigation, route }) => {
 
     const total = useMemo(() => {
         if (!catalog?.addons) return 0;
-        return (catalog.addons || [])
+        return filterSellableAddons(catalog.addons)
             .filter((a) => addonCodes.includes(a.code))
             .reduce((s, a) => s + (Number(a.amount_ghs) || 0), 0);
     }, [catalog, addonCodes]);
@@ -95,7 +96,7 @@ const MerchantAddServices = ({ navigation, route }) => {
         );
     }
 
-    const addons = catalog?.addons || [];
+    const addons = filterSellableAddons(catalog?.addons);
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
@@ -103,7 +104,7 @@ const MerchantAddServices = ({ navigation, route }) => {
             <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 + insets.bottom }}>
                 <AppText label={businessName} fontSize={18} variant={1} color={colors.text} />
                 <AppText
-                    label="Create a quote for paid setup help (migration, training, import, etc.)."
+                    label="Create a quote for paid setup help (data migration, extra training, etc.). Product import and opening stock are included in assisted go-live."
                     fontSize={13}
                     color={colors.textSecondary}
                     style={{ marginTop: 6, marginBottom: 16 }}

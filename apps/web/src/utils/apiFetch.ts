@@ -1,8 +1,13 @@
+const explicitApiBase =
+	process.env.NEXT_PUBLIC_API_BASE_URL ||
+	process.env.API_BASE_URL ||
+	(process.env.NEXT_PUBLIC_PORT ? `http://127.0.0.1:${process.env.NEXT_PUBLIC_PORT}` : '');
+
 export const API_BASE_URL =
-	process.env.NODE_ENV === 'development'
-		? `http://localhost:${process.env.NEXT_PUBLIC_PORT}`
-		: 
-		process.env.NEXT_PUBLIC_BASE_URL || '/';
+	explicitApiBase ||
+	(process.env.NODE_ENV === 'development'
+		? 'http://127.0.0.1:4001'
+		: process.env.NEXT_PUBLIC_BASE_URL || '/');
 
 // Define the types for options and configuration
 type FetchOptions = RequestInit;
@@ -20,12 +25,11 @@ export class FetchApiError extends Error {
 }
 
 // Global headers configuration
-export const globalHeaders: Record<string, string> = {}
+export const globalHeaders: Record<string, string> = {};
 
 // Function to update global headers
 export const setGlobalHeaders = (newHeaders: Record<string, string>) => {
 	Object.assign(globalHeaders, newHeaders);
-	// localStorage.setItem('ims-headers',JSON.stringify(globalHeaders))
 };
 
 export const removeGlobalHeaders = (headerKeys: string[]) => {
@@ -38,9 +42,7 @@ export const removeGlobalHeaders = (headerKeys: string[]) => {
 const apiFetch = async (endpoint: string, options: FetchOptions = {}) => {
 	const { headers, ...restOptions } = options;
 	const method = restOptions.method || 'GET';
-	// Set default headers, including global headers
-	// console.log('globalHeaders...',globalHeaders);
-	
+
 	const config: FetchOptions = {
 		headers: {
 			...(method !== 'GET' && { 'Content-Type': 'application/json' }),
@@ -50,21 +52,11 @@ const apiFetch = async (endpoint: string, options: FetchOptions = {}) => {
 		...restOptions
 	};
 
-	try {			
+	try {
 		const _url = `${API_BASE_URL}${endpoint}`;
-		// console.log('***** app _url',_url);
-		// console.log('config.headers',config.headers);			
 		const response = await fetch(_url, config);
-
-		// console.log('new resp is',response);
-		
-		// if (!response.ok) {
-		// 	throw new FetchApiError(response.status, await response.json());
-		// }
-
 		return response;
 	} catch (error) {
-		// console.error('Error in apiFetch:', error);
 		throw error;
 	}
 };

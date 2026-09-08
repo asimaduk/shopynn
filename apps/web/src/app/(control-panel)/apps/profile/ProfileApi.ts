@@ -43,11 +43,36 @@ const ProfileApi = api.injectEndpoints({
 			query: ({ id, body }) => ({ url: `/api/users/${id}`, method: 'PUT', body })
 		}),
 		uploadMyProfileImage: build.mutation<any, File>({
-			queryFn: async (file, apiCtx, _extra, baseQuery) => {
+			queryFn: async (file, _apiCtx, _extra, baseQuery) => {
 				const form = new FormData();
 				form.append('image', file);
 				const result = await baseQuery({ url: '/api/users/me/profile-image', method: 'POST', body: form });
-				return result as any;
+				if (result.error) {
+					const data = result.error.data as { message?: string; status?: number } | undefined;
+					return {
+						error: {
+							...result.error,
+							data: {
+								...(typeof data === 'object' && data ? data : {}),
+								message:
+									data?.message ||
+									(result.error.status === 503
+										? 'File uploads require S3 configuration.'
+										: 'Failed to upload profile image.')
+							}
+						}
+					};
+				}
+				const body = result.data as { status?: number; message?: string; data?: unknown } | undefined;
+				if (body && typeof body === 'object' && body.status && body.status !== 200) {
+					return {
+						error: {
+							status: body.status,
+							data: { message: body.message || 'Failed to upload profile image.' }
+						}
+					};
+				}
+				return { data: (body as any)?.data ?? result.data };
 			}
 		}),
 		removeMyProfileImage: build.mutation<any, void>({

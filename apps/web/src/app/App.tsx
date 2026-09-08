@@ -17,6 +17,7 @@ import { I18nProvider } from '@i18n/I18nProvider';
 import store from '../store/store';
 import MainThemeProvider from '../contexts/MainThemeProvider';
 import FuseMessage from '@fuse/core/FuseMessage/FuseMessage';
+import AuthTransitionOverlay from '../components/AuthTransitionOverlay';
 
 type AppProps = {
 	children?: React.ReactNode;
@@ -28,18 +29,6 @@ type AppProps = {
 function App(props: AppProps) {
 	const { children } = props;
 	const val = useMemo(() => ({}), []);
-
-	if (navigator && ('serviceWorker' in navigator)) {
-		window.addEventListener('load', () => {
-			navigator.serviceWorker.register('/sw.js')
-				.then(registration => {
-					console.log('Service Worker registered with scope:', registration.scope);
-				})
-				.catch(error => {
-					console.error('Service Worker registration failed:', error);
-				});
-		});
-	}
 
 	return (
 		<ErrorBoundary>
@@ -70,6 +59,7 @@ function App(props: AppProps) {
 											}}
 										>
 											{children}
+											<AuthTransitionOverlay />
 											<FuseMessage />
 											<Toaster
 												position="top-center"

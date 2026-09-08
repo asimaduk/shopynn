@@ -12,6 +12,7 @@ import FuseLoading from '@fuse/core/FuseLoading';
 import useNavigate from '@fuse/hooks/useNavigate';
 import useUser from './useUser';
 import { hasPermissionCodes } from './permissions';
+import { startAuthTransition } from 'src/utils/authTransition';
 
 type AuthGuardProps = {
 	auth: FuseRouteObjectType['auth'];
@@ -57,6 +58,7 @@ function AuthGuardRedirect({ auth, children, loginRedirectUrl = '/' }: AuthGuard
 		if (isGuest) {
 			navigate('/sign-in');
 		} else {
+			startAuthTransition('Opening your workspace…');
 			navigate(redirectUrl);
 			resetSessionRedirectUrl();
 		}

@@ -57,7 +57,7 @@ export default function ForgotPasswordPage() {
 			<Paper className="w-full max-w-md px-4 py-6 sm:rounded-xl sm:p-12 sm:shadow-sm">
 				<CardContent className="w-full max-w-80 mx-auto p-0">
 					<Box className="flex flex-col items-center text-center mb-6">
-						<img className="w-12" src="/assets/images/logo/ims.svg" alt="logo" />
+						<img className="w-14" src="/assets/images/logo/shopynn-icon.png" alt="Shopynn" />
 						<Typography className="mt-2 text-xl font-bold" component="span">
 							Shopynn
 						</Typography>

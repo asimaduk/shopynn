@@ -33,10 +33,10 @@ export function Features() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-50px" }}
               transition={{ delay: i * 0.04 }}
-              className="group relative rounded-[5px] glass p-6 hover:shadow-glow transition-all hover:-translate-y-1"
+              className="group relative rounded-xl border border-border bg-card p-6 shadow-card transition-all hover:-translate-y-0.5 hover:border-primary/25"
             >
-              <div className="h-10 w-10 rounded-xl bg-gradient-brand grid place-items-center shadow-glow mb-4">
-                <f.icon className="h-5 w-5 text-primary-foreground" />
+              <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary grid place-items-center mb-4">
+                <f.icon className="h-5 w-5" />
               </div>
               <h3 className="font-display font-semibold">{f.title}</h3>
               <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{f.desc}</p>

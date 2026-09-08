@@ -10,11 +10,11 @@ const steps = [
 
 export function HowItWorks() {
   return (
-    <section id="how" className="relative py-24 bg-muted/30">
+    <section id="how" className="relative py-24 bg-muted/40">
       <div className="mx-auto max-w-6xl px-4">
         <SectionHeading eyebrow="How it works" title={<>Up and running in <span className="text-gradient">three steps.</span></>} />
         <div className="grid gap-6 md:grid-cols-3 relative">
-          <div className="hidden md:block absolute top-12 left-[16%] right-[16%] h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+          <div className="hidden md:block absolute top-12 left-[16%] right-[16%] h-px bg-border" />
           {steps.map((s, i) => (
             <motion.div
               key={s.n}
@@ -22,10 +22,10 @@ export function HowItWorks() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
-              className="relative rounded-[5px] glass p-8 text-center"
+              className="relative rounded-xl border border-border bg-card p-8 text-center shadow-card"
             >
-              <div className="relative mx-auto h-14 w-14 rounded-[5px] bg-gradient-brand grid place-items-center shadow-glow">
-                <s.icon className="h-6 w-6 text-primary-foreground" />
+              <div className="relative mx-auto h-14 w-14 rounded-xl bg-primary/10 text-primary grid place-items-center">
+                <s.icon className="h-6 w-6" />
               </div>
               <div className="mt-4 text-xs tracking-widest text-muted-foreground">STEP {s.n}</div>
               <h3 className="mt-2 font-display text-xl font-semibold">{s.title}</h3>

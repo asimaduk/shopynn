@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { SectionHeading } from "./section-heading";
-import dashboard from "@/assets/dashboard-hero.jpg";
+const dashboard = "/dashboard-hero.jpg";
 
 const tabs = ["Overview", "Inventory", "Orders", "Customers"];
 

@@ -18,6 +18,7 @@ export function renderErrorPage(): string {
   </head>
   <body>
     <div class="card">
+      <img src="/logo/shopynn-icon.png" alt="Shopynn" width="48" height="48" style="margin:0 auto 1rem;display:block" />
       <h1>This page didn't load</h1>
       <p>Something went wrong on our end. You can try refreshing or head back home.</p>
       <div class="actions">

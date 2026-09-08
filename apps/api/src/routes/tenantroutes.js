@@ -12,6 +12,7 @@ import {
     updateMyCompanyInfo,
     listTenantsDirectory,
     getTenantDirectoryDetail,
+    assignTenantServingMerchant,
 } from "../controllers/tenant.js";
 import {
     createAdminTenantSettlement,
@@ -115,6 +116,14 @@ router.get(
     requireFeature("tenants.directory.view"),
     requirePermission("tenants.directory.view"),
     getTenantDirectoryDetail
+);
+router.put(
+    "/admin/:id/serving-merchant",
+    auth,
+    requireActiveSubscription,
+    requireFeature("tenants.directory.view"),
+    requirePermission("tenants.directory.view"),
+    assignTenantServingMerchant
 );
 router.get(
     "/admin/:tenantId/settlements/summary",

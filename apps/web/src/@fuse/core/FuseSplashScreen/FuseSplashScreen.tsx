@@ -12,8 +12,8 @@ function FuseSplashScreen() {
 			<div className="logo">
 				<img
 					width="128"
-					src="/assets/images/logo/logo.svg"
-					alt="logo"
+					src="/assets/images/logo/shopynn-logo.png"
+					alt="Shopynn"
 				/>
 			</div>
 			<Box

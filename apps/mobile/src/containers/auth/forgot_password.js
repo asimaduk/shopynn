@@ -11,6 +11,7 @@ import {
     ScrollView,
     StatusBar,
     Dimensions,
+    Image,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -88,7 +89,11 @@ const ForgotPassword = ({ navigation }) => {
                     <View style={[styles.brandStrip, { backgroundColor: config.THEME_COLOR }]}>
                         <View style={styles.brandStripInner}>
                             <View style={styles.brandIconWrap}>
-                                <Lucide name="key-round" color="#fff" size={32} />
+                                <Image
+                                    source={require('../../assets/images/logo/ims-logo.png')}
+                                    style={styles.brandLogoImage}
+                                    resizeMode="contain"
+                                />
                             </View>
                             <AppText label="Shopynn" variant={1} fontSize={26} color="#fff" style={styles.brandTitle} />
                             <AppText label="Inventory · Sales · Reports" fontSize={13} color="rgba(255,255,255,0.85)" />
@@ -174,10 +179,14 @@ const styles = StyleSheet.create({
         width: 64,
         height: 64,
         borderRadius: 32,
-        backgroundColor: 'rgba(255,255,255,0.2)',
+        backgroundColor: '#FFFFFF',
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 14,
+    },
+    brandLogoImage: {
+        width: 44,
+        height: 44,
     },
     brandTitle: { marginBottom: 4 },
     formSection: {

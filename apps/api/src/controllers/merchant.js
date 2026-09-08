@@ -14,6 +14,7 @@ import {
     createPayLaterQuoteForTenantService,
     createUpgradeCollectQuoteForMerchantService,
     getPendingQuoteForTenantService,
+    assignServingMerchantService,
 } from "../models/merchant.js";
 import { QUOTE_KIND } from "../constants/billingCatalog.js";
 import {

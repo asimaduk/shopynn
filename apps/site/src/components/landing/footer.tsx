@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Boxes, Twitter, Github, Linkedin, Apple, Play } from "lucide-react";
+import { Twitter, Github, Linkedin, Apple, Play } from "lucide-react";
 import { LANDING_SECTIONS, type LandingSectionHash } from "@/lib/landing-nav";
 
 type FooterRoute = "/start-trial" | "/privacy" | "/terms" | "/security";
@@ -66,9 +66,13 @@ export function Footer() {
         <div className="grid gap-10 lg:grid-cols-6">
           <div className="lg:col-span-2">
             <Link to="/" hash={LANDING_SECTIONS.top} className="flex items-center gap-2">
-              <span className="grid place-items-center h-8 w-8 rounded-lg bg-gradient-brand">
-                <Boxes className="h-4 w-4 text-primary-foreground" />
-              </span>
+              <img
+                src="/logo/shopynn-icon.png"
+                alt="Shopynn"
+                className="h-8 w-8 object-contain"
+                width={32}
+                height={32}
+              />
               <span className="font-display text-lg font-semibold">Shopynn</span>
             </Link>
             <p className="mt-4 text-sm text-muted-foreground max-w-xs">
@@ -101,7 +105,7 @@ export function Footer() {
 
         <div className="mt-12 pt-6 border-t border-border flex flex-col sm:flex-row gap-3 items-center justify-between text-xs text-muted-foreground">
           <div>© {new Date().getFullYear()} Shopynn Inc. All rights reserved.</div>
-          <div>hello@shopynn.app · +1 (555) 010-2030</div>
+          <div>hello@shopynn.app · +233 (248) 882-990</div>
         </div>
       </div>
     </footer>

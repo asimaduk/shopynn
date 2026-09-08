@@ -7,6 +7,7 @@ import {
     listTenantsDirectoryService,
     getTenantDirectoryDetailService,
 } from "../models/tenant.js";
+import { assignServingMerchantService } from "../models/merchant.js";
 
 export const createTenant = async (req, res, next) => {
     try {
@@ -60,6 +61,32 @@ export const getTenantDirectoryDetail = async (req, res, next) => {
         if (!data) return handleResponse(res, 404, "Tenant not found.", null);
         handleResponse(res, 200, "Tenant detail.", data);
     } catch (error) {
+        next(error);
+    }
+};
+
+/** PUT /tenants/admin/:id/serving-merchant — switch field agent for residual commissions */
+export const assignTenantServingMerchant = async (req, res, next) => {
+    try {
+        const result = await assignServingMerchantService({
+            tenantId: req.params.id,
+            merchantId: req.body?.merchant_id ?? null,
+            reason: req.body?.reason,
+            assignedBy: req.user?.id,
+        });
+        handleResponse(
+            res,
+            200,
+            result.unchanged ? "Serving agent unchanged." : "Serving agent updated.",
+            result
+        );
+    } catch (error) {
+        if (
+            error.message?.includes("not found") ||
+            error.message?.includes("required")
+        ) {
+            return handleResponse(res, 400, error.message, null);
+        }
         next(error);
     }
 };

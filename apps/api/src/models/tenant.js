@@ -378,6 +378,11 @@ export const getTenantDirectoryDetailService = async (tenantId) => {
         `SELECT
             t.*,
             i.name AS industry_name,
+            sm.id AS serving_merchant_id,
+            su.first_name AS serving_merchant_first_name,
+            su.last_name AS serving_merchant_last_name,
+            su.email AS serving_merchant_email,
+            su.phone AS serving_merchant_phone,
             (SELECT COUNT(*)::int FROM users u WHERE u.tenant_id = t.id AND COALESCE(u.deleted, false) = false) AS user_count,
             (SELECT COUNT(*)::int FROM warehouses w WHERE w.tenant_id = t.id) AS warehouse_count,
             (
@@ -389,6 +394,8 @@ export const getTenantDirectoryDetailService = async (tenantId) => {
             ) AS merchant_count
          FROM tenants t
          LEFT JOIN industries i ON t.industry_id = i.id
+         LEFT JOIN merchants sm ON sm.id = t.serving_merchant_id
+         LEFT JOIN users su ON su.id = sm.user_id
          WHERE t.id = $1`,
         [tenantId]
     );
@@ -423,5 +430,33 @@ export const getTenantDirectoryDetailService = async (tenantId) => {
         created_at: row.created_at,
     }));
 
-    return { tenant, subscription, recentPayments };
+    const assignRes = await pool.query(
+        `SELECT a.id, a.merchant_id, a.previous_merchant_id, a.reason, a.created_at,
+                u.first_name AS merchant_first_name, u.last_name AS merchant_last_name, u.email AS merchant_email
+         FROM merchant_tenant_assignments a
+         LEFT JOIN merchants m ON m.id = a.merchant_id
+         LEFT JOIN users u ON u.id = m.user_id
+         WHERE a.tenant_id = $1
+         ORDER BY a.created_at DESC
+         LIMIT 10`,
+        [tenantId]
+    );
+
+    const serving_merchant = tenant.serving_merchant_id
+        ? {
+              id: tenant.serving_merchant_id,
+              first_name: tenant.serving_merchant_first_name,
+              last_name: tenant.serving_merchant_last_name,
+              email: tenant.serving_merchant_email,
+              phone: tenant.serving_merchant_phone,
+          }
+        : null;
+
+    return {
+        tenant,
+        subscription,
+        recentPayments,
+        serving_merchant,
+        assignment_history: assignRes.rows,
+    };
 };

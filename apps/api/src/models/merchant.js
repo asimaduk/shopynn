@@ -2,7 +2,7 @@ import pool from "../config/db.js";
 import { v4 as uuidv4 } from "uuid";
 import { createTenantService } from "./tenant.js";
 import { createUserService } from "./user.js";
-import { QUOTE_STATUS, QUOTE_KIND } from "../constants/billingCatalog.js";
+import { QUOTE_STATUS, QUOTE_KIND, COMMISSION_KIND, SUBSCRIPTION_RESIDUAL_COMMISSION_RATE } from "../constants/billingCatalog.js";
 import {
     buildQuoteLinesForOnboardService,
     insertOnboardingQuoteService,
@@ -16,11 +16,11 @@ import {
 /** Tenant role reused for every field agent; only `merchants.operate` is attached (plus any you add manually). */
 export const FIELD_AGENT_ROLE_NAME = "Field agent";
 
-/** Default % stored on `merchants.default_commission_percent` when promote/create omits a value (display only; payout uses line rates below). */
+/** Default % stored on `merchants.default_commission_percent` when promote/create omits a value (display only; payout uses line rates). */
 function defaultCommissionPercent() {
     const v = Number(process.env.MERCHANT_DEFAULT_COMMISSION_PERCENT);
     if (Number.isFinite(v) && v >= 0) return v;
-    return 10;
+    return 5;
 }
 
 function resolveMerchantDefaultCommissionPercent(default_commission_percent) {
@@ -101,6 +101,16 @@ export const onboardBusinessForMerchantService = async (merchantRow, payload) =>
         quote_kind: QUOTE_KIND.FULL_ONBOARD,
     });
 
+    await pool.query(
+        `UPDATE tenants SET serving_merchant_id = $2, updated_at = now() WHERE id = $1`,
+        [tenantId, merchantRow.id]
+    );
+    await pool.query(
+        `INSERT INTO merchant_tenant_assignments (id, tenant_id, merchant_id, previous_merchant_id, reason, assigned_by, created_at)
+         VALUES ($1, $2, $3, NULL, $4, $5, now())`,
+        [uuidv4(), tenantId, merchantRow.id, "Initial onboard attribution", merchantRow.user_id || null]
+    );
+
     return {
         ...result,
         quote,
@@ -114,14 +124,18 @@ export const getOnboardedTenantsForMerchantService = async (merchantId) => {
         `SELECT * FROM (
              SELECT DISTINCT ON (t.id)
                     t.id, t.name, t.organization, t.phone, t.email, t.created_at, t.updated_at,
+                    t.serving_merchant_id,
                     s.id AS subscription_id, s.name AS subscription_name, s.amount AS subscription_amount,
                     s.status AS subscription_status, s.end_at AS subscription_end_at,
                     oq.id AS quote_id, oq.status AS quote_status, oq.total_ghs AS quote_total_ghs,
-                    oq.quote_kind AS quote_kind
+                    oq.quote_kind AS quote_kind,
+                    (t.serving_merchant_id = $1) AS is_serving_agent
              FROM (
                  SELECT tenant_id FROM merchant_commissions WHERE merchant_id = $1
                  UNION
                  SELECT tenant_id FROM onboarding_quotes WHERE merchant_id = $1
+                 UNION
+                 SELECT id AS tenant_id FROM tenants WHERE serving_merchant_id = $1
              ) links
              INNER JOIN tenants t ON t.id = links.tenant_id
              LEFT JOIN subscriptions s ON t.subscription_id = s.id
@@ -360,7 +374,7 @@ export const createFieldAgentUserAndMerchantService = async ({
 };
 
 /**
- * Admin: remove merchant status — clears tenant links, deletes commission rows, then merchants row.
+ * Admin: remove merchant status — clears serving links, deletes commission rows, then merchants row.
  */
 export const revokeMerchantRecordService = async (merchantId) => {
     if (!merchantId) {
@@ -374,6 +388,20 @@ export const revokeMerchantRecordService = async (merchantId) => {
             await client.query("ROLLBACK");
             return null;
         }
+        const served = await client.query(
+            `SELECT id FROM tenants WHERE serving_merchant_id = $1`,
+            [merchantId]
+        );
+        for (const row of served.rows) {
+            await client.query(
+                `INSERT INTO merchant_tenant_assignments (id, tenant_id, merchant_id, previous_merchant_id, reason, assigned_by, created_at)
+                 VALUES ($1, $2, NULL, $3, $4, NULL, now())`,
+                [uuidv4(), row.id, merchantId, "Serving agent revoked"]
+            );
+        }
+        await client.query(`UPDATE tenants SET serving_merchant_id = NULL, updated_at = now() WHERE serving_merchant_id = $1`, [
+            merchantId,
+        ]);
         await client.query(`DELETE FROM merchant_commissions WHERE merchant_id = $1`, [merchantId]);
         await client.query(`DELETE FROM merchants WHERE id = $1`, [merchantId]);
         await client.query("COMMIT");
@@ -384,4 +412,115 @@ export const revokeMerchantRecordService = async (merchantId) => {
     } finally {
         client.release();
     }
+};
+
+/**
+ * Switch the serving field agent for a shop. Residual commission follows serving_merchant_id.
+ * Pass merchant_id null to clear (Shopynn support takes over; no residual).
+ */
+export const assignServingMerchantService = async ({
+    tenantId,
+    merchantId,
+    reason,
+    assignedBy,
+}) => {
+    if (!tenantId) throw new Error("tenant id is required.");
+
+    const tenantRes = await pool.query(`SELECT id, serving_merchant_id, name FROM tenants WHERE id = $1`, [
+        tenantId,
+    ]);
+    if (tenantRes.rowCount === 0) throw new Error("Tenant not found.");
+    const previous = tenantRes.rows[0].serving_merchant_id || null;
+
+    let nextMerchantId = null;
+    if (merchantId != null && String(merchantId).trim() !== "") {
+        nextMerchantId = String(merchantId).trim();
+        const m = await pool.query(`SELECT id FROM merchants WHERE id = $1`, [nextMerchantId]);
+        if (m.rowCount === 0) throw new Error("Merchant (agent) not found.");
+    }
+
+    if (previous === nextMerchantId) {
+        return {
+            tenant_id: tenantId,
+            serving_merchant_id: nextMerchantId,
+            previous_merchant_id: previous,
+            unchanged: true,
+        };
+    }
+
+    await pool.query(`UPDATE tenants SET serving_merchant_id = $2, updated_at = now() WHERE id = $1`, [
+        tenantId,
+        nextMerchantId,
+    ]);
+    await pool.query(
+        `INSERT INTO merchant_tenant_assignments (id, tenant_id, merchant_id, previous_merchant_id, reason, assigned_by, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, now())`,
+        [
+            uuidv4(),
+            tenantId,
+            nextMerchantId,
+            previous,
+            reason ? String(reason).slice(0, 500) : "Serving agent reassigned",
+            assignedBy || null,
+        ]
+    );
+
+    return {
+        tenant_id: tenantId,
+        serving_merchant_id: nextMerchantId,
+        previous_merchant_id: previous,
+        unchanged: false,
+    };
+};
+
+export const createResidualCommissionForSubscriptionPaymentService = async ({
+    tenantId,
+    paymentId,
+    subscriptionId,
+    amountGhs,
+}) => {
+    const round2 = (n) => Math.round(Number(n) * 100) / 100;
+
+    if (!tenantId || !paymentId) return null;
+    const base = Number(amountGhs);
+    if (!Number.isFinite(base) || base <= 0) return null;
+
+    const tenantRes = await pool.query(
+        `SELECT serving_merchant_id, subscription_id FROM tenants WHERE id = $1`,
+        [tenantId]
+    );
+    const servingMerchantId = tenantRes.rows[0]?.serving_merchant_id;
+    if (!servingMerchantId) return null;
+
+    const existing = await pool.query(
+        `SELECT id FROM merchant_commissions WHERE payment_id = $1 LIMIT 1`,
+        [paymentId]
+    );
+    if (existing.rowCount > 0) return existing.rows[0];
+
+    const commission_amount = round2(base * SUBSCRIPTION_RESIDUAL_COMMISSION_RATE);
+    if (commission_amount <= 0) return null;
+
+    const id = uuidv4();
+    await pool.query(
+        `INSERT INTO merchant_commissions (
+            id, merchant_id, tenant_id, subscription_id, quote_id, payment_id,
+            base_amount, commission_percent, commission_amount,
+            onboarding_commission_amount, subscription_commission_amount,
+            status, payable_after, commission_kind, notes, created_at
+        ) VALUES ($1,$2,$3,$4,NULL,$5,$6,$7,$8,0,$8,'pending',now(),$9,$10,now())`,
+        [
+            id,
+            servingMerchantId,
+            tenantId,
+            subscriptionId || tenantRes.rows[0]?.subscription_id || null,
+            paymentId,
+            round2(base),
+            SUBSCRIPTION_RESIDUAL_COMMISSION_RATE * 100,
+            commission_amount,
+            COMMISSION_KIND.RESIDUAL,
+            "5% subscription residual",
+        ]
+    );
+    return { id, commission_amount, merchant_id: servingMerchantId };
 };

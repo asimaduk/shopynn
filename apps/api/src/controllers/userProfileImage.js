@@ -1,22 +1,12 @@
 import dotenv from "dotenv";
-import multer from "multer";
-import multerS3 from "multer-s3";
-import { S3Client } from "@aws-sdk/client-s3";
-import { v4 as uuidv4 } from "uuid";
 import { handleResponse } from "../util/handleresponse.js";
 import { getPreferencesService, updatePreferencesService } from "../models/userPreferences.js";
 import { createAuditLogService } from "../models/auditLog.js";
 import { deleteS3Objects } from "../util/s3Delete.js";
+import { createUpload, s3Configured } from "../util/s3Upload.js";
+import { v4 as uuidv4 } from "uuid";
 
 dotenv.config();
-
-const s3 = new S3Client({
-    region: process.env.S3_BUCKET_REGION,
-    credentials: {
-        accessKeyId: process.env.AWS_ACCESSKEYID,
-        secretAccessKey: process.env.AWS_SECRETACCESSKEY,
-    },
-});
 
 const sanitizeFilename = (name = "file") =>
     String(name)
@@ -41,23 +31,21 @@ const logProfileImageAudit = async (req, action, details = {}) => {
     }
 };
 
-export const uploadProfileImage = multer({
-    storage: multerS3({
-        contentType: multerS3.AUTO_CONTENT_TYPE,
-        s3,
-        acl: "public-read",
-        bucket: process.env.S3_BUCKET_NAME,
-        key: (req, file, cb) => {
-            const userId = req.user?.id || "anonymous";
-            const safeName = sanitizeFilename(file.originalname);
-            cb(null, `users/${userId}/profile/${Date.now()}-${uuidv4()}-${safeName}`);
-        },
-    }),
+export const uploadProfileImage = createUpload({
     limits: { files: 1 },
+    key: (req, file, cb) => {
+        const userId = req.user?.id || "anonymous";
+        const safeName = sanitizeFilename(file.originalname);
+        cb(null, `users/${userId}/profile/${Date.now()}-${uuidv4()}-${safeName}`);
+    },
 });
 
 export const setMyProfileImage = async (req, res, next) => {
     try {
+        if (!s3Configured) {
+            return handleResponse(res, 503, "File uploads require S3 configuration.", null);
+        }
+
         const file = req.file;
         if (!file?.key) {
             return handleResponse(res, 400, "Profile image file is required.", null);

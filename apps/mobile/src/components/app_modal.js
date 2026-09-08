@@ -22,7 +22,7 @@ const AppModal = ({ visible, title, handleClose, onRequestClose, children }) => 
                 <SafeAreaView style={{flex:1,backgroundColor:backdropColor}}>
                     <TouchableOpacity onPress={handleClose} activeOpacity={.6} style={{flex:1}}/>
                     <View style={{backgroundColor:colors.surface,borderTopLeftRadius:10,borderTopRightRadius:10}}>
-                        <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',paddingHorizontal:10,paddingVertical:5,borderBottomWidth:1,borderBottomColor:colors.border}}>
+                        <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',paddingHorizontal:14,paddingTop:14,paddingBottom:12,borderBottomWidth:1,borderBottomColor:colors.border}}>
                             <AppText label={title} variant={1} color={colors.text} />
                             <TouchableOpacity
                                 activeOpacity={.6}

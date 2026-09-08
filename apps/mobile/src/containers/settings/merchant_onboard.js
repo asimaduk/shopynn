@@ -21,7 +21,7 @@ import { hasPermission } from '../../utils/permissions';
 import config from '../../config';
 import { merchants as merchantsApi, billing as billingApi } from '../../services/api';
 import Toast from 'react-native-toast-message';
-import { buildPlansFromCatalog, computeQuoteTotalFromSelection } from '../../utils/billingCatalog';
+import { buildPlansFromCatalog, computeQuoteTotalFromSelection, filterSellableAddons } from '../../utils/billingCatalog';
 
 /** Fallback when catalog API unavailable */
 const PLANS = [
@@ -637,10 +637,10 @@ const MerchantOnboard = ({ navigation }) => {
                             );
                         })}
                     </View>
-                    {(catalog?.addons?.length > 0) ? (
+                    {(filterSellableAddons(catalog?.addons).length > 0) ? (
                         <View style={{ marginTop: 16 }}>
                             <AppText label="Optional add-ons" variant={1} fontSize={14} color={colors.text} />
-                            {catalog.addons.map((a) => {
+                            {filterSellableAddons(catalog.addons).map((a) => {
                                 const on = addonCodes.includes(a.code);
                                 return (
                                     <TouchableOpacity

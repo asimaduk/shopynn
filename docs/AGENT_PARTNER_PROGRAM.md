@@ -24,7 +24,7 @@ You act as an **independent sales agent**. You introduce businesses you meet in 
 | **Standard** | **429** | **Multi-branch, transfers, roles (expected most common)** |
 | Premium | 799 | Full platform + customer online ordering |
 
-**One-time onboarding / setup / training:** GHS 2,500 – 6,000 (depending on size and data migration).
+**Optional assisted go-live (setup / training):** GHS 1,000 (Basic) · 2,500 (Standard) · 4,000 (Premium). Includes product import and opening stock. Self-serve shops pay **GHS 0** for setup. True extras (data migration from another system, extra training day) are sold separately.
 
 Hosting is included in the monthly subscription. Support is via WhatsApp (business hours; priority on Premium).
 
@@ -54,17 +54,17 @@ Commission is calculated on **amounts actually received by Shopynn via Digital c
 
 | Fee type | Commission rate | When it applies |
 |----------|-----------------|-----------------|
-| **Onboarding / setup fee** | **15%** (one-time) | Once per new business, on the onboarding amount paid |
-| **First month subscription** | **10%** (one-time) | On the first subscription payment only |
-| **Month 2 and beyond** | **0%** | No commission on subscription renewals |
+| **Assisted onboarding / go-live fee** | **15%** (one-time) | Only when the shop pays for assisted setup |
+| **Subscription (every paid month)** | **5% residual** | While you remain the shop’s **serving agent** (including first month) |
 
-### Example — Standard plan (most common)
+Residual stops if Shopynn clears or reassigns the serving agent (e.g. you leave the program or fail to support the shop after notice).
 
-- Onboarding: GHS 4,000 → commission **GHS 600** (15%)
-- First month subscription: GHS 429 → commission **GHS 43** (10%)
-- **Total commission (if both paid): approximately GHS 643**
+### Example — Standard plan with assisted go-live
 
-The same percentages apply to other plans, based on the amounts actually paid.
+- Assisted go-live: GHS 2,500 → commission **GHS 375** (15%)
+- Monthly subscription: GHS 429 → residual **GHS ~21.45** each paid month (5%)
+
+Self-serve shops (no assisted go-live fee) still pay subscription only; you earn residual if you remain their serving agent.
 
 ---
 

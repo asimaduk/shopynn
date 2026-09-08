@@ -7,9 +7,15 @@
   "scripts": {
     "dev": "nodemon src/app.js",
     "test": "node --test \"src/**/*.test.js\"",
-    "start": "node src/app.js",
+    "start": "bash scripts/db-migrate.sh && node src/app.js",
+    "start:app": "node src/app.js",
     "build": "node -e \"console.log(\\\"@shopynn/api: no build step\\\")\"",
-    "lint": "node -e \"console.log(\\\"@shopynn/api: no lint step\\\")\""
+    "lint": "node -e \"console.log(\\\"@shopynn/api: no lint step\\\")\"",
+    "db:bootstrap": "bash scripts/bootstrap-db.sh",
+    "db:migrate": "bash scripts/db-migrate.sh",
+    "seed:test": "node --env-file=.env scripts/seed-test-account.mjs",
+    "seed:admin": "node --env-file=.env scripts/seed-system-admin.mjs",
+    "seed:merchants": "node --env-file=.env scripts/seed-merchant-accounts.mjs"
   },
   "keywords": [],
   "author": "",

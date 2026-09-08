@@ -45,10 +45,16 @@ const BillingCatalogApi = api
 	.enhanceEndpoints({ addTagTypes: billingCatalogTagTypes })
 	.injectEndpoints({
 		endpoints: (build) => ({
-			getBillingCatalog: build.query<BillingCatalogResponse, { grouped?: boolean } | void>({
+			getBillingCatalog: build.query<
+				BillingCatalogResponse,
+				{ grouped?: boolean; activeOnly?: boolean } | void
+			>({
 				query: (arg) => ({
 					url: '/api/billing/catalog',
-					params: { grouped: arg && arg.grouped === false ? 'false' : 'true' }
+					params: {
+						grouped: arg && arg.grouped === false ? 'false' : 'true',
+						...(arg && arg.activeOnly === false ? { active_only: 'false' } : {})
+					}
 				}),
 				providesTags: ['billingCatalog']
 			}),

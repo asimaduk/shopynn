@@ -6,6 +6,7 @@ import Paper from '@mui/material/Paper';
 import ResetPasswordPageTitle from './components/ResetPasswordPageTitle';
 import ResetPasswordPageForm from './components/ResetPasswordPageForm';
 import ResetPasswordPageMessageSection from './components/ResetPasswordPageMessageSection';
+import ClearAuthTransition from 'src/components/ClearAuthTransition';
 
 /**
  * The modern reset password page.
@@ -13,7 +14,7 @@ import ResetPasswordPageMessageSection from './components/ResetPasswordPageMessa
 function ResetPasswordPage() {
 	return (
 		<div className="flex min-w-0 flex-auto flex-col items-center sm:justify-center md:p-8">
-			
+			<ClearAuthTransition />
             <Paper className="flex min-h-full w-full overflow-hidden rounded-none sm:min-h-auto sm:w-auto sm:rounded-xl sm:shadow-sm md:w-full md:max-w-6xl">
 				<div className="w-full px-4 py-8 sm:w-auto sm:p-12 md:p-16 ltr:border-r-1 rtl:border-l-1">
 					<div className="mx-auto w-full max-w-80 sm:mx-0 sm:w-80">

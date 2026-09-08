@@ -102,7 +102,7 @@ export const providers: Provider[] = [
 ];
 
 const config = {
-	theme: { logo: '/assets/images/logo/logo.svg' },
+	theme: { logo: '/assets/images/logo/shopynn-logo.png' },
 	adapter: UnstorageAdapter(storage),
 	pages: {
 		signIn: '/sign-in'
@@ -110,6 +110,7 @@ const config = {
 	providers,
 	basePath: '/auth',
 	trustHost: true,
+	secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
 	callbacks: {
 		authorized() {
 			/** Checkout information to how to use middleware for authorization

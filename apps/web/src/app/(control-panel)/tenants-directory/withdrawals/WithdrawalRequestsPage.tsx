@@ -16,9 +16,9 @@ import {
 	useRejectAdminSettlementMutation,
 	useMarkAdminSettlementPaidMutation
 } from '../TenantsDirectoryApi';
-import { formatGhsCurrency } from '../dashboards/analytics/daily-sales/formatGhsCurrency';
-import { formatDate } from '../merchants/merchantFormatters';
-import { formatPayoutSnapshot, settlementStatusColor, settlementStatusLabel } from '../trading/order-settlements/settlementUtils';
+import { formatGhsCurrency } from '../../dashboards/analytics/daily-sales/formatGhsCurrency';
+import { formatDate } from '../../merchants/merchantFormatters';
+import { formatPayoutSnapshot, settlementStatusColor, settlementStatusLabel } from '../../trading/order-settlements/settlementUtils';
 
 export default function WithdrawalRequestsPage() {
 	const [statusFilter, setStatusFilter] = useState<'processing' | 'requested' | 'failed'>('processing');

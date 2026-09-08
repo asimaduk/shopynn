@@ -8,6 +8,7 @@ import {
     finalizeMerchantCommissionForQuoteService,
     getOnboardingQuoteByIdService,
 } from "./onboardingQuote.js";
+import { createResidualCommissionForSubscriptionPaymentService } from "./merchant.js";
 import crypto from "crypto";
 
 const buildTransactionRef = (paymentMethodType = "PAY") => {
@@ -317,7 +318,7 @@ export const createPendingPaymentForCheckoutService = async (payload) => {
 /** Get payment by gateway transaction reference and tenant (for verify/submit-otp and webhook). */
 export const getPaymentByTransactionRefService = async (transaction_ref, tenant_id) => {
     const result = await pool.query(
-        `SELECT id, amount, tenant_id, transaction_ref, status, order_id, subscription_id
+        `SELECT id, amount, tenant_id, transaction_ref, status, order_id, subscription_id, quote_id
          FROM payments WHERE transaction_ref = $1 AND tenant_id = $2`,
         [transaction_ref, tenant_id]
     );
@@ -327,7 +328,7 @@ export const getPaymentByTransactionRefService = async (transaction_ref, tenant_
 /** Webhook: resolve payment row by reference only (reference should be unique). */
 export const getPaymentByTransactionRefGlobalService = async (transaction_ref) => {
     const result = await pool.query(
-        `SELECT id, amount, tenant_id, transaction_ref, status, order_id, subscription_id
+        `SELECT id, amount, tenant_id, transaction_ref, status, order_id, subscription_id, quote_id
          FROM payments WHERE transaction_ref = $1 LIMIT 1`,
         [transaction_ref]
     );
@@ -348,7 +349,8 @@ export const amountsMatchOrderTotal = (paymentAmount, orderTotal) => {
 export const syncSubscriptionPaymentAfterSuccess = async (transaction_ref, tenant_id = null) => {
     const paymentRes = tenant_id
         ? await pool.query(
-              `SELECT p.id, p.order_id, p.subscription_id, p.tenant_id, t.subscription_id AS tenant_subscription_id
+              `SELECT p.id, p.order_id, p.subscription_id, p.tenant_id, p.amount, p.quote_id,
+                      t.subscription_id AS tenant_subscription_id
                FROM payments p
                LEFT JOIN tenants t ON t.id = p.tenant_id
                WHERE p.transaction_ref = $1 AND p.tenant_id = $2
@@ -356,7 +358,8 @@ export const syncSubscriptionPaymentAfterSuccess = async (transaction_ref, tenan
               [transaction_ref, tenant_id]
           )
         : await pool.query(
-              `SELECT p.id, p.order_id, p.subscription_id, p.tenant_id, t.subscription_id AS tenant_subscription_id
+              `SELECT p.id, p.order_id, p.subscription_id, p.tenant_id, p.amount, p.quote_id,
+                      t.subscription_id AS tenant_subscription_id
                FROM payments p
                LEFT JOIN tenants t ON t.id = p.tenant_id
                WHERE p.transaction_ref = $1
@@ -371,6 +374,22 @@ export const syncSubscriptionPaymentAfterSuccess = async (transaction_ref, tenan
     if (!subscriptionId) return null;
 
     const activated = await activatePendingSubscriptionService(subscriptionId, payment.tenant_id);
+
+    // Renewals / non-quote subscription payments → 5% residual to serving agent.
+    // Quote checkouts already include residual in the acquisition commission row.
+    if (!payment.quote_id) {
+        try {
+            await createResidualCommissionForSubscriptionPaymentService({
+                tenantId: payment.tenant_id,
+                paymentId: payment.id,
+                subscriptionId,
+                amountGhs: payment.amount,
+            });
+        } catch (err) {
+            console.error("Residual commission create failed:", err?.message || err);
+        }
+    }
+
     await logPaymentEventService({
         payment_id: payment.id,
         order_id: null,
@@ -421,6 +440,13 @@ export const syncOnboardingQuotePaymentAfterSuccess = async (transaction_ref, te
             quote.merchant_id,
             quote.tenant_id,
             quote.subscription_id
+        );
+        // Ensure serving agent is set for residual renewals going forward
+        await pool.query(
+            `UPDATE tenants
+             SET serving_merchant_id = COALESCE(serving_merchant_id, $2), updated_at = now()
+             WHERE id = $1`,
+            [quote.tenant_id, quote.merchant_id]
         );
     }
 

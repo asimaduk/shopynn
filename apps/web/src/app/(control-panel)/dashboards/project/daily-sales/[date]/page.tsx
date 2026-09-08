@@ -1,7 +1,10 @@
 import { redirect } from 'next/navigation';
 
-export default function SaleDetailRedirect({ params }: { params: { date: string } }) {
-	redirect(`/dashboards/analytics/daily-sales/${params.date}`);
-	return null;
+export default async function SaleDetailRedirect({
+	params
+}: {
+	params: Promise<{ date: string }>;
+}) {
+	const { date } = await params;
+	redirect(`/dashboards/analytics/daily-sales/${date}`);
 }
-

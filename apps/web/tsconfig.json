@@ -1,22 +1,49 @@
 {
   "compilerOptions": {
     "paths": {
-      "src/*": ["./src/*"],
-      "@auth/*": ["./src/@auth/*"],
-      "@i18n": ["./src/@i18n/index"],
-      "@i18n/*": ["./src/@i18n/*"],
-      "@fuse/*": ["./src/@fuse/*"],
-      "@history*": ["./src/@history"],
-      "@mock-utils/*": ["./src/@mock-utils/*"],
-      "@schema": ["./src/@schema"],
-      "@/*": ["./src/*"]
+      "src/*": [
+        "./src/*"
+      ],
+      "@auth/*": [
+        "./src/@auth/*"
+      ],
+      "@i18n": [
+        "./src/@i18n/index"
+      ],
+      "@i18n/*": [
+        "./src/@i18n/*"
+      ],
+      "@fuse/*": [
+        "./src/@fuse/*"
+      ],
+      "@history*": [
+        "./src/@history"
+      ],
+      "@mock-utils/*": [
+        "./src/@mock-utils/*"
+      ],
+      "@schema": [
+        "./src/@schema"
+      ],
+      "@/*": [
+        "./src/*"
+      ]
     },
     "declaration": true,
     "target": "esnext",
-    "lib": ["dom", "dom.iterable", "es2020", "scripthost"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "es2020",
+      "scripthost"
+    ],
     "plugins": [
-      { "name": "typescript-plugin-css-modules" },
-      { "name": "next" }
+      {
+        "name": "typescript-plugin-css-modules"
+      },
+      {
+        "name": "next"
+      }
     ],
     "allowJs": true,
     "skipLibCheck": true,
@@ -31,12 +58,13 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "incremental": true
   },
   "exclude": [
     "src/app/(public)/documentation/material-ui-components/components/**/*",
     "src/app/(public)/documentation/material-ui-components/doc/**/*",
+    "src/app/sw.ts",
     "node_modules"
   ],
   "include": [
@@ -47,6 +75,7 @@
     "next-env.d.ts",
     ".next/types/**/*.ts",
     "next.config.mjs",
-    "build/types/**/*.ts"
+    "build/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
   ]
 }

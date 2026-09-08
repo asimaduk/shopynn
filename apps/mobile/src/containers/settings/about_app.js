@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, StyleSheet, View, TouchableOpacity, Linking } from 'react-native';
+import { ScrollView, StyleSheet, View, TouchableOpacity, Linking, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AppText from '../../components/text';
 import config from '../../config';
@@ -56,7 +56,11 @@ const AboutApp = ({ navigation }) => {
                 <View style={[styles.heroCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                     <View style={styles.heroSection}>
                         <View style={styles.logoContainer}>
-                            <Lucide name="package-check" size={56} color={colors.textInverse} />
+                            <Image
+                                source={require('../../assets/images/logo/ims-logo.png')}
+                                style={styles.logoImage}
+                                resizeMode="contain"
+                            />
                         </View>
                         <AppText label="Shopynn" fontSize={30} variant={1} color={colors.text} style={{ marginTop: 14 }} />
                         <AppText label="Inventory + Customer Ordering Platform" fontSize={13} color={colors.textSecondary} style={{ marginTop: 4 }} />
@@ -196,7 +200,7 @@ const styles = StyleSheet.create({
         width: 92,
         height: 92,
         borderRadius: 24,
-        backgroundColor: config.THEME_COLOR,
+        backgroundColor: '#FFFFFF',
         justifyContent: 'center',
         alignItems: 'center',
         elevation: 5,
@@ -204,6 +208,10 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.2,
         shadowRadius: 5,
+    },
+    logoImage: {
+        width: 64,
+        height: 64,
     },
     versionPill: {
         marginTop: 10,

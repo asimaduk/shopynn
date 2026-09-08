@@ -2,9 +2,10 @@
 
 import { FuseLayoutProps } from '@fuse/core/FuseLayout/FuseLayout';
 import FuseLayout from '@fuse/core/FuseLayout';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import OfflineBanner from './OfflineBanner';
 import themeLayouts from './theme-layouts/themeLayouts';
+import { endAuthTransition } from 'src/utils/authTransition';
 
 type MainLayoutProps = Omit<FuseLayoutProps, 'layouts'> & {
 	navbar?: boolean;
@@ -22,7 +23,7 @@ function MainLayout(props: MainLayoutProps) {
 		footer,
 		leftSidePanel,
 		rightSidePanel,
-		settings = {}, // Default to an empty object if settings is undefined
+		settings = {},
 		...rest
 	} = props;
 
@@ -38,6 +39,14 @@ function MainLayout(props: MainLayoutProps) {
 		};
 		return { ...settings, ...shorthandSettings };
 	}, [settings, navbar, toolbar, footer, leftSidePanel, rightSidePanel]);
+
+	useEffect(() => {
+		const timer = window.setTimeout(() => endAuthTransition(), 400);
+		return () => {
+			window.clearTimeout(timer);
+			endAuthTransition();
+		};
+	}, []);
 
 	return (
 		<FuseLayout

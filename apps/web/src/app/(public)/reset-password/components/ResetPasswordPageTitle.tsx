@@ -4,9 +4,9 @@ function ResetPasswordPageTitle() {
 	return (
 		<div className="w-full">
 			<img
-				className="w-12"
-				src="/assets/images/logo/logo.svg"
-				alt="logo"
+				className="w-14"
+				src="/assets/images/logo/shopynn-icon.png"
+				alt="Shopynn"
 			/>
 
 			<Typography className="mt-8 text-4xl leading-[1.25] font-extrabold tracking-tight">

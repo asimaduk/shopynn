@@ -1,15 +1,5 @@
-import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
-import dotenv from 'dotenv';
-
-dotenv.config();
-
-const s3 = new S3Client({
-    region: process.env.S3_BUCKET_REGION,
-    credentials: {
-        accessKeyId: process.env.AWS_ACCESSKEYID,
-        secretAccessKey: process.env.AWS_SECRETACCESSKEY,
-    },
-});
+import { DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { s3, s3Configured } from './s3Upload.js';
 
 /**
  * Delete objects from the app S3 bucket. Swallows per-key errors so DB updates can still proceed.
@@ -17,7 +7,7 @@ const s3 = new S3Client({
  */
 export async function deleteS3Objects(keys) {
     const bucket = process.env.S3_BUCKET_NAME;
-    if (!bucket || !Array.isArray(keys) || keys.length === 0) return;
+    if (!s3Configured || !s3 || !bucket || !Array.isArray(keys) || keys.length === 0) return;
 
     const unique = [...new Set(keys.map((k) => (k == null ? '' : String(k).trim())).filter(Boolean))];
     await Promise.all(

@@ -3,10 +3,10 @@ import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/landing/theme-provider";
 import { Navbar } from "@/components/landing/navbar";
 import { Hero } from "@/components/landing/hero";
-import { Stats } from "@/components/landing/stats";
+// import { Stats } from "@/components/landing/stats";
 import { Features } from "@/components/landing/features";
 import { HowItWorks } from "@/components/landing/how-it-works";
-import { DashboardPreview } from "@/components/landing/dashboard-preview";
+// import { DashboardPreview } from "@/components/landing/dashboard-preview";
 import { MobileApp } from "@/components/landing/mobile-app";
 import { Testimonials } from "@/components/landing/testimonials";
 import { Pricing } from "@/components/landing/pricing";
@@ -53,14 +53,14 @@ function Index() {
 
   return (
     <ThemeProvider>
-      <div className="min-h-screen bg-background text-foreground">
+      <div className="min-h-screen text-foreground" style={{ backgroundColor: "#faf9f7", color: "#1c1917" }}>
         <Navbar />
         <main>
           <Hero />
-          <Stats />
+          {/* <Stats /> */}
           <Features />
           <HowItWorks />
-          <DashboardPreview />
+          {/* <DashboardPreview /> */}
           <MobileApp />
           <Testimonials />
           <Pricing />

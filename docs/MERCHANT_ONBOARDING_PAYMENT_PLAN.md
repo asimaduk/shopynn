@@ -24,8 +24,8 @@ Enable **field agents** (and platform admins) to onboard businesses with a **sel
 | 6 | Failed payment retry | **Same quote**; each retry creates a **new `transaction_ref`** / payment row |
 | 7 | Free tier | Allow onboard on **Free** with **no upfront charge**; enable **charge later** when the business wants paid assistance (add-ons only, or revised quote) |
 | 8 | Clients (v1) | **Cheqstock** merchant flow + **ims-web** merchant onboard/collect |
-| 9 | Agent commission | **15%** one-time on onboarding line; **10%** on first subscription month line; **0%** on add-on lines (unless policy changes later) |
-| 10 | Payout policy | Digital channels to Shopynn only; monthly settlement; **~30-day** clawback on onboarding commission per [AGENT_PARTNER_PROGRAM.md](./AGENT_PARTNER_PROGRAM.md) |
+| 9 | Agent commission | **15%** one-time on assisted onboarding line; **5% residual** on every paid subscription month while serving agent; **0%** on add-on lines (unless policy changes later) |
+| 10 | Payout policy | Digital channels to Shopynn only; monthly settlement; **~30-day** clawback on onboarding commission per [AGENT_PARTNER_PROGRAM.md](./AGENT_PARTNER_PROGRAM.md); residual ends on agent clear/reassign |
 | 11 | Pricing display | **Every UI that shows list/catalog prices** must load from the billing catalog API (or server-built quote), not hard-coded constants — see [Phase 1b](#phase-1b--pricing-surfaces-migration-all-screens) |
 
 ---
@@ -69,7 +69,7 @@ Enable **field agents** (and platform admins) to onboard businesses with a **sel
 | `description` | Optional; shown in agent UI |
 | `amount_ghs` | Numeric; **migration** and any item admin-editable |
 | `min_amount_ghs` / `max_amount_ghs` | Optional bounds for migration-style add-ons |
-| `commission_eligible` | `onboarding_15` \| `subscription_first_month_10` \| `none` |
+| `commission_eligible` | `onboarding_15` \| `subscription_residual_5` \| `none` |
 | `is_active` | Soft-disable without deleting history |
 | `sort_order` | UI ordering |
 | `updated_at` / `updated_by` | Audit |
