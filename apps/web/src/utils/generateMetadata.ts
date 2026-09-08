@@ -19,8 +19,12 @@ async function generateMetadata(meta: {
 		publisher: 'Kingsford',
 		robots: meta.robots,
 		icons: {
-			icon: meta.favicon,
-			apple: '/assets/icons/icon-192.png'
+			icon: [
+				{ url: '/favicon.ico', sizes: 'any' },
+				{ url: '/favicon.svg', type: 'image/svg+xml' },
+				{ url: meta.favicon, type: 'image/png', sizes: '32x32' }
+			],
+			apple: '/apple-touch-icon.png'
 		},
 		appleWebApp: {
 			capable: true,
@@ -29,24 +33,7 @@ async function generateMetadata(meta: {
 		},
 		formatDetection: {
 			telephone: false
-		},
-		// metadataBase: new URL(meta.url),
-		// openGraph: {
-		// 	url: meta.url,
-		// 	title: meta.title,
-		// 	description: meta.description,
-		// 	images: [meta.cardImage],
-		// 	type: 'website',
-		// 	siteName: meta.title
-		// },
-		// twitter: {
-		// 	card: 'summary_large_image',
-		// 	site: '@FuseTech',
-		// 	creator: '@FuseTech',
-		// 	title: meta.title,
-		// 	description: meta.description,
-		// 	images: [meta.cardImage]
-		// }
+		}
 	};
 }
 

@@ -62,8 +62,18 @@ export default async function RootLayout({
 					href="/apple-touch-icon.png"
 				/>
 				<link
+					rel="icon"
+					href="/favicon.ico"
+					sizes="any"
+				/>
+				<link
+					rel="icon"
+					type="image/svg+xml"
+					href="/favicon.svg"
+				/>
+				<link
 					rel="shortcut icon"
-					href="/favicon-32.png"
+					href="/favicon.ico"
 				/>
 				<link
 					rel="icon"
