@@ -1,6 +1,6 @@
 import { User } from '@auth/user';
 import { FeatureFlagKey, isFeatureEnabled } from 'src/configs/featureFlags';
-import { buildUpgradeUrl, getMinimumTierDisplayForFeatures } from 'src/configs/subscriptionFeatureTiers';
+import { buildUpgradeUrl, getMinimumTierDisplayForFeatures, userMeetsFeatureTier } from 'src/configs/subscriptionFeatureTiers';
 import type { FuseNavItemType } from '@fuse/core/FuseNavigation/types/FuseNavItemType';
 
 export type FeatureAccessDeniedBy = 'permission' | 'plan' | 'flag';
@@ -41,7 +41,16 @@ export function getUserEntitledFeatures(user: User | null | undefined): string[]
 	const fromSettings = Array.isArray(user.settings?.subscription?.features)
 		? user.settings.subscription.features
 		: [];
-	return [...new Set([...fromSubscription, ...fromSettings].map((f) => String(f).trim().toLowerCase()).filter(Boolean))];
+	// Intersect API entitlements with the canonical tier map so stale DB rows
+	// (e.g. after an EC2 restore) cannot unlock Premium-only nav on Basic.
+	return [
+		...new Set(
+			[...fromSubscription, ...fromSettings]
+				.map((f) => String(f).trim().toLowerCase())
+				.filter(Boolean)
+				.filter((f) => userMeetsFeatureTier(user, f))
+		)
+	];
 }
 
 export function hasPermissionCodes(

@@ -71,6 +71,18 @@ pg_restore -v --data-only --disable-triggers --no-owner --no-acl \
 Ignore errors for tables that exist only in the old dump (or only in the new schema).  
 If a table fails on unknown columns, that table’s dump is newer/older than schema — fix that table manually or exclude it with a restore list.
 
+### 5b. Re-assert catalog / tier rules (optional but recommended)
+
+Data-only restore can bring back older `subscription_tier_features` rows. After restore, either redeploy the API so pending migrations run, or execute:
+
+```sql
+DELETE FROM subscription_tier_features stf
+USING subscription_tiers t
+WHERE stf.tier_id = t.id
+  AND lower(t.code) <> 'premium'
+  AND lower(stf.feature_code) = 'payments.view';
+```
+
 ### 6. Start the API
 
 Replicas = 1 / Redeploy.  
