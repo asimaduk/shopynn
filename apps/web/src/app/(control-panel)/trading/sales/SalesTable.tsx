@@ -24,6 +24,8 @@ import { hasPermissionCodes } from '@auth/permissions';
 
 function OrdersTable({ sales }: { sales: Sale[] }) {
 	const [search, setSearch] = useState('');
+	const { data: user } = useUser();
+	const canResendInvoice = hasPermissionCodes(user, 'sales.share_receipt');
 
 	const filtered = useMemo(() => {
 		const list = sales || [];

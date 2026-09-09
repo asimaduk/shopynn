@@ -15,6 +15,7 @@ import MenuItem from '@mui/material/MenuItem';
 import { alpha, useTheme } from '@mui/material/styles';
 import FuseLoading from '@fuse/core/FuseLoading';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
+import NavLinkAdapter from '@fuse/core/NavLinkAdapter';
 import PageBreadcrumb from 'src/components/PageBreadcrumb';
 import { useGetPaymentsQuery } from '../../billing/SubscriptionApi';
 import OrderPaymentsTable from './OrderPaymentsTable';
