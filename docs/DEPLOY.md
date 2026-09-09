@@ -47,6 +47,8 @@ Create **two** Vercel projects from the **same** Git repo:
 - Optional: set Railway **Watch Paths** to `apps/api/**` so web/site-only commits do not redeploy the API
 - Healthcheck: `GET /health`
 
+Importing production data from the old EC2 Postgres: see [DB_IMPORT_EC2.md](./DB_IMPORT_EC2.md) (latest schema first, then data-only restore).
+
 Local smoke test:
 
 ```bash

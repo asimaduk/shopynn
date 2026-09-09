@@ -1,5 +1,31 @@
 -- Pay-over-time (flexible partial payments) for customer store orders.
--- EC2 / older DBs may not have the online-orders tables yet — create them first.
+-- EC2 / older DBs may lack online-order tables and/or primary keys after a partial restore.
+-- Ensure PKs exist before adding FKs, then create online-order tables IF NOT EXISTS.
+
+DO $$
+DECLARE
+  t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY[
+    'tenants', 'users', 'warehouses', 'products', 'customers', 'payments',
+    'locations', 'merchants', 'subscriptions', 'roles', 'permissions'
+  ]
+  LOOP
+    IF to_regclass(format('public.%I', t)) IS NOT NULL
+       AND NOT EXISTS (
+         SELECT 1
+         FROM pg_constraint c
+         JOIN pg_class r ON r.oid = c.conrelid
+         JOIN pg_namespace n ON n.oid = r.relnamespace
+         WHERE n.nspname = 'public'
+           AND r.relname = t
+           AND c.contype = 'p'
+       )
+    THEN
+      EXECUTE format('ALTER TABLE public.%I ADD PRIMARY KEY (id)', t);
+    END IF;
+  END LOOP;
+END $$;
 
 CREATE TABLE IF NOT EXISTS warehouse_reference_codes (
     id varchar(40) PRIMARY KEY,
