@@ -155,7 +155,10 @@ export type NavItemAccess = {
 	requiredPlanName?: string;
 };
 
-/** Nav: hide when role lacks permission; show locked when plan lacks feature. */
+/** Nav: hide when role lacks permission; show locked when plan lacks feature.
+ *  Billing admins still see plan-locked items (e.g. Online Orders) even if the
+ *  restored role is missing the permission code — so upgrade CTAs remain visible.
+ */
 export function resolveNavItemAccess(
 	user: User | null | undefined,
 	item: Pick<FuseNavItemType, 'requiredPermissions' | 'requiredFeatures' | 'featureFlag' | 'url' | 'id'>
@@ -166,11 +169,22 @@ export function resolveNavItemAccess(
 		item.featureFlag,
 		item.requiredFeatures
 	);
+	const features = normalizeRequiredList(item.requiredFeatures ?? item.requiredPermissions);
+
 	if (access.deniedBy === 'permission') {
+		const planTooLow =
+			features.length > 0 && features.some((f) => !userMeetsFeatureTier(user, f));
+		if (isBillingAdminUser(user) && planTooLow) {
+			return {
+				visible: true,
+				locked: true,
+				upgradeUrl: buildUpgradeUrl(features, item.url),
+				requiredPlanName: getMinimumTierDisplayForFeatures(features)
+			};
+		}
 		return { visible: false, locked: false };
 	}
 	if (access.deniedBy === 'plan') {
-		const features = normalizeRequiredList(item.requiredFeatures ?? item.requiredPermissions);
 		return {
 			visible: true,
 			locked: true,

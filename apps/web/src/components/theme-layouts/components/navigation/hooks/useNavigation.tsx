@@ -66,25 +66,25 @@ function useNavigation() {
             ? getMinimumTierForFeatures(requiredFeatures)
             : null;
 
-        return {
-          hasPermission: navAccess.visible && !navAccess.locked,
-          lockedByPlan: navAccess.locked,
-          url: navAccess.locked ? navAccess.upgradeUrl : item.url,
-          badge:
-            navAccess.locked && tierCode
-              ? {
-                  title: getTierBadgeLetter(tierCode),
-                  bg: '#EEF2FF',
-                  fg: '#4338CA'
-                }
-              : item.badge,
-          ...item,
-          ...titleFromI18n,
-          ...merchantsNavTitle,
-          ...(item?.children
-            ? { children: setAdditionalData(item?.children) }
-            : {}),
-        };
+		return {
+			...item,
+			...titleFromI18n,
+			...merchantsNavTitle,
+			hasPermission: navAccess.visible && !navAccess.locked,
+			lockedByPlan: navAccess.locked,
+			url: navAccess.locked ? navAccess.upgradeUrl : item.url,
+			badge:
+				navAccess.locked && tierCode
+					? {
+							title: getTierBadgeLetter(tierCode),
+							bg: '#EEF2FF',
+							fg: '#4338CA'
+						}
+					: item.badge,
+			...(item?.children
+				? { children: setAdditionalData(item?.children) }
+				: {}),
+		};
       });
     }
 
