@@ -155,9 +155,26 @@ export type NavItemAccess = {
 	requiredPlanName?: string;
 };
 
-/** Nav: hide when role lacks permission; show locked when plan lacks feature.
- *  Billing admins still see plan-locked items (e.g. Online Orders) even if the
- *  restored role is missing the permission code — so upgrade CTAs remain visible.
+/** Platform-operator tools — never shown as plan upgrade locks to tenants. */
+const PLATFORM_NAV_FEATURES = new Set([
+	'merchants.view',
+	'merchants.operate',
+	'tenants.directory.view',
+	'newsletter.subscribers.view',
+	'newsletter.campaigns.view',
+	'newsletter.campaigns.send',
+	'contact_requests.view',
+	'contact_requests.respond',
+	'site_chat.sessions.view',
+	'site_chat.sessions.respond'
+]);
+
+function isPlatformNavItem(features: string[]): boolean {
+	return features.some((f) => PLATFORM_NAV_FEATURES.has(f));
+}
+
+/** Nav: hide when role lacks permission; show locked when plan lacks a sellable feature.
+ *  Platform-admin items are permission-gated only (hide, never lock-to-upgrade).
  */
 export function resolveNavItemAccess(
 	user: User | null | undefined,
@@ -172,19 +189,13 @@ export function resolveNavItemAccess(
 	const features = normalizeRequiredList(item.requiredFeatures ?? item.requiredPermissions);
 
 	if (access.deniedBy === 'permission') {
-		const planTooLow =
-			features.length > 0 && features.some((f) => !userMeetsFeatureTier(user, f));
-		if (isBillingAdminUser(user) && planTooLow) {
-			return {
-				visible: true,
-				locked: true,
-				upgradeUrl: buildUpgradeUrl(features, item.url),
-				requiredPlanName: getMinimumTierDisplayForFeatures(features)
-			};
-		}
 		return { visible: false, locked: false };
 	}
 	if (access.deniedBy === 'plan') {
+		// Merchants / tenants / marketing admin etc. are not subscription upsells.
+		if (isPlatformNavItem(features)) {
+			return { visible: false, locked: false };
+		}
 		return {
 			visible: true,
 			locked: true,
