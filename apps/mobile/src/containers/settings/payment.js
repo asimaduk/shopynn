@@ -47,11 +47,38 @@ const Payment = ({ navigation, route }) => {
     const [selectedMethod, setSelectedMethod] = useState('momo'); // 'card', 'momo'
     const [momoNumber, setMomoNumber] = useState('');
     const [momoNetwork, setMomoNetwork] = useState('mtn'); // 'mtn', 'telecel', 'airteltigo'
+    const [telecelVoucher, setTelecelVoucher] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
     const formatCurrency = (value) => formatter.format(value).replace('GH₵', 'GHS ').trim();
+    const isTelecel = momoNetwork === 'telecel';
 
     const isOrderFlow = flowType === 'order' || flowType === 'order_partial';
+
+    const validateMomoForm = () => {
+        const phone = normalizeMomoNumber(momoNumber);
+        if (!phone || phone.length < MOMO_NUMBER_MAX_LENGTH) {
+            Alert.alert('Required', `Please enter a valid ${MOMO_NUMBER_MAX_LENGTH}-digit mobile money number.`);
+            return null;
+        }
+        if (isTelecel && !String(telecelVoucher || '').trim()) {
+            Alert.alert(
+                'Voucher required',
+                'Dial *110# to generate a Telecel Cash voucher, then enter it here.',
+            );
+            return null;
+        }
+        return { phone, voucher: String(telecelVoucher || '').trim() };
+    };
+
+    const submitTelecelVoucherIfNeeded = async ({ mode, orderId: oid, transactionRef, voucher }) => {
+        if (!isTelecel || !voucher || !transactionRef) return;
+        if (mode === 'order') {
+            await orders.submitPaymentOtp(oid, { reference: transactionRef, otp: voucher });
+            return;
+        }
+        await payments.submitOtp({ reference: transactionRef, otp: voucher });
+    };
 
     const handleSubscriptionPayment = async () => {
         if (!subscriptionId) {
@@ -90,28 +117,45 @@ const Payment = ({ navigation, route }) => {
                 return;
             }
 
-            const phone = normalizeMomoNumber(momoNumber);
-            if (!phone || phone.length < MOMO_NUMBER_MAX_LENGTH) {
-                Alert.alert('Invalid Number', `Please enter a valid ${MOMO_NUMBER_MAX_LENGTH}-digit mobile money number.`);
-                return;
-            }
+            const momo = validateMomoForm();
+            if (!momo) return;
             const res = await payments.initiate({
                 ...paymentBodyBase,
                 payment_method: 'mobile_money',
-                phone,
+                phone: momo.phone,
                 provider: MOMO_NETWORK_OPTIONS.find((n) => n.id === momoNetwork)?.provider || 'mtn',
             });
             const transactionRef = res?.transaction_ref;
-            const msg = res?.display_text || res?.ussd_code || 'Complete the payment prompt on your phone.';
+            try {
+                await submitTelecelVoucherIfNeeded({
+                    mode: 'subscription',
+                    transactionRef,
+                    voucher: momo.voucher,
+                });
+            } catch (otpErr) {
+                Alert.alert(
+                    'Voucher',
+                    otpErr?.response?.data?.message ||
+                        otpErr?.message ||
+                        'Could not submit Telecel voucher. You can retry on the next screen.',
+                );
+            }
+            const msg =
+                res?.display_text ||
+                res?.ussd_code ||
+                (isTelecel
+                    ? 'Telecel voucher submitted. Confirm status on the next screen.'
+                    : 'Complete the payment prompt on your phone.');
             Alert.alert('Mobile money', msg);
             navigation.navigate('MomoStatus', {
                 amount,
                 planName,
-                momoNumber: phone,
+                momoNumber: momo.phone,
                 momoNetwork,
                 transactionId: transactionRef,
                 transactionRef,
                 mode: 'subscription',
+                needsVoucher: isTelecel,
             });
         } catch (error) {
             Alert.alert(
@@ -126,10 +170,7 @@ const Payment = ({ navigation, route }) => {
     const handlePayment = async () => {
         if (submitting) return;
         if (!isOrderFlow) {
-            if (selectedMethod === 'momo' && (!momoNumber || momoNumber.length < MOMO_NUMBER_MAX_LENGTH)) {
-                Alert.alert('Required', `Please enter a valid ${MOMO_NUMBER_MAX_LENGTH}-digit mobile money number.`);
-                return;
-            }
+            if (selectedMethod === 'momo' && !validateMomoForm()) return;
             await handleSubscriptionPayment();
             return;
         }
@@ -162,29 +203,47 @@ const Payment = ({ navigation, route }) => {
                 return;
             }
 
-            const phone = normalizeMomoNumber(momoNumber);
-            if (!phone || phone.length < MOMO_NUMBER_MAX_LENGTH) {
-                Alert.alert('Invalid Number', `Please enter a valid ${MOMO_NUMBER_MAX_LENGTH}-digit mobile money number.`);
-                return;
-            }
+            const momo = validateMomoForm();
+            if (!momo) return;
             const res = await initiateFn(orderId, {
                 ...paymentBodyBase,
                 payment_method: 'mobile_money',
-                phone,
+                phone: momo.phone,
                 provider: MOMO_NETWORK_OPTIONS.find((n) => n.id === momoNetwork)?.provider || 'mtn',
             });
             const transactionRef = res?.transaction_ref;
-            const msg = res?.display_text || res?.ussd_code || 'Complete the payment prompt on your phone.';
+            try {
+                await submitTelecelVoucherIfNeeded({
+                    mode: 'order',
+                    orderId,
+                    transactionRef,
+                    voucher: momo.voucher,
+                });
+            } catch (otpErr) {
+                Alert.alert(
+                    'Voucher',
+                    otpErr?.response?.data?.message ||
+                        otpErr?.message ||
+                        'Could not submit Telecel voucher. You can retry on the next screen.',
+                );
+            }
+            const msg =
+                res?.display_text ||
+                res?.ussd_code ||
+                (isTelecel
+                    ? 'Telecel voucher submitted. Confirm status on the next screen.'
+                    : 'Complete the payment prompt on your phone.');
             Alert.alert('Mobile money', msg);
             navigation.navigate('MomoStatus', {
                 amount,
                 planName: planName || 'Order payment',
-                momoNumber: phone,
+                momoNumber: momo.phone,
                 momoNetwork,
                 transactionId: transactionRef,
                 transactionRef,
                 mode: 'order',
                 orderId,
+                needsVoucher: isTelecel,
                 successNavigateTo: onSuccessNavigateTo || 'MyOrderDetails',
                 successNavigateParams: onSuccessNavigateParams || { orderId },
             });
@@ -301,7 +360,10 @@ const Payment = ({ navigation, route }) => {
                                     <TouchableOpacity
                                         key={network.id}
                                         activeOpacity={0.7}
-                                        onPress={() => setMomoNetwork(network.id)}
+                                        onPress={() => {
+                                            setMomoNetwork(network.id);
+                                            if (network.id !== 'telecel') setTelecelVoucher('');
+                                        }}
                                         style={[
                                             styles.networkChip,
                                             {
@@ -335,6 +397,32 @@ const Payment = ({ navigation, route }) => {
                                 maxLength={MOMO_NUMBER_MAX_LENGTH}
                                 style={[styles.input, { borderColor: colors.inputBorder || colors.border, color: colors.text, marginTop: 12 }]}
                             />
+                            {isTelecel ? (
+                                <>
+                                    <AppText
+                                        label="Dial *110# to generate a Telecel Cash voucher, then enter it below."
+                                        fontSize={12}
+                                        color={colors.textSecondary}
+                                        style={{ marginBottom: 8 }}
+                                    />
+                                    <TextInput
+                                        placeholder="Telecel voucher"
+                                        placeholderTextColor={colors.placeholder || colors.textTertiary}
+                                        value={telecelVoucher}
+                                        onChangeText={setTelecelVoucher}
+                                        autoCapitalize="characters"
+                                        autoCorrect={false}
+                                        style={[
+                                            styles.input,
+                                            {
+                                                borderColor: colors.inputBorder || colors.border,
+                                                color: colors.text,
+                                                marginBottom: 0,
+                                            },
+                                        ]}
+                                    />
+                                </>
+                            ) : null}
                         </View>
                     </View>
                 )}

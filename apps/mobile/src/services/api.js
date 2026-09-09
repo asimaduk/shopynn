@@ -16,7 +16,7 @@ const getData = (res) => (res?.data?.data !== undefined ? res.data.data : res?.d
 /** Normalize list responses: API may return array or { list, items, data } */
 export const normalizeList = (raw) => (Array.isArray(raw) ? raw : raw?.list ?? raw?.items ?? raw?.data ?? []);
 
-const CATALOG_DETAILS_CACHE_KEY = 'CHEQSTOCK_CATALOG_DETAILS_CACHE_V1';
+const CATALOG_DETAILS_CACHE_KEY = 'SHOPYNN_CATALOG_DETAILS_CACHE_V1';
 const CATALOG_DETAILS_TTL_MS = 1000 * 60 * 10; // 10 minutes
 const catalogDetailsMemoryCache = new Map();
 
@@ -158,7 +158,18 @@ async function applyOfflinePendingSalesDeltas(products) {
 // —— Auth / Users ——
 export const users = {
     login: (email, password) =>
-        axios.post('/users/login', { email, password }).then((res) => ({ token: getData(res)?.token ?? getData(res), ...res.data })),
+        axios
+            .post(
+                '/users/login',
+                { email, password },
+                {
+                    headers: {
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                    },
+                }
+            )
+            .then((res) => ({ token: getData(res)?.token ?? getData(res), ...res.data })),
     forgotPassword: (email) => axios.post('/users/forgot-password', { email }).then((res) => res.data),
     resetPassword: (currentPassword, newPassword) => axios.post('/users/reset-password', { password: newPassword, old_password: currentPassword }).then((res) => res.data),
     changePassword: (currentPassword, newPassword) => axios.post('/users/change-password', { current_password: currentPassword, new_password: newPassword }).then((res) => res.data),
@@ -482,6 +493,8 @@ export const payments = {
     reverse: (id, body = {}) => axios.post(`/payments/${id}/reverse`, body).then((res) => getData(res)),
     create: (body) => axios.post('/payments', body).then((res) => getData(res)),
     initiate: (body) => axios.post('/payments/initiate', body).then((res) => getData(res)),
+    /** Telecel/Vodafone voucher (Paystack charge/submit_otp) after dialling *110# */
+    submitOtp: (body) => axios.post('/payments/submit-otp', body).then((res) => getData(res)),
     byCustomer: (customerId, params) =>
         axios.get(`/payments/customer/${customerId}`, { params }).then((res) => getData(res)),
     verify: (reference) => axios.get('/payments/verify', { params: { reference } }).then((res) => getData(res)),

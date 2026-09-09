@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, StyleSheet, TouchableOpacity, ActivityIndicator, TextInput, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch } from 'react-redux';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
 import config from '../../config';
 import useTheme from '../../hooks/useTheme';
 import ScreenHeader from '../../components/screen_header';
-import { payments } from '../../services/api';
+import { orders, payments } from '../../services/api';
 import { setSubscriptionActive } from '../../store/actions/appSettings';
 
 const formatter = new Intl.NumberFormat('en-GH', {
@@ -35,12 +35,16 @@ const MomoStatus = ({ navigation, route }) => {
         transactionRef,
         mode = 'subscription',
         orderId,
+        needsVoucher = false,
         successNavigateTo,
         successNavigateParams,
     } = route.params || {};
-    
+
     const [status, setStatus] = useState('checking'); // 'checking', 'pending', 'success', 'failed'
     const [checking, setChecking] = useState(true);
+    const [voucher, setVoucher] = useState('');
+    const [submittingVoucher, setSubmittingVoucher] = useState(false);
+    const isTelecel = momoNetwork === 'telecel' || needsVoucher;
 
     const verifyPaymentStatus = useCallback(async () => {
         if (!transactionRef) {
@@ -71,6 +75,31 @@ const MomoStatus = ({ navigation, route }) => {
 
     const handleCheckAgain = () => {
         verifyPaymentStatus();
+    };
+
+    const handleSubmitVoucher = async () => {
+        const otp = String(voucher || '').trim();
+        if (!otp || !transactionRef) {
+            Alert.alert('Voucher required', 'Enter the Telecel Cash voucher from *110#.');
+            return;
+        }
+        setSubmittingVoucher(true);
+        try {
+            if (mode === 'order') {
+                await orders.submitPaymentOtp(orderId, { reference: transactionRef, otp });
+            } else {
+                await payments.submitOtp({ reference: transactionRef, otp });
+            }
+            setVoucher('');
+            await verifyPaymentStatus();
+        } catch (error) {
+            Alert.alert(
+                'Voucher',
+                error?.response?.data?.message || error?.message || 'Could not submit voucher.',
+            );
+        } finally {
+            setSubmittingVoucher(false);
+        }
     };
 
     const getStatusConfig = () => {
@@ -106,7 +135,9 @@ const MomoStatus = ({ navigation, route }) => {
                     iconColor: '#f59e0b',
                     bgColor: '#fef3c7',
                     title: 'Payment Pending',
-                    message: 'Your payment is still being processed. Please check again in a few moments.',
+                    message: isTelecel
+                        ? 'If payment is still waiting, dial *110#, enter your voucher below, then check again.'
+                        : 'Your payment is still being processed. Please check again in a few moments.',
                     buttonLabel: 'Check Again',
                     buttonAction: handleCheckAgain,
                 };
@@ -146,7 +177,6 @@ const MomoStatus = ({ navigation, route }) => {
             />
             <View style={[styles.container, { paddingBottom: insets.bottom + 24 }]}>
                 <View style={styles.content}>
-                    {/* Status Icon */}
                     <View style={[styles.iconContainer, { backgroundColor: statusConfig.bgColor }]}>
                         {checking || status === 'checking' ? (
                             <ActivityIndicator size="large" color={statusConfig.iconColor} />
@@ -155,7 +185,6 @@ const MomoStatus = ({ navigation, route }) => {
                         )}
                     </View>
 
-                    {/* Status Text */}
                     <AppText
                         label={statusConfig.title}
                         variant={1}
@@ -170,7 +199,6 @@ const MomoStatus = ({ navigation, route }) => {
                         style={{ marginTop: 8, textAlign: 'center', paddingHorizontal: 24 }}
                     />
 
-                    {/* Payment Details */}
                     <View style={[styles.detailsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                         <View style={styles.detailRow}>
                             <AppText label="Transaction ID" fontSize={14} color={colors.textSecondary} />
@@ -193,7 +221,35 @@ const MomoStatus = ({ navigation, route }) => {
                         </View>
                     </View>
 
-                    {/* Action Button */}
+                    {isTelecel && status === 'pending' && !checking ? (
+                        <View style={[styles.voucherCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                            <TextInput
+                                placeholder="Telecel voucher"
+                                placeholderTextColor={colors.placeholder || colors.textTertiary}
+                                value={voucher}
+                                onChangeText={setVoucher}
+                                autoCapitalize="characters"
+                                autoCorrect={false}
+                                style={[
+                                    styles.voucherInput,
+                                    { borderColor: colors.inputBorder || colors.border, color: colors.text },
+                                ]}
+                            />
+                            <TouchableOpacity
+                                activeOpacity={0.8}
+                                disabled={submittingVoucher}
+                                onPress={handleSubmitVoucher}
+                                style={[styles.voucherButton, { borderColor: config.THEME_COLOR }]}>
+                                <AppText
+                                    label={submittingVoucher ? 'Submitting…' : 'Submit voucher'}
+                                    variant={1}
+                                    fontSize={14}
+                                    color={config.THEME_COLOR}
+                                />
+                            </TouchableOpacity>
+                        </View>
+                    ) : null}
+
                     {statusConfig.buttonLabel && !checking && (
                         <TouchableOpacity
                             activeOpacity={0.8}
@@ -207,22 +263,6 @@ const MomoStatus = ({ navigation, route }) => {
                             />
                         </TouchableOpacity>
                     )}
-
-                    {/* Check Again Button (for pending status) */}
-                    {/* {status === 'pending' && !checking && (
-                        <TouchableOpacity
-                            activeOpacity={0.7}
-                            onPress={handleCheckAgain}
-                            style={[styles.secondaryButton, { borderColor: colors.border }]}>
-                            <Lucide name="refresh-cw" size={18} color={config.THEME_COLOR} />
-                            <AppText
-                                label="Refresh Status"
-                                fontSize={14}
-                                color={config.THEME_COLOR}
-                                style={{ marginLeft: 8 }}
-                            />
-                        </TouchableOpacity>
-                    )} */}
                 </View>
             </View>
         </View>
@@ -267,22 +307,34 @@ const styles = StyleSheet.create({
         height: StyleSheet.hairlineWidth,
         marginVertical: 8,
     },
+    voucherCard: {
+        width: '100%',
+        borderRadius: 12,
+        padding: 16,
+        marginTop: 16,
+        borderWidth: 1,
+    },
+    voucherInput: {
+        height: 48,
+        borderWidth: 1,
+        borderRadius: 10,
+        paddingHorizontal: 14,
+        fontFamily: 'FiraSans-Regular',
+        fontSize: 16,
+    },
+    voucherButton: {
+        marginTop: 12,
+        paddingVertical: 12,
+        borderRadius: 5,
+        borderWidth: 1,
+        alignItems: 'center',
+    },
     actionButton: {
         width: '100%',
         paddingVertical: 16,
         borderRadius: 5,
         alignItems: 'center',
         marginTop: 32,
-    },
-    secondaryButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: '100%',
-        paddingVertical: 12,
-        borderRadius: 5,
-        borderWidth: 1,
-        marginTop: 12,
     },
 });
 
