@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import {
     SUBSCRIPTION_TYPE_TO_TIER,
     FALLBACK_CATALOG_AMOUNTS,
+    DEFAULT_BILLING_CATALOG_SEED,
 } from "../constants/billingCatalog.js";
 
 const SUBSCRIPTION_META = {
@@ -21,6 +22,93 @@ const mapRow = (row) => {
         max_amount_ghs: row.max_amount_ghs != null ? Number(row.max_amount_ghs) : null,
         is_active: Boolean(row.is_active),
     };
+};
+
+let ensureCatalogPromise = null;
+let catalogLooksHealthy = false;
+
+const catalogNeedsSeed = async () => {
+    const health = await pool.query(
+        `SELECT
+            COUNT(*) FILTER (
+                WHERE code IN ('plan_basic_monthly', 'plan_standard_monthly', 'plan_premium_monthly')
+                  AND is_active = true
+                  AND amount_ghs > 0
+            )::int AS paid_plans
+         FROM billing_catalog_items`
+    );
+    return Number(health.rows[0]?.paid_plans || 0) < 3;
+};
+
+/**
+ * Idempotent: insert missing catalog codes and restore amount_ghs=0 to defaults.
+ * Safe after EC2 data restores that wipe billing_catalog_items (migrations won't re-run).
+ * Does not overwrite non-zero custom prices.
+ */
+export const ensureBillingCatalogSeededService = async () => {
+    // After a successful seed this process skips; Railway redeploy/restart after restore re-runs.
+    if (catalogLooksHealthy) return { seeded: true, skipped: true };
+    if (ensureCatalogPromise) return ensureCatalogPromise;
+    ensureCatalogPromise = (async () => {
+        try {
+            const table = await pool.query(`SELECT to_regclass('public.billing_catalog_items') AS reg`);
+            if (!table.rows[0]?.reg) return { seeded: false, reason: "missing_table" };
+
+            if (!(await catalogNeedsSeed())) {
+                catalogLooksHealthy = true;
+                return { seeded: true, skipped: true };
+            }
+
+            let inserted = 0;
+            for (const row of DEFAULT_BILLING_CATALOG_SEED) {
+                const result = await pool.query(
+                    `INSERT INTO billing_catalog_items (
+                        id, code, item_type, plan_tier, label, description, amount_ghs,
+                        commission_eligible, is_active, sort_order, created_at, updated_at
+                     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,now(),now())
+                     ON CONFLICT (code) DO UPDATE SET
+                        amount_ghs = CASE
+                            WHEN billing_catalog_items.amount_ghs = 0 AND EXCLUDED.amount_ghs > 0
+                                THEN EXCLUDED.amount_ghs
+                            ELSE billing_catalog_items.amount_ghs
+                        END,
+                        is_active = CASE
+                            WHEN EXCLUDED.code IN ('addon_csv_import', 'addon_opening_stock') THEN false
+                            WHEN billing_catalog_items.is_active IS FALSE
+                                 AND EXCLUDED.is_active IS TRUE
+                                 AND EXCLUDED.code LIKE 'plan_%' THEN true
+                            ELSE billing_catalog_items.is_active
+                        END,
+                        updated_at = now()
+                     RETURNING (xmax = 0) AS inserted`,
+                    [
+                        uuidv4(),
+                        row.code,
+                        row.item_type,
+                        row.plan_tier,
+                        row.label,
+                        row.description,
+                        row.amount_ghs,
+                        row.commission_eligible,
+                        row.is_active,
+                        row.sort_order,
+                    ]
+                );
+                if (result.rows[0]?.inserted) inserted += 1;
+            }
+            catalogLooksHealthy = !(await catalogNeedsSeed());
+            console.log(
+                `billing catalog ensure: inserted=${inserted} healthy=${catalogLooksHealthy}`
+            );
+            return { seeded: true, inserted, healthy: catalogLooksHealthy };
+        } catch (err) {
+            console.error("billing catalog ensure failed:", err?.message || err);
+            return { seeded: false, error: err?.message || String(err) };
+        } finally {
+            ensureCatalogPromise = null;
+        }
+    })();
+    return ensureCatalogPromise;
 };
 
 export const listBillingCatalogItemsService = async ({ activeOnly = true, itemType = null } = {}) => {
@@ -174,6 +262,7 @@ export const resolveAddonItemsByCodesService = async (addonCodes = []) => {
 
 /** Grouped catalog for clients: plans + addons */
 export const getBillingCatalogGroupedService = async () => {
+    await ensureBillingCatalogSeededService();
     const items = await listBillingCatalogItemsService({ activeOnly: true });
     const plans = {};
     const addons = [];

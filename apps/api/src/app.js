@@ -7,6 +7,7 @@ import errorhandling from "./middleware/errorhandler.js";
 import indexroute from "./routes/index.js";
 import { startSubscriptionStatusJob } from "./jobs/subscriptionStatusJob.js";
 import { startDailySalesSummaryNotificationJob } from "./jobs/dailySalesSummaryNotificationJob.js";
+import { ensureBillingCatalogSeededService } from "./models/billingCatalog.js";
 
 const app = express();
 // Railway injects PORT; fall back to APP_PORT for local/Docker.
@@ -29,6 +30,10 @@ app.use(errorhandling);
 
 startSubscriptionStatusJob();
 startDailySalesSummaryNotificationJob();
+// Self-heal empty billing catalog after data restores (migrations already applied).
+ensureBillingCatalogSeededService().catch((err) => {
+    console.error("startup billing catalog ensure failed:", err?.message || err);
+});
 
 app.listen(port, "0.0.0.0", () => {
     console.log(`Server is running on port ${port}`);
