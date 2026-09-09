@@ -16,9 +16,14 @@ Monorepo layout:
 
 Create **two** Vercel projects from the **same** Git repo:
 
-1. **shopynn-web**
+1. **admin-shopynn** (formerly shopynn-web)
+   - Production URL: `https://admin-shopynn.vercel.app`
    - Root Directory: `apps/web`
    - Framework: Next.js
+   - Env (Production): set all of these to the new origin after any domain rename:
+     - `AUTH_URL=https://admin-shopynn.vercel.app`
+     - `NEXTAUTH_URL=https://admin-shopynn.vercel.app` (if used)
+     - `NEXT_PUBLIC_BASE_URL=https://admin-shopynn.vercel.app`
    - Ignored Build Step:
      ```bash
      bash scripts/vercel-ignore-web.sh
@@ -35,7 +40,7 @@ Create **two** Vercel projects from the **same** Git repo:
      bash scripts/vercel-ignore-site.sh
      ```
    - Equivalent: `npx turbo-ignore @shopynn/site`
-   - Env: `VITE_API_BASE_URL` (Railway API origin), `VITE_WEB_APP_URL` (Vercel web origin)
+   - Env: `VITE_API_BASE_URL` (Railway API origin), `VITE_WEB_APP_URL` (admin web origin, e.g. `https://admin-shopynn.vercel.app`)
    - These must also be listed under `build.env` in root `turbo.json` (Turbo strips undeclared Vercel envs)
 
 `turbo-ignore` / these scripts exit `0` to **skip** the deploy when the commit does not touch that app (so an API-only push will not rebuild Vercel).
@@ -66,7 +71,7 @@ Copy from `apps/api/.env.example`. Required at minimum:
 - Listen on Railway’s `PORT` (app reads `PORT` then `APP_PORT`; do not hard-pin a different port)
 - `JWT_SECRET`
 - `PAYSTACK_SECRET_KEY` (production payments / withdrawals)
-- `FRONTEND_URL` / `PAYMENT_CALLBACK_URL` (point at Vercel web URL)
+- `FRONTEND_URL` / `PAYMENT_CALLBACK_URL` (point at admin web, e.g. `https://admin-shopynn.vercel.app`)
 - AWS/S3 keys if uploads are enabled
 
 Never commit real `.env` files.
@@ -74,12 +79,13 @@ Never commit real `.env` files.
 ### Vercel — `@shopynn/web`
 
 - Public API base URL pointing at the Railway API (whatever env name the app already uses, e.g. `NEXT_PUBLIC_*` / existing config)
-- Auth / OAuth secrets as already configured in the former `ims-web` project
+- Auth secrets (`AUTH_SECRET`)
+- After renaming the Vercel domain, update `AUTH_URL` / `NEXTAUTH_URL` / `NEXT_PUBLIC_BASE_URL` to match (e.g. `https://admin-shopynn.vercel.app`) and redeploy
 
 ### Vercel — `@shopynn/site`
 
 - `VITE_API_BASE_URL` — Railway API origin (no trailing slash), e.g. `https://shopynn-production.up.railway.app`
-- `VITE_WEB_APP_URL` — Vercel web app origin for sign-in links
+- `VITE_WEB_APP_URL` — admin web origin for sign-in links (e.g. `https://admin-shopynn.vercel.app`), then redeploy site
 - Any analytics keys
 
 ### Mobile — `@shopynn/mobile`

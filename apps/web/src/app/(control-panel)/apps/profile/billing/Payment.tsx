@@ -21,8 +21,7 @@ import useUser from '@auth/useUser';
 import { canManageSubscription } from '@auth/permissions';
 import { useGetCurrentSubscriptionQuery, useInitiatePaymentMutation, useLazyVerifyPaymentQuery } from '../../../billing/SubscriptionApi';
 import { alpha, useTheme } from '@mui/material/styles';
-
-const MOBILE_NETWORKS = ['MTN', 'Telecel', 'AirtelTigo'];
+import { MOMO_NETWORK_OPTIONS } from '@/utils/momoNetworks';
 
 type TabValue = 'card' | 'mobile';
 
@@ -386,6 +385,21 @@ export default function Payment() {
 														PaperProps: { sx: { borderRadius: 2, mt: 1.5 } },
 														anchorOrigin: { vertical: 'bottom', horizontal: 'left' },
 														transformOrigin: { vertical: 'top', horizontal: 'left' }
+													},
+													renderValue: (selected) => {
+														const opt = MOMO_NETWORK_OPTIONS.find((n) => n.provider === selected);
+														if (!opt) return String(selected || '');
+														return (
+															<Box className="flex items-center gap-2">
+																<Box
+																	component="img"
+																	src={opt.iconSrc}
+																	alt=""
+																	sx={{ width: 20, height: 20, objectFit: 'contain' }}
+																/>
+																{opt.label}
+															</Box>
+														);
 													}
 												}}
 												sx={{
@@ -404,11 +418,16 @@ export default function Payment() {
 													)
 												}}
 											>
-												{MOBILE_NETWORKS.map((n) => (
-													<MenuItem key={n} value={n}>
+												{MOMO_NETWORK_OPTIONS.map((n) => (
+													<MenuItem key={n.provider} value={n.provider}>
 														<Box className="flex items-center gap-2">
-															{/* <FuseSvgIcon size={18} color="action">heroicons-outline:signal</FuseSvgIcon> */}
-															{n}
+															<Box
+																component="img"
+																src={n.iconSrc}
+																alt=""
+																sx={{ width: 22, height: 22, objectFit: 'contain' }}
+															/>
+															{n.label}
 														</Box>
 													</MenuItem>
 												))}

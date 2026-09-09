@@ -3,6 +3,7 @@ import {
     ActivityIndicator,
     Alert,
     FlatList,
+    Image,
     Modal,
     RefreshControl,
     ScrollView,
@@ -21,6 +22,7 @@ import config from '../../config';
 import styles from './styles';
 import { tenants } from '../../services/api';
 import { formatCurrency } from '../../utils/format';
+import { getMomoNetworkIcon } from '../../utils/momoNetworks';
 
 const formatAmount = (amount) => formatCurrency(amount);
 
@@ -58,7 +60,7 @@ const statusMeta = (status) => {
     return { label: status || '—', bg: '#f3f4f6', color: '#6b7280' };
 };
 
-function MethodChip({ label, active, onPress, colors }) {
+function MethodChip({ label, active, onPress, colors, iconSource }) {
     return (
         <TouchableOpacity
             activeOpacity={0.7}
@@ -70,7 +72,13 @@ function MethodChip({ label, active, onPress, colors }) {
                 borderWidth: 1,
                 borderColor: active ? config.THEME_COLOR : colors.border,
                 backgroundColor: active ? colors.primaryShade : colors.surface,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6,
             }}>
+            {iconSource ? (
+                <Image source={iconSource} style={{ width: 18, height: 18 }} resizeMode="contain" />
+            ) : null}
             <AppText label={label} fontSize={12} color={active ? config.THEME_COLOR : colors.text} fontFamily={active ? 'FiraSans-SemiBold' : undefined} />
         </TouchableOpacity>
     );
@@ -412,6 +420,7 @@ const OrderSettlements = ({ navigation }) => {
                                         active={momoNetwork === net}
                                         onPress={() => setMomoNetwork(net)}
                                         colors={colors}
+                                        iconSource={getMomoNetworkIcon(net)}
                                     />
                                 ))}
                             </View>

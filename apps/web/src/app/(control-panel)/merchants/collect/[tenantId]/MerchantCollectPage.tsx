@@ -20,12 +20,7 @@ import {
 	useInitiateTenantPaymentMutation,
 	useSubmitTenantPaymentOtpMutation
 } from '../../MerchantApi';
-
-const NETWORKS = [
-	{ label: 'MTN', provider: 'mtn' },
-	{ label: 'Telecel', provider: 'vod' },
-	{ label: 'AirtelTigo', provider: 'tgo' }
-];
+import { MOMO_NETWORK_OPTIONS } from '@/utils/momoNetworks';
 
 export default function MerchantCollectPage() {
 	const { tenantId } = useParams<{ tenantId: string }>();
@@ -150,9 +145,17 @@ export default function MerchantCollectPage() {
 							onChange={(e) => setNetwork(e.target.value)}
 							className="mb-3"
 						>
-							{NETWORKS.map((n) => (
+							{MOMO_NETWORK_OPTIONS.map((n) => (
 								<MenuItem key={n.provider} value={n.provider}>
-									{n.label}
+									<Box className="flex items-center gap-2">
+										<Box
+											component="img"
+											src={n.iconSrc}
+											alt=""
+											sx={{ width: 22, height: 22, objectFit: 'contain' }}
+										/>
+										{n.label}
+									</Box>
 								</MenuItem>
 							))}
 						</TextField>

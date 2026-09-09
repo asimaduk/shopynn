@@ -1,7 +1,7 @@
 -- After EC2 data restores, online-order permission/feature rows are often missing.
 -- 1) Ensure Premium tier includes store-order features.
--- 2) Grant store-order permissions to Owner / Admin / Administrator roles so
---    Basic/Standard owners see locked nav (upgrade) and Premium owners can open it.
+-- 2) Grant store-order permissions to Super Admin / Owner / Admin / Administrator
+--    so Basic/Standard owners see locked nav (upgrade) and Premium owners can open it.
 
 INSERT INTO subscription_tier_features (id, tier_id, feature_code, created_at)
 SELECT gen_random_uuid()::text, t.id, f.code, now()
@@ -37,7 +37,7 @@ INSERT INTO role_permissions (id, role_id, permission_id)
 SELECT gen_random_uuid()::text, r.id, p.id
 FROM roles r
 CROSS JOIN permissions p
-WHERE lower(r.name) IN ('owner', 'admin', 'administrator')
+WHERE lower(trim(r.name)) IN ('super admin', 'owner', 'admin', 'administrator')
   AND p.code IN (
       'orders.status.update',
       'orders.process',

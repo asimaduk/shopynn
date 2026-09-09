@@ -2,10 +2,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Keychain from 'react-native-keychain';
 import Aes from 'react-native-aes-crypto';
 
-export const SECURE_PENDING_SALES_KEY = 'CHEQSTOCK_PENDING_SALES';
-export const SECURE_HELD_SALES_KEY = 'CHEQSTOCK_HELD_SALES';
+export const SECURE_PENDING_SALES_KEY = 'SHOPYNN_PENDING_SALES';
+export const SECURE_HELD_SALES_KEY = 'SHOPYNN_HELD_SALES';
 
-const SERVICE_DATA_KEY = 'com.cheqstock.data.encryption.key';
+const SERVICE_DATA_KEY = 'com.shopynn.data.encryption.key';
 const ENCRYPTED_PREFIX = 'ENC::';
 
 let keyCache = null;

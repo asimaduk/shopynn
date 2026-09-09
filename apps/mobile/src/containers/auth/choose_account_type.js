@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
-import { ScrollView, StyleSheet, StatusBar, TouchableOpacity, View, Dimensions } from 'react-native';
+import { ScrollView, StyleSheet, StatusBar, TouchableOpacity, View, Dimensions, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
 import useTheme from '../../hooks/useTheme';
@@ -31,21 +31,21 @@ const ACCOUNT_TYPES = [
 const ChooseAccountType = ({ navigation }) => {
     const { colors, isDark } = useTheme();
     const insets = useSafeAreaInsets();
+    const isFocused = useIsFocused();
 
     useFocusEffect(
         useCallback(() => {
-            if (StatusBar?.setBackgroundColor) StatusBar.setBackgroundColor(config.THEME_COLOR);
+            if (Platform.OS === 'android') StatusBar.setBackgroundColor(config.THEME_COLOR);
             StatusBar.setBarStyle('light-content');
-            return () => {
-                if (StatusBar?.setBackgroundColor) StatusBar.setBackgroundColor(colors.background);
-                StatusBar.setBarStyle(isDark ? 'light-content' : 'dark-content');
-            };
-        }, [colors.background, isDark])
+            return undefined;
+        }, [])
     );
 
     return (
         <View style={[styles.root, { backgroundColor: colors.background }]}>
-            <StatusBar barStyle="light-content" backgroundColor={config.THEME_COLOR} />
+            {isFocused ? (
+                <StatusBar barStyle="light-content" backgroundColor={config.THEME_COLOR} />
+            ) : null}
             {insets.top > 0 && (
                 <View style={[styles.statusBarFill, { height: insets.top, backgroundColor: config.THEME_COLOR }]} />
             )}

@@ -24,12 +24,12 @@ Use this before handing Cheqstock (mobile) + ims-services to testers or a stagin
 - [ ] Re-run or verify `seed-permissions.sql` if permissions/plan features changed on an existing environment.
 - [ ] Confirm API base URL matches mobile `PRODUCTION_TEST_API` in `apps/mobile/src/config/index.js`.
 
-## Mobile build (cheqstock)
+## Mobile build (shopynn)
 
-- [ ] **Release build** uses `PRODUCTION_TEST_API` (HTTPS); **dev** (`__DEV__`) uses `LOCAL_DEV_API` — update both URLs in `config/index.js` if your host changed.
+- [ ] **Release build** uses production HTTPS API; **dev** (`__DEV__`) uses `LOCAL_DEV_API` — update both URLs in `config/index.js` if your host changed.
 - [ ] Bump `VERSION_NUMBER` in `config/index.js` if testers need to distinguish builds.
-- [ ] **Android:** release APK/AAB (not only Metro dev). See [ANDROID_RELEASE_SECURITY.md](./ANDROID_RELEASE_SECURITY.md).
-- [ ] **iOS:** Archive with scheme **IMSCheckr** / Release; fix Firebase bundle ID (`com.shopynn` vs `com.cheqstock` in `GoogleService-Info.plist`). See [IOS_RELEASE_PREP.md](./IOS_RELEASE_PREP.md).
+- [ ] **Android:** release APK/AAB (not only Metro dev); `applicationId` is `com.shopynn`. See [ANDROID_RELEASE_SECURITY.md](./ANDROID_RELEASE_SECURITY.md).
+- [ ] **iOS:** Archive with scheme **Shopynn** / Release; replace Firebase configs for `com.shopynn`. See [IOS_RELEASE_PREP.md](./IOS_RELEASE_PREP.md).
 - [ ] No `[Login]` or login error `console.log` noise in release (guarded/removed); iOS still logs every API URL in `interceptors.js` — gate with `__DEV__` before wide test.
 
 ## Smoke tests (Super Admin / Premium-style tenant)

@@ -9,6 +9,7 @@ import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import { alpha, useTheme } from '@mui/material/styles';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
+import { signInCallbackUrl } from '@/@auth/signOutUrl';
 
 /** Total idle time before forced sign-out (includes warning window). */
 const IDLE_TIMEOUT_MS = Number(process.env.NEXT_PUBLIC_IDLE_TIMEOUT_MS) || 15 * 60 * 1000;
@@ -63,9 +64,9 @@ export default function InactivityLogout() {
 		setSigningOut(true);
 		clearTimers();
 		try {
-			await signOut({ callbackUrl: '/sign-in?reason=idle' });
+			await signOut({ callbackUrl: signInCallbackUrl('reason=idle') });
 		} catch {
-			window.location.href = '/sign-in?reason=idle';
+			window.location.href = signInCallbackUrl('reason=idle');
 		}
 	}, [clearTimers, signingOut]);
 

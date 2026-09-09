@@ -34,7 +34,7 @@ Edit **`src/config/socialAuth.js`** and replace placeholders:
 ### Apple
 
 - In Xcode, select the app target → **Signing & Capabilities** → **+ Capability** → **Sign in with Apple**.
-- The **CheqStock.entitlements** file already includes the Sign in with Apple entitlement.
+- The **Shopynn.entitlements** file is present; enable Sign in with Apple in Xcode if you ship that capability.
 
 ### Facebook
 

@@ -15,7 +15,7 @@ import {
     Image,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { useDispatch } from 'react-redux';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
@@ -36,7 +36,7 @@ import {
     signInWithFacebook,
     isAppleSignInAvailable,
 } from '../../utils/socialAuth';
-import { setTokens } from '../../utils/secureStorage';
+import { setTokens, clearTokens } from '../../utils/secureStorage';
 import { users as usersApi, subscriptions as subscriptionsApi } from '../../services/api';
 import { normalizePermissionCodes } from '../../utils/permissions';
 
@@ -44,6 +44,21 @@ import {
     isTenantSubscriptionActive,
     SUBSCRIPTION_RENEWAL_CODES as SUBSCRIPTION_ERROR_CODES,
 } from '../../utils/subscriptionAccess';
+
+/** Strip invisible paste junk iOS sometimes inserts into email fields. */
+const normalizeEmail = (value) =>
+    String(value || '')
+        .normalize('NFC')
+        .replace(/[\u200B-\u200D\uFEFF\u00A0]/g, '')
+        .trim()
+        .toLowerCase();
+
+const normalizePassword = (value) =>
+    String(value || '')
+        .normalize('NFC')
+        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+        .trim();
+
 const getResponseCode = (error) => {
     const data = error?.response?.data;
     return String(
@@ -57,6 +72,7 @@ const getResponseCode = (error) => {
 const Login = ({ navigation, route }) => {
     const { colors, isDark } = useTheme();
     const insets = useSafeAreaInsets();
+    const isFocused = useIsFocused();
     const dispatch = useDispatch();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -93,11 +109,9 @@ const Login = ({ navigation, route }) => {
         useCallback(() => {
             if (Platform.OS === 'android') StatusBar.setBackgroundColor(config.THEME_COLOR);
             StatusBar.setBarStyle('light-content');
-            return () => {
-                if (Platform.OS === 'android') StatusBar.setBackgroundColor(colors.background);
-                StatusBar.setBarStyle(isDark ? 'light-content' : 'dark-content');
-            };
-        }, [colors.background, isDark, config.THEME_COLOR])
+            // Don't reset barStyle on blur — next screen's focus owns it (avoids dark icons on blue headers).
+            return undefined;
+        }, [])
     );
 
     const performLogin = (found) => {
@@ -130,6 +144,8 @@ const Login = ({ navigation, route }) => {
     };
 
     const signInWithPassword = async (e, p) => {
+        // Avoid sending a stale Bearer token on /users/login (and clear any bad session).
+        await clearTokens();
         const data = await usersApi.login(e, p);
         const token = data?.token ?? data?.data?.token;
         if (!token) {
@@ -247,12 +263,18 @@ const Login = ({ navigation, route }) => {
                 processLogin(profile, e, p);
                 return;
             }
+            const msg =
+                _?.response?.data?.message ||
+                _?.message ||
+                'Signed in, but could not load your profile. Check your connection and try again.';
+            Alert.alert('Login incomplete', msg);
+            throw _;
         }
     };
 
     const validateAndLogin = async () => {
-        const e = email.trim().toLowerCase();
-        const p = password.trim();
+        const e = normalizeEmail(email);
+        const p = normalizePassword(password);
         setLoginError('');
         if (!e || !p) {
             Alert.alert('Required', 'Please enter email and password.');
@@ -275,8 +297,13 @@ const Login = ({ navigation, route }) => {
                 );
                 return;
             }
-            const msg = err?.response?.data?.message || err?.message || 'Invalid email or password.';
-            setLoginError((status === 401 || status === 400) ? 'Invalid email or password.' : msg);
+            const serverMsg = err?.response?.data?.message || err?.message || 'Invalid email or password.';
+            // Always surface host/status while diagnosing Railway cutover (dev builds).
+            const detail = `${serverMsg}\nAPI: ${config.BASE_API}\nHTTP: ${status || 'network'}`;
+            setLoginError(detail);
+            if (__DEV__) {
+                Alert.alert('Sign-in failed', detail);
+            }
         } finally {
             setLoading(false);
         }
@@ -359,7 +386,9 @@ const Login = ({ navigation, route }) => {
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={[styles.keyboard, { backgroundColor: colors.background }]}>
-            <StatusBar barStyle="light-content" backgroundColor={config.THEME_COLOR} />
+            {isFocused ? (
+                <StatusBar barStyle="light-content" backgroundColor={config.THEME_COLOR} />
+            ) : null}
             {/* Theme-colored strip for status bar area (iOS: transparent status bar shows this; Android: StatusBar.setBackgroundColor in useFocusEffect) */}
             {insets.top > 0 && (
                 <View style={[styles.statusBarFill, { height: insets.top, backgroundColor: config.THEME_COLOR }]} />
@@ -400,6 +429,8 @@ const Login = ({ navigation, route }) => {
                                     }}
                                     autoCapitalize="none"
                                     autoCorrect={false}
+                                    autoComplete="email"
+                                    textContentType="username"
                                     keyboardType="email-address"
                                     editable={!loading}
                                 />
@@ -419,6 +450,8 @@ const Login = ({ navigation, route }) => {
                                         if (loginError) setLoginError('');
                                     }}
                                     secureTextEntry={!showPassword}
+                                    autoComplete="password"
+                                    textContentType="password"
                                     editable={!loading}
                                 />
                                 <TouchableOpacity

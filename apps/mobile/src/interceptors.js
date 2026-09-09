@@ -93,14 +93,35 @@ axios.defaults.timeout = API_TIMEOUT;
 
 axios.interceptors.request.use(
     async (config) => {
-        const access_token = await getAccessToken();
-        if (access_token) config.headers['Authorization'] = `Bearer ${access_token}`;
-        if (!config.url.includes(appconfig.BASE_API)) {
-            config.url = `${appconfig.BASE_API}${config.url}`;
+        const url = String(config.url || '');
+        const isPublicAuth =
+            url.includes('/users/login') ||
+            url.includes('/users/forgot-password') ||
+            url.includes('/users/customer-signup') ||
+            url.includes('/users/shop-owner-signup');
+
+        if (!isPublicAuth) {
+            const access_token = await getAccessToken();
+            if (access_token) config.headers['Authorization'] = `Bearer ${access_token}`;
+        } else if (config.headers) {
+            delete config.headers.Authorization;
+            delete config.headers.authorization;
         }
-        
-        console.log('config url', config.url);
-        
+
+        config.headers = {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            ...config.headers,
+        };
+
+        if (!url.includes(appconfig.BASE_API)) {
+            config.url = `${appconfig.BASE_API}${url.startsWith('/') ? url : `/${url}`}`;
+        }
+
+        if (__DEV__) {
+            console.log('config url', config.url);
+        }
+
         return config;
     },
     (error) => Promise.reject(error)

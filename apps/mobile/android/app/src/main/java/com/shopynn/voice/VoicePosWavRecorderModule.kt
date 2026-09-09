@@ -1,4 +1,4 @@
-package com.cheqstock.voice
+package com.shopynn.voice
 
 import android.media.AudioFormat
 import android.media.AudioRecord

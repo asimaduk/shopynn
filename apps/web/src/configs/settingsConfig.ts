@@ -62,6 +62,18 @@ const settingsConfig: FuseSettingsConfigType = {
 
 export default settingsConfig;
 
-export const URLS = {
-	serverUrl: 'https://o47fh1tg20.execute-api.af-south-1.amazonaws.com/dev/api'
+/** API origin used for `/images?id=…` (and similar). Prefer Railway; never bake S3 keys into the client. */
+function resolveImageApiBase(): string {
+	const raw =
+		process.env.NEXT_PUBLIC_API_BASE_URL ||
+		process.env.API_BASE_URL ||
+		(process.env.NODE_ENV === 'development'
+			? `http://127.0.0.1:${process.env.NEXT_PUBLIC_PORT || 4001}`
+			: 'https://shopynn-production.up.railway.app');
+	const origin = String(raw).replace(/\/$/, '');
+	return origin.endsWith('/api') ? origin : `${origin}/api`;
 }
+
+export const URLS = {
+	serverUrl: resolveImageApiBase()
+};

@@ -4,7 +4,7 @@ This feature adds **Voice add** on the New Sale screen: record speech (or type a
 
 ## Product cache (matching)
 
-Fuzzy search reads the same AsyncStorage list as Search (`CHEQSTOCK_PRODUCTS_CACHE_V1`). Refresh happens when `products.list`, `products.byCategory`, or `products.get` succeeds online. Until then, use Search once while connected so the cache is populated.
+Fuzzy search reads the same AsyncStorage list as Search (`SHOPYNN_PRODUCTS_CACHE_V1`). Refresh happens when `products.list`, `products.byCategory`, or `products.get` succeeds online. Until then, use Search once while connected so the cache is populated.
 
 ## Whisper model (local STT)
 

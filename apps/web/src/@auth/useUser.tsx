@@ -1,6 +1,7 @@
 import { useSession, signOut } from 'next-auth/react';
 import { useMemo } from 'react';
 import { User } from '@auth/user';
+import { signInCallbackUrl } from '@/@auth/signOutUrl';
 
 type useUser = {
 	data: User | null;
@@ -30,7 +31,7 @@ function useUser(): useUser {
 	 * Sign out
 	 */
 	async function handleSignOut() {
-		return signOut({ callbackUrl: '/sign-in' });
+		return signOut({ callbackUrl: signInCallbackUrl() });
 	}
 
 	return {

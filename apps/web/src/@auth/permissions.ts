@@ -74,11 +74,20 @@ const BILLING_ADMIN_ROLE_NAMES = new Set(['super admin', 'owner', 'administrator
 
 export function isBillingAdminUser(user: User | null | undefined): boolean {
 	if (!user) return false;
-	const roles = Array.isArray(user.settings?.roles) ? user.settings.roles : [];
-	return roles.some((r) => {
-		const name = String((r as { name?: string })?.name ?? '').trim().toLowerCase();
-		return BILLING_ADMIN_ROLE_NAMES.has(name);
-	});
+	const fromRolesString =
+		typeof (user as { roles?: unknown }).roles === 'string'
+			? String((user as { roles?: string }).roles)
+					.split(',')
+					.map((r) => r.trim().toLowerCase())
+					.filter(Boolean)
+			: [];
+	const fromSettingsRoles = Array.isArray(user.settings?.roles)
+		? user.settings.roles
+				.map((r) => String((r as { name?: string })?.name ?? '').trim().toLowerCase())
+				.filter(Boolean)
+		: [];
+	const names = [...fromRolesString, ...fromSettingsRoles];
+	return names.some((n) => BILLING_ADMIN_ROLE_NAMES.has(n));
 }
 
 /** Premium: customer ordering + per-store signup codes (`warehouse_reference_codes`). */
@@ -88,16 +97,15 @@ export function canManageCustomerSignupCodes(user: User | null | undefined): boo
 	return hasFeatureAndPermission(user, undefined, undefined, CUSTOMER_SIGNUP_CODES_FEATURE);
 }
 
-/** Tenant billing (plan, checkout, subscription payment history) — billing admin roles with subscription.view. */
+/** Tenant billing (plan, checkout, subscription payment history).
+ *  Billing-admin roles own the subscription; do not soft-lock the upgrade CTA
+ *  when subscription.view was omitted from restored role_permissions.
+ */
 export function canManageSubscription(
 	user: User | null | undefined,
-	opts?: { allowWhenSubscriptionExpired?: boolean }
+	_opts?: { allowWhenSubscriptionExpired?: boolean }
 ): boolean {
-	if (!isBillingAdminUser(user)) return false;
-	if (opts?.allowWhenSubscriptionExpired) {
-		return hasPermissionCodes(user, 'subscription.view');
-	}
-	return hasFeatureAndPermission(user, 'subscription.view', undefined, 'subscription.view');
+	return isBillingAdminUser(user);
 }
 
 function normalizeRequiredList(raw?: string[] | string): string[] {
@@ -174,7 +182,8 @@ function isPlatformNavItem(features: string[]): boolean {
 }
 
 /** Nav: hide when role lacks permission; show locked when plan lacks a sellable feature.
- *  Platform-admin items are permission-gated only (hide, never lock-to-upgrade).
+ *  Billing admins still see sellable plan-locked items (e.g. Online Orders) when the
+ *  restored role is missing the permission code. Platform-admin tools stay hide-only.
  */
 export function resolveNavItemAccess(
 	user: User | null | undefined,
@@ -189,6 +198,16 @@ export function resolveNavItemAccess(
 	const features = normalizeRequiredList(item.requiredFeatures ?? item.requiredPermissions);
 
 	if (access.deniedBy === 'permission') {
+		const planTooLow =
+			features.length > 0 && features.some((f) => !userMeetsFeatureTier(user, f));
+		if (isBillingAdminUser(user) && planTooLow && !isPlatformNavItem(features)) {
+			return {
+				visible: true,
+				locked: true,
+				upgradeUrl: buildUpgradeUrl(features, item.url),
+				requiredPlanName: getMinimumTierDisplayForFeatures(features)
+			};
+		}
 		return { visible: false, locked: false };
 	}
 	if (access.deniedBy === 'plan') {

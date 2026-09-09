@@ -157,13 +157,13 @@ const AboutApp = ({ navigation }) => {
                 <View style={styles.section}>
                     <AppText label="CONNECT & LEGAL" variant={1} fontSize={12} color={colors.textTertiary} style={styles.sectionTitle} />
                     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                        <LinkItem icon="globe" label="Official Website" onPress={() => openLink('https://cheqstock.com')} />
+                        <LinkItem icon="globe" label="Official Website" onPress={() => openLink('https://shopynn.com')} />
                         <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-                        <LinkItem icon="shield-check" label="Privacy Policy" onPress={() => openLink('https://cheqstock.com/privacy-policy')} />
+                        <LinkItem icon="shield-check" label="Privacy Policy" onPress={() => openLink('https://shopynn.com/privacy')} />
                         <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-                        <LinkItem icon="file-text" label="Terms of Service" onPress={() => openLink('https://cheqstock.com/terms-of-service')} />
+                        <LinkItem icon="file-text" label="Terms of Service" onPress={() => openLink('https://shopynn.com/terms')} />
                         <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-                        <LinkItem icon="mail" label="Contact Support" onPress={() => openLink('mailto:mail.asimadu@gmail.com')} />
+                        <LinkItem icon="mail" label="Contact Support" onPress={() => openLink('mailto:hello@shopynn.app')} />
                     </View>
                 </View>
 

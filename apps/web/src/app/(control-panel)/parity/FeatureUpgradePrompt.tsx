@@ -79,9 +79,20 @@ export default function FeatureUpgradePrompt({
 			) : null}
 			<Box className="mt-8 flex w-full max-w-md flex-col gap-3">
 				{canUpgrade ? (
-					<Button component={Link} href="/apps/profile?scroll=plans" variant="contained" color="primary" fullWidth>
-						View {requiredPlanName} plan
-					</Button>
+					<>
+						<Button
+							component={Link}
+							href="/apps/profile?scroll=plans"
+							variant="contained"
+							color="primary"
+							fullWidth
+						>
+							View plans & upgrade
+						</Button>
+						<Typography variant="caption" color="text.secondary" className="text-center">
+							Select a plan and complete payment to unlock this feature.
+						</Typography>
+					</>
 				) : (
 					<Typography variant="body2" color="text.secondary" className="text-center">
 						Ask your account owner or administrator to upgrade the subscription.

@@ -16,21 +16,40 @@ const TYPE_TO_TIER = { 1: 'free', 2: 'basic', 3: 'standard', 4: 'premium' };
 
 const FEATURES_BY_KEY = {};
 CHOOSEABLE_SUBSCRIPTION_PLANS.forEach((p) => {
-    FEATURES_BY_KEY[p.key] = { name: p.name, description: p.description, features: p.features };
+    FEATURES_BY_KEY[p.key] = {
+        name: p.name,
+        description: p.description,
+        features: p.features,
+        amount: p.amount,
+    };
 });
+
+const FALLBACK_MONTHLY_GHS = { 1: 0, 2: 229, 3: 429, 4: 799 };
 
 /** @param {import('../services/api').billingCatalogGrouped | null | undefined} catalog */
 export function buildPlansFromCatalog(catalog) {
-    if (!catalog?.plans) return null;
+    const plansMap = catalog?.plans;
+    if (!plansMap || typeof plansMap !== 'object' || !Object.keys(plansMap).length) {
+        // Empty catalog (common after DB restore) — callers should use hardcoded plan amounts.
+        return null;
+    }
     const plans = [];
     for (const tier of ['free', 'basic', 'standard', 'premium']) {
-        const monthly = catalog.plans[tier]?.subscription_monthly;
-        const onboarding = catalog.plans[tier]?.onboarding;
+        const monthly = plansMap[tier]?.subscription_monthly;
+        const onboarding = plansMap[tier]?.onboarding;
         const typeNum = TIER_TO_TYPE[tier];
         if (!typeNum) continue;
         const meta = FEATURES_BY_KEY[typeNum] || SUBSCRIPTION_PLANS.find((p) => p.value === typeNum);
-        const monthlyAmount = monthly ? Number(monthly.amount_ghs) : 0;
-        const onboardingAmount = onboarding ? Number(onboarding.amount_ghs) : 0;
+        const catalogMonthly = monthly != null
+            ? Number(monthly.amount_ghs ?? monthly.amountGhs ?? monthly.amount ?? 0)
+            : NaN;
+        const fallbackMonthly = FALLBACK_MONTHLY_GHS[typeNum] ?? FEATURES_BY_KEY[typeNum]?.amount ?? 0;
+        const monthlyAmount = Number.isFinite(catalogMonthly) && catalogMonthly > 0
+            ? catalogMonthly
+            : fallbackMonthly;
+        const onboardingAmount = onboarding
+            ? Number(onboarding.amount_ghs ?? onboarding.amountGhs ?? onboarding.amount ?? 0)
+            : 0;
         plans.push({
             v: typeNum,
             title: meta?.name || tier,
@@ -54,7 +73,12 @@ export function buildSignupPlansFromCatalog(catalog) {
     return [1, 2, 3, 4].map((value) => {
         const tier = TYPE_TO_TIER[value];
         const monthly = catalog.plans[tier]?.subscription_monthly;
-        const amount = monthly ? Number(monthly.amount_ghs) : 0;
+        const catalogAmount = monthly != null
+            ? Number(monthly.amount_ghs ?? monthly.amountGhs ?? monthly.amount ?? 0)
+            : NaN;
+        const amount = Number.isFinite(catalogAmount) && catalogAmount > 0
+            ? catalogAmount
+            : (FALLBACK_MONTHLY_GHS[value] ?? 0);
         const base = SUBSCRIPTION_PLANS.find((p) => p.value === value);
         if (value === 1) {
             return { ...base, label: 'Free — 14 days' };

@@ -51,9 +51,9 @@ const FeatureUpgradePrompt = ({
             {canUpgrade ? (
                 <TouchableOpacity
                     activeOpacity={0.85}
-                    onPress={() => navigation.navigate('Subscription')}
+                    onPress={() => navigation.navigate('Subscription', { scrollToPlans: true })}
                     style={[styles.primaryBtn, { backgroundColor: config.THEME_COLOR }]}>
-                    <AppText label={`View ${requiredPlanName} plan`} variant={1} fontSize={16} color={colors.textInverse} />
+                    <AppText label="View plans & upgrade" variant={1} fontSize={16} color={colors.textInverse} />
                 </TouchableOpacity>
             ) : (
                 <AppText
@@ -63,6 +63,14 @@ const FeatureUpgradePrompt = ({
                     style={{ textAlign: 'center', marginTop: 8 }}
                 />
             )}
+            {canUpgrade ? (
+                <AppText
+                    label="Select a plan and complete payment to unlock this feature."
+                    fontSize={13}
+                    color={colors.textTertiary}
+                    style={{ textAlign: 'center', marginBottom: 8 }}
+                />
+            ) : null}
             <TouchableOpacity activeOpacity={0.7} onPress={() => navigation.goBack()} style={styles.secondaryBtn}>
                 <AppText label="Go back" fontSize={15} color={config.THEME_COLOR} variant={1} />
             </TouchableOpacity>

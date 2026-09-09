@@ -29,12 +29,15 @@ const getErrorMessage = (err) =>
 
 const SaleDetails = ({ navigation, route }) => {
     const { colors } = useTheme();
+    const user = useSelector(({ user }) => user);
     const appSettings = useSelector((s) => s.appSettings) || {};
     const { item: paramItem, saleId, mode } = route.params || {};
     const [item, setItem] = useState(paramItem);
     const isPendingUpload = mode === 'pending-upload' || !!paramItem?.payload;
     const [loading, setLoading] = useState(!isPendingUpload && !!(saleId || paramItem?.id));
     const [showInvoiceShare, setShowInvoiceShare] = useState(false);
+    const [resendingInvoice, setResendingInvoice] = useState(false);
+    const canResendInvoice = hasPermission(user, 'sales.share_receipt');
 
     useEffect(() => {
         const id = saleId || paramItem?.id;

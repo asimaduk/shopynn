@@ -11,7 +11,7 @@
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		1F9517132F47622D0090D77A /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 1F9517122F47622D0090D77A /* GoogleService-Info.plist */; };
 		26373BC4BF9540A2898992FC /* FiraSans-Thin.ttf in Resources */ = {isa = PBXBuildFile; fileRef = C406C564090C497795AAFE80 /* FiraSans-Thin.ttf */; };
-		40B7E6204F433F2AC5C537CD /* Pods_CheqStock.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B8248AAC18D848B8F4BD4751 /* Pods_CheqStock.framework */; };
+		40B7E6204F433F2AC5C537CD /* Pods_Shopynn.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B8248AAC18D848B8F4BD4751 /* Pods_Shopynn.framework */; };
 		4B443E9DB41E4720B96D7D63 /* FiraSans-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7F5D1EDD048C46939C45AA70 /* FiraSans-Medium.ttf */; };
 		61A9A518E965A6E7FED9F0CC /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
@@ -20,21 +20,21 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		13B07F961A680F5B00A75B9A /* CheqStock.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CheqStock.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = CheqStock/Images.xcassets; sourceTree = "<group>"; };
-		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = CheqStock/Info.plist; sourceTree = "<group>"; };
-		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = CheqStock/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		13B07F961A680F5B00A75B9A /* Shopynn.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Shopynn.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Shopynn/Images.xcassets; sourceTree = "<group>"; };
+		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Shopynn/Info.plist; sourceTree = "<group>"; };
+		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = Shopynn/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		1F911C1B2F2D1DDC00CD4D5C /* Lucide.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = Lucide.ttf; path = ../src/assets/fonts/Lucide.ttf; sourceTree = "<group>"; };
 		1F9517122F47622D0090D77A /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
-		1F9517142F4763700090D77A /* CheqStock.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = CheqStock.entitlements; path = CheqStock/CheqStock.entitlements; sourceTree = "<group>"; };
-		3B4392A12AC88292D35C810B /* Pods-CheqStock.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-CheqStock.debug.xcconfig"; path = "Target Support Files/Pods-CheqStock/Pods-CheqStock.debug.xcconfig"; sourceTree = "<group>"; };
-		5709B34CF0A7D63546082F79 /* Pods-CheqStock.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-CheqStock.release.xcconfig"; path = "Target Support Files/Pods-CheqStock/Pods-CheqStock.release.xcconfig"; sourceTree = "<group>"; };
-		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = CheqStock/AppDelegate.swift; sourceTree = "<group>"; };
+		1F9517142F4763700090D77A /* Shopynn.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = Shopynn.entitlements; path = Shopynn/Shopynn.entitlements; sourceTree = "<group>"; };
+		3B4392A12AC88292D35C810B /* Pods-Shopynn.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Shopynn.debug.xcconfig"; path = "Target Support Files/Pods-Shopynn/Pods-Shopynn.debug.xcconfig"; sourceTree = "<group>"; };
+		5709B34CF0A7D63546082F79 /* Pods-Shopynn.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Shopynn.release.xcconfig"; path = "Target Support Files/Pods-Shopynn/Pods-Shopynn.release.xcconfig"; sourceTree = "<group>"; };
+		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = Shopynn/AppDelegate.swift; sourceTree = "<group>"; };
 		7DCF145246284806ABA813BA /* FiraSans-SemiBold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "FiraSans-SemiBold.ttf"; path = "../src/assets/fonts/FiraSans-SemiBold.ttf"; sourceTree = "<group>"; };
 		7F5D1EDD048C46939C45AA70 /* FiraSans-Medium.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "FiraSans-Medium.ttf"; path = "../src/assets/fonts/FiraSans-Medium.ttf"; sourceTree = "<group>"; };
-		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = CheqStock/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = Shopynn/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		ACDB88DFC54D44419E2A06C1 /* FiraSans-Regular.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "FiraSans-Regular.ttf"; path = "../src/assets/fonts/FiraSans-Regular.ttf"; sourceTree = "<group>"; };
-		B8248AAC18D848B8F4BD4751 /* Pods_CheqStock.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_CheqStock.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		B8248AAC18D848B8F4BD4751 /* Pods_Shopynn.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Shopynn.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		C406C564090C497795AAFE80 /* FiraSans-Thin.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "FiraSans-Thin.ttf"; path = "../src/assets/fonts/FiraSans-Thin.ttf"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
@@ -44,17 +44,17 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				40B7E6204F433F2AC5C537CD /* Pods_CheqStock.framework in Frameworks */,
+				40B7E6204F433F2AC5C537CD /* Pods_Shopynn.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		13B07FAE1A68108700A75B9A /* CheqStock */ = {
+		13B07FAE1A68108700A75B9A /* Shopynn */ = {
 			isa = PBXGroup;
 			children = (
-				1F9517142F4763700090D77A /* CheqStock.entitlements */,
+				1F9517142F4763700090D77A /* Shopynn.entitlements */,
 				1F9517122F47622D0090D77A /* GoogleService-Info.plist */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
@@ -62,14 +62,14 @@
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
 			);
-			name = CheqStock;
+			name = Shopynn;
 			sourceTree = "<group>";
 		};
 		2D16E6871FA4F8E400B85C8A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				B8248AAC18D848B8F4BD4751 /* Pods_CheqStock.framework */,
+				B8248AAC18D848B8F4BD4751 /* Pods_Shopynn.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -96,7 +96,7 @@
 		83CBB9F61A601CBA00E9B192 = {
 			isa = PBXGroup;
 			children = (
-				13B07FAE1A68108700A75B9A /* CheqStock */,
+				13B07FAE1A68108700A75B9A /* Shopynn */,
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
@@ -111,7 +111,7 @@
 		83CBBA001A601CBA00E9B192 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				13B07F961A680F5B00A75B9A /* CheqStock.app */,
+				13B07F961A680F5B00A75B9A /* Shopynn.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -119,8 +119,8 @@
 		BBD78D7AC51CEA395F1C20DB /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				3B4392A12AC88292D35C810B /* Pods-CheqStock.debug.xcconfig */,
-				5709B34CF0A7D63546082F79 /* Pods-CheqStock.release.xcconfig */,
+				3B4392A12AC88292D35C810B /* Pods-Shopynn.debug.xcconfig */,
+				5709B34CF0A7D63546082F79 /* Pods-Shopynn.release.xcconfig */,
 			);
 			path = Pods;
 			sourceTree = "<group>";
@@ -128,9 +128,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		13B07F861A680F5B00A75B9A /* CheqStock */ = {
+		13B07F861A680F5B00A75B9A /* Shopynn */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "CheqStock" */;
+			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "Shopynn" */;
 			buildPhases = (
 				C38B50BA6285516D6DCD4F65 /* [CP] Check Pods Manifest.lock */,
 				13B07F871A680F5B00A75B9A /* Sources */,
@@ -145,9 +145,9 @@
 			);
 			dependencies = (
 			);
-			name = CheqStock;
-			productName = CheqStock;
-			productReference = 13B07F961A680F5B00A75B9A /* CheqStock.app */;
+			name = Shopynn;
+			productName = Shopynn;
+			productReference = 13B07F961A680F5B00A75B9A /* Shopynn.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -159,11 +159,13 @@
 				LastUpgradeCheck = 1210;
 				TargetAttributes = {
 					13B07F861A680F5B00A75B9A = {
+						DevelopmentTeam = BX92C3QV2U;
 						LastSwiftMigration = 1120;
+						ProvisioningStyle = Automatic;
 					};
 				};
 			};
-			buildConfigurationList = 83CBB9FA1A601CBA00E9B192 /* Build configuration list for PBXProject "CheqStock" */;
+			buildConfigurationList = 83CBB9FA1A601CBA00E9B192 /* Build configuration list for PBXProject "Shopynn" */;
 			compatibilityVersion = "Xcode 12.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -176,7 +178,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				13B07F861A680F5B00A75B9A /* CheqStock */,
+				13B07F861A680F5B00A75B9A /* Shopynn */,
 			);
 		};
 /* End PBXProject section */
@@ -222,15 +224,15 @@
 			files = (
 			);
 			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-CheqStock/Pods-CheqStock-frameworks-${CONFIGURATION}-input-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-Shopynn/Pods-Shopynn-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-CheqStock/Pods-CheqStock-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-Shopynn/Pods-Shopynn-frameworks-${CONFIGURATION}-output-files.xcfilelist",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-CheqStock/Pods-CheqStock-frameworks.sh\"\n";
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Shopynn/Pods-Shopynn-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 		C38B50BA6285516D6DCD4F65 /* [CP] Check Pods Manifest.lock */ = {
@@ -248,7 +250,7 @@
 			outputFileListPaths = (
 			);
 			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-CheqStock-checkManifestLockResult.txt",
+				"$(DERIVED_FILE_DIR)/Pods-Shopynn-checkManifestLockResult.txt",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -261,15 +263,15 @@
 			files = (
 			);
 			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-CheqStock/Pods-CheqStock-resources-${CONFIGURATION}-input-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-Shopynn/Pods-Shopynn-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-CheqStock/Pods-CheqStock-resources-${CONFIGURATION}-output-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-Shopynn/Pods-Shopynn-resources-${CONFIGURATION}-output-files.xcfilelist",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-CheqStock/Pods-CheqStock-resources.sh\"\n";
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Shopynn/Pods-Shopynn-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 		F6A4708FCA67F5DEBAA36A38 /* [CP-User] [RNFB] Core Configuration */ = {
@@ -301,15 +303,17 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 3B4392A12AC88292D35C810B /* Pods-CheqStock.debug.xcconfig */;
+			baseConfigurationReference = 3B4392A12AC88292D35C810B /* Pods-Shopynn.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
-				CODE_SIGN_ENTITLEMENTS = CheqStock/CheqStock.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Shopynn/Shopynn.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = BX92C3QV2U;
 				ENABLE_BITCODE = NO;
-				INFOPLIST_FILE = CheqStock/Info.plist;
+				INFOPLIST_FILE = Shopynn/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Shopynn;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
@@ -324,7 +328,7 @@
 					"-lc++",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.shopynn;
-				PRODUCT_NAME = CheqStock;
+				PRODUCT_NAME = Shopynn;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -338,14 +342,16 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 5709B34CF0A7D63546082F79 /* Pods-CheqStock.release.xcconfig */;
+			baseConfigurationReference = 5709B34CF0A7D63546082F79 /* Pods-Shopynn.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
-				CODE_SIGN_ENTITLEMENTS = CheqStock/CheqStock.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Shopynn/Shopynn.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = BX92C3QV2U;
-				INFOPLIST_FILE = CheqStock/Info.plist;
+				INFOPLIST_FILE = Shopynn/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Shopynn;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
@@ -360,7 +366,7 @@
 					"-lc++",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.shopynn;
-				PRODUCT_NAME = CheqStock;
+				PRODUCT_NAME = Shopynn;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -548,7 +554,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "CheqStock" */ = {
+		13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "Shopynn" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				13B07F941A680F5B00A75B9A /* Debug */,
@@ -557,7 +563,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		83CBB9FA1A601CBA00E9B192 /* Build configuration list for PBXProject "CheqStock" */ = {
+		83CBB9FA1A601CBA00E9B192 /* Build configuration list for PBXProject "Shopynn" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				83CBBA201A601CBA00E9B192 /* Debug */,

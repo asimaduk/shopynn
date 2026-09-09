@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Image, Dimensions, ScrollView, Platform, PermissionsAndroid, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import Animated, {
     useAnimatedScrollHandler,
     useAnimatedStyle,
@@ -59,6 +59,7 @@ const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
 
 const GetStarted = ({ navigation }) => {
     const { colors, isDark } = useTheme();
+    const isFocused = useIsFocused();
     const scrollX = useSharedValue(0);
     const [currentIndex, setCurrentIndex] = useState(0);
     const scrollRef = useRef(null);
@@ -108,13 +109,10 @@ const GetStarted = ({ navigation }) => {
             if (Platform.OS === 'android') {
                 StatusBar.setBackgroundColor(colors.surface || '#ffffff');
             }
-            return () => {
-                if (Platform.OS === 'android') {
-                    StatusBar.setBackgroundColor(colors.background);
-                }
-                StatusBar.setBarStyle(isDark ? 'light-content' : 'dark-content');
-            };
-        }, [colors.surface, colors.background, isDark]),
+            // Do not reset barStyle on blur — the next screen's focus effect owns it.
+            // Resetting to dark-content here races after Login/signup set light-content.
+            return undefined;
+        }, [colors.surface]),
     );
 
     useEffect(() => {
@@ -193,14 +191,14 @@ const GetStarted = ({ navigation }) => {
 
             try {
                 // PushNotification.localNotification({
-                //     channelId: 'channel-cheqstock',
+                //     channelId: 'channel-shopynn',
                 //     id: String(Date.now()),
                 //     title,
                 //     message: String(body),
                 //     playSound: true,
                 //     vibrate: true,
                 // });
-                PushNotification.localNotification({ channelId: 'channel-cheqstock', title: 'Low stock', message: `88 item(s) below reorder point.`, playSound: true });
+                PushNotification.localNotification({ channelId: 'channel-shopynn', title: 'Low stock', message: `88 item(s) below reorder point.`, playSound: true });
 
                 console.log('push notification sent');
             } catch (error) {
@@ -213,7 +211,9 @@ const GetStarted = ({ navigation }) => {
 
     return (
         <View style={[styles.container, { backgroundColor: colors.surface }]}>
-            <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
+            {isFocused ? (
+                <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
+            ) : null}
             <SafeAreaView style={styles.safeArea} edges={['top']}>
                 <View style={styles.skipRow}>
                     <TouchableOpacity activeOpacity={0.8} onPress={skip} style={styles.skipBtn}>

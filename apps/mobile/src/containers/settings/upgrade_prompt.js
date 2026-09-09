@@ -108,7 +108,7 @@ const UpgradePrompt = ({ navigation, route }) => {
         description: route.params?.description || 'Upgrade your plan to unlock this feature.',
         bullets: [],
     };
-    const canUpgrade = canManageSubscription(user, { allowWhenSubscriptionExpired: true });
+    const canUpgrade = canManageSubscription(user);
 
     const planLabel = requiredPlanName || copy.plan;
 
@@ -156,7 +156,7 @@ const UpgradePrompt = ({ navigation, route }) => {
                             alignItems: 'center',
                         }}
                     >
-                        <AppText label={`View ${planLabel} plan`} color="#fff" fontSize={15} variant={1} />
+                        <AppText label="View plans & upgrade" color="#fff" fontSize={15} variant={1} />
                     </TouchableOpacity>
                 ) : (
                     <AppText
@@ -166,6 +166,14 @@ const UpgradePrompt = ({ navigation, route }) => {
                         style={{ marginTop: 28, textAlign: 'center' }}
                     />
                 )}
+                {canUpgrade ? (
+                    <AppText
+                        label="Select a plan and complete payment to unlock this feature."
+                        fontSize={12}
+                        color={colors.textTertiary}
+                        style={{ marginTop: 12, textAlign: 'center', maxWidth: 360 }}
+                    />
+                ) : null}
             </View>
         </SafeAreaView>
     );

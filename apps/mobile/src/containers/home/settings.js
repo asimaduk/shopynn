@@ -36,10 +36,12 @@ const resolveProfileImageUri = (raw) => {
 
 const SETTINGS_ITEMS = [
     { section: 'Account', title: 'Profile', subtitle: 'Manage your personal information', screen: 'Profile', icon: 'user', iconColor: config.THEME_COLOR },
+    { section: 'Operations', title: 'Online Orders', subtitle: 'Process incoming customer orders', screen: 'Orders', icon: 'shopping-basket', iconColor: '#8b5cf6' },
+    { section: 'Operations', title: 'Order Payments', subtitle: 'Admin view for order payment records', screen: 'OrderPayments', icon: 'banknote', iconColor: '#16a34a' },
+    { section: 'Operations', title: 'Order Settlements', subtitle: 'Digital order revenue and payout balance', screen: 'OrderSettlements', icon: 'landmark', iconColor: '#2563eb' },
     { section: 'Operations', title: 'Pending Sales', subtitle: 'Review and approve sales', screen: 'PendingSales', icon: 'clipboard-list', iconColor: '#f00' },
     { section: 'Operations', title: 'Warehouses / Stores', subtitle: 'Manage storage locations', screen: 'Warehouses', icon: 'store', iconColor: '#10b981' },
     { section: 'Operations', title: 'Product Transfers', subtitle: 'Transfer products between locations', screen: 'ProductTransfers', icon: 'arrow-right-left', iconColor: config.THEME_COLOR },
-    { section: 'Operations', title: 'Orders', subtitle: 'Customer and store order queue', screen: 'Orders', icon: 'shopping-basket', iconColor: '#8b5cf6' },
     { section: 'Operations', title: 'Adjust Quantities', subtitle: 'Update stock quantities', screen: 'AdjustedQuantities', icon: 'arrow-down-1-0', iconColor: '#f59e0b' },
     { section: 'Operations', title: 'Stock count / Audit', subtitle: 'Count actual stock and create adjustments', screen: 'StockCountHistory', icon: 'clipboard-check', iconColor: '#0284c7' },
     // { section: 'Operations', title: 'Returns', subtitle: 'Sales & purchase returns', screen: 'Returns', icon: 'rotate-ccw', iconColor: '#ef4444' },
@@ -56,8 +58,6 @@ const SETTINGS_ITEMS = [
     { section: 'App Settings', title: 'Clients', subtitle: 'Partner merchants, onboarding & commissions', screen: 'MerchantPortal', icon: 'handshake', iconColor: '#6366f1' },
     { section: 'App Settings', title: 'Tenant directory', subtitle: 'All businesses, subscriptions, and payments (admin)', screen: 'TenantsDirectory', icon: 'building-2', iconColor: '#0ea5e9' },
     { section: 'App Settings', title: 'Billing catalog', subtitle: 'Plans, onboarding fees, and add-on prices (admin)', screen: 'BillingCatalog', icon: 'circle-dollar-sign', iconColor: '#059669' },
-    { section: 'App Settings', title: 'Order Payments', subtitle: 'Admin view for order payment records', screen: 'OrderPayments', icon: 'banknote', iconColor: '#16a34a' },
-    { section: 'App Settings', title: 'Order Settlements', subtitle: 'Digital order revenue and payout balance', screen: 'OrderSettlements', icon: 'landmark', iconColor: '#2563eb' },
     { section: 'App Settings', title: 'About this app', subtitle: 'App version and information', screen: 'AboutApp', icon: 'info', iconColor: config.THEME_COLOR },
     { section: 'App Settings', title: 'Share app', subtitle: 'Share Shopynn with others', action: 'share', icon: 'share-2', iconColor: '#10b981' },
     { section: 'Account', title: 'Sign Out', subtitle: 'Sign out of your account', action: 'signout', icon: 'log-out', iconColor: '#f00' },
@@ -170,8 +170,6 @@ const Settings = ({ navigation, route }) => {
     const showAppSettingsSection =
         notificationsSetupAccess.show ||
         canCustomerOrderNotifications ||
-        orderPaymentsAccess.show ||
-        orderSettlementsAccess.show ||
         canAbout ||
         tenantsDirectoryAccess.show ||
         billingCatalogAccess.show ||
@@ -474,7 +472,7 @@ const Settings = ({ navigation, route }) => {
                 </View>
 
                 {/* Operations Section */}
-                {(canPendingSales || canWarehouses || canTransfers || canOrders || canAdjustments || canStockCount) && (
+                {(canPendingSales || canWarehouses || canTransfers || canOrders || canOrderPayments || canOrderSettlements || canAdjustments || canStockCount) && (
                     <View style={styles.section}>
                         <AppText label={'Operations'} variant={1} fontSize={14} color={colors.textTertiary} style={styles.sectionTitle} />
                     <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -486,7 +484,7 @@ const Settings = ({ navigation, route }) => {
                                     style={styles.menuItem}
                                 >
                                     <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                        <Lucide name="clipboard-list" color="#8b5cf6" size={20} />
+                                        <Lucide name="shopping-basket" color="#8b5cf6" size={20} />
                                     </View>
                                     <View style={styles.menuContent}>
                                         <AppText label={'Online Orders'} variant={2} color={colors.text} fontSize={15} />
@@ -494,7 +492,63 @@ const Settings = ({ navigation, route }) => {
                                     </View>
                                     {renderPlanGateTrailing(ordersAccess)}
                                 </TouchableOpacity>
-                                {(canAdjustments || canStockCount) && (
+                                {(canOrderPayments || canOrderSettlements || canPendingSales || canWarehouses || canTransfers || canAdjustments || canStockCount) && (
+                                    <View style={[styles.divider, { backgroundColor: colors.divider }]} />
+                                )}
+                            </>
+                        )}
+
+                        {canOrderPayments && (
+                            <>
+                                <TouchableOpacity
+                                    activeOpacity={0.6}
+                                    onPress={() => navigateToScreenOrUpgrade(navigation, user, 'OrderPayments', subscriptionFeatures)}
+                                    style={styles.menuItem}
+                                >
+                                    <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                        <Lucide name="banknote" color="#16a34a" size={20} />
+                                    </View>
+                                    <View style={styles.menuContent}>
+                                        <AppText label={'Order Payments'} variant={2} color={colors.text} fontSize={15} />
+                                        <AppText
+                                            label={'Admin view for customer order payments'}
+                                            variant={2}
+                                            color={colors.textTertiary}
+                                            fontSize={12}
+                                            style={{ marginTop: 2 }}
+                                        />
+                                    </View>
+                                    {renderPlanGateTrailing(orderPaymentsAccess)}
+                                </TouchableOpacity>
+                                {(canOrderSettlements || canPendingSales || canWarehouses || canTransfers || canAdjustments || canStockCount) && (
+                                    <View style={[styles.divider, { backgroundColor: colors.divider }]} />
+                                )}
+                            </>
+                        )}
+
+                        {canOrderSettlements && (
+                            <>
+                                <TouchableOpacity
+                                    activeOpacity={0.6}
+                                    onPress={() => navigateToScreenOrUpgrade(navigation, user, 'OrderSettlements', subscriptionFeatures)}
+                                    style={styles.menuItem}
+                                >
+                                    <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                        <Lucide name="landmark" color="#2563eb" size={20} />
+                                    </View>
+                                    <View style={styles.menuContent}>
+                                        <AppText label={'Order Settlements'} variant={2} color={colors.text} fontSize={15} />
+                                        <AppText
+                                            label={'Digital order revenue and payout balance'}
+                                            variant={2}
+                                            color={colors.textTertiary}
+                                            fontSize={12}
+                                            style={{ marginTop: 2 }}
+                                        />
+                                    </View>
+                                    {renderPlanGateTrailing(orderSettlementsAccess)}
+                                </TouchableOpacity>
+                                {(canPendingSales || canWarehouses || canTransfers || canAdjustments || canStockCount) && (
                                     <View style={[styles.divider, { backgroundColor: colors.divider }]} />
                                 )}
                             </>
@@ -528,7 +582,7 @@ const Settings = ({ navigation, route }) => {
                                     </View>
                                     <Lucide name="chevron-right" color={colors.border} size={18} />
                                 </TouchableOpacity>
-                                {(canWarehouses || canTransfers || canOrders || canAdjustments || canStockCount) && (
+                                {(canWarehouses || canTransfers || canAdjustments || canStockCount) && (
                                     <View style={[styles.divider, { backgroundColor: colors.divider }]} />
                                 )}
                             </>
@@ -839,51 +893,10 @@ const Settings = ({ navigation, route }) => {
                                     </View>
                                     {renderPlanGateTrailing(notificationsSetupAccess)}
                                 </TouchableOpacity>
-                                {(canOrderPayments ||
-                                    canTenantsDirectory ||
+                                {(canTenantsDirectory ||
                                     canBillingCatalog ||
                                     canAbout ||
                                     canMerchantPortalFromSettings) && (
-                                    <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-                                )}
-                            </>
-                        )}
-
-                        {canOrderPayments && (
-                            <>
-                                <TouchableOpacity activeOpacity={.6} onPress={() => navigateToScreenOrUpgrade(navigation, user, 'OrderPayments', subscriptionFeatures)} style={styles.menuItem}>
-                                    <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                        <Lucide name="banknote" color="#16a34a" size={20} />
-                                    </View>
-                                    <View style={styles.menuContent}>
-                                        <AppText label={'Order Payments'} variant={2} color={colors.text} fontSize={15} />
-                                        <AppText label={'Admin view for customer order payments'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
-                                    </View>
-                                    {renderPlanGateTrailing(orderPaymentsAccess)}
-                                </TouchableOpacity>
-                                {(canOrderSettlements ||
-                                    canTenantsDirectory ||
-                                    canBillingCatalog ||
-                                    canAbout ||
-                                    canMerchantPortalFromSettings) && (
-                                    <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-                                )}
-                            </>
-                        )}
-
-                        {canOrderSettlements && (
-                            <>
-                                <TouchableOpacity activeOpacity={.6} onPress={() => navigateToScreenOrUpgrade(navigation, user, 'OrderSettlements', subscriptionFeatures)} style={styles.menuItem}>
-                                    <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                        <Lucide name="landmark" color="#2563eb" size={20} />
-                                    </View>
-                                    <View style={styles.menuContent}>
-                                        <AppText label={'Order Settlements'} variant={2} color={colors.text} fontSize={15} />
-                                        <AppText label={'Digital order revenue and payout balance'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
-                                    </View>
-                                    {renderPlanGateTrailing(orderSettlementsAccess)}
-                                </TouchableOpacity>
-                                {(canTenantsDirectory || canBillingCatalog || canAbout || canMerchantPortalFromSettings) && (
                                     <View style={[styles.divider, { backgroundColor: colors.divider }]} />
                                 )}
                             </>

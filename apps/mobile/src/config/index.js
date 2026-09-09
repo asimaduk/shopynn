@@ -1,8 +1,10 @@
+// Railway production API (paths are relative to /api).
+const RAILWAY_API = 'https://shopynn-production.up.railway.app/api';
 // Security: use HTTPS for production-test / production release builds.
-const PRODUCTION_TEST_API = 'https://o47fh1tg20.execute-api.af-south-1.amazonaws.com/dev/api';
-// iOS Simulator / Android emulator host machine — Shopynn API (apps/api) runs on 4001.
-// For a physical device, replace 127.0.0.1 with your Mac LAN IP (e.g. http://192.168.x.x:4001/api).
-const LOCAL_DEV_API = 'http://127.0.0.1:4001/api';
+const PRODUCTION_TEST_API = RAILWAY_API;
+// Dev builds also hit Railway for cutover testing. For a local API:
+// const LOCAL_DEV_API = 'http://127.0.0.1:4001/api'; // simulator; use LAN IP on device
+const LOCAL_DEV_API = RAILWAY_API;
 const BASE_API = __DEV__ ? LOCAL_DEV_API : PRODUCTION_TEST_API;
 
 export default {

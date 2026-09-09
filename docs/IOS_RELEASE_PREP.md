@@ -1,8 +1,8 @@
-# iOS release prep (Cheqstock / Shopynn)
+# iOS release prep (Shopynn)
 
 Checklist before **TestFlight**, **Ad Hoc**, or **App Store** release. Complements [PRODUCTION_TEST_CHECKLIST.md](./PRODUCTION_TEST_CHECKLIST.md) and [ANDROID_RELEASE_SECURITY.md](./ANDROID_RELEASE_SECURITY.md).
 
-**Last verified:** Release `iphoneos` build succeeded locally (`xcodebuild` scheme **IMSCheckr**, `CODE_SIGNING_ALLOWED=NO`).
+**Last verified:** Native project renamed to **Shopynn** (scheme / target / workspace). Re-run a Release `iphoneos` build after `pod install` before shipping.
 
 ---
 
@@ -10,15 +10,15 @@ Checklist before **TestFlight**, **Ad Hoc**, or **App Store** release. Complemen
 
 | Area | Status |
 |------|--------|
-| Release compile (native) | OK — builds with scheme `IMSCheckr` → target `CheqStock` |
-| API URL in release JS | OK — `__DEV__` false → `PRODUCTION_TEST_API` (HTTPS) in `src/config/index.js` |
+| Release compile (native) | Scheme `Shopynn` → target `Shopynn` → `Shopynn.app` |
+| API URL in release JS | OK — `__DEV__` false → Railway / production HTTPS in `src/config/index.js` |
 | App Transport Security | OK — `NSAllowsArbitraryLoads` = false |
 | Code signing / team | Team `BX92C3QV2U` set; you still need **Distribution** cert + provisioning for Archive |
-| Firebase push (FCM) | **Fix required** — bundle ID mismatch (see §2) |
+| Firebase push (FCM) | **Fix required** — replace configs for `com.shopynn` (see §2) |
 | Google / Facebook sign-in | **Fix required** — placeholder IDs (see §3) |
 | App Store metadata | Review display name, privacy strings, tracking (see §4) |
 
-**Verdict:** Fine for **signed Ad Hoc / internal production-test** after fixing Firebase bundle ID and social placeholders (if those features are in scope). **Not ready for public App Store** until §2–§5 are addressed.
+**Verdict:** Fine for **signed Ad Hoc / internal production-test** after fixing Firebase configs and social placeholders (if those features are in scope). **Not ready for public App Store** until §2–§5 are addressed.
 
 ---
 
@@ -27,12 +27,12 @@ Checklist before **TestFlight**, **Ad Hoc**, or **App Store** release. Complemen
 ```bash
 cd apps/mobile/ios
 pod install
-open CheqStock.xcworkspace
+open Shopynn.xcworkspace
 ```
 
 In Xcode:
 
-- Scheme: **IMSCheckr** (builds **CheqStock** app — consider renaming scheme to `CheqStock` for clarity)
+- Scheme: **Shopynn**
 - Configuration: **Release**
 - Destination: Any iOS device (not simulator for Archive)
 - **Product → Archive** (requires Apple Distribution profile)
@@ -40,8 +40,8 @@ In Xcode:
 CLI (compile only, no signing):
 
 ```bash
-xcodebuild -workspace CheqStock.xcworkspace \
-  -scheme IMSCheckr -configuration Release \
+xcodebuild -workspace Shopynn.xcworkspace \
+  -scheme Shopynn -configuration Release \
   -sdk iphoneos -destination 'generic/platform=iOS' \
   CODE_SIGNING_ALLOWED=NO build
 ```
@@ -50,21 +50,23 @@ JS bundle for release is embedded via `Bundle.main` → `main.jsbundle` (`AppDel
 
 ---
 
-## 2. Firebase — bundle ID mismatch (high priority)
+## 2. Firebase — register `com.shopynn` (high priority)
 
-| Source | Bundle ID |
-|--------|-----------|
+| Source | Bundle / package ID |
+|--------|---------------------|
 | Xcode `PRODUCT_BUNDLE_IDENTIFIER` | `com.shopynn` |
-| `ios/GoogleService-Info.plist` → `BUNDLE_ID` | `com.cheqstock` |
+| Android `applicationId` | `com.shopynn` |
+| Current `GoogleService-Info.plist` / `google-services.json` | still legacy `com.cheqstock` until replaced |
 
-Push notifications (`@react-native-firebase/messaging`) and other Firebase iOS features expect these to match.
+Push notifications (`@react-native-firebase/messaging`) and other Firebase features expect Console apps to match.
 
-**Fix (pick one):**
+**Fix:**
 
-1. Register **`com.shopynn`** in Firebase Console → download new `GoogleService-Info.plist`, replace `ios/GoogleService-Info.plist`, or  
-2. Change Xcode bundle ID to **`com.cheqstock`** everywhere (App ID, profiles, store listing) and keep the plist.
-
-Then reinstall pods and rebuild.
+1. Firebase Console → add **iOS** and **Android** apps for **`com.shopynn`**
+2. Download and replace:
+   - `apps/mobile/ios/GoogleService-Info.plist`
+   - `apps/mobile/android/app/google-services.json`
+3. Rebuild (do not only rewrite `BUNDLE_ID` / `package_name` in the old files)
 
 ---
 
@@ -72,7 +74,7 @@ Then reinstall pods and rebuild.
 
 | File | Issue |
 |------|--------|
-| `ios/CheqStock/Info.plist` | `YOUR_FACEBOOK_APP_ID`, `YOUR_GOOGLE_WEB_CLIENT_ID`, `fbYOUR_FACEBOOK_APP_ID` URL schemes |
+| `ios/Shopynn/Info.plist` | `YOUR_FACEBOOK_APP_ID`, `YOUR_GOOGLE_WEB_CLIENT_ID`, `fbYOUR_FACEBOOK_APP_ID` URL schemes |
 | `src/config/socialAuth.js` | Same placeholders for Google / Facebook |
 
 Apple / Google / Facebook sign-in will fail until real credentials are set and URL schemes match the Firebase / developer consoles.
@@ -81,73 +83,25 @@ Apple / Google / Facebook sign-in will fail until real credentials are set and U
 
 ---
 
-## 4. App Store / privacy
+## 4. App Store / privacy metadata
 
-| Item | Location | Action |
-|------|----------|--------|
-| Display name | `CFBundleDisplayName` = **Shopynn** | Align with store listing |
-| Location permission | `NSLocationWhenInUseUsageDescription` is **empty** | Remove usage or add a real string — empty may cause rejection if any SDK requests location |
-| App Tracking | `NSUserTrackingUsageDescription` + ATT in `AppDelegate` | Required for Facebook; show only if you use tracking |
-| Privacy manifest | `CheqStock/PrivacyInfo.xcprivacy` | Present; review when adding SDKs |
-| Background modes | `fetch`, `processing` | Justify for App Review if claimed |
-| Export compliance | App Store Connect | Typically “No” for HTTPS-only apps unless custom crypto |
+| Item | Path | Notes |
+|------|------|--------|
+| Display name | `INFOPLIST_KEY_CFBundleDisplayName` / Info.plist | Shopynn |
+| Privacy manifest | `Shopynn/PrivacyInfo.xcprivacy` | Present; review when adding SDKs |
+| Usage descriptions | Info.plist | Camera, mic, photo library, Face ID, etc. |
 
 ---
 
-## 5. Security parity (vs Android doc)
+## 5. Versioning
 
-| Area | iOS status |
-|------|------------|
-| Jailbreak | `jail-monkey` in `deviceSecurity.js` — active on iOS |
-| Tokens | `react-native-keychain` |
-| Offline sensitive data | `secureOfflineStorage.js` (AES) |
-| HTTPS for API | Release uses `PRODUCTION_TEST_API` |
-| ATS arbitrary loads | Disabled |
-| Local HTTP | `NSAllowsLocalNetworking` = **true** — allows LAN HTTP (e.g. receipt printer `LOCAL_PRINT_URL`); API still HTTPS in release |
-| SSL pinning | `pinnedFetch.js` not wired to axios (same as Android) |
-| Simulator block | Not implemented (`react-native-device-info` unused) |
-| Release log noise | Several `console.log` calls **not** gated with `__DEV__` (e.g. `interceptors.js` logs every request URL) |
+Bump `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` in Xcode (or `agvtool`) for each TestFlight / store build. Keep `src/config/index.js` `VERSION_NUMBER` in sync with the force-update API.
 
 ---
 
-## 6. Versioning
+## Key paths
 
-| Field | Current |
-|-------|---------|
-| `MARKETING_VERSION` (Xcode) | 1.0 |
-| `CURRENT_PROJECT_VERSION` | 1 |
-| `config/index.js` → `VERSION_NUMBER` | 1 |
-
-Bump **both** Xcode build number and `VERSION_NUMBER` for each tester build.
-
----
-
-## 7. Pre-flight checklist
-
-- [ ] `pod install` clean; open **`.xcworkspace`** (not `.xcodeproj`)
-- [ ] Firebase `GoogleService-Info.plist` matches bundle ID `com.shopynn` (or update bundle ID to match plist)
-- [ ] Replace social auth placeholders if Google/Facebook login is in test scope
-- [ ] Confirm `PRODUCTION_TEST_API` in `config/index.js` points to deployed API
-- [ ] Archive with **Release** + valid distribution signing
-- [ ] Install on physical device; login, notifications, subscription, warehouse flows
-- [ ] Confirm no Metro — app works offline from bundled JS
-- [ ] Gate or remove release `console.log` (especially `interceptors.js` request URL log)
-
----
-
-## 8. Optional improvements
-
-- Rename shared scheme `IMSCheckr` → `CheqStock`
-- Add `__DEV__` guard around `console.log('config url', …)` in `interceptors.js`
-- Add Push Notifications + Background Modes capabilities in entitlements if FCM required
-- TestFlight internal group before external testers
-- App Store Connect: screenshots, privacy nutrition labels, support URL
-
----
-
-## Related paths
-
-- `apps/mobile/ios/CheqStock.xcodeproj/project.pbxproj` — signing, bundle ID, versions  
-- `apps/mobile/ios/CheqStock/Info.plist` — permissions, ATS, URL schemes  
-- `apps/mobile/ios/CheqStock/AppDelegate.swift` — bundle URL, Facebook, release JS bundle  
-- `apps/mobile/src/config/index.js` — API base URL  
+- `apps/mobile/ios/Shopynn.xcodeproj/project.pbxproj` — signing, bundle ID, versions
+- `apps/mobile/ios/Shopynn/Info.plist` — permissions, ATS, URL schemes
+- `apps/mobile/ios/Shopynn/AppDelegate.swift` — bundle URL, Facebook, release JS bundle
+- `apps/mobile/src/config/index.js` — API base URL for release builds

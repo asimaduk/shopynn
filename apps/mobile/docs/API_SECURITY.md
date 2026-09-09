@@ -1,4 +1,4 @@
-# API Security – CheqStock
+# API Security – Shopynn
 
 Implemented measures and usage for securing API calls.
 

@@ -6,8 +6,8 @@
 import * as Keychain from 'react-native-keychain';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const SERVICE_ACCESS = 'com.cheqstock.auth.access';
-const SERVICE_REFRESH = 'com.cheqstock.auth.refresh';
+const SERVICE_ACCESS = 'com.shopynn.auth.access';
+const SERVICE_REFRESH = 'com.shopynn.auth.refresh';
 const ACCESS_TOKEN_KEY = 'BRS_ACCESS_TOKEN';
 const REFRESH_TOKEN_KEY = 'BRS_REFRESH_TOKEN';
 const MIGRATION_DONE_KEY = 'BRS_KEYCHAIN_MIGRATION_DONE';

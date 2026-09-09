@@ -3,8 +3,8 @@
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const PRODUCTS_CACHE_KEY = 'CHEQSTOCK_PRODUCTS_CACHE_V1';
-export const PRODUCTS_CACHE_META_KEY = 'CHEQSTOCK_PRODUCTS_CACHE_META_V1';
+export const PRODUCTS_CACHE_KEY = 'SHOPYNN_PRODUCTS_CACHE_V1';
+export const PRODUCTS_CACHE_META_KEY = 'SHOPYNN_PRODUCTS_CACHE_META_V1';
 
 export async function saveProductsCache(products) {
     try {

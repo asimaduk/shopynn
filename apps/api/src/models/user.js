@@ -11,6 +11,7 @@ import {
     getTenantSubscriptionUsageService,
 } from "./subscription.js";
 import { SUPER_ADMIN_EXCLUDED_PERMISSION_CODES } from "../constants/permissionCodes.js";
+import { getUserPermissionsService } from "./userRole.js";
 
 const saltRounds = 12;
 
@@ -213,20 +214,12 @@ export const getUserByIdService = async (id) => {
                     }));
                 }
 
-                // Load permissions via role -> role_permissions -> permissions
-                const permsRes = await pool.query(
-                    `SELECT DISTINCT p.code
-                    FROM user_roles ur
-                    INNER JOIN role_permissions rp ON ur.role_id = rp.role_id
-                    INNER JOIN permissions p ON rp.permission_id = p.id
-                    WHERE ur.user_id = $1`,
-                    [userRes.rows[0].id]
+                // Load permissions via the same path as API auth (Super Admin shortcut included).
+                const permissionCodes = await getUserPermissionsService(
+                    userRes.rows[0].id,
+                    userRes.rows[0].tenant_id
                 );
-                if (permsRes.rowCount) {
-                    permissions = permsRes.rows.map(p => ({
-                        code: p.code,
-                    }));
-                }
+                permissions = (permissionCodes || []).map((code) => ({ code }));
             }
 
             // Add settings with roles and permissions
@@ -291,6 +284,7 @@ export const getUserDetailsService = async (id) => {
             u.deleted_by,
             u.phone,
             u.is_active,
+            u.tenant_id,
             u.warehouse_id,
             w.name AS warehouse_name
          FROM users u
@@ -321,18 +315,11 @@ export const getUserDetailsService = async (id) => {
         }));
     }
 
-    // Load permissions via role -> role_permissions -> permissions
+    // Load permissions via the same path as API auth (Super Admin shortcut included).
     let permissions = [];
-    const permsRes = await pool.query(
-        `SELECT DISTINCT p.id, p.code, p.name
-         FROM user_roles ur
-         INNER JOIN role_permissions rp ON ur.role_id = rp.role_id
-         INNER JOIN permissions p ON rp.permission_id = p.id
-         WHERE ur.user_id = $1`,
-        [id]
-    );
-    if (permsRes.rowCount) {
-        permissions = permsRes.rows.map(p => ({ id: p.id, code: p.code, name: p.name }));
+    if (user.tenant_id) {
+        const permissionCodes = await getUserPermissionsService(id, user.tenant_id);
+        permissions = (permissionCodes || []).map((code) => ({ code }));
     }
 
     return {

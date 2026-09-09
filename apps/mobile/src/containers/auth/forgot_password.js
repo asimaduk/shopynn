@@ -14,7 +14,7 @@ import {
     Image,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
 import config from '../../config';
@@ -26,6 +26,7 @@ const { width } = Dimensions.get('window');
 const ForgotPassword = ({ navigation }) => {
     const { colors, isDark } = useTheme();
     const insets = useSafeAreaInsets();
+    const isFocused = useIsFocused();
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -33,13 +34,8 @@ const ForgotPassword = ({ navigation }) => {
         useCallback(() => {
             if (Platform.OS === 'android') StatusBar.setBackgroundColor(config.THEME_COLOR);
             StatusBar.setBarStyle('light-content');
-            return () => {
-                if (Platform.OS === 'android') StatusBar.setBackgroundColor(colors.background);
-                if (Platform.OS === 'android') {
-                    StatusBar.setBarStyle(isDark ? 'light-content' : 'dark-content');
-                }
-            };
-        }, [colors.background, isDark])
+            return undefined;
+        }, [])
     );
 
     const handleSubmit = async () => {
@@ -68,7 +64,9 @@ const ForgotPassword = ({ navigation }) => {
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={[styles.keyboard, { backgroundColor: colors.background }]}>
-            <StatusBar barStyle="light-content" backgroundColor={config.THEME_COLOR} />
+            {isFocused ? (
+                <StatusBar barStyle="light-content" backgroundColor={config.THEME_COLOR} />
+            ) : null}
             {insets.top > 0 && (
                 <View style={[styles.statusBarFill, { height: insets.top, backgroundColor: config.THEME_COLOR }]} />
             )}

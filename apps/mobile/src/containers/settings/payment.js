@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
@@ -8,17 +8,13 @@ import useTheme from '../../hooks/useTheme';
 import ScreenHeader from '../../components/screen_header';
 import { useSelector } from 'react-redux';
 import { orders, payments } from '../../services/api';
+import { MOMO_NETWORK_OPTIONS, getMomoNetworkIcon } from '../../utils/momoNetworks';
 
 const formatter = new Intl.NumberFormat('en-GH', {
     style: 'currency',
     currency: 'GHS',
 });
 const MOMO_NUMBER_MAX_LENGTH = 10;
-const MOMO_NETWORK_OPTIONS = [
-    { id: 'mtn', label: 'MTN', provider: 'mtn', color: '#FFCC00', icon: 'signal' },
-    { id: 'telecel', label: 'Telecel', provider: 'vod', color: '#E60000', icon: 'activity' },
-    { id: 'airteltigo', label: 'AirtelTigo', provider: 'tgo', color: '#1F3A93', icon: 'smartphone' },
-];
 
 const normalizeMomoNumber = (value = '') => {
     let digits = String(value).replace(/\D/g, '');
@@ -372,9 +368,11 @@ const Payment = ({ navigation, route }) => {
                                             },
                                         ]}>
                                         <View style={styles.networkChipInner}>
-                                            <View style={[styles.networkIconWrap, { backgroundColor: `${network.color}22` }]}>
-                                                <Lucide name={network.icon} size={13} color={network.color} />
-                                            </View>
+                                            <Image
+                                                source={getMomoNetworkIcon(network.id)}
+                                                style={styles.networkLogo}
+                                                resizeMode="contain"
+                                            />
                                             <AppText
                                                 label={network.label}
                                                 fontSize={13}
@@ -560,6 +558,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
+    },
+    networkLogo: {
+        width: 22,
+        height: 22,
+        borderRadius: 4,
     },
     networkIconWrap: {
         width: 22,

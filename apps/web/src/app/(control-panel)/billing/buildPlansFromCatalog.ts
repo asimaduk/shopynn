@@ -57,6 +57,12 @@ const PAID_NAMES: Record<ChooseableSubscriptionType, ChooseablePlan['name']> = {
 	4: 'Premium'
 };
 
+const PAID_AMOUNTS: Record<ChooseableSubscriptionType, number> = {
+	2: 229,
+	3: 429,
+	4: 799
+};
+
 export function buildChooseablePlansFromCatalog(
 	catalog: BillingCatalogResponse | undefined
 ): ChooseablePlan[] {
@@ -66,11 +72,17 @@ export function buildChooseablePlansFromCatalog(
 	for (const tier of ['basic', 'standard', 'premium'] as const) {
 		const monthly = grouped.plans[tier]?.subscription_monthly as BillingCatalogItem | undefined;
 		const key = TIER_TO_TYPE[tier];
-		if (!monthly || !key) continue;
+		if (!key) continue;
+		const catalogAmount = monthly != null
+			? Number((monthly as { amount_ghs?: number; amount?: number }).amount_ghs ?? (monthly as { amount?: number }).amount ?? 0)
+			: NaN;
+		const amount = Number.isFinite(catalogAmount) && catalogAmount > 0
+			? catalogAmount
+			: PAID_AMOUNTS[key];
 		out.push({
 			key,
 			name: PAID_NAMES[key],
-			amount: Number(monthly.amount_ghs) || 0,
+			amount,
 			billing: 'Monthly',
 			description: PAID_DESCRIPTIONS[key],
 			features: PAID_FEATURES[key]

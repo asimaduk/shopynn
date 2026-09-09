@@ -29,10 +29,11 @@ const ApplicationNavigator = () => {
     
     const handleUpgrade = useCallback(() => {
         if (Platform.OS == 'android') {
-            Linking.openURL("http://play.google.com/store/apps/details?id=com.cheqstock");
+            Linking.openURL("http://play.google.com/store/apps/details?id=com.shopynn");
         }
         else {
-            const link = 'https://apps.apple.com/us/app/cheqstock/id6453170031';
+            // TODO: replace with Shopynn App Store id when listing is live
+            const link = 'https://apps.apple.com/us/app/shopynn/id6453170031';
             Linking.canOpenURL(link).then(supported => {
                 supported && Linking.openURL(link);
             }, () => {

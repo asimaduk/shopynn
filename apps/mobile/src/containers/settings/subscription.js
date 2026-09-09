@@ -39,9 +39,7 @@ const Subscription = ({ navigation, route }) => {
     const scrollToPlans = route?.params?.scrollToPlans === true;
     const scrollRef = useRef(null);
     const [plansOffsetY, setPlansOffsetY] = useState(0);
-    const allowManage =
-        requiredPayment ||
-        canManageSubscription(user, subscriptionFeatures, { allowWhenSubscriptionExpired: requiredPayment });
+    const allowManage = requiredPayment || canManageSubscription(user, subscriptionFeatures);
 
     const [loading, setLoading] = useState(true);
     const [subscriptionStatus, setSubscriptionStatus] = useState('expired'); // 'active', 'expired', 'trial'
@@ -62,21 +60,20 @@ const Subscription = ({ navigation, route }) => {
                 subscriptionsApi.current(),
                 billingApi.catalog({ grouped: true }).catch(() => null),
             ]);
-            const fromCat = buildPlansFromCatalog(cat);
-            if (fromCat) {
-                setCatalogPlans(
-                    fromCat
-                        .filter((p) => p.v > 1)
-                        .map((p) => ({
-                            key: p.v,
-                            name: p.title,
-                            amount: p.monthlyGhs,
-                            billing: 'Monthly',
-                            description: p.description,
-                            features: CHOOSEABLE_SUBSCRIPTION_PLANS.find((x) => x.key === p.v)?.features || [],
-                        })),
-                );
-            }
+            // Prefer hardcoded paid amounts; only overlay catalog prices when they are > 0
+            // (Railway restores often leave billing_catalog_items.amount_ghs at 0).
+            const fromCat = buildPlansFromCatalog(cat) || [];
+            const merged = CHOOSEABLE_SUBSCRIPTION_PLANS.map((base) => {
+                const row = fromCat.find((p) => p.v === base.key);
+                const catalogAmount = row != null ? Number(row.monthlyGhs) : NaN;
+                return {
+                    ...base,
+                    amount: Number.isFinite(catalogAmount) && catalogAmount > 0 ? catalogAmount : base.amount,
+                    description: base.description,
+                    features: base.features,
+                };
+            });
+            setCatalogPlans(merged);
             const sub = subResponse?.subscription;
             // console.log('sub', sub);
             const status = normalizeStatus(sub?.status ?? sub?.state);
@@ -94,6 +91,7 @@ const Subscription = ({ navigation, route }) => {
         } catch (_) {
             setSubscriptionStatus('expired');
             setPaymentHistory([]);
+            setCatalogPlans(CHOOSEABLE_SUBSCRIPTION_PLANS);
         } finally {
             setLoading(false);
         }
@@ -141,13 +139,23 @@ const Subscription = ({ navigation, route }) => {
     const subscriptionActive = subscriptionStatus === 'active';
     const hasSubscription = Boolean(subscriptionId);
     const currentRank = PLAN_RANK_BY_NAME[planName] ?? 0;
-    const planSource = catalogPlans?.length ? catalogPlans : CHOOSEABLE_SUBSCRIPTION_PLANS;
     const selectablePlans = useMemo(() => {
+        const source = (catalogPlans?.length ? catalogPlans : CHOOSEABLE_SUBSCRIPTION_PLANS).map((plan) => {
+            const fallback = CHOOSEABLE_SUBSCRIPTION_PLANS.find((p) => p.key === plan.key);
+            const amount = Number(plan.amount);
+            return {
+                ...plan,
+                amount: Number.isFinite(amount) && amount > 0 ? amount : (fallback?.amount ?? 0),
+                billing: plan.billing || 'Monthly',
+                features: plan.features?.length ? plan.features : (fallback?.features || []),
+                description: plan.description || fallback?.description || '',
+            };
+        });
         if (currentRank > 0) {
-            return planSource.filter((p) => p.key > currentRank);
+            return source.filter((p) => p.key > currentRank);
         }
-        return planSource;
-    }, [currentRank, planSource]);
+        return source;
+    }, [catalogPlans, currentRank]);
 
     const showUpgradeSection =
         hasSubscription && selectablePlans.length > 0 && (subscriptionActive || currentRank > 0);

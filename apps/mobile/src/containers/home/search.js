@@ -13,7 +13,7 @@ import NetInfo from '@react-native-community/netinfo';
 // import Toast from 'react-native-toast-message';
 // import { useVoiceSearch } from '../../hooks/useVoiceSearch';
 
-const PRODUCTS_CACHE_META_KEY = 'CHEQSTOCK_PRODUCTS_CACHE_META_V1';
+const PRODUCTS_CACHE_META_KEY = 'SHOPYNN_PRODUCTS_CACHE_META_V1';
 
 // Context-specific config when Search is opened from different screens
 // const SOURCE_CONFIG = {

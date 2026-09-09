@@ -1,6 +1,6 @@
 # Theme Responsiveness Implementation Guide
 
-This guide outlines all the changes needed to make the CheqStock app theme responsive (support dark/light mode).
+This guide outlines all the changes needed to make the Shopynn app theme responsive (support dark/light mode).
 
 ## Overview
 

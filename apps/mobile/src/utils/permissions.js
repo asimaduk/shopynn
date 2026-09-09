@@ -234,15 +234,55 @@ export function canAccessScreen(user, screenName, contextFeatures) {
     return getScreenPlanAccess(user, screenName, contextFeatures).allowed;
 }
 
-/** Show in UI when user has permission; `locked` when plan upgrade is required. */
+/** Platform-operator tools — never shown as plan upgrade locks to tenants. */
+const PLATFORM_NAV_FEATURES = new Set([
+    'merchants.view',
+    'merchants.operate',
+    'tenants.directory.view',
+    'newsletter.subscribers.view',
+    'newsletter.campaigns.view',
+    'newsletter.campaigns.send',
+    'contact_requests.view',
+    'contact_requests.respond',
+    'site_chat.sessions.view',
+    'site_chat.sessions.respond',
+]);
+
+function normalizeFeatureList(raw) {
+    if (!raw) return [];
+    const list = Array.isArray(raw) ? raw : [raw];
+    return list.map((c) => String(c).trim().toLowerCase()).filter(Boolean);
+}
+
+function isPlatformNavItem(features) {
+    return features.some((f) => PLATFORM_NAV_FEATURES.has(f));
+}
+
+/** Show in UI when user has permission; `locked` when plan upgrade is required.
+ *  Billing admins still see sellable plan-locked items (e.g. Online Orders) when the
+ *  restored role is missing the permission code — so upgrade CTAs remain visible.
+ *  Platform-admin tools stay permission-gated only (never lock-to-upgrade).
+ */
 export function getScreenPlanAccess(user, screenName, contextFeatures) {
     const needed = SCREEN_PERMISSION_MAP[screenName];
     const neededFeatures = SCREEN_FEATURE_MAP[screenName] || needed;
+    const features = normalizeFeatureList(neededFeatures);
     if (!hasPermission(user, needed)) {
+        // Billing admins: surface sellable plan locks even when role_permissions omitted the code.
+        if (isBillingAdminUser(user) && features.length > 0 && !isPlatformNavItem(features)) {
+            return {
+                show: true,
+                locked: true,
+                allowed: false,
+                requiredPlanName: getMinimumTierDisplayForFeatures(features),
+            };
+        }
         return { show: false, locked: false, allowed: false };
     }
     if (!hasFeature(user, neededFeatures, contextFeatures)) {
-        const features = Array.isArray(neededFeatures) ? neededFeatures : [neededFeatures];
+        if (isPlatformNavItem(features)) {
+            return { show: false, locked: false, allowed: false };
+        }
         return {
             show: true,
             locked: true,
@@ -268,30 +308,68 @@ export function navigateToScreenOrUpgrade(navigation, user, screenName, contextF
 
 const BILLING_ADMIN_ROLE_NAMES = new Set(['super admin', 'owner', 'administrator', 'admin']);
 
-/** Tenant owner / admin roles that can manage subscription billing. */
-export function isBillingAdminUser(user) {
-    if (!user) return false;
-    const fromRolesString =
-        typeof user.roles === 'string'
-            ? user.roles.split(',').map((r) => r.trim().toLowerCase()).filter(Boolean)
-            : [];
-    const fromSettingsRoles = Array.isArray(user?.settings?.roles)
-        ? user.settings.roles.map((r) => String(r?.name || '').trim().toLowerCase()).filter(Boolean)
-        : [];
-    const names = [...fromRolesString, ...fromSettingsRoles];
-    return names.some((n) => BILLING_ADMIN_ROLE_NAMES.has(n));
+function collectUserRoleNames(user) {
+    if (!user) return [];
+    const names = [];
+    if (typeof user.roles === 'string') {
+        names.push(
+            ...user.roles
+                .split(',')
+                .map((r) => String(r || '').trim().toLowerCase())
+                .filter(Boolean),
+        );
+    } else if (Array.isArray(user.roles)) {
+        names.push(
+            ...user.roles
+                .map((r) => String(typeof r === 'string' ? r : r?.name || '').trim().toLowerCase())
+                .filter(Boolean),
+        );
+    }
+    if (user.role != null) {
+        const single = String(user.role).trim().toLowerCase();
+        if (single) names.push(single);
+    }
+    if (Array.isArray(user?.settings?.roles)) {
+        names.push(
+            ...user.settings.roles
+                .map((r) => String(r?.name || r || '').trim().toLowerCase())
+                .filter(Boolean),
+        );
+    }
+    return names;
 }
 
-/** Subscription & billing on profile — billing admin with subscription.view. */
-export function canManageSubscription(user, contextFeatures, opts) {
-    if (!isBillingAdminUser(user)) return false;
-    if (opts?.allowWhenSubscriptionExpired) {
-        return hasPermission(user, 'subscription.view');
-    }
-    return (
-        hasFeature(user, 'subscription.view', contextFeatures) &&
-        hasPermission(user, 'subscription.view')
+/** Tenant owner / admin roles that can manage subscription billing. */
+export function isBillingAdminUser(user) {
+    const names = collectUserRoleNames(user);
+    return names.some(
+        (n) =>
+            BILLING_ADMIN_ROLE_NAMES.has(n) ||
+            n === 'superadmin' ||
+            n.includes('super admin') ||
+            n.includes('owner') ||
+            n === 'administrator',
     );
+}
+
+/** Subscription & billing — billing-admin roles own the tenant plan/checkout.
+ *  Do not block upgrade CTAs when subscription.view was omitted after a restore.
+ *  Accepts (user), (user, opts), or (user, contextFeatures, opts).
+ */
+export function canManageSubscription(user, contextFeaturesOrOpts, opts) {
+    if (!isBillingAdminUser(user)) return false;
+    // Support mistaken (user, { allowWhenSubscriptionExpired }) call sites.
+    if (
+        contextFeaturesOrOpts &&
+        typeof contextFeaturesOrOpts === 'object' &&
+        !Array.isArray(contextFeaturesOrOpts) &&
+        Object.prototype.hasOwnProperty.call(contextFeaturesOrOpts, 'allowWhenSubscriptionExpired')
+    ) {
+        return true;
+    }
+    void contextFeaturesOrOpts;
+    void opts;
+    return true;
 }
 
 function normalizeRoleName(role) {

@@ -14,7 +14,7 @@ import {
     Image,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
 import useTheme from '../../hooks/useTheme';
@@ -32,6 +32,7 @@ const { width } = Dimensions.get('window');
 const CustomerSignup = ({ navigation }) => {
     const { colors, isDark } = useTheme();
     const insets = useSafeAreaInsets();
+    const isFocused = useIsFocused();
     const [step, setStep] = useState(0);
     const [loading, setLoading] = useState(false);
 
@@ -62,11 +63,8 @@ const CustomerSignup = ({ navigation }) => {
         useCallback(() => {
             if (Platform.OS === 'android') StatusBar.setBackgroundColor(config.THEME_COLOR);
             StatusBar.setBarStyle('light-content');
-            return () => {
-                if (Platform.OS === 'android') StatusBar.setBackgroundColor(colors.background);
-                StatusBar.setBarStyle(isDark ? 'light-content' : 'dark-content');
-            };
-        }, [colors.background, isDark, config.THEME_COLOR])
+            return undefined;
+        }, [])
     );
 
     const canVerifyReference = useMemo(
@@ -198,7 +196,9 @@ const CustomerSignup = ({ navigation }) => {
 
     return (
         <KeyboardAvoidingView style={[styles.keyboard, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-            <StatusBar barStyle="light-content" backgroundColor={config.THEME_COLOR} />
+            {isFocused ? (
+                <StatusBar barStyle="light-content" backgroundColor={config.THEME_COLOR} />
+            ) : null}
             {insets.top > 0 && <View style={[styles.statusBarFill, { height: insets.top, backgroundColor: config.THEME_COLOR }]} />}
             <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
                 <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>

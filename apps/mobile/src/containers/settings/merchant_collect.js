@@ -8,6 +8,7 @@ import {
     ActivityIndicator,
     Platform,
     Share,
+    Image,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -17,12 +18,7 @@ import AppText from '../../components/text';
 import useTheme from '../../hooks/useTheme';
 import config from '../../config';
 import { merchants as merchantsApi } from '../../services/api';
-
-const MOMO_NETWORKS = [
-    { id: 'mtn', label: 'MTN', provider: 'mtn' },
-    { id: 'telecel', label: 'Telecel', provider: 'vod' },
-    { id: 'airteltigo', label: 'AirtelTigo', provider: 'tgo' },
-];
+import { MOMO_NETWORK_OPTIONS, getMomoNetworkIcon } from '../../utils/momoNetworks';
 
 const MerchantCollect = ({ navigation, route }) => {
     const { colors } = useTheme();
@@ -179,18 +175,27 @@ const MerchantCollect = ({ navigation, route }) => {
                             }}
                         />
                         <View style={{ flexDirection: 'row', marginTop: 8, gap: 6 }}>
-                            {MOMO_NETWORKS.map((n) => (
+                            {MOMO_NETWORK_OPTIONS.map((n) => (
                                 <TouchableOpacity
                                     key={n.id}
                                     onPress={() => setNetwork(n.provider)}
                                     style={{
-                                        padding: 8,
+                                        flex: 1,
+                                        paddingVertical: 10,
+                                        paddingHorizontal: 6,
                                         borderRadius: 6,
                                         borderWidth: network === n.provider ? 2 : 1,
                                         borderColor: network === n.provider ? config.THEME_COLOR : colors.border,
+                                        alignItems: 'center',
+                                        gap: 4,
                                     }}
                                 >
-                                    <AppText label={n.label} fontSize={12} color={colors.text} />
+                                    <Image
+                                        source={getMomoNetworkIcon(n.id)}
+                                        style={{ width: 28, height: 28 }}
+                                        resizeMode="contain"
+                                    />
+                                    <AppText label={n.label} fontSize={11} color={colors.text} />
                                 </TouchableOpacity>
                             ))}
                         </View>

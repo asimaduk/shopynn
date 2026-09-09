@@ -1,4 +1,4 @@
-package com.cheqstock.voice
+package com.shopynn.voice
 
 import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.NativeModule

@@ -2,7 +2,7 @@ import * as Keychain from 'react-native-keychain';
 import ReactNativeBiometrics from 'react-native-biometrics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BIOMETRIC_CREDENTIALS_SERVICE = 'com.cheqstock.biometric';
+const BIOMETRIC_CREDENTIALS_SERVICE = 'com.shopynn.biometric';
 const BIOMETRIC_ENABLED_KEY = 'BIOMETRIC_LOGIN_ENABLED';
 
 /** react-native-biometrics v3 uses a class; methods are on the instance, not static. */

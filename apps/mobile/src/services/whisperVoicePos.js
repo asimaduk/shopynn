@@ -1,5 +1,5 @@
 /**
- * Offline Whisper STT for POS voice add (Cheqstock).
+ * Offline Whisper STT for POS voice add (Shopynn).
  * Model is downloaded once to DocumentDirectoryPath (see docs/VOICE_POS_OFFLINE.md).
  */
 import { NativeModules, Platform } from 'react-native';

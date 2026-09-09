@@ -16,6 +16,7 @@ import {
 } from '../../billing/SubscriptionApi';
 import { formatGhsCurrency } from '@/app/(control-panel)/dashboards/analytics/daily-sales/formatGhsCurrency';
 import { formatPayoutSnapshot } from './settlementUtils';
+import { MOMO_NETWORK_OPTIONS } from '@/utils/momoNetworks';
 
 type PayoutProfileSectionProps = {
 	availableBalance?: number;
@@ -147,9 +148,19 @@ export default function PayoutProfileSection({ availableBalance = 0, onWithdrawa
 							value={momoNetwork}
 							onChange={(e) => setMomoNetwork(e.target.value)}
 						>
-							<MenuItem value="mtn">MTN</MenuItem>
-							<MenuItem value="vodafone">Telecel (Vodafone)</MenuItem>
-							<MenuItem value="airteltigo">AT (AirtelTigo)</MenuItem>
+							{MOMO_NETWORK_OPTIONS.map((n) => (
+								<MenuItem key={n.payoutNetwork} value={n.payoutNetwork}>
+									<Box className="flex items-center gap-2">
+										<Box
+											component="img"
+											src={n.iconSrc}
+											alt=""
+											sx={{ width: 22, height: 22, objectFit: 'contain' }}
+										/>
+										{n.label}
+									</Box>
+								</MenuItem>
+							))}
 						</TextField>
 						<TextField
 							label="MoMo number"

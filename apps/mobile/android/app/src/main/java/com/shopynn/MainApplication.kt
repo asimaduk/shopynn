@@ -1,4 +1,4 @@
-package com.cheqstock
+package com.shopynn
 
 import android.app.Application
 import com.facebook.react.PackageList
@@ -9,7 +9,7 @@ import com.facebook.react.ReactNativeHost
 import com.facebook.react.ReactPackage
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import com.facebook.react.defaults.DefaultReactNativeHost
-import com.cheqstock.voice.VoicePosWavRecorderPackage
+import com.shopynn.voice.VoicePosWavRecorderPackage
 
 class MainApplication : Application(), ReactApplication {
 

@@ -1,4 +1,4 @@
-package com.cheqstock
+package com.shopynn
 
 import android.graphics.Color
 import android.os.Bundle
