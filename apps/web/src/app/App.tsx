@@ -18,6 +18,7 @@ import store from '../store/store';
 import MainThemeProvider from '../contexts/MainThemeProvider';
 import FuseMessage from '@fuse/core/FuseMessage/FuseMessage';
 import AuthTransitionOverlay from '../components/AuthTransitionOverlay';
+import InactivityLogout from '../components/InactivityLogout';
 
 type AppProps = {
 	children?: React.ReactNode;
@@ -59,6 +60,7 @@ function App(props: AppProps) {
 											}}
 										>
 											{children}
+											<InactivityLogout />
 											<AuthTransitionOverlay />
 											<FuseMessage />
 											<Toaster

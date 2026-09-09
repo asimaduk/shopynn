@@ -8,6 +8,8 @@ import CardContent from '@mui/material/CardContent';
 // import { lighten } from '@mui/material/styles';
 import AuthJsForm from '@auth/forms/AuthJsForm';
 import Link from '@fuse/core/Link';
+import { Suspense } from 'react';
+import IdleSignInNotice from './IdleSignInNotice';
 
 /**
  * The sign in page.
@@ -26,6 +28,10 @@ function SignInPage() {
 					<Typography className="mt-8 text-4xl font-extrabold leading-[1.25] tracking-tight">
 						Sign in
 					</Typography>
+
+					<Suspense fallback={null}>
+						<IdleSignInNotice />
+					</Suspense>
 
 					{/* <div className="mt-0.5 flex items-baseline font-medium">
 						<Typography>Don't have an account?</Typography>
