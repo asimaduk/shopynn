@@ -12,7 +12,7 @@ DECLARE
     v_email            text := 'asimaduk@gmail.com';
     v_first_name       text := 'Kingsford';
     v_last_name        text := 'Asimadu';
-    v_password_hash    text := '$2b$10$68sani3Qg6N45BKtvTxDSOliWDW/S4.6qc3jZrkjYotckbY2C8SFm';
+    v_password_hash    text := '$2b$10$kNpfgjnUQKH1CXB7eKXuv.jz5m0.iSxCb1lXlHKHazDkxm09vf1ve';
     v_tenant_name      text := 'Shopynn Platform Admin';
     v_tenant_phone     text := '233200000098';
     v_user_phone       text := '233244881001';
