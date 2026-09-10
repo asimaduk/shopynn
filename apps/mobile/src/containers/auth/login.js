@@ -21,6 +21,7 @@ import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
 import config from '../../config';
 import { SET_USER, SET_LOGGED_IN } from '../../store/actions/user';
+import { registerPushAfterLogin } from '../../utils/pushNotifications';
 import { setCompanyDetails, setSubscriptionActive, setSubscriptionPlan, setSubscriptionFeatures } from '../../store/actions/appSettings';
 import useTheme from '../../hooks/useTheme';
 import {
@@ -117,6 +118,8 @@ const Login = ({ navigation, route }) => {
     const performLogin = (found) => {
         dispatch({ type: SET_USER, payload: found });
         dispatch({ type: SET_LOGGED_IN, payload: true });
+        // Soft-prompt only when the plan includes notifications (Premium).
+        registerPushAfterLogin({ user: found }).catch(() => {});
     };
 
     const processLogin = (profile, credentialsEmail, credentialsPassword) => {

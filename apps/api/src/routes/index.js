@@ -42,6 +42,7 @@ import newsletterroutes from "./newsletterroutes.js";
 import contactRequestroutes from "./contactRequestroutes.js";
 import siteChatroutes from "./siteChatroutes.js";
 import billingroutes from "./billingroutes.js";
+import broadcastroutes from "./broadcastroutes.js";
 
 router.use('/users', userroutes);
 router.use("/public", publicroutes);
@@ -80,6 +81,7 @@ router.use("/merchants", merchantroutes);
 router.use("/billing", billingroutes);
 router.use("/industries", industryroutes);
 router.use("/newsletter", newsletterroutes);
+router.use("/broadcasts", broadcastroutes);
 router.use("/contact-requests", contactRequestroutes);
 router.use("/site-chats", siteChatroutes);
 

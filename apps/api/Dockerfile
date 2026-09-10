@@ -25,6 +25,7 @@ COPY scripts ./scripts
 COPY schema.sql ./schema.sql
 COPY seed-permissions.sql ./seed-permissions.sql
 COPY industries.sql ./industries.sql
+COPY assets ./assets
 COPY docs ./docs
 RUN chmod +x scripts/db-migrate.sh
 USER shopynn

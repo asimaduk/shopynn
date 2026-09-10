@@ -204,6 +204,22 @@ export const updateMyPreferences = async (req, res, next) => {
     }
 };
 
+/** Persist the signed-in user's device FCM token (push). Auth only — allowed when subscription is expired. */
+export const updateMyFcmToken = async (req, res, next) => {
+    try {
+        const raw = req.body?.fcm_token;
+        if (raw !== null && raw !== undefined && typeof raw !== "string") {
+            return handleResponse(res, 400, "fcm_token must be a string or null.", null);
+        }
+        const fcm_token = raw == null ? null : String(raw).trim() || null;
+        const updatedUser = await updateUserService({ id: req.user.id, fcm_token });
+        if (!updatedUser) return handleResponse(res, 404, "Not found.");
+        handleResponse(res, 200, "FCM token updated.", { id: updatedUser.id });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const getUserDetails = async (req, res, next) => {
     try {
         const user = await getUserDetailsService(req.params.id);

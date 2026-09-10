@@ -183,6 +183,7 @@ INSERT INTO permissions (id, code, name, description, created_at) VALUES
 (gen_random_uuid()::text, 'newsletter.subscribers.view', 'View newsletter subscribers', 'List marketing newsletter subscribers', now()),
 (gen_random_uuid()::text, 'newsletter.campaigns.view', 'View newsletters', 'List sent and draft marketing newsletters', now()),
 (gen_random_uuid()::text, 'newsletter.campaigns.send', 'Send newsletters', 'Create and send marketing newsletters', now()),
+(gen_random_uuid()::text, 'broadcasts.send', 'Send platform broadcasts', 'Broadcast push, email, and SMS messages to Shopynn users', now()),
 (gen_random_uuid()::text, 'contact_requests.view', 'View contact requests', 'List Talk to us submissions from the public site', now()),
 (gen_random_uuid()::text, 'contact_requests.respond', 'Respond to contact requests', 'Reply to Talk to us messages by email', now()),
 -- Premium-tier platform marketing (see subscription_tier_features: excluded from Free/Basic/Standard)
@@ -308,6 +309,7 @@ JOIN (
             'newsletter.subscribers.view',
             'newsletter.campaigns.view',
             'newsletter.campaigns.send',
+            'broadcasts.send',
             'contact_requests.view',
             'contact_requests.respond',
             'site_chat.sessions.view',
@@ -355,6 +357,7 @@ JOIN (
             'newsletter.subscribers.view',
             'newsletter.campaigns.view',
             'newsletter.campaigns.send',
+            'broadcasts.send',
             'contact_requests.view',
             'contact_requests.respond',
             'site_chat.sessions.view',

@@ -17,6 +17,7 @@ WHERE rp.role_id = r.id
       'newsletter.subscribers.view',
       'newsletter.campaigns.view',
       'newsletter.campaigns.send',
+      'broadcasts.send',
       'contact_requests.view',
       'contact_requests.respond',
       'site_chat.sessions.view',

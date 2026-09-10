@@ -1,5 +1,5 @@
 import express from "express";
-import { assignMerchantPermissionsToUserRole, changePasswordWithTemporary, createUser, deleteUser, forgotPassword, getAllUsers, getMyPreferences, getUserById, getUserDetails, loginUser, resetPassword, toggleUserActive, updateMyPreferences, updateUser } from "../controllers/user.js";
+import { assignMerchantPermissionsToUserRole, changePasswordWithTemporary, createUser, deleteUser, forgotPassword, getAllUsers, getMyPreferences, getUserById, getUserDetails, loginUser, resetPassword, toggleUserActive, updateMyFcmToken, updateMyPreferences, updateUser } from "../controllers/user.js";
 import { signupCustomerAccount, verifyStoreReferencePublic } from "../controllers/customerProfile.js";
 import {
     sendShopOwnerSignupEmailOtp,
@@ -19,6 +19,8 @@ router.post('/me/profile-image', auth, requireActiveSubscription, uploadProfileI
 router.delete('/me/profile-image', auth, requireActiveSubscription, removeMyProfileImage);
 router.get('/me/preferences', auth, requireActiveSubscription, getMyPreferences);
 router.put('/me/preferences', auth, requireActiveSubscription, updateMyPreferences);
+/** Device push token — no subscription gate so renewal alerts can still target the device. */
+router.put('/me/fcm-token', auth, updateMyFcmToken);
 router.put('/toggle-active', auth, requireActiveSubscription, toggleUserActive);
 router.post('/assign-merchant-permissions', auth, requireActiveSubscription, assignMerchantPermissionsToUserRole);
 router.put('/:id/delete', auth, requireActiveSubscription, deleteUser);

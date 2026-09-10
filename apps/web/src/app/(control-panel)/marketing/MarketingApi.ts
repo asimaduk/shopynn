@@ -1,6 +1,12 @@
 import { apiService as api } from 'src/store/apiService';
 
-export const marketingTagTypes = ['newsletterSubscribers', 'newsletterCampaigns', 'contactRequests', 'siteChats'] as const;
+export const marketingTagTypes = [
+	'newsletterSubscribers',
+	'newsletterCampaigns',
+	'contactRequests',
+	'siteChats',
+	'broadcastAudience'
+] as const;
 
 export type NewsletterSubscriber = {
 	id: string;
@@ -79,6 +85,31 @@ export type SiteChatMessage = {
 export type SiteChatSessionDetail = SiteChatSessionRow & {
 	admin_notes?: string | null;
 	replied_at?: string | null;
+};
+
+export type BroadcastAudienceCounts = {
+	audience: 'myself' | 'all';
+	recipients: number;
+	push: number;
+	email: number;
+	sms: number;
+	sms_configured: boolean;
+};
+
+export type BroadcastChannelResult = {
+	attempted: number;
+	success: number;
+	failure: number;
+	skipped_unconfigured?: number;
+};
+
+export type BroadcastSendResult = {
+	audience: 'myself' | 'all';
+	recipients: number;
+	push: BroadcastChannelResult;
+	email: BroadcastChannelResult;
+	sms: BroadcastChannelResult;
+	in_app: { created: number };
 };
 
 const MarketingApi = api
@@ -214,6 +245,31 @@ const MarketingApi = api
 					body: { message }
 				}),
 				invalidatesTags: ['siteChats']
+			}),
+			getBroadcastAudience: build.query<BroadcastAudienceCounts, { audience?: 'myself' | 'all' } | void>({
+				query: (arg) => ({
+					url: '/api/broadcasts/audience',
+					params: { audience: arg?.audience === 'all' ? 'all' : 'myself' }
+				}),
+				providesTags: ['broadcastAudience']
+			}),
+			sendBroadcast: build.mutation<
+				BroadcastSendResult,
+				{
+					title: string;
+					body: string;
+					channels: { push?: boolean; email?: boolean; sms?: boolean };
+					audience: 'myself' | 'all';
+					confirm_all?: boolean;
+					create_in_app?: boolean;
+				}
+			>({
+				query: (body) => ({
+					url: '/api/broadcasts/send',
+					method: 'POST',
+					body
+				}),
+				invalidatesTags: ['broadcastAudience']
 			})
 		}),
 		overrideExisting: false
@@ -238,5 +294,7 @@ export const {
 	useGetSiteChatsQuery,
 	useGetSiteChatQuery,
 	useUpdateSiteChatMutation,
-	useReplyToSiteChatMutation
+	useReplyToSiteChatMutation,
+	useGetBroadcastAudienceQuery,
+	useSendBroadcastMutation
 } = MarketingApi;

@@ -171,6 +171,7 @@ const PLATFORM_NAV_FEATURES = new Set([
 	'newsletter.subscribers.view',
 	'newsletter.campaigns.view',
 	'newsletter.campaigns.send',
+	'broadcasts.send',
 	'contact_requests.view',
 	'contact_requests.respond',
 	'site_chat.sessions.view',

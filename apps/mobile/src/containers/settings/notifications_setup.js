@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, Switch, View, ScrollView, ActivityIndicator, Alert, Platform, PermissionsAndroid, TouchableOpacity } from 'react-native';
+import { StyleSheet, Switch, View, ScrollView, ActivityIndicator, Alert, Platform, TouchableOpacity, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AppText from '../../components/text';
 import config from '../../config';
@@ -7,6 +7,11 @@ import ScreenHeader from '../../components/screen_header';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import useTheme from '../../hooks/useTheme';
 import { users as usersApi } from '../../services/api';
+import {
+    hasAndroidNotificationPermission,
+    promptForNotificationPermission,
+    syncFcmTokenToServer,
+} from '../../utils/pushNotifications';
 
 const DEFAULT_SETTINGS = {
     lowStock: true,
@@ -89,7 +94,7 @@ const NotificationsSetup = ({ navigation, route }) => {
             return;
         }
         setCheckingPermission(true);
-        PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS)
+        hasAndroidNotificationPermission()
             .then((granted) => {
                 setPushAllowed(!!granted);
             })
@@ -103,20 +108,26 @@ const NotificationsSetup = ({ navigation, route }) => {
         checkNotificationPermission();
     }, [checkNotificationPermission]);
 
-    const requestNotificationPermission = useCallback(() => {
+    const requestNotificationPermission = useCallback(async () => {
         if (Platform.OS !== 'android') {
             return;
         }
         setCheckingPermission(true);
-        PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS)
-            .then((result) => {
-                const granted = result === PermissionsAndroid.RESULTS.GRANTED;
-                setPushAllowed(granted);
-            })
-            .catch(() => {
-                // keep existing state; optionally show an alert later if needed
-            })
-            .finally(() => setCheckingPermission(false));
+        try {
+            const granted = await promptForNotificationPermission({
+                title: 'Enable push notifications',
+                message:
+                    'Allow Shopynn to send alerts for low stock, online orders, and your daily sales summary. You can turn individual alerts on or off below.',
+                confirmLabel: 'Allow',
+                cancelLabel: 'Not now',
+            });
+            setPushAllowed(granted);
+            if (granted) {
+                await syncFcmTokenToServer();
+            }
+        } finally {
+            setCheckingPermission(false);
+        }
     }, []);
 
     const backPress = () => {
@@ -137,13 +148,26 @@ const NotificationsSetup = ({ navigation, route }) => {
         }
     }, [preferences]);
 
-    const toggleSetting = (key) => {
+    const toggleSetting = async (key) => {
+        const turningOn = !settings[key];
+        if (turningOn && Platform.OS === 'android' && !pushAllowed) {
+            const granted = await promptForNotificationPermission({
+                title: 'Notifications are off',
+                message:
+                    'This alert needs push permission on your device. Enable notifications so Shopynn can reach you.',
+                confirmLabel: 'Enable',
+                cancelLabel: 'Cancel',
+            });
+            setPushAllowed(granted);
+            if (!granted) return;
+            await syncFcmTokenToServer();
+        }
         setSettings((prev) => {
             const next = { ...prev, [key]: !prev[key] };
             savePreferences(next);
             return next;
         });
-    }
+    };
 
     const SettingRow = ({ label, description, value, onValueChange, icon }) => (
         <View style={[styles.settingRow, { backgroundColor: colors.surface }]}>
@@ -193,28 +217,42 @@ const NotificationsSetup = ({ navigation, route }) => {
                         <Lucide name="bell-off" size={18} color={colors.error} />
                         <View style={{ flex: 1, marginLeft: 10 }}>
                             <AppText
-                                label="Push notifications are currently disabled in your device settings. Enable them in system settings to receive alerts."
+                                label="Push notifications are off on this device. Enable them to receive the alerts you choose below."
                                 fontSize={13}
                                 color={colors.textSecondary}
                             />
-                            <TouchableOpacity
-                                onPress={requestNotificationPermission}
-                                disabled={checkingPermission}
-                                style={{
-                                    marginTop: 8,
-                                    alignSelf: 'flex-start',
-                                    paddingHorizontal: 12,
-                                    paddingVertical: 6,
-                                    borderRadius: 16,
-                                    backgroundColor: checkingPermission ? colors.border : config.THEME_COLOR,
-                                }}
-                            >
-                                <AppText
-                                    label={checkingPermission ? 'Requesting...' : 'Request again'}
-                                    fontSize={12}
-                                    color={colors.onPrimary || '#fff'}
-                                />
-                            </TouchableOpacity>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8, gap: 8 }}>
+                                <TouchableOpacity
+                                    onPress={requestNotificationPermission}
+                                    disabled={checkingPermission}
+                                    style={{
+                                        alignSelf: 'flex-start',
+                                        paddingHorizontal: 12,
+                                        paddingVertical: 6,
+                                        borderRadius: 16,
+                                        backgroundColor: checkingPermission ? colors.border : config.THEME_COLOR,
+                                    }}
+                                >
+                                    <AppText
+                                        label={checkingPermission ? 'Requesting...' : 'Enable notifications'}
+                                        fontSize={12}
+                                        color={colors.onPrimary || '#fff'}
+                                    />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => Linking.openSettings().catch(() => {})}
+                                    style={{
+                                        alignSelf: 'flex-start',
+                                        paddingHorizontal: 12,
+                                        paddingVertical: 6,
+                                        borderRadius: 16,
+                                        borderWidth: StyleSheet.hairlineWidth,
+                                        borderColor: colors.border,
+                                    }}
+                                >
+                                    <AppText label="Open settings" fontSize={12} color={colors.textSecondary} />
+                                </TouchableOpacity>
+                            </View>
                         </View>
                     </View>
                 )}

@@ -73,8 +73,10 @@ Copy from `apps/api/.env.example`. Required at minimum:
 - `PAYSTACK_SECRET_KEY` (production payments / withdrawals)
 - `FRONTEND_URL` / `PAYMENT_CALLBACK_URL` (point at admin web, e.g. `https://admin-shopynn.vercel.app`)
 - AWS/S3 keys if uploads are enabled
+- `FIREBASE_SERVICE_ACCOUNT_JSON` — stringified Firebase Admin service account JSON (for FCM push). Prefer this over a file path on Railway.
+- `GOOGLE_APP_PASSWORD` — Gmail app password for transactional / broadcast email
 
-Never commit real `.env` files.
+Never commit real `.env` files or the Firebase JSON under `secrets/`.
 
 ### Vercel — `@shopynn/web`
 

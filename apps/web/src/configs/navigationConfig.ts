@@ -383,6 +383,15 @@ const navigationConfig: FuseNavItemType[] = [
 				requiredFeatures: ['newsletter.campaigns.view']
 			},
 			{
+				id: 'adminTools.broadcast',
+				title: 'Broadcast',
+				type: 'item',
+				icon: 'heroicons-outline:megaphone',
+				url: '/marketing/broadcast',
+				requiredPermissions: ['tenants.directory.view', 'broadcasts.send'],
+				requiredFeatures: ['tenants.directory.view', 'broadcasts.send']
+			},
+			{
 				id: 'adminTools.contactRequests',
 				title: 'Talk to us',
 				type: 'item',

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Image, Dimensions, ScrollView, Platform, PermissionsAndroid, StatusBar } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Image, Dimensions, ScrollView, Platform, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import Animated, {
@@ -13,8 +13,6 @@ import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
 import config from '../../config';
 import useTheme from '../../hooks/useTheme';
-import messaging from '@react-native-firebase/messaging';
-import PushNotification, { Importance } from "react-native-push-notification";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const IMAGE_HEIGHT = SCREEN_HEIGHT * 0.45;
@@ -105,30 +103,15 @@ const GetStarted = ({ navigation }) => {
 
     useFocusEffect(
         useCallback(() => {
-            StatusBar.setBarStyle('dark-content');
+            StatusBar.setBarStyle('light-content', true);
             if (Platform.OS === 'android') {
-                StatusBar.setBackgroundColor(colors.surface || '#ffffff');
+                StatusBar.setTranslucent(true);
+                StatusBar.setBackgroundColor(config.THEME_COLOR, true);
             }
             // Do not reset barStyle on blur — the next screen's focus effect owns it.
-            // Resetting to dark-content here races after Login/signup set light-content.
             return undefined;
-        }, [colors.surface]),
+        }, []),
     );
-
-    useEffect(() => {
-        if(Platform.Version >= 33){
-            PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS)
-                .then(status=> {
-                    if(status == 'granted'){
-                        listenForPushNotifications();
-                    }
-                })
-                .catch(err=> console.log('perm err',err))
-        } 
-        else {
-            listenForPushNotifications();
-        }
-    }, []);
 
     const scrollHandler = useAnimatedScrollHandler({
         onScroll: (event) => {
@@ -170,49 +153,15 @@ const GetStarted = ({ navigation }) => {
         goToLogin();
     };
 
-    const listenForPushNotifications = () => {
-        if (Platform.OS !== 'android') return;
-
-        messaging().onMessage(remoteMessage => {
-            console.log('remoteMessage', remoteMessage);
-            
-            // In foreground, FCM often sends only data; notification payload may be undefined
-            const body =
-                remoteMessage?.notification?.body ??
-                remoteMessage?.notification?.title ??
-                remoteMessage?.data?.body ??
-                remoteMessage?.data?.message ??
-                (typeof remoteMessage?.data?.text === 'string' ? remoteMessage.data.text : null) ??
-                'New notification';
-            const title =
-                remoteMessage?.notification?.title ??
-                remoteMessage?.data?.title ??
-                'Shopynn';
-
-            try {
-                // PushNotification.localNotification({
-                //     channelId: 'channel-shopynn',
-                //     id: String(Date.now()),
-                //     title,
-                //     message: String(body),
-                //     playSound: true,
-                //     vibrate: true,
-                // });
-                PushNotification.localNotification({ channelId: 'channel-shopynn', title: 'Low stock', message: `88 item(s) below reorder point.`, playSound: true });
-
-                console.log('push notification sent');
-            } catch (error) {
-                console.log('push notification error', error);
-            }
-
-            
-        });
-    };
-
     return (
         <View style={[styles.container, { backgroundColor: colors.surface }]}>
             {isFocused ? (
-                <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
+                <StatusBar
+                    animated
+                    translucent
+                    barStyle="light-content"
+                    backgroundColor={config.THEME_COLOR}
+                />
             ) : null}
             <SafeAreaView style={styles.safeArea} edges={['top']}>
                 <View style={styles.skipRow}>

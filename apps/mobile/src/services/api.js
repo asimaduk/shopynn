@@ -194,6 +194,8 @@ export const users = {
     removeProfileImage: () => axios.delete('/users/me/profile-image').then((res) => getData(res)),
     mePreferences: () => axios.get('/users/me/preferences').then((res) => getData(res)),
     updateMePreferences: (body) => axios.put('/users/me/preferences', body).then((res) => res.data),
+    updateMyFcmToken: (fcm_token) =>
+        axios.put('/users/me/fcm-token', { fcm_token: fcm_token ?? null }).then((res) => getData(res)),
     list: (params) => axios.get('/users', { params }).then((res) => getData(res)),
     get: (id) => axios.get(`/users/${id}`).then((res) => getData(res)),
     create: (body) => axios.post('/users', body).then((res) => getData(res)),
