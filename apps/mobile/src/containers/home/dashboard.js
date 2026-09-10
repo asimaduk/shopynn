@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Dimensions, ScrollView, Text, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Platform } from 'react-native';
+import { View, Dimensions, ScrollView, Text, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import { LineChart } from "react-native-gifted-charts"
-import messaging from '@react-native-firebase/messaging';
-import PushNotification, { Importance } from "react-native-push-notification";
+import PushNotification from "react-native-push-notification";
 
 import { Lucide } from '@react-native-vector-icons/lucide';
 import Header from '../../components/main_header';
@@ -13,6 +12,10 @@ import config from '../../config';
 import useTheme from '../../hooks/useTheme';
 import { dashboard as dashboardApi, inventories, normalizeList } from '../../services/api';
 import { canAccessScreen } from '../../utils/permissions';
+import {
+    buildLowStockNotificationPayload,
+    LOW_STOCK_NOTIFICATION_ID,
+} from '../../utils/notificationNavigation';
  
 const { width } = Dimensions.get('window')
 
@@ -57,45 +60,28 @@ const Dashboard = ({ navigation, route }) => {
 
     useEffect(()=> {
         loadDashboardData();
-        listenForPushNotifications();
     },[]);
 
     useEffect(() => {
         if (itemsToReorder.length === 0) return;
         try {
-            PushNotification.localNotification({ channelId: 'channel-shopynn', title: 'Low stock', message: `${itemsToReorder.length} item(s) below reorder point.`, playSound: true });
+            const payload = buildLowStockNotificationPayload(itemsToReorder.length);
+            PushNotification.localNotification({
+                id: LOW_STOCK_NOTIFICATION_ID,
+                channelId: 'channel-shopynn',
+                title: 'Low stock',
+                message: `${itemsToReorder.length} item(s) below reorder point.`,
+                playSound: true,
+                smallIcon: 'ic_notification',
+                largeIcon: 'ic_launcher',
+                color: '#0A74DA',
+                invokeApp: true,
+                userInfo: payload,
+                ...payload,
+                data: JSON.stringify(payload),
+            });
         } catch (_) {}
     }, [itemsToReorder.length]);
-
-    const listenForPushNotifications = () => {
-        if (Platform.OS !== 'android') return;
-
-        messaging().onMessage(remoteMessage => {
-            console.log('dashboard remoteMessage', remoteMessage);
-            
-            // In foreground, FCM often sends only data; notification payload may be undefined
-            const body =
-                remoteMessage?.notification?.body ??
-                remoteMessage?.notification?.title ??
-                remoteMessage?.data?.body ??
-                remoteMessage?.data?.message ??
-                (typeof remoteMessage?.data?.text === 'string' ? remoteMessage.data.text : null) ??
-                'New notification';
-            const title =
-                remoteMessage?.notification?.title ??
-                remoteMessage?.data?.title ??
-                'Shopynn';
-
-            PushNotification.localNotification({
-                channelId: 'channel-shopynn',
-                // id: String(Date.now()),
-                title,
-                message: String(body),
-                playSound: true,
-                vibrate: true,
-            });
-        });
-    };
 
     const loadDashboardData = async () => {
         setIsLoading(true);

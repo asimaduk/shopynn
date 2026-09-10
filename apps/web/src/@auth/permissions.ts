@@ -114,6 +114,29 @@ function normalizeRequiredList(raw?: string[] | string): string[] {
 	return list.map((c) => String(c).trim().toLowerCase()).filter(Boolean);
 }
 
+/** Platform-operator tools — never shown as plan upgrade locks to tenants. */
+const PLATFORM_NAV_FEATURES = new Set([
+	'merchants.view',
+	'merchants.operate',
+	'tenants.directory.view',
+	'newsletter.subscribers.view',
+	'newsletter.campaigns.view',
+	'newsletter.campaigns.send',
+	'broadcasts.send',
+	'contact_requests.view',
+	'contact_requests.respond',
+	'site_chat.sessions.view',
+	'site_chat.sessions.respond'
+]);
+
+function isPlatformFeatureCode(code: string): boolean {
+	return PLATFORM_NAV_FEATURES.has(String(code || '').trim().toLowerCase());
+}
+
+function isPlatformNavItem(features: string[]): boolean {
+	return features.some((f) => isPlatformFeatureCode(f));
+}
+
 export function evaluateFeatureAccess(
 	user: User | null | undefined,
 	requiredCodes?: string[] | string,
@@ -137,6 +160,12 @@ export function evaluateFeatureAccess(
 		return { allowed: false, deniedBy: 'permission', missingFeatures };
 	}
 	if (!planOk) {
+		// Platform admin tools are permission-gated, not subscription upsells.
+		// After DB restores, Premium feature rows may be incomplete even when the
+		// operator role already has merchants / newsletter / chat permissions.
+		if (featuresToCheck.some((f) => isPlatformFeatureCode(f))) {
+			return { allowed: true, missingFeatures: [] };
+		}
 		return {
 			allowed: false,
 			deniedBy: 'plan',
@@ -162,25 +191,6 @@ export type NavItemAccess = {
 	upgradeUrl?: string;
 	requiredPlanName?: string;
 };
-
-/** Platform-operator tools — never shown as plan upgrade locks to tenants. */
-const PLATFORM_NAV_FEATURES = new Set([
-	'merchants.view',
-	'merchants.operate',
-	'tenants.directory.view',
-	'newsletter.subscribers.view',
-	'newsletter.campaigns.view',
-	'newsletter.campaigns.send',
-	'broadcasts.send',
-	'contact_requests.view',
-	'contact_requests.respond',
-	'site_chat.sessions.view',
-	'site_chat.sessions.respond'
-]);
-
-function isPlatformNavItem(features: string[]): boolean {
-	return features.some((f) => PLATFORM_NAV_FEATURES.has(f));
-}
 
 /** Nav: hide when role lacks permission; show locked when plan lacks a sellable feature.
  *  Billing admins still see sellable plan-locked items (e.g. Online Orders) when the

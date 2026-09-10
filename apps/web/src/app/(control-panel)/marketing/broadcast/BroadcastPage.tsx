@@ -4,6 +4,11 @@ import { useMemo, useState } from 'react';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Checkbox from '@mui/material/Checkbox';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import Divider from '@mui/material/Divider';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import FormGroup from '@mui/material/FormGroup';
 import Paper from '@mui/material/Paper';
@@ -25,6 +30,7 @@ export default function BroadcastPage() {
 	const [body, setBody] = useState('');
 	const [channels, setChannels] = useState({ push: true, email: false, sms: false });
 	const [createInApp, setCreateInApp] = useState(true);
+	const [reviewOpen, setReviewOpen] = useState(false);
 	const [lastResult, setLastResult] = useState<BroadcastSendResult | null>(null);
 
 	const { data: counts, isFetching: loadingCounts } = useGetBroadcastAudienceQuery({ audience });
@@ -35,14 +41,26 @@ export default function BroadcastPage() {
 		return hasChannel && title.trim().length > 0 && body.trim().length > 0;
 	}, [channels, title, body]);
 
-	const handleSend = async () => {
+	const channelLabels = useMemo(() => {
+		const list: string[] = [];
+		if (channels.push) list.push('Push');
+		if (channels.email) list.push('Email');
+		if (channels.sms) list.push('SMS');
+		return list;
+	}, [channels]);
+
+	const openReview = () => {
 		if (!canSend || sending) return;
-		if (audience === 'all') {
-			const ok = window.confirm(
-				`Send this broadcast to ALL active staff users?\n\nPush: ${counts?.push ?? 0} · Email: ${counts?.email ?? 0} · SMS: ${counts?.sms ?? 0}`
-			);
-			if (!ok) return;
-		}
+		setReviewOpen(true);
+	};
+
+	const closeReview = () => {
+		if (sending) return;
+		setReviewOpen(false);
+	};
+
+	const confirmSend = async () => {
+		if (!canSend || sending) return;
 		try {
 			const result = await sendBroadcast({
 				title: title.trim(),
@@ -53,6 +71,7 @@ export default function BroadcastPage() {
 				create_in_app: createInApp
 			}).unwrap();
 			setLastResult(result);
+			setReviewOpen(false);
 			toast.success(
 				audience === 'myself'
 					? 'Sent to your account'
@@ -163,9 +182,9 @@ export default function BroadcastPage() {
 							variant="contained"
 							color={audience === 'all' ? 'warning' : 'primary'}
 							disabled={!canSend || sending}
-							onClick={handleSend}
+							onClick={openReview}
 						>
-							{sending ? 'Sending…' : audience === 'myself' ? 'Send to me' : 'Broadcast to all'}
+							{audience === 'myself' ? 'Review & send to me' : 'Review & broadcast'}
 						</Button>
 					</div>
 
@@ -220,7 +239,63 @@ export default function BroadcastPage() {
 					)}
 				</Paper>
 			</div>
+
+			<Dialog open={reviewOpen} onClose={closeReview} maxWidth="sm" fullWidth>
+				<DialogTitle>Review broadcast</DialogTitle>
+				<DialogContent className="flex flex-col gap-4 pt-2">
+					{audience === 'all' ? (
+						<Alert severity="warning">
+							This will send to all active staff users ({counts?.recipients ?? 0} people · push{' '}
+							{counts?.push ?? 0} · email {counts?.email ?? 0} · SMS {counts?.sms ?? 0}).
+						</Alert>
+					) : (
+						<Alert severity="info">This will send only to your account.</Alert>
+					)}
+
+					<div>
+						<Typography variant="caption" color="text.secondary">
+							Channels
+						</Typography>
+						<Typography variant="body2">
+							{channelLabels.join(', ') || 'None'}
+							{createInApp ? ' · In-app notification' : ''}
+						</Typography>
+					</div>
+
+					<Divider />
+
+					<div>
+						<Typography variant="caption" color="text.secondary">
+							Title
+						</Typography>
+						<Typography variant="subtitle1" className="font-semibold whitespace-pre-wrap break-words">
+							{title.trim()}
+						</Typography>
+					</div>
+
+					<div>
+						<Typography variant="caption" color="text.secondary">
+							Message
+						</Typography>
+						<Typography variant="body1" className="whitespace-pre-wrap break-words mt-1">
+							{body.trim()}
+						</Typography>
+					</div>
+				</DialogContent>
+				<DialogActions>
+					<Button onClick={closeReview} disabled={sending}>
+						Edit
+					</Button>
+					<Button
+						variant="contained"
+						color={audience === 'all' ? 'warning' : 'primary'}
+						onClick={confirmSend}
+						disabled={sending}
+					>
+						{sending ? 'Sending…' : audience === 'myself' ? 'Confirm & send' : 'Confirm & broadcast'}
+					</Button>
+				</DialogActions>
+			</Dialog>
 		</div>
 	);
 }
-

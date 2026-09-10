@@ -4,20 +4,31 @@
 */
 // FCM commented out for iOS - uncomment when Firebase is properly configured
 import messaging from '@react-native-firebase/messaging';
-import {AppRegistry, DeviceEventEmitter, Platform} from 'react-native';
+import {AppRegistry, Platform} from 'react-native';
 import App from './src/app';
 import {name as appName} from './app.json';
 import PushNotificationIOS from '@react-native-community/push-notification-ios';
 import PushNotification from 'react-native-push-notification';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  emitNotificationOpened,
+  isLowStockNotification,
+  wasNotificationOpened,
+} from './src/utils/notificationNavigation';
 
-// Register background handler so FCM data messages are received
+// Register background handler so FCM *data-only* messages can still be shown
 // when the app is in the background or quit.
-// iOS FCM disabled - only Android enabled
+// If the payload already includes `notification`, Android displays it — do not
+// post a second local notification (that causes duplicate tray entries).
 if (Platform.OS === 'android') {
   messaging().setBackgroundMessageHandler(async remoteMessage => {
     try {
-      const body = remoteMessage?.data?.body || remoteMessage?.notification?.body;
+      // System / FCM already renders notification+data messages in the tray.
+      if (remoteMessage?.notification?.title || remoteMessage?.notification?.body) {
+        return;
+      }
+
+      const body = remoteMessage?.data?.body || remoteMessage?.data?.message;
       if (!body) {
         return;
       }
@@ -25,8 +36,17 @@ if (Platform.OS === 'android') {
       try {
         payload = typeof body === 'string' ? JSON.parse(body) : body;
       } catch (e) {
-        // If body is not JSON, fall back to simple notification
-        payload = {message: String(body), notificationType: 'GENERAL'};
+        // Plain-string data body (e.g. broadcast) — show once as a local notif.
+        PushNotification.localNotification({
+          channelId: 'channel-shopynn',
+          title: String(remoteMessage?.data?.title || 'Shopynn'),
+          message: String(body),
+          smallIcon: 'ic_notification',
+          largeIcon: 'ic_launcher',
+          color: '#0A74DA',
+          userInfo: remoteMessage?.data || {},
+        });
+        return;
       }
 
       if (payload && payload.message && payload.notificationType === 'GENERAL') {
@@ -34,6 +54,9 @@ if (Platform.OS === 'android') {
           channelId: 'channel-shopynn',
           title: 'Shopynn',
           message: payload.message,
+          smallIcon: 'ic_notification',
+          largeIcon: 'ic_launcher',
+          color: '#0A74DA',
         });
       }
     } catch (e) {
@@ -102,10 +125,20 @@ PushNotification.configure({
   onNotification: function (notification) {
     console.log('push notification', notification);
 
-    // iOS notification handling commented out
-    // if (Platform.OS === 'ios') {
-    //   notification.finish(PushNotificationIOS.FetchResult.NoData);
-    // }
+    if (wasNotificationOpened(notification)) {
+      emitNotificationOpened(notification);
+    }
+
+    if (Platform.OS === 'ios') {
+      notification.finish?.(PushNotificationIOS.FetchResult.NoData);
+    }
+  },
+
+  onAction: function (notification) {
+    console.log('push notification action', notification);
+    if (wasNotificationOpened(notification) || isLowStockNotification(notification)) {
+      emitNotificationOpened(notification);
+    }
   },
 
   // Called when the user fails to register for remote notifications (iOS)
@@ -126,6 +159,12 @@ PushNotification.configure({
 
   // iOS permission request disabled
   requestPermissions: false, // Platform.OS === 'ios',
+});
+
+// Cold start: ensure tray tap is handled even if configure's pop races React mount.
+PushNotification.popInitialNotification((notification) => {
+  if (!notification) return;
+  emitNotificationOpened(notification);
 });
 
 AppRegistry.registerComponent(appName, () => App);
