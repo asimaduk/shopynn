@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 // import Toast from 'react-native-toast-message';
 import { AppState, View, Text, StatusBar, Linking, NativeModules, Dimensions, TouchableOpacity, Platform, Alert, PermissionsAndroid, Image, BackHandler } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
-// import SplashScreen from 'react-native-splash-screen';
+import SplashScreen from 'react-native-splash-screen';
 import axios from 'axios';
 // import messaging from '@react-native-firebase/messaging';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -103,13 +103,20 @@ const ApplicationNavigator = () => {
                 }
             })
 
-        // setTimeout(() => {
-        //     SplashScreen.hide();
-        // }, 0);
+        // Delay hide so it runs after SplashScreen.show()'s async Dialog post
+        // (calling hide too early leaves the splash stuck forever).
+        const hideSplash = () => {
+            try {
+                SplashScreen?.hide?.();
+            } catch (_) {}
+        };
+        const t1 = setTimeout(hideSplash, 400);
+        const t2 = setTimeout(hideSplash, 1200);
 
-        checkFCMToken()
-
-       return ()=> {} 
+       return ()=> {
+            clearTimeout(t1);
+            clearTimeout(t2);
+       } 
     },[]);
 
     useEffect(() => {
@@ -181,10 +188,11 @@ const ApplicationNavigator = () => {
     const releaseNotesText = forceUpdateReleaseNotes?.trim() || 'A new version is required to continue using this app.';
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['bottom', 'left', 'right']}>
             <StatusBar
                 barStyle={statusBarStyle}
                 backgroundColor={statusBarBackgroundColor}
+                translucent={Platform.OS === 'android'}
             />
             <View
                 style={{

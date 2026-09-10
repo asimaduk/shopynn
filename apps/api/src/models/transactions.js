@@ -82,7 +82,9 @@ export const getAllTransactionsService = async (productSlug, startDate, endDate,
 
     arr.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-    return arr;
+    const limitRaw = parseInt(requestQuery.limit, 10);
+    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 500) : 0;
+    return limit > 0 ? arr.slice(0, limit) : arr;
 }
 
 export const getTransactionByIdService = async (id) => {

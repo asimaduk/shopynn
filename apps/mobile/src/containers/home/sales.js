@@ -45,6 +45,7 @@ const formatSaleForDisplay = (row) => ({
     id: row.id,
     customer: row.customer ?? 'Walk-In',
     customer_email: row.customer_email || '',
+    customer_phone: row.customer_phone || '',
     itemCount: row.number_of_items ?? 0,
     time: formatTime(row.sale_date || row.created_at),
     amount: row.total_amount ?? '0.00',
@@ -52,6 +53,10 @@ const formatSaleForDisplay = (row) => ({
     user: row.attendant_first_name + ' ' + row.attendant_last_name ?? '—',
     date: formatSectionDate(row.sale_date || row.created_at),
     invoice_number: row.invoice_number,
+    payment_type: row.payment_type,
+    payment_method: row.payment_method,
+    payment_number: row.payment_number,
+    notes: row.notes,
 });
 
 const groupSalesByDate = (items) => {
@@ -343,7 +348,7 @@ const Sales = ({ navigation }) => {
     }, [allSales]);
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['bottom', 'left', 'right']}>
             <Header navigation={navigation} screen="sales" />
 
             <View style={{ flex: 1 }}>

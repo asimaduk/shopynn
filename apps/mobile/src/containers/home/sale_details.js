@@ -8,7 +8,8 @@ import config from '../../config';
 import ScreenHeader from '../../components/screen_header';
 import useTheme from '../../hooks/useTheme';
 import InvoiceShareSheet from '../../components/invoice_share_sheet';
-import { formatCurrency } from '../../utils/format';
+import { formatCurrency, formatQuantity } from '../../utils/format';
+import { formatSalePaymentLabel, salePaymentIcon } from '../../utils/salePayment';
 import { sales as salesApi } from '../../services/api';
 import { hasPermission } from '../../utils/permissions';
 import {
@@ -330,8 +331,13 @@ const SaleDetails = ({ navigation, route }) => {
                                 <AppText label={`${item.itemCount || 0} Items`} fontSize={13} color={colors.textSecondary} style={{ marginLeft: 5 }} />
                             </View>
                             <View style={[styles.tag, { backgroundColor: colors.surfaceSecondary }]}>
-                                <Lucide name="wallet" size={14} color={colors.textSecondary} />
-                                <AppText label={item.payment_method === 'cash' ? "Cash Sale" : item.payment_method === 'mobile_money' ? "Mobile Money Sale" : item.payment_method === 'card' ? "Card Sale" : "Other Sale"} fontSize={13} color={colors.textSecondary} style={{ marginLeft: 5 }} />
+                                <Lucide name={salePaymentIcon(item)} size={14} color={colors.textSecondary} />
+                                <AppText
+                                    label={formatSalePaymentLabel(item, { withSaleSuffix: true })}
+                                    fontSize={13}
+                                    color={colors.textSecondary}
+                                    style={{ marginLeft: 5 }}
+                                />
                             </View>
                         </View>
                     </View>
@@ -366,7 +372,7 @@ const SaleDetails = ({ navigation, route }) => {
                 {/* Payment Info */}
                 <DetailSection title="Payment & Reference">
                     <DetailRow icon="hash" label="Receipt Number" value={item.payment_refrence ?? 'N/A'} />
-                    <DetailRow icon="credit-card" label="Payment Method" value= {item.payment_method === 'cash' ? "Cash" : item.payment_method === 'mobile_money' ? `Mobile Money (${item.payment_number})` : item.payment_method === 'card' ? "Card" : "Other"} />
+                    <DetailRow icon="credit-card" label="Payment Method" value={formatSalePaymentLabel(item)} />
                 </DetailSection>
 
                 <DetailSection title="Sold Items">
@@ -381,19 +387,22 @@ const SaleDetails = ({ navigation, route }) => {
                                 style={[styles.itemImage, { backgroundColor: colors.surfaceTertiary }]}
                                 resizeMode="cover"
                             />
-                            <View style={{ flex: 1, marginLeft: 10 }}>
+                            <View style={{ flex: 1, marginLeft: 10, marginRight: 10 }}>
                                 <AppText label={prod.name} fontSize={14} variant={1} color={colors.text} />
-                                {/* <AppText label="Category: Food" fontSize={12} color={colors.textTertiary} /> */}
-                            </View>
-                            <View style={{ alignItems: 'flex-end' }}>
-                                <AppText label={`x ${prod.quantity}`} fontSize={14} variant={1} color={colors.text} />
                                 <AppText
-                                    label={formatCurrency(Number(prod.quantity || 0) * Number(prod.unit_price || 0))}
+                                    label={`${formatCurrency(Number(prod.unit_price) || 0)} × ${formatQuantity(prod.quantity)}`}
                                     fontSize={12}
                                     color={colors.textTertiary}
-                                    style={{ fontVariant: ['tabular-nums'] }}
+                                    style={{ marginTop: 2, fontVariant: ['tabular-nums'] }}
                                 />
                             </View>
+                            <AppText
+                                label={formatCurrency(Number(prod.quantity || 0) * Number(prod.unit_price || 0))}
+                                fontSize={14}
+                                variant={1}
+                                color={colors.text}
+                                style={{ fontVariant: ['tabular-nums'] }}
+                            />
                         </View>
                     ))}
                 </DetailSection>

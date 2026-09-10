@@ -181,7 +181,7 @@ const Purchases = ({ navigation }) => {
     }, [data, search, statusFilter, selectedDateRange, customStartDate, customEndDate]);
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['bottom', 'left', 'right']}>
             <Header navigation={navigation} screen="purchases" />
 
             <View style={{ flex: 1 }}>

@@ -266,7 +266,7 @@ const Settings = ({ navigation, route }) => {
     }
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['bottom', 'left', 'right']}>
             {/* Search - icon button or expanded input */}
             {!isCustomer && !showSearchInput ? (
                 <TouchableOpacity

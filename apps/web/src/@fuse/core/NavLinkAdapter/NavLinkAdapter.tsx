@@ -14,6 +14,8 @@ export type NavLinkAdapterPropsType = {
 	style?: CSSProperties;
 	role?: string;
 	exact?: boolean;
+	/** Alias for exact (React Router NavLink `end`). */
+	end?: boolean;
 	ref?: React.RefObject<HTMLAnchorElement>;
 };
 
@@ -31,6 +33,7 @@ function NavLinkAdapter(props: NavLinkAdapterPropsType) {
 		to,
 		href,
 		exact,
+		end,
 		ref,
 		..._props
 	} = props;
@@ -52,7 +55,18 @@ function NavLinkAdapter(props: NavLinkAdapterPropsType) {
 		}
 	};
 
-	const isActive = exact ? pathname === targetUrl : pathname.startsWith(targetUrl);
+	const matchExact = Boolean(exact || end);
+	const isActive = (() => {
+		if (!targetUrl) return false;
+		if (matchExact) {
+			return pathname === targetUrl || pathname === `${targetUrl}/`;
+		}
+		if (pathname === targetUrl || pathname === `${targetUrl}/`) return true;
+		// Require a path boundary so `/tenants-directory` does not leave siblings half-matched oddly,
+		// and `/foo` does not match `/foobar`.
+		const prefix = targetUrl.endsWith('/') ? targetUrl : `${targetUrl}/`;
+		return pathname.startsWith(prefix);
+	})();
 
 	return (
 		<Link

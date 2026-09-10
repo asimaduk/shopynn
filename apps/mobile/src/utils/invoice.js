@@ -2,6 +2,7 @@ import { Alert, Linking, Platform, Share } from 'react-native';
 import RNFS from 'react-native-fs';
 import RNShare from 'react-native-share';
 import config from '../config';
+import { formatSalePaymentLabel } from './salePayment';
 
 const THEME = config.THEME_COLOR || '#0A74DA';
 
@@ -94,10 +95,7 @@ export function buildInvoiceFromSale(sale = {}, appSettings = {}) {
         : Math.max(0, computedSubtotal - discount);
     const subtotal = discount > 0 ? total + discount : computedSubtotal || total;
 
-    const paymentRaw = sale.payment_method ?? sale.paymentMethod ?? sale.paymentOption?.method ?? 'cash';
-    const paymentMethod = String(paymentRaw || 'cash')
-        .replace(/_/g, ' ')
-        .replace(/\b\w/g, (c) => c.toUpperCase());
+    const paymentMethod = formatSalePaymentLabel(sale);
 
     const companyName =
         appSettings.companyName ||
@@ -349,20 +347,74 @@ function arrayBufferToBase64(buffer) {
     throw new Error('Cannot encode PDF for sharing on this device.');
 }
 
-export async function shareInvoiceAsPdfFromServer(saleId, invoice) {
+export async function fetchInvoicePdfToCache(saleId, invoice) {
     const { sales: salesApi } = await import('../services/api');
     const data = await salesApi.downloadInvoicePdf(saleId);
+    const bytes =
+        data instanceof ArrayBuffer
+            ? new Uint8Array(data)
+            : data?.buffer
+              ? new Uint8Array(data.buffer, data.byteOffset || 0, data.byteLength || data.length)
+              : new Uint8Array(data || []);
+    if (bytes.length < 5) {
+        throw new Error('Empty response from invoice PDF endpoint.');
+    }
+    const magic = String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]);
+    if (magic !== '%PDF') {
+        throw new Error('Server did not return a PDF file. Please try again.');
+    }
+
     const safeName = String(invoice?.invoice_number || saleId).replace(/[^\w.-]+/g, '_');
     const path = `${RNFS.CachesDirectoryPath}/invoice-${safeName}.pdf`;
-    const base64 = arrayBufferToBase64(data);
+    const base64 = arrayBufferToBase64(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
     await RNFS.writeFile(path, base64, 'base64');
-    const fileUrl = Platform.OS === 'ios' ? path : `file://${path}`;
+    return {
+        path,
+        fileUrl: Platform.OS === 'ios' ? path : `file://${path}`,
+        filename: `invoice-${safeName}.pdf`,
+    };
+}
+
+export async function shareInvoiceAsPdfFromServer(saleId, invoice) {
+    const file = await fetchInvoicePdfToCache(saleId, invoice);
     await RNShare.open({
         title: `Invoice ${invoice?.invoice_number || ''}`,
-        url: fileUrl,
+        url: file.fileUrl,
         type: 'application/pdf',
+        filename: file.filename,
         failOnCancel: false,
     });
+}
+
+/** Save official PDF to device storage (Downloads on Android when available). */
+export async function downloadInvoicePdfFromServer(saleId, invoice) {
+    const file = await fetchInvoicePdfToCache(saleId, invoice);
+    let destDir = RNFS.DocumentDirectoryPath;
+    if (Platform.OS === 'android' && RNFS.DownloadDirectoryPath) {
+        try {
+            const canWrite = await RNFS.exists(RNFS.DownloadDirectoryPath);
+            if (canWrite) destDir = RNFS.DownloadDirectoryPath;
+        } catch {
+            /* keep Documents */
+        }
+    }
+    const destPath = `${destDir}/${file.filename}`;
+    const exists = await RNFS.exists(destPath);
+    if (exists) await RNFS.unlink(destPath);
+    await RNFS.copyFile(file.path, destPath);
+
+    if (Platform.OS === 'ios') {
+        await RNShare.open({
+            title: `Invoice ${invoice?.invoice_number || ''}`,
+            url: destPath,
+            type: 'application/pdf',
+            filename: file.filename,
+            saveToFiles: true,
+            failOnCancel: false,
+        });
+    }
+
+    return destPath;
 }
 
 export async function sendInvoiceEmailFromServer(saleId, email) {
@@ -375,44 +427,23 @@ export async function shareInvoice(invoice, method, options = {}) {
     switch (method) {
         case 'pdf':
             if (!saleId) throw new Error('Sale must be saved before downloading PDF.');
+            return downloadInvoicePdfFromServer(saleId, invoice);
+        case 'share':
+            if (!saleId) throw new Error('Sale must be saved before sharing PDF.');
             await shareInvoiceAsPdfFromServer(saleId, invoice);
             break;
         case 'server-email':
             if (!saleId) throw new Error('Sale must be saved before sending email.');
             await sendInvoiceEmailFromServer(saleId, email || invoice.customer_email);
             break;
-        case 'html':
-            await shareInvoiceAsHtml(invoice);
-            break;
         case 'email':
-            if (saleId && (email || invoice.customer_email)) {
-                try {
-                    await sendInvoiceEmailFromServer(saleId, email || invoice.customer_email);
-                    return;
-                } catch {
-                    /* fall through to mailto */
-                }
-            }
             await shareInvoiceByEmail(invoice, email);
             break;
         case 'whatsapp':
             await shareInvoiceByWhatsApp(invoice);
             break;
-        case 'share':
         default:
-            if (saleId) {
-                try {
-                    await shareInvoiceAsPdfFromServer(saleId, invoice);
-                    break;
-                } catch {
-                    /* fall through */
-                }
-            }
-            try {
-                await shareInvoiceAsHtml(invoice);
-            } catch {
-                await shareInvoiceGeneric(invoice);
-            }
-            break;
+            throw new Error('Unknown share method.');
     }
+    return null;
 }

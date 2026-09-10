@@ -11,20 +11,25 @@ import AppModal from '../../components/app_modal';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import useTheme from '../../hooks/useTheme';
 import { transactions as transactionsApi, normalizeList } from '../../services/api';
-import { formatCurrency } from '../../utils/format';
+import { formatCurrency, formatQuantity } from '../../utils/format';
 
 const dateRanges = [
+    { id: '0', label: 'Recent', value: 'recent' },
     { id: '1', label: 'Today', value: 'today' },
     { id: '2', label: 'Yesterday', value: 'yesterday' },
     { id: '3', label: 'Last 7 Days', value: 'last_7_days' },
     { id: '4', label: 'Last 30 Days', value: 'last_30_days' },
     { id: '5', label: 'This Month', value: 'this_month' },
     { id: '6', label: 'Last Month', value: 'last_month' },
-    // { id: '7', label: 'All Time', value: 'all_time' },
     { id: '8', label: 'Custom Range', value: 'custom' },
 ];
 
+const RECENT_LIMIT = 20;
+
 function getDateRangeBounds(selectedRange, customStart, customEnd) {
+    if (!selectedRange || selectedRange === 'recent') {
+        return { startDate: null, endDate: null };
+    }
     const end = new Date();
     const start = new Date();
     if (selectedRange === 'custom') {
@@ -61,40 +66,38 @@ function getDateRangeBounds(selectedRange, customStart, customEnd) {
             end.setHours(23, 59, 59, 999);
             break;
         default:
-            start.setDate(start.getDate() - 6);
-            start.setHours(0, 0, 0, 0);
+            return { startDate: null, endDate: null };
     }
     return { startDate: start, endDate: end };
 }
 
-const formatter = new Intl.NumberFormat('en-GH', {
-    style: 'currency',
-    currency: 'GHS',
-});
-
 function toDisplayTransaction(t) {
-    // console.log('toDisplayTransaction', t);
     if (!t) return null;
     const type = `${t.type}`.toLowerCase();
-    const isSale = type == 0 //|| type === 'out' || type === 'outbound' || type === 'sale_return';
+    const isSale = type === '0' || type === 0 || type === 'sale' || type == 0;
     const displayType = isSale ? 'sale' : 'stock_in';
     const rawDate = t.created_at;
     const dateObj = rawDate ? new Date(rawDate) : new Date();
     const dateStr = isNaN(dateObj.getTime())
         ? String(rawDate || '')
         : `${dateObj.toLocaleDateString('en-US', { month: 'short' })} ${dateObj.getDate()} @ ${dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase()}`;
+    const amountNum = Number(t.quantity || 0) * Number(t.unit_price || 0);
+    const userName = [t.first_name, t.last_name].filter(Boolean).join(' ').trim();
+    const qtyNum = Number(t.quantity || 0);
     return {
         id: t.id || t.transactionId || String(t._id || ''),
         type: displayType,
         description: t.name || '—',
-        quantity: t.quantity ?? '',
-        amount: formatCurrency(Number(t.quantity * t.unit_price ?? 0)) ?? '0',
-        _amount: t.quantity * t.unit_price ?? 0,
+        quantity: formatQuantity(qtyNum),
+        _quantity: qtyNum,
+        unit_price: Number(t.unit_price || 0),
+        amount: formatCurrency(amountNum),
+        _amount: amountNum,
         date: dateStr,
-        user: t.first_name + ' ' + t.last_name || '—',
-        // referenceId: t.referenceId || t.reference || t.invoiceNumber || t.id || '—',
+        user: userName || '—',
         notes: t.notes || t.note || '',
         invoice_number: t.invoice_number || t.invoiceNumber || t.id || '—',
+        warehouse: t.warehouse || '',
     };
 }
 
@@ -103,7 +106,7 @@ const ProductTransactions = ({ navigation, route }) => {
     const [data, setData] = useState([]);
     const [showDateFilter, setShowDateFilter] = useState(false);
     const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
-    const [selectedDateRange, setSelectedDateRange] = useState('last_7_days');
+    const [selectedDateRange, setSelectedDateRange] = useState(null);
     const [customStartDate, setCustomStartDate] = useState(new Date());
     const [customEndDate, setCustomEndDate] = useState(new Date());
     const [showStartPicker, setShowStartPicker] = useState(false);
@@ -118,6 +121,7 @@ const ProductTransactions = ({ navigation, route }) => {
     const productName = route.params?.productName || route.params?.product?.name || 'All products';
     const productId = route.params?.product?.id;
 
+    const isRecentMode = !selectedDateRange || selectedDateRange === 'recent';
     const { startDate: startDateVal, endDate: endDateVal } = getDateRangeBounds(
         selectedDateRange,
         customStartDate,
@@ -129,12 +133,14 @@ const ProductTransactions = ({ navigation, route }) => {
     const loadTransactions = useCallback(async () => {
         setLoading(true);
         try {
-            const params = {};
-            if (startDateStr) params.startDate = startDateStr;
-            if (endDateStr) params.endDate = endDateStr;
+            const params = { type: typeFilter };
             if (productId) params.product_id = productId;
-            // if (typeFilter !== 'all') 
-            params.type = typeFilter;
+            if (isRecentMode) {
+                params.limit = RECENT_LIMIT;
+            } else {
+                if (startDateStr) params.startDate = startDateStr;
+                if (endDateStr) params.endDate = endDateStr;
+            }
             const raw = await transactionsApi.list(params);
             const list = normalizeList(raw);
             const mapped = list.map(toDisplayTransaction).filter(Boolean);
@@ -144,7 +150,7 @@ const ProductTransactions = ({ navigation, route }) => {
         } finally {
             setLoading(false);
         }
-    }, [startDateStr, endDateStr, productId, typeFilter]);
+    }, [isRecentMode, startDateStr, endDateStr, productId, typeFilter]);
 
     useEffect(() => {
         loadTransactions();
@@ -168,18 +174,23 @@ const ProductTransactions = ({ navigation, route }) => {
         return result;
     }, [data, searchQuery, typeFilter]);
 
-    // Summary stats from filtered data
+    // Summary stats — quantity-first (this screen is about stock movement)
     const summary = useMemo(() => {
         const sales = filteredData.filter((t) => t.type === 'sale');
-        const stockIn = filteredData.filter((t) => t.type === 'stock_in');
+        const purchases = filteredData.filter((t) => t.type === 'stock_in');
+        const soldQty = sales.reduce((sum, t) => sum + (Number(t._quantity) || 0), 0);
+        const boughtQty = purchases.reduce((sum, t) => sum + (Number(t._quantity) || 0), 0);
         const salesTotal = sales.reduce((sum, t) => sum + (Number(t._amount) || 0), 0);
-        const stockInTotal = stockIn.reduce((sum, t) => sum + (Number(t._amount) || 0), 0);
+        const purchaseTotal = purchases.reduce((sum, t) => sum + (Number(t._amount) || 0), 0);
         return {
             count: filteredData.length,
             salesCount: sales.length,
-            stockInCount: stockIn.length,
+            purchaseCount: purchases.length,
+            soldQty,
+            boughtQty,
             salesTotal,
-            stockInTotal,
+            purchaseTotal,
+            netQty: boughtQty - soldQty,
         };
     }, [filteredData]);
 
@@ -197,6 +208,9 @@ const ProductTransactions = ({ navigation, route }) => {
         if (value === 'custom') {
             setShowDateFilter(false);
             setShowCustomDatePicker(true);
+        } else if (value === 'recent') {
+            setSelectedDateRange(null);
+            setShowDateFilter(false);
         } else {
             setSelectedDateRange(value);
             setShowDateFilter(false);
@@ -206,7 +220,6 @@ const ProductTransactions = ({ navigation, route }) => {
     const handleApplyCustomRange = () => {
         setSelectedDateRange('custom');
         setShowCustomDatePicker(false);
-        // In a real app, you would filter the data based on customStartDate and customEndDate
     };
 
     const formatDate = (date) => {
@@ -215,23 +228,37 @@ const ProductTransactions = ({ navigation, route }) => {
     };
 
     const getDateRangeLabel = () => {
+        if (!selectedDateRange || selectedDateRange === 'recent') {
+            return 'Recent';
+        }
         if (selectedDateRange === 'custom') {
             return `${formatDate(customStartDate)} - ${formatDate(customEndDate)}`;
         }
         const range = dateRanges.find((r) => r.value === selectedDateRange);
-        return range ? range.label : 'Last 7 Days';
+        return range ? range.label : 'Recent';
     };
 
     const onStartDateChange = (event, selectedDate) => {
-        if (selectedDate) {
+        if (Platform.OS === 'android') {
+            // Always close on Android to avoid stuck picker over AppModal.
+            setShowStartPicker(false);
+            setTimeout(() => setShowCustomDatePicker(true), 50);
+            if (!selectedDate) return;
             setCustomStartDate(selectedDate);
+            return;
         }
+        if (selectedDate) setCustomStartDate(selectedDate);
     };
 
     const onEndDateChange = (event, selectedDate) => {
-        if (selectedDate) {
+        if (Platform.OS === 'android') {
+            setShowEndPicker(false);
+            setTimeout(() => setShowCustomDatePicker(true), 50);
+            if (!selectedDate) return;
             setCustomEndDate(selectedDate);
+            return;
         }
+        if (selectedDate) setCustomEndDate(selectedDate);
     };
 
     const generateCSV = () => {
@@ -368,7 +395,7 @@ const ProductTransactions = ({ navigation, route }) => {
                 <td class="${typeClass}">${typeLabel}</td>
                 <td>${item.description || ''}</td>
                 <td>${item.quantity || ''}</td>
-                <td>GH₵${item.amount || '0.00'}</td>
+                <td>${item.amount || 'GHS 0.00'}</td>
                 <td>${item.date || ''}</td>
                 <td>${item.user || ''}</td>
                 <td>${item.referenceId || ''}</td>
@@ -380,8 +407,8 @@ const ProductTransactions = ({ navigation, route }) => {
         // Calculate summary
         const sales = filteredData.filter((t) => t.type === 'sale');
         const stockIn = filteredData.filter((t) => t.type === 'stock_in');
-        const salesTotal = sales.reduce((sum, t) => sum + (parseFloat(String(t.amount).replace(/,/g, '')) || 0), 0);
-        const stockInTotal = stockIn.reduce((sum, t) => sum + (parseFloat(String(t.amount).replace(/,/g, '')) || 0), 0);
+        const salesTotal = sales.reduce((sum, t) => sum + (Number(t._amount) || 0), 0);
+        const stockInTotal = stockIn.reduce((sum, t) => sum + (Number(t._amount) || 0), 0);
 
         html += `
         </tbody>
@@ -460,8 +487,8 @@ const ProductTransactions = ({ navigation, route }) => {
     };
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-            <ScreenHeader onPress={backPress} label="Product Transactions">
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['bottom', 'left', 'right']}>
+            <ScreenHeader onPress={backPress} label="Stock movement">
                 <View style={styles.headerActions}>
                     <TouchableOpacity
                         activeOpacity={0.6}
@@ -472,7 +499,7 @@ const ProductTransactions = ({ navigation, route }) => {
                                 return next;
                             });
                         }}
-                        style={[styles.headerButton, { backgroundColor: colors.surface }]}
+                        style={[styles.headerButton, { backgroundColor: colors.surfaceSecondary || colors.background }]}
                     >
                         <Lucide name={showSearch ? 'x' : 'search'} color={colors.text} size={20} />
                     </TouchableOpacity>
@@ -480,7 +507,7 @@ const ProductTransactions = ({ navigation, route }) => {
                         activeOpacity={0.6}
                         onPress={handleExport}
                         disabled={exporting || filteredData.length === 0}
-                        style={[styles.headerButton, { backgroundColor: colors.surface }, (exporting || filteredData.length === 0) && { opacity: 0.5 }]}
+                        style={[styles.headerButton, { backgroundColor: colors.surfaceSecondary || colors.background }, (exporting || filteredData.length === 0) && { opacity: 0.5 }]}
                     >
                         {exporting ? (
                             <ActivityIndicator size="small" color={config.THEME_COLOR} />
@@ -488,24 +515,87 @@ const ProductTransactions = ({ navigation, route }) => {
                             <Lucide name="download" color={config.THEME_COLOR} size={20} />
                         )}
                     </TouchableOpacity>
-                    {/* <TouchableOpacity activeOpacity={0.6} style={styles.headerButton}>
-                        <Lucide name="printer" color="#666" size={20} />
-                    </TouchableOpacity> */}
                 </View>
             </ScreenHeader>
 
-            {/* Product name & date range */}
-            <View style={[styles.productBar, { backgroundColor: colors.surface }]}>
-                <AppText label={productName} variant={1} fontSize={15} numberOfLines={1} style={{ flex: 1 }} color={colors.text} />
-                <TouchableOpacity
-                    activeOpacity={0.7}
-                    onPress={() => setShowDateFilter(true)}
-                    style={[styles.dateRangeChip, { backgroundColor: colors.primaryShade }]}
-                >
-                    <Lucide name="calendar-fold" color={config.THEME_COLOR} size={14} />
-                    <AppText label={getDateRangeLabel()} fontSize={12} color={config.THEME_COLOR} style={{ marginLeft: 6 }} />
-                </TouchableOpacity>
-                <Lucide name="chevron-right" color={colors.textTertiary} size={18} />
+            <View style={[styles.hero, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+                <AppText label={productName} variant={1} fontSize={18} color={colors.text} numberOfLines={2} />
+                <AppText
+                    label="Sale and purchase lines for this product"
+                    fontSize={13}
+                    color={colors.textTertiary}
+                    style={{ marginTop: 4 }}
+                />
+
+                <View style={styles.movementRow}>
+                    <View style={[styles.movementCard, { backgroundColor: colors.errorLight }]}>
+                        <AppText label="Sold" fontSize={11} color={colors.textSecondary} />
+                        <AppText
+                            label={`${formatQuantity(summary.soldQty)} ${summary.soldQty === 1 ? 'unit' : 'units'}`}
+                            variant={1}
+                            fontSize={16}
+                            color={colors.error}
+                            style={{ marginTop: 2 }}
+                        />
+                        <AppText label={formatCurrency(summary.salesTotal)} fontSize={11} color={colors.textTertiary} style={{ marginTop: 2 }} />
+                    </View>
+                    <View style={[styles.movementCard, { backgroundColor: colors.successLight }]}>
+                        <AppText label="Purchased" fontSize={11} color={colors.textSecondary} />
+                        <AppText
+                            label={`${formatQuantity(summary.boughtQty)} ${summary.boughtQty === 1 ? 'unit' : 'units'}`}
+                            variant={1}
+                            fontSize={16}
+                            color={config.GREEN_COLOR || colors.success}
+                            style={{ marginTop: 2 }}
+                        />
+                        <AppText label={formatCurrency(summary.purchaseTotal)} fontSize={11} color={colors.textTertiary} style={{ marginTop: 2 }} />
+                    </View>
+                </View>
+
+                <View style={styles.toolbarRow}>
+                    <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() => setShowDateFilter(true)}
+                        style={[styles.dateRangeChip, { backgroundColor: colors.primaryShade, borderColor: config.THEME_COLOR }]}
+                    >
+                        <Lucide name="calendar-fold" color={config.THEME_COLOR} size={14} />
+                        <AppText label={getDateRangeLabel()} fontSize={12} color={config.THEME_COLOR} style={{ marginLeft: 6 }} />
+                        {isRecentMode ? (
+                            <AppText label={` · ${RECENT_LIMIT}`} fontSize={11} color={config.THEME_COLOR} />
+                        ) : null}
+                    </TouchableOpacity>
+
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                        {[
+                            { value: 'all', label: 'All' },
+                            { value: 'sale', label: 'Sales' },
+                            { value: 'stock_in', label: 'Purchases' },
+                        ].map((opt) => {
+                            const active = typeFilter === opt.value;
+                            return (
+                                <TouchableOpacity
+                                    key={opt.value}
+                                    activeOpacity={0.7}
+                                    onPress={() => setTypeFilter(opt.value)}
+                                    style={[
+                                        styles.typeChip,
+                                        {
+                                            backgroundColor: active ? config.THEME_COLOR : colors.surfaceSecondary || colors.background,
+                                            borderColor: active ? config.THEME_COLOR : colors.border,
+                                        },
+                                    ]}
+                                >
+                                    <AppText
+                                        label={opt.label}
+                                        fontSize={12}
+                                        variant={active ? 1 : 2}
+                                        color={active ? colors.textInverse : colors.textSecondary}
+                                    />
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </ScrollView>
+                </View>
             </View>
 
             {showSearch ? (
@@ -513,7 +603,7 @@ const ProductTransactions = ({ navigation, route }) => {
                     <Lucide name="search" color={colors.textTertiary} size={18} style={{ marginLeft: 12 }} />
                     <TextInput
                         style={[styles.searchInput, { color: colors.text }]}
-                        placeholder="Search by ref, user..."
+                        placeholder="Search attendant or invoice..."
                         placeholderTextColor={colors.placeholder}
                         value={searchQuery}
                         onChangeText={setSearchQuery}
@@ -529,74 +619,17 @@ const ProductTransactions = ({ navigation, route }) => {
                 </View>
             ) : null}
 
-            {/* Summary cards */}
-            <View style={styles.summaryRow}>
-                <View style={[styles.summaryCard, { backgroundColor: colors.surface }]}>
-                    <Lucide name="receipt-text" color={config.THEME_COLOR} size={18} />
-                    <View style={{ marginLeft: 8 }}>
-                        <AppText label={summary.count.toString()} variant={1} fontSize={18} color={colors.text} />
-                        <AppText label="Transactions" fontSize={11} color={colors.textTertiary} />
-                    </View>
-                </View>
-                <View style={[styles.summaryCard, { backgroundColor: colors.surface }]}>
-                    <Lucide name="minus" color={colors.error} size={18} />
-                    <View style={{ marginLeft: 8 }}>
-                        <AppText label={summary.salesCount.toString()} variant={1} fontSize={16} color={colors.text} />
-                        <AppText label={formatCurrency(Number(summary.salesTotal ?? 0))} fontSize={11} color={colors.textSecondary} />
-                    </View>
-                </View>
-                <View style={[styles.summaryCard, { backgroundColor: colors.surface }]}>
-                    <Lucide name="plus" color={config.GREEN_COLOR} size={18} />
-                    <View style={{ marginLeft: 8 }}>
-                        <AppText label={summary.stockInCount.toString()} variant={1} fontSize={16} color={colors.text} />
-                        <AppText label={formatCurrency(Number(summary.stockInTotal ?? 0))} fontSize={11} color={colors.textSecondary} />
-                    </View>
-                </View>
-            </View>
-
-            {/* Type filter */}
-            <View style={styles.filterRow}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {[
-                        { value: 'all', label: 'All', icon: 'list' },
-                        { value: 'sale', label: 'Sales', icon: 'minus' },
-                        { value: 'stock_in', label: 'Stock In', icon: 'plus' },
-                    ].map((opt) => (
-                        <TouchableOpacity
-                            key={opt.value}
-                            activeOpacity={0.7}
-                            onPress={() => setTypeFilter(opt.value)}
-                            style={[styles.typeChip, { backgroundColor: colors.surface, borderColor: colors.border }, typeFilter === opt.value && styles.typeChipActive]}
-                        >
-                            <Lucide
-                                name={opt.icon}
-                                color={typeFilter === opt.value ? colors.textInverse : colors.textSecondary}
-                                size={14}
-                                style={{ marginRight: 6 }}
-                            />
-                            <AppText
-                                label={opt.label}
-                                fontSize={12}
-                                variant={typeFilter === opt.value ? 1 : 2}
-                                color={typeFilter === opt.value ? colors.textInverse : colors.textSecondary}
-                            />
-                        </TouchableOpacity>
-                    ))}
-                </ScrollView>
-            </View>
-
-            {/* Transaction list */}
             {loading ? (
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color={config.THEME_COLOR} />
-                    <AppText label="Loading transactions..." color={colors.textTertiary} style={{ marginTop: 10 }} />
+                    <AppText label="Loading movements..." color={colors.textTertiary} style={{ marginTop: 10 }} />
                 </View>
             ) : (
                 <FlashList
                     style={{ flex: 1 }}
-                    contentContainerStyle={{ padding: 10, paddingTop: 0 }}
+                    contentContainerStyle={{ padding: 12, paddingTop: 8 }}
                     data={filteredData}
-                    estimatedItemSize={80}
+                    estimatedItemSize={110}
                     showsVerticalScrollIndicator={false}
                     refreshControl={
                         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={config.THEME_COLOR} />
@@ -605,7 +638,11 @@ const ProductTransactions = ({ navigation, route }) => {
                         filteredData.length > 0 ? (
                             <View style={styles.listHeader}>
                                 <AppText
-                                    label={`${filteredData.length} transaction${filteredData.length !== 1 ? 's' : ''}`}
+                                    label={
+                                        isRecentMode
+                                            ? `Latest ${filteredData.length} line${filteredData.length !== 1 ? 's' : ''}`
+                                            : `${filteredData.length} line${filteredData.length !== 1 ? 's' : ''} in range`
+                                    }
                                     fontSize={13}
                                     color={colors.textTertiary}
                                 />
@@ -614,27 +651,32 @@ const ProductTransactions = ({ navigation, route }) => {
                     }
                     ListEmptyComponent={() => (
                         <View style={styles.emptyContainer}>
-                            <Lucide name="receipt-text" color={colors.border} size={48} />
+                            <Lucide name="arrow-left-right" color={colors.border} size={48} />
                             <AppText
-                                label={searchQuery || typeFilter !== 'all' ? 'No matching transactions' : 'No transactions yet'}
+                                label={searchQuery || typeFilter !== 'all' ? 'No matching lines' : 'No stock movement yet'}
                                 variant={1}
                                 fontSize={16}
                                 color={colors.textTertiary}
                                 style={{ marginTop: 12 }}
                             />
                             <AppText
-                                label={searchQuery ? 'Try a different search' : 'Transactions will appear here'}
+                                label={
+                                    searchQuery
+                                        ? 'Try a different search'
+                                        : isRecentMode
+                                          ? 'Sales and purchases for this product will show here'
+                                          : 'Try a wider date range'
+                                }
                                 fontSize={13}
                                 color={colors.textTertiary}
                                 style={{ marginTop: 6, textAlign: 'center' }}
                             />
                         </View>
                     )}
-                    keyExtractor={(item) => item.id}
-                    renderItem={({ item, index }) => (
+                    keyExtractor={(item) => String(item.id)}
+                    renderItem={({ item }) => (
                         <TransactionItem
                             item={item}
-                            index={index}
                             onPress={() => navigation.navigate('TransactionDetails', { item })}
                         />
                     )}
@@ -663,10 +705,14 @@ const ProductTransactions = ({ navigation, route }) => {
                             fontFamily="FiraSans-Medium"
                         />
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-                            {dateRanges.slice(0, 6).map((range) => {
-                                const isSelected = selectedDateRange === range.value;
+                            {dateRanges.filter((r) => r.value !== 'custom').map((range) => {
+                                const isSelected =
+                                    range.value === 'recent'
+                                        ? isRecentMode
+                                        : selectedDateRange === range.value;
                                 const getIcon = (value) => {
                                     switch(value) {
+                                        case 'recent': return 'history';
                                         case 'today': return 'calendar-days';
                                         case 'yesterday': return 'calendar-clock';
                                         case 'last_7_days': return 'calendar-range';
@@ -718,7 +764,7 @@ const ProductTransactions = ({ navigation, route }) => {
                     </View>
 
                     {/* Custom Range Option */}
-                    {dateRanges.slice(6).map((range) => {
+                    {dateRanges.filter((range) => range.value === 'custom').map((range) => {
                         const isSelected = selectedDateRange === range.value;
                         return (
                             <View key={range.id}>
@@ -786,7 +832,9 @@ const ProductTransactions = ({ navigation, route }) => {
                                 setShowCustomDatePicker(false);
                                 setTimeout(() => setShowStartPicker(true), 100);
                             } else {
-                                setShowStartPicker(true);
+                                // Close RN Modal first — nesting Android DateTimePicker on top freezes OK/Cancel.
+                                setShowCustomDatePicker(false);
+                                setTimeout(() => setShowStartPicker(true), 0);
                             }
                         }} style={[styles.dateFieldTouch, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
                             <Lucide name="calendar" size={18} color={colors.placeholder} />
@@ -801,7 +849,8 @@ const ProductTransactions = ({ navigation, route }) => {
                                 setShowCustomDatePicker(false);
                                 setTimeout(() => setShowEndPicker(true), 100);
                             } else {
-                                setShowEndPicker(true);
+                                setShowCustomDatePicker(false);
+                                setTimeout(() => setShowEndPicker(true), 0);
                             }
                         }} style={[styles.dateFieldTouch, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
                             <Lucide name="calendar" size={18} color={colors.placeholder} />
@@ -939,52 +988,49 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: '#fff',
         justifyContent: 'center',
         alignItems: 'center',
-        marginLeft: 10,
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
+        marginLeft: 8,
     },
-    productBar: {
+    hero: {
+        paddingHorizontal: 16,
+        paddingTop: 14,
+        paddingBottom: 12,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+    },
+    movementRow: {
+        flexDirection: 'row',
+        gap: 10,
+        marginTop: 14,
+    },
+    movementCard: {
+        flex: 1,
+        borderRadius: 10,
+        padding: 12,
+    },
+    toolbarRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#fff',
-        paddingRight: 5,
-        paddingLeft: 10,
-        paddingVertical: 10,
-        marginHorizontal: 10,
-        marginBottom: 8,
-        borderRadius:5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-        elevation: 2,
-        marginTop:10,
+        gap: 10,
+        marginTop: 14,
     },
     dateRangeChip: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 10,
-        paddingVertical: 6,
+        paddingVertical: 7,
         borderRadius: 16,
-        backgroundColor: '#f0f7ff',
         borderWidth: 1,
-        borderColor: config.THEME_COLOR,
+        flexShrink: 0,
     },
     searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#fff',
         borderRadius: 30,
-        marginHorizontal: 10,
-        marginBottom: 10,
+        marginHorizontal: 12,
+        marginTop: 10,
+        marginBottom: 4,
         borderWidth: 1,
-        borderColor: '#eee',
     },
     searchInput: {
         flex: 1,
@@ -992,50 +1038,17 @@ const styles = StyleSheet.create({
         marginLeft: 8,
         fontFamily: 'FiraSans-Regular',
         fontSize: 15,
-        color: '#333',
         paddingRight: 10,
     },
-    summaryRow: {
-        flexDirection: 'row',
-        paddingHorizontal: 10,
-        marginBottom: 10,
-        gap: 8,
-    },
-    summaryCard: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-        padding: 12,
-        borderRadius: 10,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-        elevation: 2,
-    },
-    filterRow: {
-        paddingHorizontal: 10,
-        marginBottom: 8,
-    },
     typeChip: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 14,
-        paddingVertical: 8,
-        borderRadius: 20,
-        backgroundColor: '#fff',
-        marginRight: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 7,
+        borderRadius: 16,
         borderWidth: 1,
-        borderColor: '#eee',
-    },
-    typeChipActive: {
-        backgroundColor: config.THEME_COLOR,
-        borderColor: config.THEME_COLOR,
     },
     listHeader: {
         paddingBottom: 8,
-        marginBottom: 4,
+        marginBottom: 2,
     },
     loadingContainer: {
         flex: 1,
@@ -1082,14 +1095,46 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginLeft: 6,
     },
+    customDateField: {
+        marginBottom: 20,
+    },
+    dateFieldTouch: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 14,
+        borderRadius: 8,
+        borderWidth: 1,
+    },
+    applyDateButton: {
+        paddingVertical: 14,
+        borderRadius: 8,
+        alignItems: 'center',
+        marginTop: 8,
+    },
+    exportOption: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 16,
+        borderRadius: 12,
+        marginBottom: 12,
+        borderWidth: 1,
+    },
+    exportOptionIcon: {
+        width: 48,
+        height: 48,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    exportOptionContent: {
+        flex: 1,
+        marginLeft: 14,
+        marginRight: 8,
+    },
     dateFilterOption: {
         borderRadius: 12,
         marginBottom: 8,
-        elevation: 1,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
     },
     optionContent: {
         flexDirection: 'row',
@@ -1111,50 +1156,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    customDateField: {
-        marginBottom: 20,
-    },
-    dateFieldTouch: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 12,
-        paddingVertical: 14,
-        borderRadius: 8,
-        borderWidth: 1,
-    },
-    applyDateButton: {
-        paddingVertical: 14,
-        borderRadius: 8,
-        alignItems: 'center',
-        marginTop: 8,
-    },
-    exportOption: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-        padding: 16,
-        borderRadius: 12,
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: '#e2e8f0',
-        elevation: 1,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-    },
-    exportOptionIcon: {
-        width: 48,
-        height: 48,
-        borderRadius: 12,
-        backgroundColor: '#f0f7ff',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 12,
-    },
-    exportOptionContent: {
-        flex: 1,
-    },
 });
 
 export default ProductTransactions;
+

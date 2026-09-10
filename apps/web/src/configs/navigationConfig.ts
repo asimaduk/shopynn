@@ -352,6 +352,8 @@ const navigationConfig: FuseNavItemType[] = [
 				type: 'item',
 				icon: 'heroicons-outline:building-library',
 				url: '/tenants-directory',
+				// Withdrawals nest under this path; exact so both aren't active together.
+				exact: true,
 				requiredPermissions: ['tenants.directory.view'],
 				requiredFeatures: ['tenants.directory.view']
 			},

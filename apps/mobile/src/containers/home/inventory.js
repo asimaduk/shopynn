@@ -211,7 +211,7 @@ const Inventory = ({ navigation, route }) => {
         Number(String(selectedItem?.unit_price ?? 0).replace(/,/g, '')) || 0;
 
     return (
-        <SafeAreaView style={{flex:1,backgroundColor:colors.background,paddingBottom:0}}>
+        <SafeAreaView style={{flex:1,backgroundColor:colors.background,paddingBottom:0}} edges={['bottom', 'left', 'right']}>
             <Header navigation={navigation} screen="inventory"/>
             
             {/* Header Stats */}

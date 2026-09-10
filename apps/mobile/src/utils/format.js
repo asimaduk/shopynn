@@ -5,6 +5,13 @@ export const formatCurrency = (amount) => {
     }).format(amount).replace('GH₵', 'GHS ').trim();
 };
 
+/** Drop trailing zeros from decimal quantities (e.g. 100.000 → 100). */
+export const formatQuantity = (value) => {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return String(value ?? 0);
+    return Number.isInteger(n) ? String(n) : String(parseFloat(n.toFixed(3)));
+};
+
 export const formatDateAndTime = (date) => {
     return new Date(date).toLocaleDateString('en-US', {
         year: 'numeric',
