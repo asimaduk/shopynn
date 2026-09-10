@@ -166,6 +166,11 @@ export function evaluateFeatureAccess(
 		if (featuresToCheck.some((f) => isPlatformFeatureCode(f))) {
 			return { allowed: true, missingFeatures: [] };
 		}
+		// Platform operators with the role permission skip tenant upgrade locks
+		// (e.g. Online Orders) — staff are not sold plan upgrades.
+		if (hasPermissionCodes(user, 'tenants.directory.view')) {
+			return { allowed: true, missingFeatures: [] };
+		}
 		return {
 			allowed: false,
 			deniedBy: 'plan',
@@ -211,7 +216,12 @@ export function resolveNavItemAccess(
 	if (access.deniedBy === 'permission') {
 		const planTooLow =
 			features.length > 0 && features.some((f) => !userMeetsFeatureTier(user, f));
-		if (isBillingAdminUser(user) && planTooLow && !isPlatformNavItem(features)) {
+		if (
+			isBillingAdminUser(user) &&
+			!hasPermissionCodes(user, 'tenants.directory.view') &&
+			planTooLow &&
+			!isPlatformNavItem(features)
+		) {
 			return {
 				visible: true,
 				locked: true,

@@ -259,10 +259,16 @@ function isPlatformNavItem(features) {
     return features.some((f) => PLATFORM_NAV_FEATURES.has(f));
 }
 
+/** Shopynn platform operators — never shown tenant upgrade locks. */
+export function isPlatformOperatorUser(user) {
+    return hasPermission(user, 'tenants.directory.view');
+}
+
 /** Show in UI when user has permission; `locked` when plan upgrade is required.
  *  Billing admins still see sellable plan-locked items (e.g. Online Orders) when the
  *  restored role is missing the permission code — so upgrade CTAs remain visible.
  *  Platform-admin tools stay permission-gated only (never lock-to-upgrade).
+ *  Platform operators with the permission skip plan locks (staff are not sold upgrades).
  */
 export function getScreenPlanAccess(user, screenName, contextFeatures) {
     const needed = SCREEN_PERMISSION_MAP[screenName];
@@ -270,7 +276,12 @@ export function getScreenPlanAccess(user, screenName, contextFeatures) {
     const features = normalizeFeatureList(neededFeatures);
     if (!hasPermission(user, needed)) {
         // Billing admins: surface sellable plan locks even when role_permissions omitted the code.
-        if (isBillingAdminUser(user) && features.length > 0 && !isPlatformNavItem(features)) {
+        if (
+            isBillingAdminUser(user) &&
+            !isPlatformOperatorUser(user) &&
+            features.length > 0 &&
+            !isPlatformNavItem(features)
+        ) {
             return {
                 show: true,
                 locked: true,
@@ -283,6 +294,9 @@ export function getScreenPlanAccess(user, screenName, contextFeatures) {
     if (!hasFeature(user, neededFeatures, contextFeatures)) {
         if (isPlatformNavItem(features)) {
             return { show: false, locked: false, allowed: false };
+        }
+        if (isPlatformOperatorUser(user)) {
+            return { show: true, locked: false, allowed: true };
         }
         return {
             show: true,
