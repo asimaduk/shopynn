@@ -41,7 +41,7 @@ export function buildInvoiceFromSaleRow(sale, tenant = {}, warehouseName = '') {
     const paymentMethod =
         paymentType === 2 || paymentType === 'mobile_money' || paymentType === 'momo'
             ? 'Mobile Money'
-            : paymentType === 'card'
+            : paymentType === 3 || paymentType === 'card'
               ? 'Card'
               : 'Cash';
 

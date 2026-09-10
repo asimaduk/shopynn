@@ -166,10 +166,14 @@ export const getTopSellingProductsService = async (user, requestQuery = {}) => {
     }
 
     if (requestQuery.startDate && requestQuery.endDate) {
-        conditions.push(`s.created_at::date BETWEEN $${paramIndex} AND $${paramIndex + 1}`);
+        conditions.push(`s.created_at BETWEEN $${paramIndex} AND $${paramIndex + 1}`);
         params.push(requestQuery.startDate, requestQuery.endDate);
         paramIndex += 2;
     }
+
+    const limitRaw = parseInt(requestQuery.limit ?? "5", 10);
+    const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 20) : 5;
+    params.push(limit);
 
     const where = conditions.join(" AND ");
     const query = `
@@ -185,7 +189,7 @@ export const getTopSellingProductsService = async (user, requestQuery = {}) => {
         WHERE ${where}
         GROUP BY p.id, p.name, p.sku
         ORDER BY total_revenue DESC NULLS LAST
-        LIMIT 5
+        LIMIT $${paramIndex}
     `;
     const result = await pool.query(query, params);
     return (result.rows || []).map((row) => ({
@@ -194,6 +198,58 @@ export const getTopSellingProductsService = async (user, requestQuery = {}) => {
         sku: row.sku,
         units_sold: Number(row.units_sold || 0),
         total_revenue: Number(row.total_revenue || 0),
+    }));
+};
+
+/**
+ * Payment-method split for a date range (Cash / Mobile Money / Card / Other).
+ * `payment_type`: 1 = cash, 2 = momo (web). Mobile often only records method in notes.
+ */
+export const getSalesPaymentMethodBreakdownService = async (user, requestQuery = {}) => {
+    const { tenant_id, id: userId } = user;
+    const conditions = ["s.tenant_id = $1"];
+    const params = [tenant_id];
+    let paramIndex = 2;
+
+    const canViewAll = await canViewAllSalesForUser(user);
+    if (!canViewAll) {
+        conditions.push(`s.creator_id = $${paramIndex}`);
+        params.push(userId);
+        paramIndex++;
+    }
+
+    if (requestQuery.startDate && requestQuery.endDate) {
+        conditions.push(`s.created_at BETWEEN $${paramIndex} AND $${paramIndex + 1}`);
+        params.push(requestQuery.startDate, requestQuery.endDate);
+        paramIndex += 2;
+    }
+
+    const where = conditions.join(" AND ");
+    const query = `
+        SELECT
+            CASE
+                WHEN s.payment_type = 2 THEN 'Mobile Money'
+                WHEN s.payment_type = 3 THEN 'Card'
+                WHEN s.payment_type = 1 THEN 'Cash'
+                WHEN lower(coalesce(s.notes, '')) LIKE '%paid with momo%'
+                  OR lower(coalesce(s.notes, '')) LIKE '%mobile money%' THEN 'Mobile Money'
+                WHEN lower(coalesce(s.notes, '')) LIKE '%paid with card%'
+                  OR lower(coalesce(s.notes, '')) LIKE '% card%' THEN 'Card'
+                WHEN lower(coalesce(s.notes, '')) LIKE '%paid with cash%' THEN 'Cash'
+                ELSE 'Unspecified'
+            END AS method,
+            COUNT(s.id)::int AS transaction_count,
+            COALESCE(SUM(s.total_amount), 0)::numeric AS total_amount
+        FROM sales s
+        WHERE ${where}
+        GROUP BY 1
+        ORDER BY total_amount DESC, method ASC
+    `;
+    const result = await pool.query(query, params);
+    return (result.rows || []).map((row) => ({
+        method: row.method,
+        transactionCount: Number(row.transaction_count || 0),
+        totalAmount: Number(row.total_amount || 0),
     }));
 };
 
@@ -1126,8 +1182,8 @@ export const createSaleService = async (payload) => {
         await client.query('BEGIN');
         // console.log('pl is',payload);
         
-        const { discount_amount, tenant_id, invoice_number, current_status, customer_id, warehouse_id, products, notes, created_at, creator_id } = payload;
-        
+        const { discount_amount, tenant_id, invoice_number, current_status, customer_id, warehouse_id, products, notes, created_at, creator_id, payment_type, payment_method, payment_number, payment_reference, payment_status, payment_date } = payload;
+
         if(!products) {
             throw new Error("Products list cannot be empty.");
         }
@@ -1135,12 +1191,42 @@ export const createSaleService = async (payload) => {
         const id = uuidv4();
         const number_of_items = products.reduce((accumulator, currentItem) => accumulator + Number(currentItem.quantity), 0);
         const total_amount = products.reduce((accumulator, currentItem) => accumulator + Number(currentItem.quantity) * Number(currentItem.unit_price), 0);
-        // console.log('number_of_items',number_of_items);
-        
+
+        let resolvedPaymentType = payment_type;
+        if (resolvedPaymentType == null && payment_method) {
+            const m = String(payment_method).toLowerCase();
+            if (m === "momo" || m === "mobile_money") resolvedPaymentType = 2;
+            else if (m === "card") resolvedPaymentType = 3;
+            else if (m === "cash") resolvedPaymentType = 1;
+        }
+        if (resolvedPaymentType != null) resolvedPaymentType = Number(resolvedPaymentType);
+
         const result = await client.query(`
-            INSERT INTO sales (id, number_of_items, total_amount, discount_amount, tenant_id, invoice_number, current_status, customer_id, warehouse_id, notes, created_at, creator_id)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
-            [id, number_of_items, total_amount, discount_amount, tenant_id, invoice_number, current_status || 1, customer_id, warehouse_id, notes, new Date(), creator_id]
+            INSERT INTO sales (
+                id, number_of_items, total_amount, discount_amount, tenant_id, invoice_number, current_status,
+                customer_id, warehouse_id, notes, created_at, creator_id,
+                payment_type, payment_number, payment_reference, payment_status, payment_date
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING id`,
+            [
+                id,
+                number_of_items,
+                total_amount,
+                discount_amount,
+                tenant_id,
+                invoice_number,
+                current_status || 1,
+                customer_id,
+                warehouse_id,
+                notes,
+                new Date(),
+                creator_id,
+                Number.isFinite(resolvedPaymentType) ? resolvedPaymentType : null,
+                payment_number || null,
+                payment_reference || null,
+                payment_status != null ? payment_status : null,
+                payment_date || null,
+            ]
         );
 
         for (const prod of products) {
