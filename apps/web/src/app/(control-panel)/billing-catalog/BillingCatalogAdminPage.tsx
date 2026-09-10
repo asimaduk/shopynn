@@ -71,7 +71,7 @@ export default function BillingCatalogAdminPage() {
 	if (isLoading) return <FuseLoading />;
 
 	return (
-		<Box className="mx-auto max-w-6xl p-6">
+		<Box className="mx-auto max-w-6xl px-4 pb-8 pt-6 sm:px-6 sm:pt-8">
 			<PageBreadcrumb className="mb-4" />
 			<Typography variant="h4" fontWeight={700} className="mb-2">
 				Billing catalog

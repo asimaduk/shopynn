@@ -70,7 +70,7 @@ export default function NewsletterSubscribersPage() {
 	return (
 		<>
 			<GlobalStyles styles={{ '#root': { maxHeight: '100vh' } }} />
-			<div className="w-full px-4 md:px-8">
+			<div className="w-full px-4 pt-6 md:px-8 sm:pt-8">
 				<PageBreadcrumb className="mb-4" />
 				<Typography variant="h4" className="mb-1 font-semibold">
 					Newsletter subscribers
@@ -110,7 +110,9 @@ export default function NewsletterSubscribersPage() {
 					columns={columns}
 					data={subscribers}
 					state={{ isLoading }}
+					enableRowSelection={false}
 					enableRowActions
+					initialState={{ density: 'compact' }}
 					renderRowActionMenuItems={({ row, closeMenu }) => [
 						<MenuItem
 							key="toggle"

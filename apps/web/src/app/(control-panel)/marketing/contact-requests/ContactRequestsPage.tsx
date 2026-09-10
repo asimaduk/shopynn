@@ -79,7 +79,7 @@ export default function ContactRequestsPage() {
 	return (
 		<>
 			<GlobalStyles styles={{ '#root': { maxHeight: '100vh' } }} />
-			<div className="w-full px-4 md:px-8">
+			<div className="w-full px-4 pt-6 md:px-8 sm:pt-8">
 				<PageBreadcrumb className="mb-4" />
 				<Typography variant="h4" className="mb-1 font-semibold">
 					Talk to us
@@ -115,6 +115,8 @@ export default function ContactRequestsPage() {
 					columns={columns}
 					data={requests}
 					state={{ isLoading }}
+					enableRowSelection={false}
+					initialState={{ density: 'compact' }}
 					muiTableBodyRowProps={({ row }) => ({
 						onClick: () => openRequest(row.original),
 						sx: { cursor: 'pointer' }

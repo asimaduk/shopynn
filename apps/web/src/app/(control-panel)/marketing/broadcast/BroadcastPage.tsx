@@ -84,7 +84,7 @@ export default function BroadcastPage() {
 	};
 
 	return (
-		<div className="w-full px-4 md:px-8 pb-10">
+		<div className="w-full px-4 pb-10 pt-6 md:px-8 sm:pt-8">
 			<PageBreadcrumb className="mb-4" />
 			<div className="mb-6">
 				<Typography variant="h4" className="font-semibold">

@@ -74,7 +74,7 @@ export default function SiteChatsPage() {
 	return (
 		<>
 			<GlobalStyles styles={{ '#root': { maxHeight: '100vh' } }} />
-			<div className="w-full px-4 md:px-8">
+			<div className="w-full px-4 pt-6 md:px-8 sm:pt-8">
 				<PageBreadcrumb className="mb-4" />
 				<Typography variant="h4" className="mb-1 font-semibold">
 					Live chat
@@ -110,6 +110,8 @@ export default function SiteChatsPage() {
 					columns={columns}
 					data={sessions}
 					state={{ isLoading }}
+					enableRowSelection={false}
+					initialState={{ density: 'compact' }}
 					muiTableBodyRowProps={({ row }) => ({
 						onClick: () => {
 							setSelectedId(row.original.id);

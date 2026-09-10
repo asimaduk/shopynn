@@ -112,7 +112,7 @@ export default function NewslettersPage() {
 	return (
 		<>
 			<GlobalStyles styles={{ '#root': { maxHeight: '100vh' } }} />
-			<div className="w-full px-4 md:px-8">
+			<div className="w-full px-4 pt-6 md:px-8 sm:pt-8">
 				<PageBreadcrumb className="mb-4" />
 				<div className="mb-6 flex flex-wrap items-center justify-between gap-3">
 					<div>
@@ -135,6 +135,8 @@ export default function NewslettersPage() {
 						columns={columns}
 						data={campaigns}
 						state={{ isLoading }}
+						enableRowSelection={false}
+						initialState={{ density: 'compact' }}
 						muiTableBodyRowProps={({ row }) => ({
 							onClick: () => openCampaign(row.original),
 							sx: { cursor: 'pointer' }
