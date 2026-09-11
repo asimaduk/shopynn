@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
     },
     brandStrip: {
         width,
-        paddingTop: 5,
+        paddingTop: 28,
         paddingBottom: 28,
         paddingHorizontal: 24,
         borderBottomLeftRadius: 24,

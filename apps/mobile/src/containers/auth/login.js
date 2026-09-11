@@ -196,6 +196,20 @@ const Login = ({ navigation, route }) => {
                     warehouse_name: me.warehouse_name,
                     merchant_id: me.merchant_id ?? null,
                     subscription_features: meSubscriptionFeatures,
+                    company: me.company
+                        ? {
+                              name: me.company.name ?? null,
+                              subscription: me.company.subscription
+                                  ? {
+                                        id: me.company.subscription.id,
+                                        name: me.company.subscription.name,
+                                        status: me.company.subscription.status,
+                                        features: meSubscriptionFeatures,
+                                    }
+                                  : null,
+                              plan_usage: me.company.plan_usage ?? null,
+                          }
+                        : undefined,
                     postLoginScreen,
                 };
             } else {
@@ -603,7 +617,7 @@ const styles = StyleSheet.create({
     scrollContent: { paddingBottom: 24 },
     brandStrip: {
         width,
-        paddingTop: 5,
+        paddingTop: 28,
         paddingBottom: 28,
         paddingHorizontal: 24,
         borderBottomLeftRadius: 24,

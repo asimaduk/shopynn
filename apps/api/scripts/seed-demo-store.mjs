@@ -94,6 +94,41 @@ async function ensurePremium(tenantId) {
 		 WHERE t.id = $1 AND s.id = t.subscription_id`,
 		[tenantId]
 	);
+
+	// Ensure Premium tier includes online-order feature codes (needed when
+	// migration 20260911 was skipped because schema_migrations already recorded it).
+	const storeOrderFeatures = [
+		'orders.view',
+		'orders.details.view',
+		'orders.create',
+		'orders.update',
+		'orders.cancel',
+		'orders.status.update',
+		'orders.process',
+		'orders.store.view',
+		'orders.store.manage',
+		'orders.delivery.view',
+		'orders.delivery.manage',
+		'orders.fulfillment.assign',
+		'orders.export',
+		'orders.analytics.view',
+		'orders.automation.manage',
+		'orders.multi_store.manage',
+	];
+	for (const code of storeOrderFeatures) {
+		await pool.query(
+			`INSERT INTO subscription_tier_features (id, tier_id, feature_code, created_at)
+			 SELECT $1::varchar, t.id, $2::varchar, NOW()
+			 FROM subscription_tiers t
+			 WHERE lower(t.code) = 'premium'
+			   AND NOT EXISTS (
+			     SELECT 1 FROM subscription_tier_features stf
+			     WHERE stf.tier_id = t.id AND lower(stf.feature_code) = lower($2)
+			   )
+			 LIMIT 1`,
+			[uuidv4(), code]
+		);
+	}
 }
 
 async function ensureCompanyProfile(tenantId) {

@@ -68,6 +68,7 @@ const Settings = ({ navigation, route }) => {
     const dispatch = useDispatch();
     const user = useSelector(({ user }) => user);
     const subscriptionFeatures = useSelector(({ appSettings }) => appSettings?.subscriptionFeatures || []);
+    const subscriptionPlan = useSelector(({ appSettings }) => appSettings?.subscriptionPlan || null);
     const { colors, themeMode } = useTheme();
     const insets = useSafeAreaInsets();
     const [searchQuery, setSearchQuery] = useState('');
@@ -95,16 +96,16 @@ const Settings = ({ navigation, route }) => {
             // Always allow non-navigation actions.
             if (item.action === 'share' || item.action === 'signout') return true;
             if (!item.screen) return true;
-            return getScreenPlanAccess(user, item.screen, subscriptionFeatures).show;
+            return getScreenPlanAccess(user, item.screen, subscriptionFeatures, subscriptionPlan).show;
         });
-    }, [searchQuery, user, settingsItemsForSearch, subscriptionFeatures]);
+    }, [searchQuery, user, settingsItemsForSearch, subscriptionFeatures, subscriptionPlan]);
 
     const handleSearchResultPress = (item) => {
         setSearchQuery('');
         setShowSearchInput(false);
         if (item.action === 'share') handleShareApp();
         else if (item.action === 'signout') handleSignOut();
-        else if (item.screen) navigateToScreenOrUpgrade(navigation, user, item.screen, subscriptionFeatures);
+        else if (item.screen) navigateToScreenOrUpgrade(navigation, user, item.screen, subscriptionFeatures, undefined, subscriptionPlan);
     };
 
     const handleCloseSearch = () => {
@@ -128,31 +129,31 @@ const Settings = ({ navigation, route }) => {
     );
 
     const canPendingSales = canAccessScreen(user, 'PendingSales', subscriptionFeatures);
-    const warehousesAccess = getScreenPlanAccess(user, 'Warehouses', subscriptionFeatures);
-    const transfersAccess = getScreenPlanAccess(user, 'ProductTransfers', subscriptionFeatures);
-    const ordersAccess = getScreenPlanAccess(user, 'Orders', subscriptionFeatures);
-    const adjustmentsAccess = getScreenPlanAccess(user, 'AdjustedQuantities', subscriptionFeatures);
-    const stockCountAccess = getScreenPlanAccess(user, 'StockCountHistory', subscriptionFeatures);
-    const usersAccess = getScreenPlanAccess(user, 'Users', subscriptionFeatures);
-    const rolesAccess = getScreenPlanAccess(user, 'Roles', subscriptionFeatures);
+    const warehousesAccess = getScreenPlanAccess(user, 'Warehouses', subscriptionFeatures, subscriptionPlan);
+    const transfersAccess = getScreenPlanAccess(user, 'ProductTransfers', subscriptionFeatures, subscriptionPlan);
+    const ordersAccess = getScreenPlanAccess(user, 'Orders', subscriptionFeatures, subscriptionPlan);
+    const adjustmentsAccess = getScreenPlanAccess(user, 'AdjustedQuantities', subscriptionFeatures, subscriptionPlan);
+    const stockCountAccess = getScreenPlanAccess(user, 'StockCountHistory', subscriptionFeatures, subscriptionPlan);
+    const usersAccess = getScreenPlanAccess(user, 'Users', subscriptionFeatures, subscriptionPlan);
+    const rolesAccess = getScreenPlanAccess(user, 'Roles', subscriptionFeatures, subscriptionPlan);
     const canCustomers = canAccessScreen(user, 'Customers', subscriptionFeatures);
     const canSuppliers = canAccessScreen(user, 'Suppliers', subscriptionFeatures);
     const canCategories = canAccessScreen(user, 'ProductCategories', subscriptionFeatures);
     const canExpenditures = canAccessScreen(user, 'Expenditures', subscriptionFeatures);
-    const reportsAccess = getScreenPlanAccess(user, 'Reports', subscriptionFeatures);
+    const reportsAccess = getScreenPlanAccess(user, 'Reports', subscriptionFeatures, subscriptionPlan);
     const canTransactions = canAccessScreen(user, 'ProductTransactions', subscriptionFeatures);
-    const notificationsSetupAccess = getScreenPlanAccess(user, 'NotificationsSetup', subscriptionFeatures);
+    const notificationsSetupAccess = getScreenPlanAccess(user, 'NotificationsSetup', subscriptionFeatures, subscriptionPlan);
     /** Customer ordering: list + control order-related push without staff notification settings. */
     const canCustomerOrderNotifications =
         hasPermission(user, 'orders.create') &&
         hasFeature(user, 'orders.create', subscriptionFeatures) &&
         hasPermission(user, 'notifications.view') &&
         hasFeature(user, 'notifications.view', subscriptionFeatures);
-    const orderPaymentsAccess = getScreenPlanAccess(user, 'OrderPayments', subscriptionFeatures);
-    const orderSettlementsAccess = getScreenPlanAccess(user, 'OrderSettlements', subscriptionFeatures);
+    const orderPaymentsAccess = getScreenPlanAccess(user, 'OrderPayments', subscriptionFeatures, subscriptionPlan);
+    const orderSettlementsAccess = getScreenPlanAccess(user, 'OrderSettlements', subscriptionFeatures, subscriptionPlan);
     const canAbout = canAccessScreen(user, 'AboutApp', subscriptionFeatures);
-    const tenantsDirectoryAccess = getScreenPlanAccess(user, 'TenantsDirectory', subscriptionFeatures);
-    const billingCatalogAccess = getScreenPlanAccess(user, 'BillingCatalog', subscriptionFeatures);
+    const tenantsDirectoryAccess = getScreenPlanAccess(user, 'TenantsDirectory', subscriptionFeatures, subscriptionPlan);
+    const billingCatalogAccess = getScreenPlanAccess(user, 'BillingCatalog', subscriptionFeatures, subscriptionPlan);
     const canMerchantPortalFromSettings =
         canAccessScreen(user, 'MerchantPortal', subscriptionFeatures) && hasPermission(user, ['merchants.view']);
     const canWarehouses = warehousesAccess.show;
@@ -328,7 +329,7 @@ const Settings = ({ navigation, route }) => {
                         <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border, marginTop: 8 }]}>
                             {filteredItems.map((item, index) => {
                                 const itemAccess = item.screen
-                                    ? getScreenPlanAccess(user, item.screen, subscriptionFeatures)
+                                    ? getScreenPlanAccess(user, item.screen, subscriptionFeatures, subscriptionPlan)
                                     : null;
                                 return (
                                     <TouchableOpacity
@@ -496,7 +497,7 @@ const Settings = ({ navigation, route }) => {
                             <>
                                 <TouchableOpacity
                                     activeOpacity={.6}
-                                    onPress={() => navigateToScreenOrUpgrade(navigation, user, 'Orders', subscriptionFeatures)}
+                                    onPress={() => navigateToScreenOrUpgrade(navigation, user, 'Orders', subscriptionFeatures, undefined, subscriptionPlan)}
                                     style={styles.menuItem}
                                 >
                                     <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
@@ -518,7 +519,7 @@ const Settings = ({ navigation, route }) => {
                             <>
                                 <TouchableOpacity
                                     activeOpacity={0.6}
-                                    onPress={() => navigateToScreenOrUpgrade(navigation, user, 'OrderPayments', subscriptionFeatures)}
+                                    onPress={() => navigateToScreenOrUpgrade(navigation, user, 'OrderPayments', subscriptionFeatures, undefined, subscriptionPlan)}
                                     style={styles.menuItem}
                                 >
                                     <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
@@ -546,7 +547,7 @@ const Settings = ({ navigation, route }) => {
                             <>
                                 <TouchableOpacity
                                     activeOpacity={0.6}
-                                    onPress={() => navigateToScreenOrUpgrade(navigation, user, 'OrderSettlements', subscriptionFeatures)}
+                                    onPress={() => navigateToScreenOrUpgrade(navigation, user, 'OrderSettlements', subscriptionFeatures, undefined, subscriptionPlan)}
                                     style={styles.menuItem}
                                 >
                                     <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
@@ -608,7 +609,7 @@ const Settings = ({ navigation, route }) => {
                             <>
                                 <TouchableOpacity
                                     activeOpacity={.6}
-                                    onPress={() => navigateToScreenOrUpgrade(navigation, user, 'Warehouses', subscriptionFeatures)}
+                                    onPress={() => navigateToScreenOrUpgrade(navigation, user, 'Warehouses', subscriptionFeatures, undefined, subscriptionPlan)}
                                     style={styles.menuItem}
                                 >
                                     <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
@@ -630,7 +631,7 @@ const Settings = ({ navigation, route }) => {
                             <>
                                 <TouchableOpacity
                                     activeOpacity={.6}
-                                    onPress={() => navigateToScreenOrUpgrade(navigation, user, 'ProductTransfers', subscriptionFeatures)}
+                                    onPress={() => navigateToScreenOrUpgrade(navigation, user, 'ProductTransfers', subscriptionFeatures, undefined, subscriptionPlan)}
                                     style={styles.menuItem}
                                 >
                                     <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
@@ -652,7 +653,7 @@ const Settings = ({ navigation, route }) => {
                             <>
                                 <TouchableOpacity
                                     activeOpacity={.6}
-                                    onPress={() => navigateToScreenOrUpgrade(navigation, user, 'AdjustedQuantities', subscriptionFeatures)}
+                                    onPress={() => navigateToScreenOrUpgrade(navigation, user, 'AdjustedQuantities', subscriptionFeatures, undefined, subscriptionPlan)}
                                     style={styles.menuItem}
                                 >
                                     <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
@@ -671,7 +672,7 @@ const Settings = ({ navigation, route }) => {
                         {canStockCount && (
                             <TouchableOpacity
                                 activeOpacity={.6}
-                                onPress={() => navigateToScreenOrUpgrade(navigation, user, 'StockCountHistory', subscriptionFeatures)}
+                                onPress={() => navigateToScreenOrUpgrade(navigation, user, 'StockCountHistory', subscriptionFeatures, undefined, subscriptionPlan)}
                                 style={styles.menuItem}
                             >
                                 <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
@@ -705,7 +706,7 @@ const Settings = ({ navigation, route }) => {
                         <AppText label={'Administration'} variant={1} fontSize={14} color={colors.textTertiary} style={styles.sectionTitle} />
                         <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                             {canUsers && (
-                                <TouchableOpacity activeOpacity={.6} onPress={() => navigateToScreenOrUpgrade(navigation, user, 'Users', subscriptionFeatures)} style={styles.menuItem}>
+                                <TouchableOpacity activeOpacity={.6} onPress={() => navigateToScreenOrUpgrade(navigation, user, 'Users', subscriptionFeatures, undefined, subscriptionPlan)} style={styles.menuItem}>
                                     <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
                                         <Lucide name="user-cog" color="#6366f1" size={20} />
                                     </View>
@@ -718,7 +719,7 @@ const Settings = ({ navigation, route }) => {
                             )}
                             {canUsers && canRoles && <View style={[styles.divider, { backgroundColor: colors.divider }]} />}
                             {canRoles && (
-                                <TouchableOpacity activeOpacity={.6} onPress={() => navigateToScreenOrUpgrade(navigation, user, 'Roles', subscriptionFeatures)} style={styles.menuItem}>
+                                <TouchableOpacity activeOpacity={.6} onPress={() => navigateToScreenOrUpgrade(navigation, user, 'Roles', subscriptionFeatures, undefined, subscriptionPlan)} style={styles.menuItem}>
                                     <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
                                         <Lucide name="shield" color="#0ea5e9" size={20} />
                                     </View>
@@ -757,7 +758,7 @@ const Settings = ({ navigation, route }) => {
                         <View style={[styles.divider, { backgroundColor: colors.divider }]} />
                         <TouchableOpacity
                             activeOpacity={.6}
-                            onPress={() => navigateToScreenOrUpgrade(navigation, user, 'DataExportBackup', subscriptionFeatures)}
+                            onPress={() => navigateToScreenOrUpgrade(navigation, user, 'DataExportBackup', subscriptionFeatures, undefined, subscriptionPlan)}
                             style={styles.menuItem}
                         >
                             <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}><Lucide name="database" color="#10b981" size={20} /></View>
@@ -765,7 +766,7 @@ const Settings = ({ navigation, route }) => {
                                 <AppText label={'Export & Backup'} variant={2} color={colors.text} fontSize={15} />
                                 <AppText label={'Export products CSV and app preferences'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
                             </View>
-                            {renderPlanGateTrailing(getScreenPlanAccess(user, 'DataExportBackup', subscriptionFeatures))}
+                            {renderPlanGateTrailing(getScreenPlanAccess(user, 'DataExportBackup', subscriptionFeatures, subscriptionPlan))}
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -849,7 +850,7 @@ const Settings = ({ navigation, route }) => {
                         <AppText label={'Reports & Analytics'} variant={1} fontSize={14} color={colors.textTertiary} style={styles.sectionTitle} />
                     <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                         {canReports && (
-                            <TouchableOpacity activeOpacity={.6} onPress={() => navigateToScreenOrUpgrade(navigation, user, 'Reports', subscriptionFeatures)} style={styles.menuItem}>
+                            <TouchableOpacity activeOpacity={.6} onPress={() => navigateToScreenOrUpgrade(navigation, user, 'Reports', subscriptionFeatures, undefined, subscriptionPlan)} style={styles.menuItem}>
                                 <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
                                     <Lucide name="activity" color={config.THEME_COLOR} size={20} />
                                 </View>
@@ -912,7 +913,7 @@ const Settings = ({ navigation, route }) => {
                     <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                         {canNotificationsSetup && (
                             <>
-                                <TouchableOpacity activeOpacity={.6} onPress={() => navigateToScreenOrUpgrade(navigation, user, 'NotificationsSetup', subscriptionFeatures)} style={styles.menuItem}>
+                                <TouchableOpacity activeOpacity={.6} onPress={() => navigateToScreenOrUpgrade(navigation, user, 'NotificationsSetup', subscriptionFeatures, undefined, subscriptionPlan)} style={styles.menuItem}>
                                     <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
                                         <Lucide name="bell" color="#f59e0b" size={20} />
                                     </View>
@@ -961,7 +962,7 @@ const Settings = ({ navigation, route }) => {
 
                         {canTenantsDirectory && (
                             <>
-                                <TouchableOpacity activeOpacity={.6} onPress={() => navigateToScreenOrUpgrade(navigation, user, 'TenantsDirectory', subscriptionFeatures)} style={styles.menuItem}>
+                                <TouchableOpacity activeOpacity={.6} onPress={() => navigateToScreenOrUpgrade(navigation, user, 'TenantsDirectory', subscriptionFeatures, undefined, subscriptionPlan)} style={styles.menuItem}>
                                     <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
                                         <Lucide name="building-2" color="#0ea5e9" size={20} />
                                     </View>
@@ -986,7 +987,7 @@ const Settings = ({ navigation, route }) => {
                         {canBillingCatalog && (
                             <TouchableOpacity
                                 activeOpacity={0.6}
-                                onPress={() => navigateToScreenOrUpgrade(navigation, user, 'BillingCatalog', subscriptionFeatures)}
+                                onPress={() => navigateToScreenOrUpgrade(navigation, user, 'BillingCatalog', subscriptionFeatures, undefined, subscriptionPlan)}
                                 style={styles.menuItem}>
                                 <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
                                     <Lucide name="circle-dollar-sign" color="#059669" size={20} />

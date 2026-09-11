@@ -272,6 +272,7 @@ async function seedSixMonthActivity(client, { tenantId, userId, warehouseId, cus
 	start.setMonth(start.getMonth() - 6);
 	start.setHours(9, 0, 0, 0);
 
+	const idTag = `D${String(tenantId).replace(/-/g, '').slice(0, 8)}`;
 	let salesCount = 0;
 	let purchasesCount = 0;
 	let expensesCount = 0;
@@ -300,7 +301,7 @@ async function seedSixMonthActivity(client, { tenantId, userId, warehouseId, cus
 			const purchaseId = uuidv4();
 			const createdAt = new Date(day);
 			createdAt.setHours(10 + randInt(rand, 0, 3), randInt(rand, 0, 59), randInt(rand, 0, 59), 0);
-			const invoice = `PO-DEMO-${daySeed.replace(/-/g, '')}-${String(purchaseSeq++).padStart(4, '0')}`;
+			const invoice = `PO-${idTag}-${daySeed.replace(/-/g, '')}-${String(purchaseSeq++).padStart(4, '0')}`;
 
 			await client.query(
 				`INSERT INTO purchases (
@@ -362,7 +363,7 @@ async function seedSixMonthActivity(client, { tenantId, userId, warehouseId, cus
 			const saleId = uuidv4();
 			const createdAt = new Date(day);
 			createdAt.setHours(9 + randInt(rand, 0, 9), randInt(rand, 0, 59), randInt(rand, 0, 59), 0);
-			const invoice = `INV-DEMO-${daySeed.replace(/-/g, '')}-${String(saleSeq++).padStart(4, '0')}`;
+			const invoice = `INV-${idTag}-${daySeed.replace(/-/g, '')}-${String(saleSeq++).padStart(4, '0')}`;
 			const paymentType = pick(rand, [1, 1, 2, 2, 3]); // cash / momo / card weighted
 
 			await client.query(

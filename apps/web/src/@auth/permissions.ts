@@ -38,6 +38,9 @@ export function getUserEntitledFeatures(user: User | null | undefined): string[]
 	const fromSubscription = Array.isArray(user.subscription?.features)
 		? user.subscription.features
 		: [];
+	const fromCompany = Array.isArray(user.company?.subscription?.features)
+		? user.company.subscription.features
+		: [];
 	const fromSettings = Array.isArray(user.settings?.subscription?.features)
 		? user.settings.subscription.features
 		: [];
@@ -45,7 +48,7 @@ export function getUserEntitledFeatures(user: User | null | undefined): string[]
 	// (e.g. after an EC2 restore) cannot unlock Premium-only nav on Basic.
 	return [
 		...new Set(
-			[...fromSubscription, ...fromSettings]
+			[...fromSubscription, ...fromCompany, ...fromSettings]
 				.map((f) => String(f).trim().toLowerCase())
 				.filter(Boolean)
 				.filter((f) => userMeetsFeatureTier(user, f))
@@ -154,7 +157,11 @@ export function evaluateFeatureAccess(
 	const permissionOk = hasPermissionCodes(user, requiredCodes);
 	const entitled = getUserEntitledFeatures(user);
 	const missingFeatures = featuresToCheck.filter((f) => !entitled.includes(f));
-	const planOk = featuresToCheck.length === 0 || featuresToCheck.some((f) => entitled.includes(f));
+	// Prefer DB entitlements; fall back to canonical tier map so incomplete
+	// subscription_tier_features (common after restores) still unlock Premium.
+	const planOk =
+		featuresToCheck.length === 0 ||
+		featuresToCheck.some((f) => entitled.includes(f) || userMeetsFeatureTier(user, f));
 
 	if (!permissionOk) {
 		return { allowed: false, deniedBy: 'permission', missingFeatures };
@@ -198,8 +205,9 @@ export type NavItemAccess = {
 };
 
 /** Nav: hide when role lacks permission; show locked when plan lacks a sellable feature.
- *  Billing admins still see sellable plan-locked items (e.g. Online Orders) when the
- *  restored role is missing the permission code. Platform-admin tools stay hide-only.
+ *  Billing admins still see sellable items when the restored role is missing the permission
+ *  code — locked if plan is too low, soft-allowed when the plan already meets the tier
+ *  (e.g. Premium Online Orders). Platform-admin tools stay hide-only.
  */
 export function resolveNavItemAccess(
 	user: User | null | undefined,
@@ -214,14 +222,19 @@ export function resolveNavItemAccess(
 	const features = normalizeRequiredList(item.requiredFeatures ?? item.requiredPermissions);
 
 	if (access.deniedBy === 'permission') {
-		const planTooLow =
-			features.length > 0 && features.some((f) => !userMeetsFeatureTier(user, f));
+		// Match mobile: billing admins still see sellable items when role_permissions
+		// omitted the code. If the tenant plan already meets the tier, soft-allow
+		// (otherwise Premium Online Orders stayed hidden on web while mobile showed P).
 		if (
 			isBillingAdminUser(user) &&
 			!hasPermissionCodes(user, 'tenants.directory.view') &&
-			planTooLow &&
+			features.length > 0 &&
 			!isPlatformNavItem(features)
 		) {
+			const planTooLow = features.some((f) => !userMeetsFeatureTier(user, f));
+			if (!planTooLow) {
+				return { visible: true, locked: false };
+			}
 			return {
 				visible: true,
 				locked: true,

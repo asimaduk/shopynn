@@ -70,3 +70,38 @@ export function getMinimumTierForFeatures(featureCodes) {
 export function getMinimumTierDisplayForFeatures(featureCodes) {
     return TIER_DISPLAY[getMinimumTierForFeatures(featureCodes)] || 'Standard';
 }
+
+function normalizePlanTierCode(nameOrCode) {
+    const key = String(nameOrCode || '').trim().toLowerCase();
+    if (!key) return 'free';
+    if (key.includes('premium') || key === '4') return 'premium';
+    if (key.includes('standard') || key === '3') return 'standard';
+    if (key.includes('basic') || key === '2') return 'basic';
+    return 'free';
+}
+
+/** Resolve tenant plan tier from user / Redux-shaped subscription fields. */
+export function getUserPlanTierCode(user, planHint) {
+    if (planHint && (planHint.name || planHint.tierCode || typeof planHint === 'string')) {
+        const fromHint =
+            typeof planHint === 'string'
+                ? planHint
+                : planHint.tierCode || planHint.name;
+        if (fromHint) return normalizePlanTierCode(fromHint);
+    }
+    if (!user) return 'free';
+    const fromUsage = user?.company?.plan_usage?.tierCode;
+    if (fromUsage) return normalizePlanTierCode(fromUsage);
+    const name =
+        user?.company?.subscription?.name ??
+        user?.subscription?.name ??
+        user?.subscription_plan?.name ??
+        null;
+    return normalizePlanTierCode(name);
+}
+
+export function userMeetsFeatureTier(user, featureCode, planHint) {
+    const minTier = getMinimumTierForFeature(featureCode);
+    const userTier = getUserPlanTierCode(user, planHint);
+    return (TIER_RANK[userTier] || 1) >= (TIER_RANK[minTier] || 1);
+}

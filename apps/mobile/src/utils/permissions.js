@@ -1,4 +1,7 @@
-import { getMinimumTierDisplayForFeatures } from './subscriptionFeatureTiers';
+import {
+    getMinimumTierDisplayForFeatures,
+    userMeetsFeatureTier,
+} from './subscriptionFeatureTiers';
 
 export const ROLES = { Admin: 'Admin', Manager: 'Manager', Staff: 'Staff' };
 
@@ -220,14 +223,15 @@ export function hasPermission(user, requiredCodes) {
     return requiredNorm.some((code) => available.includes(code));
 }
 
-export function hasFeature(user, requiredFeatures, contextFeatures) {
+export function hasFeature(user, requiredFeatures, contextFeatures, planHint) {
     if (!requiredFeatures) return true;
     const required = Array.isArray(requiredFeatures) ? requiredFeatures : [requiredFeatures];
     const requiredNorm = required.map((c) => String(c).trim().toLowerCase()).filter(Boolean);
     if (!requiredNorm.length) return true;
     const available = getUserFeatureCodes(user, contextFeatures);
-    if (!available.length) return false;
-    return requiredNorm.some((code) => available.includes(code));
+    return requiredNorm.some(
+        (code) => available.includes(code) || userMeetsFeatureTier(user, code, planHint),
+    );
 }
 
 export function canAccessScreen(user, screenName, contextFeatures) {
@@ -270,18 +274,23 @@ export function isPlatformOperatorUser(user) {
  *  Platform-admin tools stay permission-gated only (never lock-to-upgrade).
  *  Platform operators with the permission skip plan locks (staff are not sold upgrades).
  */
-export function getScreenPlanAccess(user, screenName, contextFeatures) {
+export function getScreenPlanAccess(user, screenName, contextFeatures, planHint) {
     const needed = SCREEN_PERMISSION_MAP[screenName];
     const neededFeatures = SCREEN_FEATURE_MAP[screenName] || needed;
     const features = normalizeFeatureList(neededFeatures);
     if (!hasPermission(user, needed)) {
         // Billing admins: surface sellable plan locks even when role_permissions omitted the code.
+        // If the tenant already meets the required tier, soft-allow (parity with web).
         if (
             isBillingAdminUser(user) &&
             !isPlatformOperatorUser(user) &&
             features.length > 0 &&
             !isPlatformNavItem(features)
         ) {
+            const planTooLow = features.some((f) => !userMeetsFeatureTier(user, f, planHint));
+            if (!planTooLow) {
+                return { show: true, locked: false, allowed: true };
+            }
             return {
                 show: true,
                 locked: true,
@@ -291,7 +300,7 @@ export function getScreenPlanAccess(user, screenName, contextFeatures) {
         }
         return { show: false, locked: false, allowed: false };
     }
-    if (!hasFeature(user, neededFeatures, contextFeatures)) {
+    if (!hasFeature(user, neededFeatures, contextFeatures, planHint)) {
         if (isPlatformNavItem(features)) {
             return { show: false, locked: false, allowed: false };
         }
@@ -308,8 +317,8 @@ export function getScreenPlanAccess(user, screenName, contextFeatures) {
     return { show: true, locked: false, allowed: true };
 }
 
-export function navigateToScreenOrUpgrade(navigation, user, screenName, contextFeatures, params) {
-    const access = getScreenPlanAccess(user, screenName, contextFeatures);
+export function navigateToScreenOrUpgrade(navigation, user, screenName, contextFeatures, params, planHint) {
+    const access = getScreenPlanAccess(user, screenName, contextFeatures, planHint);
     if (!access.show) return;
     if (access.locked) {
         navigation.navigate('UpgradePrompt', {
