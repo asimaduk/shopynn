@@ -87,7 +87,8 @@ function toDisplayTransaction(t) {
     return {
         id: t.id || t.transactionId || String(t._id || ''),
         type: displayType,
-        description: t.name || '—',
+        description: t.name || t.product_name || '—',
+        product_name: t.name || t.product_name || '',
         quantity: formatQuantity(qtyNum),
         _quantity: qtyNum,
         unit_price: Number(t.unit_price || 0),
@@ -521,7 +522,11 @@ const ProductTransactions = ({ navigation, route }) => {
             <View style={[styles.hero, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
                 <AppText label={productName} variant={1} fontSize={18} color={colors.text} numberOfLines={2} />
                 <AppText
-                    label="Sale and purchase lines for this product"
+                    label={
+                        productName === 'All products'
+                            ? 'Sale and purchase lines across products'
+                            : 'Sale and purchase lines for this product'
+                    }
                     fontSize={13}
                     color={colors.textTertiary}
                     style={{ marginTop: 4 }}

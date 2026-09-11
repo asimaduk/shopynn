@@ -19,6 +19,8 @@ const TransactionItem = ({ item, onPress }) => {
     const unitPrice = Number(item.unit_price);
     const unitPriceLabel = Number.isFinite(unitPrice) ? formatCurrency(unitPrice) : null;
     const priceBreakdown = unitPriceLabel ? `${unitPriceLabel} × ${qtyAbs}` : null;
+    const productName = String(item.description || item.product_name || item.name || '').trim();
+    const showProductName = Boolean(productName && productName !== '—');
 
     return (
         <TouchableOpacity
@@ -42,6 +44,17 @@ const TransactionItem = ({ item, onPress }) => {
                     <AppText label={unitLabel} fontSize={11} color={colors.textTertiary} style={{ marginLeft: 4 }} />
                 </View>
             </View>
+
+            {showProductName ? (
+                <AppText
+                    label={productName}
+                    fontSize={15}
+                    variant={1}
+                    color={colors.text}
+                    numberOfLines={2}
+                    style={{ marginBottom: 8 }}
+                />
+            ) : null}
 
             <View style={styles.midRow}>
                 <View style={{ flex: 1, marginRight: 12 }}>
