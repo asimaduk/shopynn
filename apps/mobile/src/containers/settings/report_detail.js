@@ -262,6 +262,14 @@ const ReportDetail = ({ navigation, route }) => {
     const [selectedDateRange, setSelectedDateRange] = useState('all_time');
     const [customStartDate, setCustomStartDate] = useState(new Date());
     const [customEndDate, setCustomEndDate] = useState(new Date());
+    /** Committed custom range used for fetches — updated only on Apply. */
+    const [appliedCustomRange, setAppliedCustomRange] = useState({
+        start: new Date(),
+        end: new Date(),
+    });
+    /** Draft values while the iOS spinner is open — spinning must not refetch. */
+    const [pickerStartDate, setPickerStartDate] = useState(new Date());
+    const [pickerEndDate, setPickerEndDate] = useState(new Date());
     const [showStartPicker, setShowStartPicker] = useState(false);
     const [showEndPicker, setShowEndPicker] = useState(false);
     const [reportData, setReportData] = useState({cards: [], rows: []});
@@ -274,8 +282,8 @@ const ReportDetail = ({ navigation, route }) => {
         let start = today;
         let end = new Date(today.getTime() + 24 * 60 * 60 * 1000);
         if (selectedDateRange === 'custom') {
-            start = customStartDate;
-            end = new Date(customEndDate.getTime() + 24 * 60 * 60 * 1000);
+            start = appliedCustomRange.start;
+            end = new Date(appliedCustomRange.end.getTime() + 24 * 60 * 60 * 1000);
         } else if (selectedDateRange === 'last_7_days') {
             start = new Date(today);
             start.setDate(start.getDate() - 7);
@@ -289,7 +297,7 @@ const ReportDetail = ({ navigation, route }) => {
             end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
         }
         return { startDate: start.toISOString().slice(0, 10), endDate: end.toISOString().slice(0, 10) };
-    }, [selectedDateRange, customStartDate, customEndDate]);
+    }, [selectedDateRange, appliedCustomRange]);
 
     const currentRangeLabel = selectedDateRange === 'all_time'
         ? 'All time'
@@ -416,7 +424,7 @@ const ReportDetail = ({ navigation, route }) => {
                     const data = {
                         cards: [
                             { label: 'Customers', value: res.totalCustomers, icon: 'users', color: config.THEME_COLOR },
-                            { label: 'Total sales', value: res.totalSales ?? 0, icon: 'wallet', color: '#10b981' },
+                            { label: 'Total sales', value: formatCurrency(res.totalSales ?? 0), icon: 'wallet', color: '#10b981' },
                             { label: 'Top customer', value: res.customers?.[0]?.customer_name ?? 'Not Available', icon: 'user', color: '#f59e0b' },
                         ],
                         rows: res.customers?.map((item) => ({
@@ -444,7 +452,7 @@ const ReportDetail = ({ navigation, route }) => {
                             // { label: 'Avg per staff', value: formatCurrency(avgPerStaff), icon: 'user', color: '#f59e0b' },
 
                             { label: 'Total sales', value: formatCurrency(totalSales), icon: 'shopping-cart', color: '#10b981' },
-                            { label: 'Active staff', value: totalSales, icon: 'users', color: config.THEME_COLOR },
+                            { label: 'Active staff', value: totalStaff, icon: 'users', color: config.THEME_COLOR },
                             { label: 'Avg per staff', value: formatCurrency(avgPerStaff), icon: 'wallet', color: '#f59e0b' }
                         ],
                         // { staff: 'Cashier 1', date: '17 Feb', amount: 8450, count: 22 }
@@ -598,6 +606,7 @@ const ReportDetail = ({ navigation, route }) => {
     };
 
     const handleApplyCustomRange = () => {
+        setAppliedCustomRange({ start: customStartDate, end: customEndDate });
         setSelectedDateRange('custom');
         setShowCustomDatePicker(false);
     };
@@ -630,19 +639,30 @@ const ReportDetail = ({ navigation, route }) => {
     const onStartDateChange = (event, selectedDate) => {
         if (Platform.OS === 'android') {
             setShowStartPicker(false);
+            if (event?.type === 'dismissed') {
+                setTimeout(() => setShowCustomDatePicker(true), 100);
+                return;
+            }
+            if (selectedDate) setCustomStartDate(selectedDate);
+            setTimeout(() => setShowCustomDatePicker(true), 100);
+            return;
         }
-        if (event?.type === 'set' && selectedDate) {
-            setCustomStartDate(selectedDate);
-        }
+        // iOS spinner fires on every wheel tick — keep it in draft only.
+        if (selectedDate) setPickerStartDate(selectedDate);
     };
 
     const onEndDateChange = (event, selectedDate) => {
         if (Platform.OS === 'android') {
             setShowEndPicker(false);
+            if (event?.type === 'dismissed') {
+                setTimeout(() => setShowCustomDatePicker(true), 100);
+                return;
+            }
+            if (selectedDate) setCustomEndDate(selectedDate);
+            setTimeout(() => setShowCustomDatePicker(true), 100);
+            return;
         }
-        if (event?.type === 'set' && selectedDate) {
-            setCustomEndDate(selectedDate);
-        }
+        if (selectedDate) setPickerEndDate(selectedDate);
     };
 
     const data = reportData;// || SAMPLE[reportId] || SAMPLE['stock-summary'];
@@ -1365,6 +1385,7 @@ const ReportDetail = ({ navigation, route }) => {
                         <AppText label="Start Date" fontSize={14} color={colors.textSecondary} style={{ marginBottom: 8 }} />
                         <TouchableOpacity onPress={() => {
                             if (Platform.OS === 'ios') {
+                                setPickerStartDate(customStartDate);
                                 setShowCustomDatePicker(false);
                                 setTimeout(() => setShowStartPicker(true), 100);
                             } else {
@@ -1380,6 +1401,7 @@ const ReportDetail = ({ navigation, route }) => {
                         <AppText label="End Date" fontSize={14} color={colors.textSecondary} style={{ marginBottom: 8 }} />
                         <TouchableOpacity onPress={() => {
                             if (Platform.OS === 'ios') {
+                                setPickerEndDate(customEndDate);
                                 setShowCustomDatePicker(false);
                                 setTimeout(() => setShowEndPicker(true), 100);
                             } else {
@@ -1406,7 +1428,7 @@ const ReportDetail = ({ navigation, route }) => {
                     onRequestClose={() => setShowStartPicker(false)}>
                     <View style={{ padding: 20, backgroundColor: colors.surface }}>
                         <DateTimePicker
-                            value={customStartDate}
+                            value={pickerStartDate}
                             mode="date"
                             display="spinner"
                             onChange={onStartDateChange}
@@ -1416,6 +1438,7 @@ const ReportDetail = ({ navigation, route }) => {
                         <TouchableOpacity
                             activeOpacity={0.8}
                             onPress={() => {
+                                setCustomStartDate(pickerStartDate);
                                 setShowStartPicker(false);
                                 setTimeout(() => setShowCustomDatePicker(true), 100);
                             }}
@@ -1442,7 +1465,7 @@ const ReportDetail = ({ navigation, route }) => {
                     onRequestClose={() => setShowEndPicker(false)}>
                     <View style={{ padding: 20, backgroundColor: colors.surface }}>
                         <DateTimePicker
-                            value={customEndDate}
+                            value={pickerEndDate}
                             mode="date"
                             display="spinner"
                             onChange={onEndDateChange}
@@ -1452,6 +1475,7 @@ const ReportDetail = ({ navigation, route }) => {
                         <TouchableOpacity
                             activeOpacity={0.8}
                             onPress={() => {
+                                setCustomEndDate(pickerEndDate);
                                 setShowEndPicker(false);
                                 setTimeout(() => setShowCustomDatePicker(true), 100);
                             }}
