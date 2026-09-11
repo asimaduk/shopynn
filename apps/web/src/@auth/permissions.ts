@@ -132,12 +132,25 @@ const PLATFORM_NAV_FEATURES = new Set([
 	'site_chat.sessions.respond'
 ]);
 
+/** B2C customer-portal features — never soft-shown to tenant billing admins. */
+const CUSTOMER_PORTAL_NAV_FEATURES = new Set([
+	'orders.view',
+	'orders.details.view',
+	'orders.create',
+	'orders.cancel',
+	'notifications.view'
+]);
+
 function isPlatformFeatureCode(code: string): boolean {
 	return PLATFORM_NAV_FEATURES.has(String(code || '').trim().toLowerCase());
 }
 
 function isPlatformNavItem(features: string[]): boolean {
 	return features.some((f) => isPlatformFeatureCode(f));
+}
+
+function isCustomerPortalNavItem(features: string[]): boolean {
+	return features.length > 0 && features.every((f) => CUSTOMER_PORTAL_NAV_FEATURES.has(f));
 }
 
 export function evaluateFeatureAccess(
@@ -205,9 +218,11 @@ export type NavItemAccess = {
 };
 
 /** Nav: hide when role lacks permission; show locked when plan lacks a sellable feature.
- *  Billing admins still see sellable items when the restored role is missing the permission
- *  code — locked if plan is too low, soft-allowed when the plan already meets the tier
- *  (e.g. Premium Online Orders). Platform-admin tools stay hide-only.
+ *  Billing admins still see sellable plan-locked items (e.g. Online Orders) when the
+ *  restored role is missing the permission code — locked only (never soft-unlocked),
+ *  so pages/APIs that still require the real permission do not open as a dead end.
+ *  Customer-portal screens (For You / Cart / My Orders) stay hide-only for admins.
+ *  Platform-admin tools stay hide-only.
  */
 export function resolveNavItemAccess(
 	user: User | null | undefined,
@@ -222,19 +237,15 @@ export function resolveNavItemAccess(
 	const features = normalizeRequiredList(item.requiredFeatures ?? item.requiredPermissions);
 
 	if (access.deniedBy === 'permission') {
-		// Match mobile: billing admins still see sellable items when role_permissions
-		// omitted the code. If the tenant plan already meets the tier, soft-allow
-		// (otherwise Premium Online Orders stayed hidden on web while mobile showed P).
+		const planTooLow =
+			features.length > 0 && features.some((f) => !userMeetsFeatureTier(user, f));
 		if (
 			isBillingAdminUser(user) &&
 			!hasPermissionCodes(user, 'tenants.directory.view') &&
-			features.length > 0 &&
-			!isPlatformNavItem(features)
+			planTooLow &&
+			!isPlatformNavItem(features) &&
+			!isCustomerPortalNavItem(features)
 		) {
-			const planTooLow = features.some((f) => !userMeetsFeatureTier(user, f));
-			if (!planTooLow) {
-				return { visible: true, locked: false };
-			}
 			return {
 				visible: true,
 				locked: true,

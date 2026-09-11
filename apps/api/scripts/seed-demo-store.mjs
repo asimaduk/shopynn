@@ -48,6 +48,32 @@ async function ensurePermissionsSeeded() {
 	throw new Error('permissions table is empty. Run `npm run db:bootstrap -w @shopynn/api` first.');
 }
 
+/** Store-order permission rows are required for Super Admin shortcut + role_permissions. */
+const STORE_ORDER_PERMISSION_DEFS = [
+	['orders.status.update', 'Update order status', 'Advance order status within workflow rules'],
+	['orders.process', 'Process orders', 'Process in-store order workflow'],
+	['orders.store.view', 'View store orders', 'View orders for assigned store queue'],
+	['orders.store.manage', 'Manage store orders', 'Manage assigned store queue operations'],
+	['orders.delivery.view', 'View order deliveries', 'View delivery details and dispatch info'],
+	['orders.delivery.manage', 'Manage order deliveries', 'Assign couriers and update delivery details'],
+	['orders.fulfillment.assign', 'Assign order fulfillment', 'Set pickup/delivery and store handling details'],
+	['orders.export', 'Export orders', 'Export order list and analytics'],
+	['orders.analytics.view', 'View order analytics', 'View order analytics and KPIs'],
+	['orders.automation.manage', 'Manage order automation', 'Manage order automation and SLA flows'],
+	['orders.multi_store.manage', 'Manage multi-store orders', 'Operate orders across multiple stores'],
+];
+
+async function ensureStoreOrderPermissions() {
+	for (const [code, name, description] of STORE_ORDER_PERMISSION_DEFS) {
+		await pool.query(
+			`INSERT INTO permissions (id, code, name, description, created_at)
+			 SELECT $1::varchar, $2::varchar, $3::varchar, $4::varchar, NOW()
+			 WHERE NOT EXISTS (SELECT 1 FROM permissions WHERE lower(code) = lower($2))`,
+			[uuidv4(), code, name, description]
+		);
+	}
+}
+
 async function clearPasswordGate(userId, passwordHash) {
 	await pool.query(
 		`UPDATE users
@@ -271,6 +297,7 @@ async function ensureAgentStaff({ tenantId, warehouseId, ownerRoleId, ownerUserI
 
 async function main() {
 	await ensurePermissionsSeeded();
+	await ensureStoreOrderPermissions();
 
 	console.log('Shopynn Demo Store setup');
 	console.log(`  Tenant: ${DEMO_TENANT_NAME}`);

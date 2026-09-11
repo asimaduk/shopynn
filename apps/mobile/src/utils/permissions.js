@@ -253,6 +253,15 @@ const PLATFORM_NAV_FEATURES = new Set([
     'site_chat.sessions.respond',
 ]);
 
+/** B2C customer-portal — never soft-shown to tenant billing admins (would clutter tabs). */
+const CUSTOMER_PORTAL_NAV_FEATURES = new Set([
+    'orders.view',
+    'orders.details.view',
+    'orders.create',
+    'orders.cancel',
+    'notifications.view',
+]);
+
 function normalizeFeatureList(raw) {
     if (!raw) return [];
     const list = Array.isArray(raw) ? raw : [raw];
@@ -263,6 +272,10 @@ function isPlatformNavItem(features) {
     return features.some((f) => PLATFORM_NAV_FEATURES.has(f));
 }
 
+function isCustomerPortalNavItem(features) {
+    return features.length > 0 && features.every((f) => CUSTOMER_PORTAL_NAV_FEATURES.has(f));
+}
+
 /** Shopynn platform operators — never shown tenant upgrade locks. */
 export function isPlatformOperatorUser(user) {
     return hasPermission(user, 'tenants.directory.view');
@@ -271,6 +284,8 @@ export function isPlatformOperatorUser(user) {
 /** Show in UI when user has permission; `locked` when plan upgrade is required.
  *  Billing admins still see sellable plan-locked items (e.g. Online Orders) when the
  *  restored role is missing the permission code — so upgrade CTAs remain visible.
+ *  Never soft-unlock without the real permission (pages/APIs still enforce it).
+ *  Customer-portal tabs (For You / Cart / My Orders) stay hide-only for admins.
  *  Platform-admin tools stay permission-gated only (never lock-to-upgrade).
  *  Platform operators with the permission skip plan locks (staff are not sold upgrades).
  */
@@ -279,18 +294,13 @@ export function getScreenPlanAccess(user, screenName, contextFeatures, planHint)
     const neededFeatures = SCREEN_FEATURE_MAP[screenName] || needed;
     const features = normalizeFeatureList(neededFeatures);
     if (!hasPermission(user, needed)) {
-        // Billing admins: surface sellable plan locks even when role_permissions omitted the code.
-        // If the tenant already meets the required tier, soft-allow (parity with web).
         if (
             isBillingAdminUser(user) &&
             !isPlatformOperatorUser(user) &&
             features.length > 0 &&
-            !isPlatformNavItem(features)
+            !isPlatformNavItem(features) &&
+            !isCustomerPortalNavItem(features)
         ) {
-            const planTooLow = features.some((f) => !userMeetsFeatureTier(user, f, planHint));
-            if (!planTooLow) {
-                return { show: true, locked: false, allowed: true };
-            }
             return {
                 show: true,
                 locked: true,
