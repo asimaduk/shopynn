@@ -169,6 +169,17 @@ const NewPurchase = ({ navigation, route }) => {
     useFocusEffect(
         React.useCallback(() => {
             let active = true;
+
+            // Clear supplier when opening a fresh purchase (from dashboard/purchases),
+            // but keep it when returning from Search with an in-progress draft.
+            const routes = navigation.getState()?.routes || [];
+            const prevRouteName = routes[routes.length - 2]?.name;
+            const returningFromProductPicker =
+                prevRouteName === 'Search' || prevRouteName === 'BarcodeScanner';
+            if (!returningFromProductPicker && !(orders?.length > 0)) {
+                setSelectedSupplier(null);
+            }
+
             const loadData = async () => {
                 try {
                     const rawStores = await warehousesApi.list();
@@ -187,9 +198,7 @@ const NewPurchase = ({ navigation, route }) => {
                     const list = normalizeList(rawSuppliers) || [];
                     if (active) {
                         setSuppliers(list);
-                        if (!selectedSupplier && list.length > 0) {
-                            setSelectedSupplier(list[0]);
-                        }
+                        // Never auto-pick list[0] — user must choose a supplier.
                     }
                 } catch (_) {
                     if (active) setSuppliers([]);
@@ -199,7 +208,7 @@ const NewPurchase = ({ navigation, route }) => {
             return () => {
                 active = false;
             };
-        }, [selectedStore, selectedSupplier])
+        }, [selectedStore, orders?.length, navigation])
     );
 
     const handleSavePurchase = async () => {
@@ -255,7 +264,7 @@ const NewPurchase = ({ navigation, route }) => {
 
     return (
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboard}>
-            <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.safeArea, { backgroundColor: colors.background }]}>
                 <ScreenHeader onPress={backPress} label="New Purchase">
                     <TouchableOpacity
                         activeOpacity={0.7}
@@ -400,6 +409,18 @@ const NewPurchase = ({ navigation, route }) => {
                     disabled={orders.length === 0}
                     onPress={() => {
                         if (orders.length === 0) return;
+                        if (!selectedStore?.id) {
+                            Alert.alert('Select store', 'Please select a store before proceeding.');
+                            return;
+                        }
+                        if (!selectedSupplier?.id) {
+                            Alert.alert('Select supplier', 'Please select a supplier before proceeding.');
+                            return;
+                        }
+                        if (!invoiceNumber.trim()) {
+                            Alert.alert('Add invoice number', 'Please enter an invoice number.');
+                            return;
+                        }
                         Alert.alert('Confirm', 'Receive / save this purchase order?', [
                             { text: 'Cancel', style: 'cancel' },
                             { text: 'Yes', onPress: () => handleSavePurchase() },

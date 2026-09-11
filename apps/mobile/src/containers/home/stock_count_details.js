@@ -51,7 +51,7 @@ const StockCountDetails = ({ navigation, route }) => {
 
     if (loading) {
         return (
-            <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
                 <ActivityIndicator size="large" color={config.THEME_COLOR} />
                 <AppText label="Loading stock count..." fontSize={14} color={colors.textSecondary} style={{ marginTop: 12 }} />
             </SafeAreaView>
@@ -94,7 +94,7 @@ const StockCountDetails = ({ navigation, route }) => {
     // );
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader onPress={backPress} label="Stock count details" />
 
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 15 }}>

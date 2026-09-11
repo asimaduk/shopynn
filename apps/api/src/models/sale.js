@@ -58,7 +58,7 @@ export const getAllSalesService = async (user, requestQuery = {}) => {
     }
 
     const where = conditions.join(" AND ");
-    const query = `
+    const selectSql = `
         SELECT
             sales.id,
             sales.number_of_items,
@@ -79,8 +79,39 @@ export const getAllSalesService = async (user, requestQuery = {}) => {
         WHERE ${where}
         ORDER BY sales.created_at DESC
     `;
-    const result = await pool.query(query, params);
-    return result.rows;
+
+    const limitRaw = requestQuery.limit ?? requestQuery.pageSize;
+    const hasLimit = limitRaw !== undefined && limitRaw !== null && String(limitRaw).trim() !== '';
+    if (!hasLimit) {
+        const result = await pool.query(selectSql, params);
+        return result.rows;
+    }
+
+    let limit = parseInt(limitRaw, 10);
+    if (Number.isNaN(limit) || limit <= 0) limit = 20;
+    if (limit > 100) limit = 100;
+
+    let offset = parseInt(requestQuery.offset ?? requestQuery.skip ?? 0, 10);
+    if (Number.isNaN(offset) || offset < 0) offset = 0;
+
+    const countResult = await pool.query(
+        `SELECT COUNT(*)::int AS total FROM sales WHERE ${where}`,
+        params
+    );
+    const total = Number(countResult.rows[0]?.total || 0);
+
+    const pageParams = [...params, limit, offset];
+    const pageResult = await pool.query(
+        `${selectSql} LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+        pageParams
+    );
+
+    return {
+        items: pageResult.rows,
+        total,
+        limit,
+        offset,
+    };
 };
 
 /**

@@ -38,7 +38,7 @@ const PurchaseOrderDetails = ({ navigation, route }) => {
     );
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader onPress={backPress} label="Purchase order" />
 
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 15 }}>

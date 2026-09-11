@@ -1,4 +1,24 @@
-import { SET_INVOICE_PREFIX, SET_INVOICE_NEXT, INCREMENT_INVOICE_NEXT, SET_RECEIPT_COMPANY_NAME, SET_CURRENCY, SET_EXCHANGE_RATE, SET_THEME_MODE, SET_VALUATION_METHOD, SET_COMPANY_DETAILS, SET_SUBSCRIPTION_ACTIVE, SET_SUBSCRIPTION_PLAN, SET_SUBSCRIPTION_FEATURES } from '../actions/appSettings';
+import {
+    SET_INVOICE_PREFIX,
+    SET_INVOICE_NEXT,
+    INCREMENT_INVOICE_NEXT,
+    SET_RECEIPT_COMPANY_NAME,
+    SET_CURRENCY,
+    SET_EXCHANGE_RATE,
+    SET_THEME_MODE,
+    SET_VALUATION_METHOD,
+    SET_COMPANY_DETAILS,
+    SET_SUBSCRIPTION_ACTIVE,
+    SET_SUBSCRIPTION_PLAN,
+    SET_SUBSCRIPTION_FEATURES,
+    SET_PRINT_AGENT,
+} from '../actions/appSettings';
+import {
+    DEFAULT_PRINT_AGENT_HOST,
+    DEFAULT_PRINT_AGENT_PORT,
+    normalizePrintAgentHost,
+    normalizePrintAgentPort,
+} from '../../utils/printAgent';
 
 const CURRENCY_SYMBOLS = { GHS: 'GH₵', USD: '$', EUR: '€', GBP: '£' };
 const initialState = {
@@ -11,6 +31,9 @@ const initialState = {
     subscriptionActive: true, // set false after login when API says subscription inactive
     subscriptionPlan: null, // { name, id?, amount?, billingInterval?, endAt?, status? } from subscriptions/current
     subscriptionFeatures: [],
+    /** LAN IP/hostname of the PC running Shopynn Print (USB thermal). */
+    printAgentHost: DEFAULT_PRINT_AGENT_HOST,
+    printAgentPort: DEFAULT_PRINT_AGENT_PORT,
 };
 
 export default function appSettings(state = initialState, action) {
@@ -42,6 +65,16 @@ export default function appSettings(state = initialState, action) {
                     ? action.payload.map((f) => String(f).trim().toLowerCase()).filter(Boolean)
                     : [],
             };
+        case SET_PRINT_AGENT: {
+            const next = { ...state };
+            if (action.payload && Object.prototype.hasOwnProperty.call(action.payload, 'host')) {
+                next.printAgentHost = normalizePrintAgentHost(action.payload.host) || DEFAULT_PRINT_AGENT_HOST;
+            }
+            if (action.payload && Object.prototype.hasOwnProperty.call(action.payload, 'port')) {
+                next.printAgentPort = normalizePrintAgentPort(action.payload.port);
+            }
+            return next;
+        }
         default: return state;
     }
 }

@@ -129,7 +129,7 @@ const CreateOrder = ({ navigation }) => {
     };
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader onPress={() => navigation.goBack()} label="Create order" />
             <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 30 }}>
                 <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>

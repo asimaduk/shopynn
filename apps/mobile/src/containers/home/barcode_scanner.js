@@ -59,7 +59,7 @@ const BarcodeScanner = ({ navigation, route }) => {
 
     if (!hasPermission) {
         return (
-            <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.safe, { backgroundColor: colors.background }]}>
                 <ScreenHeader onPress={() => navigation.goBack()} label="Barcode Scanner" />
                 <View style={styles.permissionContainer}>
                     <Lucide name="camera-off" size={64} color={colors.textTertiary} />
@@ -79,7 +79,7 @@ const BarcodeScanner = ({ navigation, route }) => {
 
     if (!device) {
         return (
-            <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.safe, { backgroundColor: colors.background }]}>
                 <ScreenHeader onPress={() => navigation.goBack()} label="Barcode Scanner" />
                 <View style={styles.permissionContainer}>
                     <ActivityIndicator size="large" color={config.THEME_COLOR} />
@@ -90,7 +90,7 @@ const BarcodeScanner = ({ navigation, route }) => {
     }
 
     return (
-        <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.safe, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={() => navigation.goBack()} label="Barcode Scanner" />
             
             <View style={styles.container}>

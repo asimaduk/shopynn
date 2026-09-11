@@ -251,7 +251,7 @@ const Roles = ({ navigation }) => {
 
     if (loading) {
         return (
-            <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
                 <ScreenHeader onPress={() => navigation.goBack()} label="Roles & permissions" />
                 <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                     <ActivityIndicator size="large" color={config.THEME_COLOR} />
@@ -262,7 +262,7 @@ const Roles = ({ navigation }) => {
     }
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader onPress={() => navigation.goBack()} label="Roles & permissions">
                 <TouchableOpacity
                     activeOpacity={0.7}

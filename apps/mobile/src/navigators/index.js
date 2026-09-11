@@ -188,7 +188,7 @@ const ApplicationNavigator = () => {
     const releaseNotesText = forceUpdateReleaseNotes?.trim() || 'A new version is required to continue using this app.';
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['bottom', 'left', 'right']}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['left', 'right']}>
             <StatusBar
                 barStyle={statusBarStyle}
                 backgroundColor={statusBarBackgroundColor}

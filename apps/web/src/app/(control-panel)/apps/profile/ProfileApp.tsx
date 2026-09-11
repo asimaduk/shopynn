@@ -47,7 +47,7 @@ function ProfileApp() {
 	const [uploadMyProfileImage] = useUploadMyProfileImageMutation();
 	const [removeMyProfileImage] = useRemoveMyProfileImageMutation();
 
-	const displayPhoto = photoPreview ?? user?.photoURL;
+	const displayPhoto = pendingPhotoUrl ?? photoPreview ?? user?.photoURL;
 
 	const handlePhotoClick = useCallback(() => {
 		fileInputRef.current?.click();
@@ -490,7 +490,7 @@ function ProfileApp() {
 						</Alert>
 					)}
 					{pendingPhotoUrl && (
-						<Box className="flex justify-center p-2">
+						<Box className="flex flex-col items-center gap-3 p-2">
 							<Box
 								component="img"
 								src={pendingPhotoUrl}
@@ -498,6 +498,9 @@ function ProfileApp() {
 								className="max-h-96 w-auto object-contain rounded-lg"
 								sx={{ maxWidth: '100%' }}
 							/>
+							<Typography variant="body2" color="text.secondary" className="text-center">
+								Review your photo, then click Upload to save it to your profile.
+							</Typography>
 						</Box>
 					)}
 				</DialogContent>

@@ -19,9 +19,6 @@ const compat = new FlatCompat({
 export default tseslint.config({
     files: ['**/*.ts', '**/*.tsx'],
     ignores: [
-        '**/app/(public)/documentation/material-ui-components/components/**',
-        '**/app/(public)/documentation/material-ui-components/doc/**',
-        '**/utils/node-scripts/fuse-react-message.js',
         '**/.next/**',
     ],
     languageOptions: {

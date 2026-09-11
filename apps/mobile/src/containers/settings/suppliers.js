@@ -450,7 +450,7 @@ const Suppliers = ({ navigation }) => {
     };
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={backPress} label={'Suppliers'}>
                 <View style={styles.headerActions}>
                     <TouchableOpacity

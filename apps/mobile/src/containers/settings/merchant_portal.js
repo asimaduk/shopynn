@@ -586,7 +586,7 @@ const MerchantPortal = ({ navigation }) => {
 
     if (loading) {
         return (
-            <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
                 {renderScreenHeader()}
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     <ActivityIndicator color={config.THEME_COLOR} size="large" />
@@ -597,7 +597,7 @@ const MerchantPortal = ({ navigation }) => {
 
     if (!canOperateMerchantPortal && !canManageMerchants) {
         return (
-            <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
                 {renderScreenHeader()}
                 <ScrollView contentContainerStyle={{ padding: 16 }}>
                     <View style={cardStyle}>
@@ -615,7 +615,7 @@ const MerchantPortal = ({ navigation }) => {
 
     if (!merchant && !canManageMerchants && canOperateMerchantPortal) {
         return (
-            <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
                 {renderScreenHeader()}
                 <ScrollView
                     contentContainerStyle={{ padding: 16 }}
@@ -637,7 +637,7 @@ const MerchantPortal = ({ navigation }) => {
     if (!merchant && canManageMerchants) {
         const adminOnlyListPad = fabBottomOffset + FAB_SIZE + 24;
         return (
-            <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
                 {renderScreenHeader()}
                 <View style={{ flex: 1 }}>
                     <View style={{ paddingHorizontal: 12 }}>{renderSearchBar()}</View>
@@ -947,7 +947,7 @@ const MerchantPortal = ({ navigation }) => {
     const showPartnersFlatList = canManageMerchants && tab === 'all';
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             {renderScreenHeader()}
             <View style={{ flex: 1 }}>
             {showPartnersFlatList ? (

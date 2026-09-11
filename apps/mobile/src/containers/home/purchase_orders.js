@@ -52,7 +52,7 @@ const PurchaseOrders = ({ navigation }) => {
     const formatAmount = (n) => `GHS ${Number(n).toLocaleString('en-GH', { minimumFractionDigits: 2 })}`;
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader onPress={() => navigation.goBack()} label="Purchase orders">
                 <TouchableOpacity
                     activeOpacity={0.7}

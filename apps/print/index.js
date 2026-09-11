@@ -2,226 +2,255 @@ const express = require('express');
 const cors = require('cors');
 const escpos = require('escpos');
 escpos.USB = require('escpos-usb');
+const pkg = require('./package.json');
+
+const PRINT_HOST = process.env.PRINT_HOST || '0.0.0.0';
+const PRINT_PORT = Number(process.env.PRINT_PORT) || 3001;
 
 let device;
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 app.use(cors());
 
-const formatDate = (dt) => {
-    let t1 = `${dt}`.split('T')[0];
-    let y = t1.split('-')[0]
-    let m = t1.split('-')[1]
-    let d = t1.split('-')[2]
+const DIVIDER = '--------------------------------';
 
-    if(m === '01') {
-        m = "Jan"
-    }
-    else if(m === '02') {
-        m = "Feb"
-    }
-    else if(m === '03') {
-        m = "Mar"
-    }
-    else if(m === '04') {
-        m = "Apr"
-    }
-    else if(m === '05') {
-        m = "May"
-    }
-    else if(m === '06') {
-        m = "Jun"
-    }
-    else if(m === '07') {
-        m = "Jul"
-    }
-    else if(m === '08') {
-        m = "Aug"
-    }
-    else if(m === '09') {
-        m = "Sep"
-    }
-    else if(m === '10') {
-        m = "Oct"
-    }
-    else if(m === '11') {
-        m = "Nov"
-    }
-    else if(m === '12') {
-        m = "Dec"
-    }
-
-    return `${d}/${m}/${y}`;
+function formatMoney(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return '0.00';
+    return n.toFixed(2);
 }
 
-const formatTime = (dt) => {
-    let t2 = `${dt}`.split('T')[1];
-    let h = t2.split(':')[0];
-    let m = t2.split(':')[1];
-
-    const apm = h > 11 ? 'PM':'AM';
-    if(h>12) {
-        h = h%12;
+function formatDateTime(dt) {
+    try {
+        const d = dt ? new Date(dt) : new Date();
+        if (Number.isNaN(d.getTime())) return String(dt || '');
+        const day = String(d.getDate()).padStart(2, '0');
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const mon = months[d.getMonth()] || '';
+        const year = d.getFullYear();
+        let h = d.getHours();
+        const m = String(d.getMinutes()).padStart(2, '0');
+        const apm = h >= 12 ? 'PM' : 'AM';
+        h = h % 12;
+        if (h === 0) h = 12;
+        return `${day}/${mon}/${year} ${h}:${m} ${apm}`;
+    } catch (_) {
+        return String(dt || '');
     }
-
-    return `${h}:${m} ${apm}`;
 }
+
+function truncate(str, max) {
+    const s = String(str || '').trim();
+    if (s.length <= max) return s;
+    return `${s.slice(0, Math.max(0, max - 1))}…`;
+}
+
+function pad(str, width, align = 'left') {
+    const s = String(str ?? '');
+    if (s.length >= width) return s.slice(0, width);
+    const space = ' '.repeat(width - s.length);
+    return align === 'right' ? space + s : s + space;
+}
+
+/** 32-char thermal line: Item(14) Qty(4) Price(7) Amt(7) */
+function itemLine(name, qty, price, amount) {
+    return (
+        pad(truncate(name, 14), 14, 'left') +
+        pad(String(qty), 4, 'right') +
+        pad(formatMoney(price), 7, 'right') +
+        pad(formatMoney(amount), 7, 'right')
+    );
+}
+
+function probeUsbPrinter() {
+    try {
+        const devices = typeof escpos.USB.findPrinter === 'function' ? escpos.USB.findPrinter() : null;
+        if (Array.isArray(devices)) return devices.length > 0;
+        // Fallback: attempt constructing without opening
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
+app.get('/health', (_req, res) => {
+    let printerConnected = false;
+    try {
+        printerConnected = probeUsbPrinter();
+    } catch (_) {
+        printerConnected = false;
+    }
+    res.status(200).json({
+        ok: true,
+        service: 'shopynn-print',
+        version: pkg.version || '1.0.0',
+        printer_connected: printerConnected,
+        port: PRINT_PORT,
+    });
+});
 
 app.post('/print', async (req, res) => {
-    // console.log('req.body',req.body);
-
     try {
-        if(!device){
-            device = new escpos.USB();
-            // console.log('created new device');
+        if (!device) {
+            try {
+                device = new escpos.USB();
+            } catch (usbErr) {
+                return res.status(503).send({
+                    status: 503,
+                    message:
+                        'No USB thermal printer found. Plug in the printer and restart Shopynn Print. ' +
+                        (usbErr?.message || ''),
+                });
+            }
         }
-        // else console.log('already have device');
 
-        const { invoice_number, customer, sale_date, cashier } = req.body;
-        const companyName = req.body?.company?.name || req.body?.company_name || req.body?.business_name || 'Shopynn';
-        const companyTagline = req.body?.company?.organization || req.body?.company_organization || req.body?.company_tagline || '';
-        const companyAddress = req.body?.company?.address || req.body?.company_address || '';
-        const companyLandmark = req.body?.company?.landmark || req.body?.company_landmark || '';
+        const body = req.body || {};
+        const invoice_number = body.invoice_number || body.invoiceNumber || '—';
+        const customer = body.customer || body.customer_name || 'Walk-in';
+        const sale_date = body.sale_date || body.created_at || new Date().toISOString();
+        const cashier = body.cashier || body.operator || '';
+        const notes = body.notes || '';
+        const companyName = body?.company?.name || body?.company_name || body?.business_name || 'Shopynn';
+        const companyTagline = body?.company?.organization || body?.company_organization || body?.company_tagline || '';
+        const companyAddress = body?.company?.address || body?.company_address || '';
+        const companyLandmark = body?.company?.landmark || body?.company_landmark || '';
         const companyPhone =
-            req.body?.company?.phone ||
-            req.body?.company_phone ||
-            req.body?.company?.contact ||
-            req.body?.company_contact ||
-            '';
-        const options = { encoding: "GB18030" /* default */ }
- 
+            body?.company?.phone || body?.company_phone || body?.company?.contact || body?.company_contact || '';
+
+        const cartItems = Array.isArray(body.products) ? body.products : [];
+        if (!cartItems.length) {
+            return res.status(400).send({ status: 400, message: 'No products to print.' });
+        }
+
+        let total = 0;
+        let itemCount = 0;
+        for (const cartItem of cartItems) {
+            const qty = Number(cartItem.quantity) || 0;
+            const unit = Number(cartItem.unit_price) || 0;
+            total += qty * unit;
+            itemCount += qty;
+        }
+        const discount = Number(body.discount_amount) || 0;
+        if (Number.isFinite(Number(body.total_amount))) {
+            total = Number(body.total_amount);
+        }
+
+        const options = { encoding: 'GB18030' };
         const printer = new escpos.Printer(device, options);
 
-        const cartItems = req.body.products;
-    
-        // get total per line items
-        // const totalPerItemList = (item) => {
-        //     let totalPerItem = 0
-        //     totalPerItem = item.quantityToSell * item.price
-        //     return totalPerItem
-        // }
-    
-        // get the total price
-        let total = 0;
-        for (let cartItem of cartItems) {
-            var unitSum  = cartItem.quantity * cartItem.unit_price;
-            total += unitSum;
-        }
-    
-        device.open(function(err){
-            printer
-            .font('b')
-            .align('ct')
-            .style('b')
-            .size(0.05, 0.02)
-            .encode('utf8')
-            .text(`\n${companyName}\n${companyTagline}\n`)
-            .style('NORMAL')
-            .style('a')
-            .text(
-                `${companyAddress || ''}\n` +
-                `${companyLandmark || ''}\n\n` +
-                `${companyPhone || ''}\n`
-            )
-            // .table(["Buyer Name :", `${customer}`, ""])
-            .tableCustom([
-                { text: "Buyer Name:", align: "LEFT", width: 0.3 },
-                { text: customer, align: "LEFT", width: 0.7 }
-            ])
-            .tableCustom([
-                { text: "Receipt #:", align: "LEFT", width: 0.3 },
-                { text: invoice_number, align: "LEFT", width: 0.7 }
-            ])
-            .tableCustom([
-                { text: "Date:", align: "LEFT", width: 0.3 },
-                { text: formatDate(sale_date)+', '+formatTime(sale_date), align: "LEFT", width: 0.7 }
-            ])
-            // .text("----------------------------------------------")
-            .text("---------------------------------------------------------")
-            .tableCustom([
-                { text: "Item", align: "LEFT", width: 0.4 },
-                { text: "Qty", align: "CENTER", width: 0.15 },
-                { text: "Price", align: "RIGHT", width: 0.2 },
-                { text: "Amount", align: "RIGHT", width: 0.25 }
-            ])
-            .text("--------------------------------------------------------")
-            
-            cartItems.forEach(item=> {
-                printer.tableCustom([
-                    { text: item.name, align: "LEFT", width: 0.4 },
-                    { text: item.quantity, align: "CENTER", width: 0.15 },
-                    { text: `${item.unit_price}`.toLocaleString('en-US', { style: 'currency', currency: 'GHS'}), align: "RIGHT", width: 0.2 },
-                    { text: `${Number(item.quantity*item.unit_price).toFixed(2)}`.toLocaleString('en-US', { style: 'currency', currency: 'GHS'}), align: "RIGHT", width: 0.25 }
-                ])
-            })
+        await new Promise((resolve, reject) => {
+            device.open(function (err) {
+                if (err) {
+                    device = null;
+                    reject(err);
+                    return;
+                }
+                try {
+                    printer
+                        .font('a')
+                        .align('ct')
+                        .style('b')
+                        .size(1, 1)
+                        .encode('utf8')
+                        .text(truncate(companyName, 28))
+                        .style('NORMAL')
+                        .size(0, 0);
 
-            printer
-            .text("--------------------------------------------------------")
-            // .tableCustom([
-            //     { text: "Sub Total", align: "RIGHT", width: 0.6 },
-            //     { text: `GHS ${Number(total - (total*0.15)).toFixed(2)}`, align: "RIGHT", width: 0.4 }
-            // ])
-            // .tableCustom([
-            //     { text: "Covid Levy (1.0%)", align: "RIGHT", width: 0.6 },
-            //     { text: `GHS ${Number(total*0.01).toFixed(2)}`, align: "RIGHT", width: 0.4 }
-            // ])
-            // .tableCustom([
-            //     { text: "NHL (2.5%)", align: "RIGHT", width: 0.6 },
-            //     { text: `GHS ${Number(total*0.025).toFixed(2)}`, align: "RIGHT", width: 0.4 }
-            // ])
-            // .tableCustom([
-            //     { text: "VAT (15.0%)", align: "RIGHT", width: 0.6 },
-            //     { text: `GHS ${Number(total*0.15).toFixed(2)}`, align: "RIGHT", width: 0.4 }
-            // ])
-            .tableCustom([
-                { text: "Total", align: "RIGHT", width: 0.6 },
-                { text: `GHS ${Number(total).toFixed(2)}`, align: "RIGHT", width: 0.4 }
-            ])
-            .tableCustom([
-                { text: "No. of Items", align: "RIGHT", width: 0.6 },
-                { text: cartItems.reduce((pr,c)=> pr + c.quantity, 0), align: "RIGHT", width: 0.4 }
-            ])
-            .text(`\nOperator: ${cashier}`)
-            // .barcode('123456789012')
-            // .beep(1,100)
-            .cut()
-            .close();
+                    if (companyTagline) printer.text(truncate(companyTagline, 32));
+                    if (companyAddress) printer.text(truncate(companyAddress, 32));
+                    if (companyLandmark) printer.text(truncate(companyLandmark, 32));
+                    if (companyPhone) printer.text(truncate(companyPhone, 32));
+
+                    printer
+                        .text(DIVIDER)
+                        .align('lt')
+                        .tableCustom([
+                            { text: 'Receipt', align: 'LEFT', width: 0.35 },
+                            { text: String(invoice_number), align: 'RIGHT', width: 0.65 },
+                        ])
+                        .tableCustom([
+                            { text: 'Date', align: 'LEFT', width: 0.35 },
+                            { text: formatDateTime(sale_date), align: 'RIGHT', width: 0.65 },
+                        ]);
+
+                    if (cashier) {
+                        printer.tableCustom([
+                            { text: 'Cashier', align: 'LEFT', width: 0.35 },
+                            { text: truncate(cashier, 20), align: 'RIGHT', width: 0.65 },
+                        ]);
+                    }
+
+                    printer.tableCustom([
+                        { text: 'Customer', align: 'LEFT', width: 0.35 },
+                        { text: truncate(customer, 20), align: 'RIGHT', width: 0.65 },
+                    ]);
+
+                    printer
+                        .text(DIVIDER)
+                        .text(itemLine('Item', 'Qty', 'Price', 'Amount'))
+                        .text(DIVIDER);
+
+                    cartItems.forEach((item) => {
+                        const qty = Number(item.quantity) || 0;
+                        const unit = Number(item.unit_price) || 0;
+                        const amount = qty * unit;
+                        printer.text(itemLine(item.name || item.product_name || 'Item', qty, unit, amount));
+                    });
+
+                    printer.text(DIVIDER);
+
+                    if (discount > 0) {
+                        printer.tableCustom([
+                            { text: 'Discount', align: 'LEFT', width: 0.55 },
+                            { text: `GHS ${formatMoney(discount)}`, align: 'RIGHT', width: 0.45 },
+                        ]);
+                    }
+
+                    printer
+                        .tableCustom([
+                            { text: 'Items', align: 'LEFT', width: 0.55 },
+                            { text: String(itemCount), align: 'RIGHT', width: 0.45 },
+                        ])
+                        .style('b')
+                        .tableCustom([
+                            { text: 'TOTAL', align: 'LEFT', width: 0.55 },
+                            { text: `GHS ${formatMoney(total)}`, align: 'RIGHT', width: 0.45 },
+                        ])
+                        .style('NORMAL');
+
+                    if (notes) {
+                        printer.text(DIVIDER).text(truncate(notes, 64));
+                    }
+
+                    printer
+                        .text(DIVIDER)
+                        .align('ct')
+                        .text('Thank you for your purchase')
+                        .text('Powered by Shopynn')
+                        .text('\n')
+                        .cut()
+                        .close();
+
+                    resolve();
+                } catch (printErr) {
+                    reject(printErr);
+                }
+            });
         });
- 
-        // device.open(function(error) {
-        //     printer
-        //         .font('b')
-        //         .align('ct')
-        //         // .style('bu')
-        //         // .size(1, 1)
-        //         .text('The quick brown fox jumps over the lazy dog')
-        //         // .barcode('1234567', 'EAN8')
-        //         .table(["One", "Two"])
-        //         .tableCustom(
-        //             [
-        //                 { text:"Left", align:"LEFT", width:0.5 },
-        //                 // { text:"Center", align:"CENTER", width:0.33},
-        //                 { text:"Right", align:"RIGHT", width:0.5 }
-        //             ],
-        //             // { encoding: 'cp857', size: [1, 1] } // Optional
-        //         )
-        //         // .qrimage('https://github.com/song940/node-escpos', function(err){
-        //         //     this.cut();
-        //         //     this.close();
-        //         // });
-        //         .cut()
-        //         .close()
-        // });
 
         console.log('Print done!');
-        res.status(200).send({status: 200, message: 'Print successful'});
+        res.status(200).send({ status: 200, message: 'Print successful' });
     } catch (error) {
         console.error('Print failed:', error);
-        res.status(500).send({status: 500, message: 'Print failed: '+error.message});
+        const msg = error?.message || String(error);
+        const hint = /LIBUSB|USB|device|access|busy/i.test(msg)
+            ? ' Check that the printer is plugged in and not in use by another app.'
+            : '';
+        res.status(500).send({ status: 500, message: `Print failed: ${msg}.${hint}` });
     }
 });
 
-app.listen(3001, () => {
-    console.log('Print server listening on port 3001');
+app.listen(PRINT_PORT, PRINT_HOST, () => {
+    console.log(`Shopynn Print v${pkg.version || '1.0.0'} listening on http://${PRINT_HOST}:${PRINT_PORT}`);
 });

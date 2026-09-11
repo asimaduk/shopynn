@@ -158,7 +158,7 @@ const MyOrderDetails = ({ navigation, route }) => {
     };
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader onPress={() => navigation.goBack()} label="Order details" />
             <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 40 }}>
                 <View style={[styles.heroCard, { backgroundColor: colors.surface }]}>

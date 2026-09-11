@@ -168,7 +168,7 @@ const StockCount = ({ navigation }) => {
     };
 
     return (
-        <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.safe, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={() => navigation.goBack()} label="Stock count / Audit" />
             <View style={[styles.banner, { backgroundColor: colors.primaryShade }]}>
                 <Lucide name="clipboard-check" color={config.THEME_COLOR} size={24} />

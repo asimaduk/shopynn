@@ -160,7 +160,7 @@ const ProductsByCategory = ({ navigation, route }) => {
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={{ flex: 1 }}>
-                <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
+                <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
                     <ActivityIndicator size="large" color={config.THEME_COLOR} />
                     <AppText label="Loading products..." fontSize={14} color={colors.textSecondary} style={{ marginTop: 12 }} />
                 </SafeAreaView>
@@ -172,7 +172,7 @@ const ProductsByCategory = ({ navigation, route }) => {
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={{flex:1}}>
-            <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
                 <ScreenHeader onPress={backPress} label={`Category: ${selectedCategory?.name}`}>
                     <View style={{ flexDirection: 'row', marginVertical: 5, marginRight: 5 }}>
                         <TouchableOpacity

@@ -255,7 +255,7 @@ const Dashboard = ({ navigation, route }) => {
     }
 
     return (
-        <SafeAreaView style={{flex:1,backgroundColor:colors.background,paddingBottom:insets.bottom+48}} edges={['bottom', 'left', 'right']}>
+        <SafeAreaView style={{flex:1,backgroundColor:colors.background,paddingBottom:insets.bottom+48}} edges={['left', 'right']}>
             <Header navigation={navigation} screen="dashboard" />
             {isLoading && !refreshing ? (
                 <View style={styles.loadingContainer}>

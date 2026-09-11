@@ -129,7 +129,7 @@ const ProfileForm = ({ navigation, route }) => {
 
     // if (loading) {
     //     return (
-    //         <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
+    //         <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
     //             <ActivityIndicator size="large" color={config.THEME_COLOR} />
     //             <AppText label="Loading profile..." fontSize={14} color={colors.textSecondary} style={{ marginTop: 12 }} />
     //         </SafeAreaView>
@@ -140,7 +140,7 @@ const ProfileForm = ({ navigation, route }) => {
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={{ flex: 1 }}>
-            <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
                 <ScreenHeader onPress={backPress} label={'Edit Profile'} />
 
                 <ScrollView

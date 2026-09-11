@@ -3,7 +3,6 @@ import { ThemeProvider } from '@mui/material/styles';
 import Toolbar from '@mui/material/Toolbar';
 import { memo } from 'react';
 import clsx from 'clsx';
-import DemoLayoutFooterContent from 'src/components/theme-layouts/components/DemoLayoutFooterContent';
 import { useFooterTheme } from '@fuse/core/FuseSettings/hooks/fuseThemeHooks';
 
 type FooterLayout1Props = { className?: string };
@@ -30,9 +29,7 @@ function FooterLayout1(props: FooterLayout1Props) {
 				})}
 				elevation={0}
 			>
-				<Toolbar className="min-h-12 md:min-h-16 px-2 sm:px-3 py-0 flex items-center overflow-x-auto">
-					{/* <DemoLayoutFooterContent /> */}
-				</Toolbar>
+				<Toolbar className="min-h-12 md:min-h-16 px-2 sm:px-3 py-0 flex items-center overflow-x-auto" />
 			</AppBar>
 		</ThemeProvider>
 	);

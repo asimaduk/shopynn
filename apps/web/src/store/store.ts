@@ -29,8 +29,6 @@ const LAZY_PERSIST_BLACKLIST = [
 	'newsales',
 	'pendingsales',
 	'fuseMessage',
-	'contactsApp',
-	'notificationPanel',
 ] as const;
 
 const persistConfig = {

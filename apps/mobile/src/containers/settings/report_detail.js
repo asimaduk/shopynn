@@ -874,7 +874,7 @@ const ReportDetail = ({ navigation, route }) => {
     };
 
     return (
-        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.safeArea, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={backPress} label={title}>
                 <View style={styles.headerActions}>
                     <TouchableOpacity

@@ -59,7 +59,7 @@ const StockSummary = ({ navigation }) => {
     const categories = Object.keys(byCategory).sort();
 
     return (
-        <SafeAreaView style={styles.safeArea}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={styles.safeArea}>
             <ScreenHeader onPress={backPress} label="Stock summary" />
             <ScrollView
                 style={styles.scroll}

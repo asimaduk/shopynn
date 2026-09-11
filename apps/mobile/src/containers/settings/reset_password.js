@@ -128,7 +128,7 @@ const ResetPassword = ({ navigation, route: { params: { changePassword = false }
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={{ flex: 1 }}>
-            <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
                 <ScreenHeader onPress={backPress} label={'Reset Password'} />
 
                 <ScrollView

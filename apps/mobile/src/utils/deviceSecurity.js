@@ -1,10 +1,23 @@
 import { Platform } from 'react-native';
 import JailMonkey from 'jail-monkey';
+import DeviceInfo from 'react-native-device-info';
 
 export function getDeviceSecurityState() {
     try {
+        // Simulators/emulators trip jailbreak heuristics; only warn on real devices.
+        const isEmulator =
+            typeof DeviceInfo.isEmulatorSync === 'function'
+                ? !!DeviceInfo.isEmulatorSync()
+                : false;
+        if (isEmulator) {
+            return {
+                isCompromised: false,
+                checks: { isEmulator: true },
+            };
+        }
+
         const jailBroken = !!JailMonkey.isJailBroken();
-        const rootedFromTestKeys = typeof JailMonkey.trustFall === 'function' ? !!JailMonkey.trustFall() : false;
+        // Avoid JailMonkey.trustFall() — it folds in canMockLocation and over-alerts on some builds.
         const onExternalStorage =
             Platform.OS === 'android' && typeof JailMonkey.isOnExternalStorage === 'function'
                 ? !!JailMonkey.isOnExternalStorage()
@@ -14,13 +27,13 @@ export function getDeviceSecurityState() {
                 ? !!JailMonkey.canMockLocation()
                 : false;
 
-        const isCompromised = jailBroken || rootedFromTestKeys || onExternalStorage || canMockLocation;
+        const isCompromised = jailBroken || onExternalStorage || canMockLocation;
 
         return {
             isCompromised,
             checks: {
+                isEmulator: false,
                 jailBroken,
-                rootedFromTestKeys,
                 onExternalStorage,
                 canMockLocation,
             },

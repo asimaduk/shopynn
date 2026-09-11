@@ -29,14 +29,14 @@ const CustomerPaymentDetails = ({ navigation, route }) => {
 
     if (!item) {
         return (
-            <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
                 <ScreenHeader onPress={backPress} label="Payment Details" />
             </SafeAreaView>
         );
     }
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader onPress={backPress} label="Payment Details" />
             <ScrollView contentContainerStyle={{ padding: 20 }}>
 

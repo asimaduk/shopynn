@@ -113,7 +113,7 @@ const UpgradePrompt = ({ navigation, route }) => {
     const planLabel = requiredPlanName || copy.plan;
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader label="Plan upgrade" onPress={() => navigation.goBack()} />
             <View style={{ flex: 1, padding: 24, paddingBottom: 24 + insets.bottom, alignItems: 'center' }}>
                 <View

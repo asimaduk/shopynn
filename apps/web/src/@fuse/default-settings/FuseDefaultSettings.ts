@@ -5,7 +5,7 @@ import { lightBlue, red } from '@mui/material/colors';
 import { createTheme } from '@mui/material/styles';
 import qs from 'qs';
 import { ThemeOptions } from '@mui/material/styles/createTheme';
-import { FuseSettingsConfigType } from '@fuse/core/FuseSettings/FuseSettings';
+import { FuseSettingsConfigType } from '@fuse/core/FuseSettings/FuseSettingsTypes';
 
 /**
  * The defaultTheme object defines the default color palette for the application.

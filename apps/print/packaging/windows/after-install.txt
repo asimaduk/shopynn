@@ -1,0 +1,15 @@
+Shopynn Print is installed and the Windows service should be running on port 3001.
+
+Next steps
+----------
+1. Plug in your USB thermal printer.
+2. If the printer is not detected, install the WinUSB driver with Zadig
+   (one-time). See WINDOWS_USB_DRIVER.txt in the install folder, or visit:
+   https://zadig.akeo.ie/
+3. In Shopynn mobile: More → Print agent → enter this PC's LAN IP → Test → Save.
+   On web: Settings → Invoice & Receipt → Print agent.
+4. Set the warehouse printer type to Thermal.
+5. Allow inbound TCP 3001 in Windows Firewall if phones print over Wi-Fi.
+
+Health check (on this PC):
+  http://127.0.0.1:3001/health

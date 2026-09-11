@@ -338,6 +338,14 @@ const navigationConfig: FuseNavItemType[] = [
 				requiredFeatures: ['roles.view', 'users.roles.view', 'users.view']
 			},
 			{
+				id: 'adminTools.invoiceReceipt',
+				title: 'Invoice & Receipt',
+				type: 'item',
+				icon: 'heroicons-outline:document-text',
+				url: '/apps/settings/receipt-settings',
+				requiredPermissions: ['receipt_settings.view', 'settings.view']
+			},
+			{
 				id: 'adminTools.merchants',
 				title: 'Merchants',
 				type: 'item',

@@ -7,7 +7,6 @@ import useFuseLayoutSettings from '@fuse/core/FuseLayout/useFuseLayoutSettings';
 import FooterLayout1 from './components/FooterLayout1';
 import LeftSideLayout1 from './components/LeftSideLayout1';
 import NavbarWrapperLayout1 from './components/NavbarWrapperLayout1';
-// import RightSideLayout1 from './components/RightSideLayout1';
 import ToolbarLayout1 from './components/ToolbarLayout1';
 import FuseDialog from '@fuse/core/FuseDialog';
 
@@ -79,8 +78,6 @@ function Layout1(props: Layout1Props) {
 
 				{config.navbar.display && config.navbar.position === 'right' && <NavbarWrapperLayout1 />}
 			</div>
-
-			{/* {config.rightSidePanel.display && <RightSideLayout1 />} */}
 		</Root>
 	);
 }

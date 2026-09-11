@@ -189,7 +189,7 @@ const NotificationsSetup = ({ navigation, route }) => {
 
     if (loading) {
         return (
-            <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
                 <ActivityIndicator size="large" color={config.THEME_COLOR} />
                 <AppText label="Loading preferences..." fontSize={14} color={colors.textSecondary} style={{ marginTop: 12 }} />
             </SafeAreaView>
@@ -197,7 +197,7 @@ const NotificationsSetup = ({ navigation, route }) => {
     }
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader onPress={backPress} label={'Notification Settings'}>
                 {saving ? <ActivityIndicator size="small" color={colors.textSecondary} style={{ marginRight: 12 }} /> : null}
             </ScreenHeader>

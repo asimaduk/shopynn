@@ -1,4 +1,4 @@
-import { FuseThemeType } from '@fuse/core/FuseSettings/FuseSettings';
+import { FuseThemeType } from '@fuse/core/FuseSettings/FuseSettingsTypes';
 import { createTheme, getContrastRatio, Theme } from '@mui/material/styles';
 import _ from 'lodash';
 import { defaultThemeOptions, extendThemeWithMixins, mustHaveThemeOptions } from '@fuse/default-settings';

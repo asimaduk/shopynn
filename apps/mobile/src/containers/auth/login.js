@@ -502,12 +502,47 @@ const Login = ({ navigation, route }) => {
                                     <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
                                 </View>
                                 <TouchableOpacity
-                                    activeOpacity={0.8}
+                                    activeOpacity={0.85}
                                     onPress={handleBiometricLogin}
                                     disabled={loading}
-                                    style={[styles.outlineBtn, { borderColor: colors.border }]}>
-                                    <Lucide name="scan-face" size={20} color={config.THEME_COLOR} />
-                                    <AppText label={biometricLabel} variant={0} fontSize={14} color={colors.text} style={{ marginLeft: 8 }} />
+                                    accessibilityRole="button"
+                                    accessibilityLabel={`Sign in with ${biometricLabel}`}
+                                    style={[
+                                        styles.biometricBtn,
+                                        {
+                                            backgroundColor: isDark ? 'rgba(10,116,218,0.18)' : 'rgba(10,116,218,0.08)',
+                                            borderColor: config.THEME_COLOR,
+                                            opacity: loading ? 0.55 : 1,
+                                        },
+                                    ]}>
+                                    <View style={[styles.biometricIconWrap, { backgroundColor: config.THEME_COLOR }]}>
+                                        <Lucide
+                                            name={
+                                                biometricLabel === 'Face ID'
+                                                    ? 'scan-face'
+                                                    : biometricLabel === 'Touch ID'
+                                                        ? 'fingerprint'
+                                                        : 'fingerprint'
+                                            }
+                                            size={22}
+                                            color="#fff"
+                                        />
+                                    </View>
+                                    <View style={styles.biometricTextCol}>
+                                        <AppText
+                                            label={`Sign in with ${biometricLabel}`}
+                                            variant={1}
+                                            fontSize={16}
+                                            color={colors.text}
+                                        />
+                                        <AppText
+                                            label="Quick unlock with this device"
+                                            fontSize={12}
+                                            color={colors.textSecondary}
+                                            style={styles.biometricSub}
+                                        />
+                                    </View>
+                                    <Lucide name="chevron-right" size={20} color={config.THEME_COLOR} />
                                 </TouchableOpacity>
                             </>
                         )}
@@ -627,14 +662,30 @@ const styles = StyleSheet.create({
         marginBottom: 16,
     },
     primaryBtnDisabled: { opacity: 0.5 },
-    outlineBtn: {
+    biometricBtn: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        height: 48,
-        borderRadius: 12,
+        minHeight: 64,
+        borderRadius: 5,
         borderWidth: 1.5,
+        paddingVertical: 12,
+        paddingHorizontal: 14,
         marginBottom: 16,
+    },
+    biometricIconWrap: {
+        width: 44,
+        height: 44,
+        borderRadius: 5,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 14,
+    },
+    biometricTextCol: {
+        flex: 1,
+        justifyContent: 'center',
+    },
+    biometricSub: {
+        marginTop: 2,
     },
     dividerRow: {
         flexDirection: 'row',

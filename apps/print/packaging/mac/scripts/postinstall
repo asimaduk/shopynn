@@ -1,0 +1,20 @@
+#!/bin/bash
+set -euo pipefail
+# Runs as root during .pkg install.
+INSTALL_ROOT="/usr/local/shopynn-print"
+PLIST_SRC="$INSTALL_ROOT/launchd/com.shopynn.print.plist"
+PLIST_DST="/Library/LaunchDaemons/com.shopynn.print.plist"
+
+mkdir -p /usr/local/var/log
+chmod +x "$INSTALL_ROOT/run-shopynn-print.sh" 2>/dev/null || true
+
+if [[ -f "$PLIST_SRC" ]]; then
+  cp "$PLIST_SRC" "$PLIST_DST"
+  chown root:wheel "$PLIST_DST"
+  chmod 644 "$PLIST_DST"
+  launchctl bootout system/com.shopynn.print 2>/dev/null || true
+  launchctl bootstrap system "$PLIST_DST" 2>/dev/null || launchctl load -w "$PLIST_DST" 2>/dev/null || true
+fi
+
+echo "Shopynn Print installed. Listening on port 3001."
+exit 0

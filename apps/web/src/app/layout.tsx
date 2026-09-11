@@ -83,19 +83,7 @@ export default async function RootLayout({
 				/>
 
 				<link
-					href="/assets/fonts/material-design-icons/MaterialIconsOutlined.css"
-					rel="stylesheet"
-				/>
-				<link
 					href="/assets/fonts/inter/inter.css"
-					rel="stylesheet"
-				/>
-				<link
-					href="/assets/fonts/meteocons/style.css"
-					rel="stylesheet"
-				/>
-				<link
-					href="/assets/styles/prism.css"
 					rel="stylesheet"
 				/>
 				<noscript id="emotion-insertion-point" />

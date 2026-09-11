@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 
 function AppsPage() {
-	redirect(`/apps/academy`);
+	redirect('/apps/settings');
 	return null;
 }
 

@@ -1,7 +1,5 @@
 import Typography from '@mui/material/Typography';
 import Link from '@fuse/core/Link';
-import AvatarGroup from '@mui/material/AvatarGroup';
-import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import AuthJsForm from '@auth/forms/AuthJsForm';
@@ -108,26 +106,8 @@ function SignUpPage() {
 						<div>our community</div>
 					</div>
 					<div className="mt-6 text-lg leading-6 tracking-tight text-gray-400">
-						Fuse helps developers to build organized and well coded dashboards full of beautiful and rich
-						modules. Join us and start building your application today.
-					</div>
-					<div className="mt-8 flex items-center">
-						<AvatarGroup
-							sx={{
-								'& .MuiAvatar-root': {
-									borderColor: 'primary.main'
-								}
-							}}
-						>
-							<Avatar src="/assets/images/avatars/female-18.jpg" />
-							<Avatar src="/assets/images/avatars/female-11.jpg" />
-							<Avatar src="/assets/images/avatars/male-09.jpg" />
-							<Avatar src="/assets/images/avatars/male-16.jpg" />
-						</AvatarGroup>
-
-						<div className="ml-4 font-medium tracking-tight text-gray-400">
-							More than 17k people joined us, it's your turn
-						</div>
+						Shopynn helps you manage inventory, sales, purchases, and customers in one place.
+						Create your account and start running your store today.
 					</div>
 				</div>
 			</Box>

@@ -32,7 +32,7 @@ const ReceiveAgainstPO = ({ navigation, route }) => {
     };
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader onPress={() => navigation.goBack()} label="Receive against PO" />
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 15 }}>
                 {po && (

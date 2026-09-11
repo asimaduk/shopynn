@@ -310,7 +310,7 @@ const TenantsDirectory = ({ navigation }) => {
 
     if (loading) {
         return (
-            <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
                 {renderScreenHeader()}
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     <ActivityIndicator color={config.THEME_COLOR} size="large" />
@@ -321,7 +321,7 @@ const TenantsDirectory = ({ navigation }) => {
     }
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             {renderScreenHeader()}
             <FlatList
                 data={filteredList}

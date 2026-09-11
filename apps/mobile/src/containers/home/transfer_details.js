@@ -111,7 +111,7 @@ const TransferDetails = ({ navigation, route }) => {
 
     if (loading) {
         return (
-            <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
                 <ActivityIndicator size="large" color={config.THEME_COLOR} />
                 <AppText label="Loading transfer..." fontSize={14} color={colors.textSecondary} style={{ marginTop: 12 }} />
             </SafeAreaView>
@@ -119,7 +119,7 @@ const TransferDetails = ({ navigation, route }) => {
     }
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={backPress} label={'Transfer Details'} />
             <ScrollView contentContainerStyle={{ padding: 20 }}>
                 <View style={{ backgroundColor: colors.surface, borderRadius: 10, padding: 20, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 }}>

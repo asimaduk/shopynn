@@ -209,7 +209,7 @@ const CreateExpenditure = ({ navigation }) => {
     }, []);
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={backPress} label={'New Expenditure'} />
             <ScrollView keyboardShouldPersistTaps='handled' contentContainerStyle={{ padding: 20 }}>
                 <View style={{ backgroundColor: colors.surface, padding: 20, borderRadius: 12, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, marginBottom: 20 }}>

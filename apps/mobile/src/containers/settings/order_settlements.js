@@ -322,7 +322,7 @@ const OrderSettlements = ({ navigation }) => {
 
     if (loading && !summary) {
         return (
-            <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
                 <ScreenHeader onPress={() => navigation.goBack()} label="Order settlements" />
                 <View style={styles.loader}>
                     <ActivityIndicator size="large" color={config.THEME_COLOR} />
@@ -332,7 +332,7 @@ const OrderSettlements = ({ navigation }) => {
     }
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader onPress={() => navigation.goBack()} label="Order settlements">
                 <View style={styles.headerActions}>
                     <TouchableOpacity
@@ -563,7 +563,7 @@ const OrderSettlements = ({ navigation }) => {
             </ScrollView>
 
             <Modal visible={showBankPicker} animationType="slide" onRequestClose={() => setShowBankPicker(false)}>
-                <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+                <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }}>
                         <AppText label="Select bank" variant={1} fontSize={17} color={colors.text} style={{ flex: 1 }} />
                         <TouchableOpacity onPress={() => setShowBankPicker(false)}>

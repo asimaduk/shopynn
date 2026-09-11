@@ -113,7 +113,7 @@ const CustomerForm = ({ navigation, route }) => {
 
     if (isEdit && editItem?.source === 'account') {
         return (
-            <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
                 <ScreenHeader onPress={() => navigation.goBack()} label="Edit Customer" />
                 <View style={{ padding: 24 }}>
                     <AppText
@@ -131,7 +131,7 @@ const CustomerForm = ({ navigation, route }) => {
     }
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
             <ScreenHeader
                 onPress={() => navigation.goBack()}
                 label={isEdit ? 'Edit Customer' : 'Add New Customer'}

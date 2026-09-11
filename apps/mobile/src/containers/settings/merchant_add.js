@@ -198,7 +198,7 @@ const MerchantAdd = ({ navigation }) => {
 
     if (!canManage) {
         return (
-            <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
                 <ScreenHeader hideBack={!canGoBack} onPress={() => navigation.goBack()} label="Add merchant" />
                 <View style={{ padding: 20 }}>
                     <AppText label="You do not have permission to add merchant partners." color={colors.textSecondary} fontSize={14} />
@@ -208,7 +208,7 @@ const MerchantAdd = ({ navigation }) => {
     }
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader hideBack={!canGoBack} onPress={() => navigation.goBack()} label="Add merchant partner" />
 
             <KeyboardAvoidingView

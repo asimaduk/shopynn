@@ -199,7 +199,7 @@ const SaleDetails = ({ navigation, route }) => {
 
     if (loading) {
         return (
-            <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
                 <ActivityIndicator size="large" color={config.THEME_COLOR} />
                 <AppText label="Loading sale..." fontSize={14} color={colors.textSecondary} style={{ marginTop: 12 }} />
             </SafeAreaView>
@@ -207,7 +207,7 @@ const SaleDetails = ({ navigation, route }) => {
     }
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader onPress={backPress} label={'Sale Details'}>
                 <View style={{ flexDirection: 'row', paddingRight: 10, gap: 8 }}>
                     {!isPendingUpload && canResendInvoice ? (

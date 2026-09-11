@@ -11,13 +11,5 @@ export const { dynamic, dynamicParams, revalidate, generateStaticParams, GET } =
 	],
 	swSrc: 'src/app/sw.ts',
 	useNativeEsbuild: true,
-	// Avoid bloating install with Fuse/MUI demo assets under public/
-	globIgnores: [
-		'**/node_modules/**/*',
-		'**/material-ui-static/**/*',
-		'**/assets/fonts/meteocons/demo*/**',
-		'**/assets/fonts/meteocons/demo.html',
-		'**/assets/fonts/meteocons/Read Me.txt',
-		'**/assets/fonts/meteocons/selection.json'
-	]
+	globIgnores: ['**/node_modules/**/*']
 });

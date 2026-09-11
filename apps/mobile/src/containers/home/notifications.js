@@ -271,7 +271,7 @@ const Notifications = ({ navigation, route }) => {
 
     if (!canViewStaffNotifications) {
         return (
-            <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
                 <ScreenHeader onPress={backPress} label="Notifications" />
                 <FeatureUpgradePrompt
                     navigation={navigation}
@@ -291,7 +291,7 @@ const Notifications = ({ navigation, route }) => {
     }
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader onPress={backPress} label={'Notifications'}>
                 <View style={{ flexDirection: 'row', paddingRight: 10 }}>
                     {notifications?.filter((n) => !n.read_at)?.length > 1 && (

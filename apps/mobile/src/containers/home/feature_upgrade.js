@@ -24,7 +24,7 @@ const FeatureUpgrade = ({ navigation, route }) => {
         subscriptionPlan?.name || user?.settings?.subscription?.name || 'Free';
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader onPress={() => navigation.goBack()} label={headerTitle} />
             <FeatureUpgradePrompt
                 navigation={navigation}

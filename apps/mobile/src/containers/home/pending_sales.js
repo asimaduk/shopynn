@@ -95,7 +95,7 @@ const PendingSales = ({ navigation }) => {
     });
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={backPress} label={'Pending Sales Upload'}>
                 <View style={styles.headerActions}>
                     {pendingSales.length > 0 && (

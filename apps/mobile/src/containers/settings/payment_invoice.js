@@ -19,7 +19,7 @@ const PaymentInvoice = ({ navigation, route }) => {
 
     if (!payment) {
         return (
-            <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.safeArea, { backgroundColor: colors.background }]}>
                 <ScreenHeader label="Invoice" onPress={() => navigation.goBack()} />
                 <View style={styles.empty}>
                     <AppText label="Invoice not found" fontSize={16} color={colors.textSecondary} />
@@ -101,7 +101,7 @@ const PaymentInvoice = ({ navigation, route }) => {
     };
 
     return (
-        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.safeArea, { backgroundColor: colors.background }]}>
             <ScreenHeader label="Invoice" onPress={() => navigation.goBack()}>
                 <TouchableOpacity
                     activeOpacity={0.6}

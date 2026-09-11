@@ -94,7 +94,7 @@ const DaySalesList = ({ navigation, route }) => {
     };
 
     return (
-        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.safeArea, { backgroundColor: colors.background }]}>
             <ScreenHeader
                 label={label ? `Sales – ${label}` : 'Sales for day'}
                 onPress={() => navigation.goBack()}

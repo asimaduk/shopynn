@@ -98,14 +98,14 @@ const MerchantUpgradeCollect = ({ navigation, route }) => {
 
     if (loading) {
         return (
-            <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
                 <ActivityIndicator style={{ marginTop: 40 }} color={config.THEME_COLOR} />
             </SafeAreaView>
         );
     }
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader title="Upgrade & collect" navigation={navigation} />
             <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 + insets.bottom }}>
                 <AppText label={businessName} fontSize={18} variant={1} color={colors.text} />

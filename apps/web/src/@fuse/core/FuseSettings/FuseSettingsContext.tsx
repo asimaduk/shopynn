@@ -1,4 +1,4 @@
-import { FuseSettingsConfigType, FuseThemesType } from '@fuse/core/FuseSettings/FuseSettings';
+import { FuseSettingsConfigType, FuseThemesType } from '@fuse/core/FuseSettings/FuseSettingsTypes';
 import { createContext } from 'react';
 
 // FuseSettingsContext type

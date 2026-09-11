@@ -104,7 +104,7 @@ const Reports = ({ navigation }) => {
     };
 
     return (
-        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.safeArea, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={backPress} label="Reports" />
             <View style={[styles.searchContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <Lucide name="search" color={colors.textTertiary} size={18} style={{ marginLeft: 12 }} />

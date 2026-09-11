@@ -259,7 +259,7 @@ const UserForm = ({ navigation, route }) => {
     };
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={() => navigation.goBack()} label={isEdit ? 'Edit user' : 'Add user'} />
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
                 <ScrollView keyboardShouldPersistTaps='handled' contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>

@@ -42,7 +42,7 @@ const AdjustmentDetails = ({ navigation, route }) => {
     );
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={backPress} label="Adjustment Details" />
             <ScrollView contentContainerStyle={{ padding: 20 }}>
                 <View style={{ backgroundColor: colors.surface, borderRadius: 10, padding: 20, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 }}>

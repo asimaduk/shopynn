@@ -402,7 +402,7 @@ const CustomerSale = ({ navigation, route }) => {
 
     if (loading) {
         return (
-            <SafeAreaView style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
                 <ActivityIndicator size="large" color={config.THEME_COLOR} />
                 <AppText label="Loading customer products..." fontSize={14} color={colors.textSecondary} style={{ marginTop: 12 }} />
             </SafeAreaView>
@@ -410,7 +410,7 @@ const CustomerSale = ({ navigation, route }) => {
     }
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={backPress} label={`Transactions | ${customerName}`}>
                 <View style={styles.headerActions}>
                     {/* <TouchableOpacity

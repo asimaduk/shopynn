@@ -1,11 +1,9 @@
-import ThemeFormConfigTypes from '@fuse/core/FuseSettings/ThemeFormConfigTypes';
 import layout1, { Layout1ConfigDefaultsType } from './layout1/Layout1Config';
 
 /**
  * The type definition for the theme layout defaults.
  */
-export type themeLayoutDefaultsProps =
-	| Layout1ConfigDefaultsType;
+export type themeLayoutDefaultsProps = Layout1ConfigDefaultsType;
 
 /**
  * The type definition for the theme layout.
@@ -13,7 +11,6 @@ export type themeLayoutDefaultsProps =
 export type themeLayoutProps = {
 	title: string;
 	defaults: themeLayoutDefaultsProps;
-	form?: ThemeFormConfigTypes;
 };
 
 /**

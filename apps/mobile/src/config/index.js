@@ -2,8 +2,8 @@
 const RAILWAY_API = 'https://shopynn-production.up.railway.app/api';
 // Security: use HTTPS for production-test / production release builds.
 const PRODUCTION_TEST_API = RAILWAY_API;
-// Dev builds also hit Railway for cutover testing. For a local API:
-// const LOCAL_DEV_API = 'http://127.0.0.1:4001/api'; // simulator; use LAN IP on device
+// Emulator/simulator: adb reverse / iOS localhost → host API.
+// Physical device: use your machine LAN IP, e.g. http://192.168.x.x:4001/api
 const LOCAL_DEV_API = RAILWAY_API;
 const BASE_API = __DEV__ ? LOCAL_DEV_API : PRODUCTION_TEST_API;
 
@@ -11,7 +11,7 @@ export default {
     test: "test",
     VERSION_NUMBER: 1,
     BASE_API,
-    /** Local receipt agent (ims-web NewSale parity). On a physical device use your machine LAN IP, e.g. http://192.168.x.x:3001/print */
+    /** Local receipt agent default (override via More → Print agent). Checkout PC with USB printer — not Railway. */
     LOCAL_PRINT_URL: 'http://127.0.0.1:3001/print',
     /** Matches ims-web default theme `themesConfig.default` (Fuse primary / secondary.light) */
     THEME_COLOR: '#0A74DA',

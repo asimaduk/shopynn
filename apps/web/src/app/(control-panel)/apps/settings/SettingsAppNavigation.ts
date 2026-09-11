@@ -50,12 +50,11 @@ const SettingsAppNavigation: FuseNavItemType = {
 		{
 			id: 'apps.settings.receipt',
 			icon: 'heroicons-outline:document-text',
-			title: 'Receipt Settings',
+			title: 'Invoice & Receipt',
 			type: 'item',
 			url: '/apps/settings/receipt-settings',
-			requiredPermissions: ['receipt_settings.view'],
-			featureFlag: 'receiptSettings',
-			subtitle: 'Configure invoice and receipt details'
+			requiredPermissions: ['receipt_settings.view', 'settings.view'],
+			subtitle: 'Invoice/receipt details and thermal print agent'
 		},
 		{
 			id: 'apps.settings.export',

@@ -83,7 +83,7 @@ const NewSaleReturn = ({ navigation }) => {
     };
 
     return (
-        <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.safe, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={() => navigation.goBack()} label="New sales return" />
             <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
                 <View style={[styles.card, { backgroundColor: colors.surface }]}>

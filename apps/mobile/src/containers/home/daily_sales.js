@@ -236,7 +236,7 @@ const DailySales = ({ navigation }) => {
 
     if (!canViewDailySales) {
         return (
-            <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.safeArea, { backgroundColor: colors.background }]}>
                 <ScreenHeader label="Daily Sales" onPress={() => navigation.goBack()} />
                 <FeatureUpgradePrompt
                     navigation={navigation}
@@ -256,7 +256,7 @@ const DailySales = ({ navigation }) => {
     }
 
     return (
-        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.safeArea, { backgroundColor: colors.background }]}>
             <ScreenHeader
                 label="Daily Sales"
                 onPress={() => navigation.goBack()}

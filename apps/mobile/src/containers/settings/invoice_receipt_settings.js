@@ -53,7 +53,7 @@ const InvoiceReceiptSettings = ({ navigation }) => {
     };
 
     return (
-        <SafeAreaView style={styles.safe}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={styles.safe}>
             <ScreenHeader onPress={() => navigation.goBack()} label="Invoice & Receipt" />
             <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
                 <View style={styles.card}>

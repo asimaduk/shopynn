@@ -1,5 +1,5 @@
 import themesConfig from 'src/configs/themesConfig';
-import { FuseSettingsConfigType } from '@fuse/core/FuseSettings/FuseSettings';
+import { FuseSettingsConfigType } from '@fuse/core/FuseSettings/FuseSettingsTypes';
 
 import i18n from '@i18n/i18n';
 

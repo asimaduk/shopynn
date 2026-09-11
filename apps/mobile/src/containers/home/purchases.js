@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { StyleSheet, TouchableOpacity, View, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
@@ -8,7 +8,7 @@ import { FlashList } from "@shopify/flash-list";
 import { useSelector } from 'react-redux';
 import config from '../../config';
 import PurchaseItem from './purchase_item';
-import { purchases as purchasesApi, normalizeList } from '../../services/api';
+import { purchases as purchasesApi, normalizePagedList } from '../../services/api';
 import AppModal from '../../components/app_modal';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import useTheme from '../../hooks/useTheme';
@@ -25,6 +25,7 @@ const dateRanges = [
     { id: '8', label: 'Custom Range', value: 'custom' },
 ];
 
+const PAGE_SIZE = 20;
 const TAB_BAR_HEIGHT = 60;
 
 const Purchases = ({ navigation }) => {
@@ -34,6 +35,8 @@ const Purchases = ({ navigation }) => {
     const subscriptionFeatures = useSelector(({ appSettings }) => appSettings?.subscriptionFeatures || []);
     const canNewPurchase = canAccessScreen(user, 'NewPurchase', subscriptionFeatures);
     const [data, setData] = useState([]);
+    const [totalCount, setTotalCount] = useState(0);
+    const [hasMore, setHasMore] = useState(false);
     const [search, setSearch] = useState('');
     const [showFilter, setShowFilter] = useState(false);
     const [showDateFilter, setShowDateFilter] = useState(false);
@@ -47,36 +50,20 @@ const Purchases = ({ navigation }) => {
     const [showEndPicker, setShowEndPicker] = useState(false);
     const [statusFilter, setStatusFilter] = useState('All');
     const [isLoading, setIsLoading] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
-
-    const loadPurchasesData = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            const bounds = getDateRangeBounds();
-            const params = bounds ? { startDate: bounds.start?.toISOString?.()?.slice(0, 10), endDate: bounds.end?.toISOString?.()?.slice(0, 10) } : {};
-            const raw = await purchasesApi.list(params);
-            const list = normalizeList(raw);
-            // console.log('purchase list', list);
-            if (Array.isArray(list) && list.length > 0) setData(list);
-            else setData([]);
-        } catch (error) {
-            setData([]);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [selectedDateRange, appliedCustomStartDate, appliedCustomEndDate]);
+    const dataRef = useRef([]);
+    const loadingMoreRef = useRef(false);
+    const hasMoreRef = useRef(false);
 
     useEffect(() => {
-        loadPurchasesData();
-    }, [loadPurchasesData]);
+        dataRef.current = data;
+    }, [data]);
+    useEffect(() => {
+        hasMoreRef.current = hasMore;
+    }, [hasMore]);
 
-    const onRefresh = async () => {
-        setRefreshing(true);
-        await loadPurchasesData();
-        setRefreshing(false);
-    };
-
-    const getDateRangeBounds = () => {
+    const getDateRangeBounds = useCallback(() => {
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const yesterday = new Date(today);
@@ -106,6 +93,70 @@ const Purchases = ({ navigation }) => {
                 return { start: appliedCustomStartDate, end: new Date(appliedCustomEndDate.getTime() + 24 * 60 * 60 * 1000) };
             default:
                 return null; // all_time
+        }
+    }, [selectedDateRange, appliedCustomStartDate, appliedCustomEndDate]);
+
+    const buildListParams = useCallback((offset = 0) => {
+        const bounds = getDateRangeBounds();
+        const params = { limit: PAGE_SIZE, offset };
+        if (bounds) {
+            params.startDate = bounds.start?.toISOString?.()?.slice(0, 10);
+            params.endDate = bounds.end?.toISOString?.()?.slice(0, 10);
+        }
+        return params;
+    }, [getDateRangeBounds]);
+
+    const loadPurchasesData = useCallback(async ({ reset = true } = {}) => {
+        if (reset) {
+            setIsLoading(true);
+            loadingMoreRef.current = false;
+        } else {
+            if (loadingMoreRef.current || !hasMoreRef.current) return;
+            loadingMoreRef.current = true;
+            setLoadingMore(true);
+        }
+
+        try {
+            const offset = reset ? 0 : dataRef.current.length;
+            const raw = await purchasesApi.list(buildListParams(offset));
+            const { items, total } = normalizePagedList(raw);
+            const list = Array.isArray(items) ? items : [];
+
+            const next = reset ? list : [...dataRef.current, ...list];
+            dataRef.current = next;
+            const more = next.length < total && list.length > 0;
+            hasMoreRef.current = more;
+            setData(next);
+            setTotalCount(total);
+            setHasMore(more);
+        } catch (error) {
+            if (reset) {
+                dataRef.current = [];
+                hasMoreRef.current = false;
+                setData([]);
+                setTotalCount(0);
+                setHasMore(false);
+            }
+        } finally {
+            setIsLoading(false);
+            loadingMoreRef.current = false;
+            setLoadingMore(false);
+        }
+    }, [buildListParams]);
+
+    useEffect(() => {
+        loadPurchasesData({ reset: true });
+    }, [loadPurchasesData]);
+
+    const onRefresh = async () => {
+        setRefreshing(true);
+        await loadPurchasesData({ reset: true });
+        setRefreshing(false);
+    };
+
+    const onEndReached = () => {
+        if (!isLoading && !refreshing) {
+            loadPurchasesData({ reset: false });
         }
     };
 
@@ -166,22 +217,24 @@ const Purchases = ({ navigation }) => {
     const filteredData = useMemo(() => {
         let result = [...data];
 
-        // Apply search filter
-        const matchSearch = result.filter(item => 
-            item.supplier?.toLowerCase().includes(search.toLowerCase()) || item.id.includes(search)
+        const matchSearch = result.filter((item) =>
+            item.supplier?.toLowerCase().includes(search.toLowerCase()) ||
+            String(item.id || '').includes(search) ||
+            String(item.invoice_number || '').toLowerCase().includes(search.toLowerCase())
         );
-        
-        // Apply status filter
-        const poStatus = matchSearch.filter(item => {
+
+        const poStatus = matchSearch.filter((item) => {
             const status = item.poStatus || 'received';
             return statusFilter === 'All' || statusFilter.toLowerCase() === status;
         });
-        
+
         return poStatus;
-    }, [data, search, statusFilter, selectedDateRange, customStartDate, customEndDate]);
+    }, [data, search, statusFilter]);
+
+    const displayCount = (search.trim() || statusFilter !== 'All') ? filteredData.length : totalCount;
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['bottom', 'left', 'right']}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['left', 'right']}>
             <Header navigation={navigation} screen="purchases" />
 
             <View style={{ flex: 1 }}>
@@ -201,7 +254,7 @@ const Purchases = ({ navigation }) => {
                                 </TouchableOpacity>
                             )}
                         </View>
-                        <AppText label={`#${filteredData.length}`} fontSize={18} variant={2} color={config.THEME_COLOR} />
+                        <AppText label={`#${displayCount}`} fontSize={18} variant={2} color={config.THEME_COLOR} />
                     </View>
 
                     <View style={styles.actionRow}>
@@ -258,8 +311,17 @@ const Purchases = ({ navigation }) => {
                         numColumns={2}
                         estimatedItemSize={150}
                         keyExtractor={(item) => item.id}
+                        onEndReached={onEndReached}
+                        onEndReachedThreshold={0.4}
                         refreshControl={
                             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={config.THEME_COLOR} />
+                        }
+                        ListFooterComponent={
+                            loadingMore ? (
+                                <View style={{ paddingVertical: 16, alignItems: 'center', width: '100%' }}>
+                                    <ActivityIndicator size="small" color={config.THEME_COLOR} />
+                                </View>
+                            ) : null
                         }
                         renderItem={({ item, index }) => (
                             <PurchaseItem

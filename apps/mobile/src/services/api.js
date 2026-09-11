@@ -16,6 +16,21 @@ const getData = (res) => (res?.data?.data !== undefined ? res.data.data : res?.d
 /** Normalize list responses: API may return array or { list, items, data } */
 export const normalizeList = (raw) => (Array.isArray(raw) ? raw : raw?.list ?? raw?.items ?? raw?.data ?? []);
 
+/** Normalize paged list responses: { items, total } when API paginates, else treat as full array. */
+export const normalizePagedList = (raw) => {
+    const items = normalizeList(raw);
+    if (Array.isArray(raw)) {
+        return { items, total: items.length, limit: null, offset: 0 };
+    }
+    const total = Number(raw?.total);
+    return {
+        items,
+        total: Number.isFinite(total) ? total : items.length,
+        limit: raw?.limit != null ? Number(raw.limit) : null,
+        offset: raw?.offset != null ? Number(raw.offset) : 0,
+    };
+};
+
 const CATALOG_DETAILS_CACHE_KEY = 'SHOPYNN_CATALOG_DETAILS_CACHE_V1';
 const CATALOG_DETAILS_TTL_MS = 1000 * 60 * 10; // 10 minutes
 const catalogDetailsMemoryCache = new Map();
@@ -370,6 +385,8 @@ export const products = {
             return applyOfflinePendingSalesDeltas(normalizeProductList(cached));
         }
     },
+    /** Full product export rows for CSV (requires products.export). */
+    export: () => axios.get('/products/export').then((res) => normalizeList(getData(res))),
     byCategory: async (categoryId, params) => {
         try {
             const raw = await axios.get(`/products/by-category/${categoryId}`, { params });

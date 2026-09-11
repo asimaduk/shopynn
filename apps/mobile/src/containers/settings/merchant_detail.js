@@ -348,7 +348,7 @@ const MerchantDetail = ({ navigation, route }) => {
 
     if (loading && !detailData) {
         return (
-            <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
                 <ScreenHeader hideBack={!canGoBack} onPress={() => navigation.goBack()} label="Merchant" />
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     <ActivityIndicator color={config.THEME_COLOR} size="large" />
@@ -360,7 +360,7 @@ const MerchantDetail = ({ navigation, route }) => {
     const m = detailData?.merchant;
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader hideBack={!canGoBack} onPress={() => navigation.goBack()} label="Merchant" />
 
             <ScrollView

@@ -95,7 +95,7 @@ const ReturnItems = ({ navigation, route }) => {
     );
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={backPress} label="Return Items" />
             <ScrollView
                 style={styles.scrollView}

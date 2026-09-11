@@ -27,6 +27,7 @@ import ContactsApi from '../../users/customers/ContactsApi';
 import ECommerceApi, { EcommerceProduct, useGetECommerceProductsWithPaginationQuery } from '../../inventory/ECommerceApi';
 import { useGetWarehousesQuery } from '../../setups/warehouses/WarehouseApi';
 import { normalizeWarehousePrinterType } from '../../setups/warehouses/models/WarehouseModel';
+import { getPrintAgentPrintUrl } from '@/utils/printAgent';
 
 import { store } from 'src/store/store';
 
@@ -451,7 +452,8 @@ function NewSale() {
     }
 
     const handleThermalPrinting = async (payload) => {
-        fetch('http://127.0.0.1:3001/print', {
+        const printUrl = getPrintAgentPrintUrl();
+        fetch(printUrl, {
             method:'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(payload)
@@ -465,7 +467,7 @@ function NewSale() {
                 toast.error(`Error printing invoice: ${data.message}. Please try again.`)
             }
         })
-        .catch(err=> toast.error(`Error printing invoice: ${err.message}. Please try again.`))
+        .catch(err=> toast.error(`Error printing invoice: ${err.message}. Check Print agent settings.`))
     }
 
     const handleRefreshProducts = async () => {

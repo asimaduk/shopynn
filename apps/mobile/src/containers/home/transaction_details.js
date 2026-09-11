@@ -46,7 +46,7 @@ const TransactionDetails = ({ navigation, route }) => {
     );
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['bottom', 'left', 'right']}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader onPress={backPress} label={'Transaction Details'} />
             <ScrollView contentContainerStyle={{ padding: 20 }}>
                 <View style={styles.hero}>

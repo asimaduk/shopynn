@@ -33,6 +33,7 @@ const Profile = ({ navigation, route }) => {
     const [myWeeklySalesCount, setMyWeeklySalesCount] = useState(0);
     const [myWeeklySalesTotal, setMyWeeklySalesTotal] = useState(0);
     const [selectedImage, setSelectedImage] = useState(null);
+    const [serverImageUri, setServerImageUri] = useState(null);
     const [imageActionLoading, setImageActionLoading] = useState(null); // 'upload' | 'delete' | null
     const [linkedStores, setLinkedStores] = useState([]);
     const [billingSub, setBillingSub] = useState(null);
@@ -69,10 +70,11 @@ const Profile = ({ navigation, route }) => {
                     me?.avatar ??
                     null;
 
+                setServerImageUri(imageUrl || null);
                 setSelectedImage((prev) => {
                     if (prev?.isLocal) return prev;
                     if (imageUrl) return { uri: imageUrl, isLocal: false };
-                    return prev;
+                    return null;
                 });
 
                 const roleNames = Array.isArray(me?.settings?.roles)
@@ -172,32 +174,41 @@ const Profile = ({ navigation, route }) => {
     }
 
     const handleRemoveImage = () => {
-        setSelectedImage({ uri: null });
+        // Discard local preview and restore last saved photo
+        setSelectedImage(serverImageUri ? { uri: serverImageUri, isLocal: false } : null);
         setShowFullImage(false);
     }
+
+    const applyLocalPreview = (asset) => {
+        if (!asset) return;
+        setSelectedImage({ isLocal: true, ...asset });
+        // Open after the picker / action sheet dismisses so the preview modal is visible.
+        setTimeout(() => setShowFullImage(true), 100);
+    };
 
     const handleOpenGallery = async () => {
         const result = await launchImageLibrary({ mediaType: 'photo', maxHeight: 400, maxWidth: 400 });
         if (result.assets && result.assets.length > 0) {
-            setSelectedImage({ isLocal: true, ...result.assets[0] });
+            applyLocalPreview(result.assets[0]);
         }
     }
 
     const handleOpenCamera = async () => {
         const result = await launchCamera({ mediaType: 'photo', maxHeight: 400, maxWidth: 400, quality: .7, cameraType: 'back' });
         if (result.assets && result.assets.length > 0) {
-            setSelectedImage({ isLocal: true, ...result.assets[0] });
+            applyLocalPreview(result.assets[0]);
         }
     }
 
     const handleUploadImage = async () => {
-        if (!selectedImage) return;
+        if (!selectedImage?.isLocal) return;
         setImageActionLoading('upload');
         try {
             const res = await usersApi.updateProfileImage(selectedImage);
             const uploadedImageUrl = res?.image_url || selectedImage?.uri || null;
             Alert.alert('Success', 'Image uploaded successfully');
             setShowFullImage(false);
+            setServerImageUri(uploadedImageUrl);
             setSelectedImage({ uri: uploadedImageUrl, isLocal: false });
             dispatch({
                 type: SET_USER,
@@ -242,6 +253,7 @@ const Profile = ({ navigation, route }) => {
                             Alert.alert('Success', 'Image deleted successfully');
                             setShowFullImage(false);
                             setSelectedImage(null);
+                            setServerImageUri(null);
                             dispatch({
                                 type: SET_USER,
                                 payload: {
@@ -314,7 +326,7 @@ const Profile = ({ navigation, route }) => {
 
     if (loading) {
         return (
-            <SafeAreaView style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
                 <ActivityIndicator size="large" color={config.THEME_COLOR} />
                 <AppText label="Loading profile..." fontSize={14} color={colors.textSecondary} style={{ marginTop: 12 }} />
             </SafeAreaView>
@@ -322,7 +334,7 @@ const Profile = ({ navigation, route }) => {
     }
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={backPress} label={'My Profile'}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', padding: 10 }}>
                     <TouchableOpacity
@@ -550,13 +562,19 @@ const Profile = ({ navigation, route }) => {
             </ScrollView>
 
             <AppModal
-                title={'Profile Photo'}
+                title={selectedImage?.isLocal ? 'Preview profile photo' : 'Profile Photo'}
                 handleClose={() => {
                     if (imageActionLoading) return;
+                    if (selectedImage?.isLocal) {
+                        setSelectedImage(serverImageUri ? { uri: serverImageUri, isLocal: false } : null);
+                    }
                     setShowFullImage(false);
                 }}
                 onRequestClose={() => {
                     if (imageActionLoading) return;
+                    if (selectedImage?.isLocal) {
+                        setSelectedImage(serverImageUri ? { uri: serverImageUri, isLocal: false } : null);
+                    }
                     setShowFullImage(false);
                 }}
                 visible={showFullImage}>
@@ -568,6 +586,14 @@ const Profile = ({ navigation, route }) => {
                             resizeMode='cover'
                         />
                     </View>
+                    {selectedImage?.isLocal ? (
+                        <AppText
+                            label="Review your photo, then tap Upload to save it to your profile."
+                            fontSize={13}
+                            color={colors.textSecondary}
+                            style={{ marginTop: 12, textAlign: 'center', paddingHorizontal: 8 }}
+                        />
+                    ) : null}
                     <View style={styles.modalActions}>
                         <TouchableOpacity
                             activeOpacity={.6}
@@ -577,14 +603,14 @@ const Profile = ({ navigation, route }) => {
                             {imageActionLoading === 'upload' ? (
                                 <ActivityIndicator size="small" color={colors.textInverse} />
                             ) : (
-                                <Lucide name='image-plus' size={20} color={colors.textInverse} />
+                                <Lucide name={selectedImage?.isLocal ? 'upload' : 'image-plus'} size={20} color={colors.textInverse} />
                             )}
                             <AppText
                                 label={
                                     imageActionLoading === 'upload'
                                         ? 'Uploading...'
                                         : selectedImage && selectedImage.isLocal
-                                            ? 'Upload Image'
+                                            ? 'Upload'
                                             : 'Change Image'
                                 }
                                 color={colors.textInverse}
@@ -597,9 +623,9 @@ const Profile = ({ navigation, route }) => {
                                 activeOpacity={.6}
                                 disabled={!!imageActionLoading}
                                 onPress={handleRemoveImage}
-                                style={[styles.modalBtn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.error, marginLeft: 15, opacity: imageActionLoading ? 0.6 : 1 }]}>
-                                <Lucide name='trash-2' size={20} color={colors.error} />
-                                <AppText label="Remove" color={colors.error} style={{ marginLeft: 8 }} />
+                                style={[styles.modalBtn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, marginLeft: 15, opacity: imageActionLoading ? 0.6 : 1 }]}>
+                                <Lucide name='x' size={20} color={colors.textSecondary} />
+                                <AppText label="Cancel" color={colors.textSecondary} style={{ marginLeft: 8 }} />
                             </TouchableOpacity>
                         )}
 

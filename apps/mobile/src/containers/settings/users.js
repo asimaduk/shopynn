@@ -120,7 +120,7 @@ const Users = ({ navigation }) => {
 
     if (loading) {
         return (
-            <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
                 <ScreenHeader onPress={backPress} label="System users" />
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     <ActivityIndicator size="large" color={config.THEME_COLOR} />
@@ -131,7 +131,7 @@ const Users = ({ navigation }) => {
     }
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={backPress} label="System users">
                 <View style={styles.headerActions}>
                     <TouchableOpacity

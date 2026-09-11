@@ -109,7 +109,7 @@ const MerchantCollect = ({ navigation, route }) => {
 
     if (loading) {
         return (
-            <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
                 <ActivityIndicator style={{ marginTop: 40 }} color={config.THEME_COLOR} />
             </SafeAreaView>
         );
@@ -117,7 +117,7 @@ const MerchantCollect = ({ navigation, route }) => {
 
     if (!quote) {
         return (
-            <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
                 <ScreenHeader title="Collect payment" navigation={navigation} />
                 <AppText label="No pending quote." style={{ padding: 20 }} color={colors.textSecondary} />
             </SafeAreaView>
@@ -125,7 +125,7 @@ const MerchantCollect = ({ navigation, route }) => {
     }
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader title="Collect payment" navigation={navigation} />
             <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 + insets.bottom }}>
                 <AppText label={`Total: GHS ${Number(quote.total_ghs).toFixed(2)}`} fontSize={22} variant={1} color={colors.text} />

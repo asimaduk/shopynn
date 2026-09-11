@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Text, Pressable, Platform, View } from 'react-native';
+import { DeviceEventEmitter, Text, Pressable, Platform, View } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -10,6 +10,11 @@ import { useSelector, useDispatch } from 'react-redux';
 import { SET_USER } from '../store/actions/user';
 import useInactivityTimer from '../hooks/useInactivityTimer';
 import { canAccessScreen, hasPermission } from '../utils/permissions';
+import {
+    flushPendingNotificationNavigation,
+    navigateForNotification,
+    NOTIFICATION_OPENED_EVENT,
+} from '../utils/notificationNavigation';
 
 import Dashboard from '../containers/home/dashboard';
 import useTheme from '../hooks/useTheme';
@@ -68,6 +73,7 @@ import TransactionDetails from '../containers/home/transaction_details';
 import CustomerForm from '../containers/settings/customer_form';
 import BarcodeScanner from '../containers/home/barcode_scanner';
 import InvoiceReceiptSettings from '../containers/settings/invoice_receipt_settings';
+import PrintAgentSettings from '../containers/settings/print_agent_settings';
 import DataExportBackup from '../containers/settings/data_export_backup';
 import Returns from '../containers/home/returns';
 import NewSaleReturn from '../containers/home/new_sale_return';
@@ -187,13 +193,15 @@ function HomeStackScreen() {
     return (
         <Tab.Navigator
             screenOptions={{
+                // We apply bottom inset via tabBarStyle; avoid RN adding a second inset.
+                safeAreaInsets: { bottom: 0 },
                 tabBarStyle: {
                     backgroundColor: colors.surface,
                     borderTopColor: colors.border,
                     borderTopWidth: 1,
-                    height: 60 + insets.bottom,
-                    paddingBottom: insets.bottom,
-                    paddingTop: 8,
+                    height: 56 + Math.max(insets.bottom, 8),
+                    paddingBottom: Math.max(insets.bottom, 8),
+                    paddingTop: 6,
                     position: 'absolute',
                     bottom: 0,
                     left: 0,
@@ -390,10 +398,40 @@ function MainNavigator({ user }) {
         return () => cancelAnimationFrame(id);
     }, [postLoginScreen, dispatch]);
 
+    useEffect(() => {
+        const tryNavigate = (notification) => {
+            if (navigateForNotification(rootNavigationRef, notification)) {
+                return;
+            }
+            let attempts = 0;
+            const timer = setInterval(() => {
+                attempts += 1;
+                if (navigateForNotification(rootNavigationRef, notification) || attempts >= 40) {
+                    clearInterval(timer);
+                }
+            }, 250);
+        };
+
+        const sub = DeviceEventEmitter.addListener(NOTIFICATION_OPENED_EVENT, tryNavigate);
+
+        // Cold start: notification may have been opened before this navigator mounted.
+        const flushTimer = setTimeout(() => {
+            flushPendingNotificationNavigation(rootNavigationRef);
+        }, 400);
+
+        return () => {
+            sub.remove();
+            clearTimeout(flushTimer);
+        };
+    }, []);
+
     return (
         <NavigationContainer
             ref={rootNavigationRef}
             onStateChange={onNavigationStateChange}
+            onReady={() => {
+                flushPendingNotificationNavigation(rootNavigationRef);
+            }}
         >
             <Stack.Navigator>
                 <Stack.Screen name="Home" component={HomeStackScreen} options={{ headerShown: false }} />
@@ -458,6 +496,7 @@ function MainNavigator({ user }) {
                 <Stack.Screen name="TransactionDetails" component={TransactionDetails} options={{ headerShown: false }} />
                 <Stack.Screen name="CustomerForm" component={CustomerForm} options={{ headerShown: false }} />
                 <Stack.Screen name="InvoiceReceiptSettings" component={InvoiceReceiptSettings} options={{ headerShown: false }} />
+                <Stack.Screen name="PrintAgentSettings" component={PrintAgentSettings} options={{ headerShown: false }} />
                 <Stack.Screen name="DataExportBackup" component={DataExportBackup} options={{ headerShown: false }} />
                 <Stack.Screen name="Returns" component={Returns} options={{ headerShown: false }} />
                 <Stack.Screen name="NewSaleReturn" component={NewSaleReturn} options={{ headerShown: false }} />

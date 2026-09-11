@@ -20,7 +20,7 @@ const AuditLogDetails = ({ navigation, route }) => {
 
     if (!log) {
         return (
-            <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
                 <ScreenHeader onPress={backPress} label="Audit log details" />
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     <AppText label="No audit log data." fontSize={14} color={colors.textSecondary} />
@@ -39,7 +39,7 @@ console.log('parsedDetails', parsedDetails);
     const fullName = [log.user_first_name, log.user_last_name].filter(Boolean).join(' ') || 'Unknown user';
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader onPress={backPress} label="Audit log details" />
             <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 32 }}>
                 {/* Header card */}

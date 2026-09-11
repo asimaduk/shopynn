@@ -102,7 +102,7 @@ const CustomerDetails = ({ navigation, route }) => {
 
     if (loading) {
         return (
-            <SafeAreaView style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
                 <ActivityIndicator size="large" color={config.THEME_COLOR} />
                 <AppText label="Loading customer..." fontSize={14} color={colors.textSecondary} style={{ marginTop: 12 }} />
             </SafeAreaView>
@@ -111,7 +111,7 @@ const CustomerDetails = ({ navigation, route }) => {
 
     if (!item?.name && !item?.id) {
         return (
-            <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
                 <ScreenHeader onPress={backPress} label="Customer Details" />
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     <AppText label="Customer not found" fontSize={15} color={colors.textSecondary} />
@@ -121,7 +121,7 @@ const CustomerDetails = ({ navigation, route }) => {
     }
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={backPress} label={'Customer Details'}>
                 {item.source !== 'account' ? (
                     <TouchableOpacity

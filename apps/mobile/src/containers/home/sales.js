@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { StyleSheet, TextInput, TouchableOpacity, View, KeyboardAvoidingView, Platform, ActivityIndicator, RefreshControl, ScrollView, Alert } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
@@ -8,11 +8,13 @@ import { FlashList } from "@shopify/flash-list";
 import { useSelector } from 'react-redux';
 import config from '../../config';
 import SaleItem from './sale_item';
-import { sales as salesApi, normalizeList } from '../../services/api';
+import { sales as salesApi, normalizePagedList } from '../../services/api';
 import AppModal from '../../components/app_modal';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import useTheme from '../../hooks/useTheme';
 import { canAccessScreen, hasPermission } from '../../utils/permissions';
+
+const PAGE_SIZE = 20;
 
 // Map API sale to display shape and group by date (Today / Yesterday / "Mon DD, YYYY")
 const STATUS_MAP = { 0: 'Pending', 1: 'Delivered', 2: 'Cancelled' };
@@ -84,73 +86,6 @@ const dateRanges = [
     { id: '8', label: 'Custom Range', value: 'custom' },
 ];
 
-// Parse sales date string like "Today", "Yesterday", or "Feb 15, 2026" to Date object
-const parseSalesDate = (dateStr, timeStr) => {
-    if (!dateStr) return null;
-    
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
-    if (dateStr === 'Today') {
-        const date = new Date(today);
-        if (timeStr) {
-            const timeMatch = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
-            if (timeMatch) {
-                let hours = parseInt(timeMatch[1]);
-                const minutes = parseInt(timeMatch[2]);
-                const ampm = timeMatch[3].toUpperCase();
-                if (ampm === 'PM' && hours !== 12) hours += 12;
-                if (ampm === 'AM' && hours === 12) hours = 0;
-                date.setHours(hours, minutes, 0, 0);
-            }
-        }
-        return date;
-    }
-    
-    if (dateStr === 'Yesterday') {
-        const date = new Date(today);
-        date.setDate(date.getDate() - 1);
-        if (timeStr) {
-            const timeMatch = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
-            if (timeMatch) {
-                let hours = parseInt(timeMatch[1]);
-                const minutes = parseInt(timeMatch[2]);
-                const ampm = timeMatch[3].toUpperCase();
-                if (ampm === 'PM' && hours !== 12) hours += 12;
-                if (ampm === 'AM' && hours === 12) hours = 0;
-                date.setHours(hours, minutes, 0, 0);
-            }
-        }
-        return date;
-    }
-    
-    // Parse "Feb 15, 2026" format
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const parts = dateStr.split(', ');
-    if (parts.length === 2) {
-        const [monthDay, year] = parts;
-        const [monthName, day] = monthDay.split(' ');
-        const monthIndex = months.indexOf(monthName);
-        if (monthIndex !== -1) {
-            const date = new Date(parseInt(year), monthIndex, parseInt(day));
-            if (timeStr) {
-                const timeMatch = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
-                if (timeMatch) {
-                    let hours = parseInt(timeMatch[1]);
-                    const minutes = parseInt(timeMatch[2]);
-                    const ampm = timeMatch[3].toUpperCase();
-                    if (ampm === 'PM' && hours !== 12) hours += 12;
-                    if (ampm === 'AM' && hours === 12) hours = 0;
-                    date.setHours(hours, minutes, 0, 0);
-                }
-            }
-            return date;
-        }
-    }
-    
-    return null;
-};
-
 const TAB_BAR_HEIGHT = 60;
 
 const Sales = ({ navigation }) => {
@@ -171,8 +106,21 @@ const Sales = ({ navigation }) => {
     const [showStartPicker, setShowStartPicker] = useState(false);
     const [showEndPicker, setShowEndPicker] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
-    const [data, setData] = useState([]);
+    const [rows, setRows] = useState([]);
+    const [totalCount, setTotalCount] = useState(0);
+    const [hasMore, setHasMore] = useState(false);
+    const rowsRef = useRef([]);
+    const loadingMoreRef = useRef(false);
+    const hasMoreRef = useRef(false);
+
+    useEffect(() => {
+        rowsRef.current = rows;
+    }, [rows]);
+    useEffect(() => {
+        hasMoreRef.current = hasMore;
+    }, [hasMore]);
 
     const handleResendInvoice = useCallback((sale) => {
         if (!sale?.id) return;
@@ -201,36 +149,7 @@ const Sales = ({ navigation }) => {
         );
     }, []);
 
-    const loadSalesData = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            const bounds = getDateRangeBounds();
-            const params = bounds ? { startDate: bounds.start?.toISOString?.()?.slice(0, 10), endDate: bounds.end?.toISOString?.()?.slice(0, 10) } : {};
-            const raw = await salesApi.list(params);
-            const list = normalizeList(raw);
-            if (Array.isArray(list) && list.length > 0) {
-                const displayItems = list.map(formatSaleForDisplay);
-                const sectioned = groupSalesByDate(displayItems);
-                setData(sectioned);
-            } else setData([]);
-        } catch (error) {
-            setData([]);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [selectedDateRange, customStartDate, customEndDate]);
-
-    useEffect(() => {
-        loadSalesData();
-    }, [loadSalesData]);
-
-    const onRefresh = async () => {
-        setRefreshing(true);
-        await loadSalesData();
-        setRefreshing(false);
-    };
-
-    const getDateRangeBounds = () => {
+    const getDateRangeBounds = useCallback(() => {
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const yesterday = new Date(today);
@@ -260,6 +179,70 @@ const Sales = ({ navigation }) => {
                 return { start: customStartDate, end: new Date(customEndDate.getTime() + 24 * 60 * 60 * 1000) };
             default:
                 return null; // all_time
+        }
+    }, [selectedDateRange, customStartDate, customEndDate]);
+
+    const buildListParams = useCallback((offset = 0) => {
+        const bounds = getDateRangeBounds();
+        const params = { limit: PAGE_SIZE, offset };
+        if (bounds) {
+            params.startDate = bounds.start?.toISOString?.()?.slice(0, 10);
+            params.endDate = bounds.end?.toISOString?.()?.slice(0, 10);
+        }
+        return params;
+    }, [getDateRangeBounds]);
+
+    const loadSalesData = useCallback(async ({ reset = true } = {}) => {
+        if (reset) {
+            setIsLoading(true);
+            loadingMoreRef.current = false;
+        } else {
+            if (loadingMoreRef.current || !hasMoreRef.current) return;
+            loadingMoreRef.current = true;
+            setLoadingMore(true);
+        }
+
+        try {
+            const offset = reset ? 0 : rowsRef.current.length;
+            const raw = await salesApi.list(buildListParams(offset));
+            const { items, total } = normalizePagedList(raw);
+            const displayItems = (Array.isArray(items) ? items : []).map(formatSaleForDisplay);
+
+            const next = reset ? displayItems : [...rowsRef.current, ...displayItems];
+            rowsRef.current = next;
+            const more = next.length < total && displayItems.length > 0;
+            hasMoreRef.current = more;
+            setRows(next);
+            setTotalCount(total);
+            setHasMore(more);
+        } catch (error) {
+            if (reset) {
+                rowsRef.current = [];
+                hasMoreRef.current = false;
+                setRows([]);
+                setTotalCount(0);
+                setHasMore(false);
+            }
+        } finally {
+            setIsLoading(false);
+            loadingMoreRef.current = false;
+            setLoadingMore(false);
+        }
+    }, [buildListParams]);
+
+    useEffect(() => {
+        loadSalesData({ reset: true });
+    }, [loadSalesData]);
+
+    const onRefresh = async () => {
+        setRefreshing(true);
+        await loadSalesData({ reset: true });
+        setRefreshing(false);
+    };
+
+    const onEndReached = () => {
+        if (!isLoading && !refreshing) {
+            loadSalesData({ reset: false });
         }
     };
 
@@ -303,52 +286,38 @@ const Sales = ({ navigation }) => {
         }
     };
 
-    // Flatten data for filtering
+    // Flatten + client search over loaded pages (server total remains for unfiltered header)
     const allSales = useMemo(() => {
-        let sales = data.flatMap(group => group.data);
-        
-        // Apply date filter
-        if (selectedDateRange !== 'all_time') {
-            const bounds = getDateRangeBounds();
-            if (bounds) {
-                sales = sales.filter((item) => {
-                    const itemDate = parseSalesDate(item.date, item.time);
-                    if (!itemDate) return false;
-                    return itemDate >= bounds.start && itemDate < bounds.end;
-                });
-            }
-        }
-        
-        // Apply search filter
+        let sales = [...rows];
         if (search.trim()) {
-            sales = sales.filter(item =>
-                item.customer.toLowerCase().includes(search.toLowerCase()) ||
-                item.id.includes(search)
+            const q = search.toLowerCase();
+            sales = sales.filter((item) =>
+                item.customer.toLowerCase().includes(q) ||
+                String(item.id).includes(search) ||
+                String(item.invoice_number || '').toLowerCase().includes(q)
             );
         }
-        
         return sales;
-    }, [data, search, selectedDateRange, customStartDate, customEndDate]);
+    }, [rows, search]);
 
-    // Regroup filtered data
-    const groupedData = useMemo(() => {
-        const grouped = {};
-        allSales.forEach(sale => {
-            const key = sale.date;
-            if (!grouped[key]) {
-                grouped[key] = [];
-            }
-            grouped[key].push(sale);
+    const displayCount = search.trim() ? allSales.length : totalCount;
+
+    const groupedData = useMemo(() => groupSalesByDate(allSales), [allSales]);
+
+    // Flat rows so FlashList onEndReached tracks actual sale count, not date sections
+    const listRows = useMemo(() => {
+        const out = [];
+        groupedData.forEach((section) => {
+            out.push({ type: 'header', id: `header-${section.title}`, title: section.title });
+            section.data.forEach((sale) => {
+                out.push({ type: 'sale', id: sale.id, sale });
+            });
         });
-        
-        return Object.keys(grouped).map(date => ({
-            title: date,
-            data: grouped[date]
-        }));
-    }, [allSales]);
+        return out;
+    }, [groupedData]);
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['bottom', 'left', 'right']}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['left', 'right']}>
             <Header navigation={navigation} screen="sales" />
 
             <View style={{ flex: 1 }}>
@@ -368,7 +337,7 @@ const Sales = ({ navigation }) => {
                                 </TouchableOpacity>
                             )}
                         </View>
-                        <AppText label={`#${allSales.length}`} fontSize={18} variant={2} color={config.THEME_COLOR} />
+                        <AppText label={`#${displayCount}`} fontSize={18} variant={2} color={config.THEME_COLOR} />
                     </View>
 
                     <View style={styles.actionRow}>
@@ -414,43 +383,57 @@ const Sales = ({ navigation }) => {
                 ) : (
                     <FlashList
                         contentContainerStyle={{ padding: 10, paddingBottom: TAB_BAR_HEIGHT + 56 + 24 }}
-                        data={groupedData}
-                        estimatedItemSize={200}
-                        keyExtractor={(item, index) => index.toString()}
+                        data={listRows}
+                        estimatedItemSize={120}
+                        keyExtractor={(item) => item.id}
+                        onEndReached={onEndReached}
+                        onEndReachedThreshold={0.4}
                         refreshControl={
                             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={config.THEME_COLOR} />
                         }
-                        renderItem={({ item }) => (
-                            <View style={{ marginBottom: 20 }}>
-                                <View
-                                    style={[
-                                        styles.sectionDateHeader,
-                                        {
-                                            backgroundColor: colors.primaryShade,
-                                            borderColor: colors.border,
-                                            borderLeftColor: config.THEME_COLOR,
-                                        },
-                                    ]}>
-                                    <Lucide name="calendar-days" size={18} color={config.THEME_COLOR} />
-                                    <AppText
-                                        label={item.title}
-                                        fontSize={16}
-                                        color={colors.text}
-                                        fontFamily="FiraSans-Medium"
-                                        style={{ letterSpacing: 0.2 }}
-                                    />
+                        ListFooterComponent={
+                            loadingMore ? (
+                                <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+                                    <ActivityIndicator size="small" color={config.THEME_COLOR} />
                                 </View>
-                                {item.data.map((sale) => (
-                                    <SaleItem
-                                        key={sale.id}
-                                        item={sale}
-                                        onPress={() => navigation.navigate('SaleDetails', { item: sale, saleId: sale.id })}
-                                        onResendInvoice={canResendInvoice ? handleResendInvoice : undefined}
-                                        resending={resendingSaleId === sale.id}
-                                    />
-                                ))}
-                            </View>
-                        )}
+                            ) : null
+                        }
+                        renderItem={({ item }) => {
+                            if (item.type === 'header') {
+                                return (
+                                    <View
+                                        style={[
+                                            styles.sectionDateHeader,
+                                            {
+                                                backgroundColor: colors.primaryShade,
+                                                borderColor: colors.border,
+                                                borderLeftColor: config.THEME_COLOR,
+                                                marginTop: 8,
+                                                marginBottom: 8,
+                                            },
+                                        ]}>
+                                        <Lucide name="calendar-days" size={18} color={config.THEME_COLOR} />
+                                        <AppText
+                                            label={item.title}
+                                            fontSize={16}
+                                            color={colors.text}
+                                            fontFamily="FiraSans-Medium"
+                                            style={{ letterSpacing: 0.2 }}
+                                        />
+                                    </View>
+                                );
+                            }
+                            const sale = item.sale;
+                            return (
+                                <SaleItem
+                                    key={sale.id}
+                                    item={sale}
+                                    onPress={() => navigation.navigate('SaleDetails', { item: sale, saleId: sale.id })}
+                                    onResendInvoice={canResendInvoice ? handleResendInvoice : undefined}
+                                    resending={resendingSaleId === sale.id}
+                                />
+                            );
+                        }}
                         ListEmptyComponent={() => (
                             <View style={styles.emptyContainer}>
                                 <Lucide name="shopping-cart" size={40} color={colors.border} />

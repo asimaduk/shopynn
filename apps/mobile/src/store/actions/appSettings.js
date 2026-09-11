@@ -10,6 +10,7 @@ export const SET_COMPANY_DETAILS = 'SET_COMPANY_DETAILS';
 export const SET_SUBSCRIPTION_ACTIVE = 'SET_SUBSCRIPTION_ACTIVE';
 export const SET_SUBSCRIPTION_PLAN = 'SET_SUBSCRIPTION_PLAN';
 export const SET_SUBSCRIPTION_FEATURES = 'SET_SUBSCRIPTION_FEATURES';
+export const SET_PRINT_AGENT = 'SET_PRINT_AGENT';
 
 export const setInvoicePrefix = (payload) => ({ type: SET_INVOICE_PREFIX, payload });
 export const setInvoiceNext = (payload) => ({ type: SET_INVOICE_NEXT, payload });
@@ -23,3 +24,5 @@ export const setCompanyDetails = (payload) => ({ type: SET_COMPANY_DETAILS, payl
 export const setSubscriptionActive = (payload) => ({ type: SET_SUBSCRIPTION_ACTIVE, payload });
 export const setSubscriptionPlan = (payload) => ({ type: SET_SUBSCRIPTION_PLAN, payload });
 export const setSubscriptionFeatures = (payload) => ({ type: SET_SUBSCRIPTION_FEATURES, payload });
+/** @param {{ host?: string, port?: number|string }} payload */
+export const setPrintAgent = (payload) => ({ type: SET_PRINT_AGENT, payload });

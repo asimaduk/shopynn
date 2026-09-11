@@ -10,7 +10,7 @@ function toBool(value: string | undefined, fallback = false): boolean {
 
 export const featureFlags: Record<FeatureFlagKey, boolean> = {
 	purchaseOrders: toBool(process.env.NEXT_PUBLIC_FEATURE_PURCHASE_ORDERS, false),
-	receiptSettings: toBool(process.env.NEXT_PUBLIC_FEATURE_RECEIPT_SETTINGS, false),
+	receiptSettings: toBool(process.env.NEXT_PUBLIC_FEATURE_RECEIPT_SETTINGS, true),
 	dataExportBackup: toBool(process.env.NEXT_PUBLIC_FEATURE_DATA_EXPORT, false)
 };
 

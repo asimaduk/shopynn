@@ -487,7 +487,7 @@ const ProductTransactions = ({ navigation, route }) => {
     };
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['bottom', 'left', 'right']}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader onPress={backPress} label="Stock movement">
                 <View style={styles.headerActions}>
                     <TouchableOpacity

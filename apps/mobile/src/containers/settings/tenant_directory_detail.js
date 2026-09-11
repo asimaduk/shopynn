@@ -343,7 +343,7 @@ const TenantDirectoryDetail = ({ navigation, route }) => {
 
     if (loading && !detail) {
         return (
-            <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
                 <ScreenHeader onPress={() => navigation.goBack()} label="Tenant" />
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     <ActivityIndicator color={config.THEME_COLOR} size="large" />
@@ -354,7 +354,7 @@ const TenantDirectoryDetail = ({ navigation, route }) => {
     }
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader onPress={() => navigation.goBack()} label="Tenant detail" />
             <ScrollView
                 contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 24 + insets.bottom }}

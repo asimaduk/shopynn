@@ -171,6 +171,17 @@ function UserMenu(props: UserMenuProps) {
 							</ListItemIcon>
 							<ListItemText primary="My Profile" />
 						</MenuItem>
+						<MenuItem
+							component={Link}
+							to="/apps/settings/receipt-settings"
+							onClick={userMenuClose}
+							role="button"
+						>
+							<ListItemIcon className="min-w-9">
+								<FuseSvgIcon>heroicons-outline:document-text</FuseSvgIcon>
+							</ListItemIcon>
+							<ListItemText primary="Invoice & Receipt" />
+						</MenuItem>
 						{/* <MenuItem
 							component={Link}
 							to="/apps/mailbox"

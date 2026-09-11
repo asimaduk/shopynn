@@ -90,7 +90,7 @@ const MerchantAddServices = ({ navigation, route }) => {
 
     if (loading) {
         return (
-            <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
                 <ActivityIndicator style={{ marginTop: 40 }} color={config.THEME_COLOR} />
             </SafeAreaView>
         );
@@ -99,7 +99,7 @@ const MerchantAddServices = ({ navigation, route }) => {
     const addons = filterSellableAddons(catalog?.addons);
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader title="Add services" navigation={navigation} />
             <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 + insets.bottom }}>
                 <AppText label={businessName} fontSize={18} variant={1} color={colors.text} />

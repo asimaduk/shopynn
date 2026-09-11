@@ -1,1 +1,1 @@
-export { default } from './FuseSettings';
+export type { FuseThemeType, FuseThemesType, FuseSettingsConfigType } from './FuseSettingsTypes';

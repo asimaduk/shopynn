@@ -139,7 +139,7 @@ const ProductDetails = ({ navigation, route }) => {
 
     if (loading) {
         return (
-            <SafeAreaView style={[styles.loadingRoot, { backgroundColor: colors.background }]}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.loadingRoot, { backgroundColor: colors.background }]}>
                 <ActivityIndicator size="large" color={config.THEME_COLOR} />
                 <AppText label="Loading product..." fontSize={14} color={colors.textSecondary} style={{ marginTop: 12 }} />
             </SafeAreaView>
@@ -149,7 +149,7 @@ const ProductDetails = ({ navigation, route }) => {
     const imageSize = width - 32;
 
     return (
-        <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.safe, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={backPress} label="Product details">
                 <HeaderActions />
             </ScreenHeader>

@@ -64,18 +64,14 @@ const PRODUCTS_CACHE_META_KEY = 'SHOPYNN_PRODUCTS_CACHE_META_V1';
 //     },
 // };
 
-const formatter = new Intl.NumberFormat('en-GH', {
-  style: 'currency',
-  currency: 'GHS',
-});
-
 const formatCurrency = (value) => {
-  if (value >= 1000000) {
-      return `GHS ${(value / 1000000).toFixed(1)}M`;
-  } else if (value >= 1000) {
-      return `GHS ${(value / 1000).toFixed(1)}K`;
+  const amount = Number(value) || 0;
+  if (amount >= 1000000) {
+      return `GHS ${(amount / 1000000).toFixed(1)}M`;
+  } else if (amount >= 1000) {
+      return `GHS ${(amount / 1000).toFixed(1)}K`;
   }
-  return formatter.format(value).replace('GH₵', '');
+  return `GHS ${amount.toFixed(2)}`;
 }
 
 // Animated Product Item Component
@@ -127,6 +123,10 @@ const ProductItem = ({ item, index, isSelected, multipleSelect, onPress }) => {
         onPress();
     };
 
+    const imageSource = item.thumbnail
+        ? { uri: config.BASE_API + '/images?id=' + item.thumbnail }
+        : require('../../assets/images/product-image-placeholder.png');
+
     return (
         <Animated.View style={[
             {
@@ -143,7 +143,7 @@ const ProductItem = ({ item, index, isSelected, multipleSelect, onPress }) => {
             <TouchableOpacity
                 activeOpacity={0.6}
                 onPress={handlePress}
-                style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', minWidth: 0 }}
             >
                 <Animated.View style={[{ height: 24, justifyContent: 'center', alignItems: 'center' }, checkContainerStyle, checkIconStyle]}>
                     {isSelected && (
@@ -152,21 +152,14 @@ const ProductItem = ({ item, index, isSelected, multipleSelect, onPress }) => {
                 </Animated.View>
 
                 <Image 
-                    source={item.thumbnail ? 
-                        {uri: config.BASE_API+'/images?id='+item.thumbnail}
-                        :
-                        require('../../assets/images/product-image-placeholder.png')} 
+                    source={imageSource} 
                     style={{width:40,height:40,borderRadius:5,backgroundColor:colors.border}} 
                 />
-                <View style={{flex:1,padding:4,marginRight:10}}>
-                    <View style={{flex:1, flexDirection:'row',alignItems:'center'}}>
-                        <AppText label={item.name} variant={1} fontSize={16} color={colors.text}/> 
-                        {item.category_names?.length > 0 && (<AppText label={'(' + item.category_names.join(', ') + ')'} variant={2} style={{ fontSize: 12, marginLeft: 5, flex:1 }} color={colors.textTertiary} numberOfLines={1} />)}    
-                    </View>
-                    <AppText label={`${item.inventory} in Stock`} variant={2} fontSize={13} style={{marginLeft:5}} color={colors.textSecondary} /> 
+                <View style={{flex:1,padding:4,marginRight:10,minWidth:0}}>
+                    <AppText label={item.name} variant={1} fontSize={16} color={colors.text} numberOfLines={1}/> 
+                    <AppText label={`${item.inventory} in Stock`} variant={2} fontSize={13} color={colors.textSecondary} /> 
                 </View>
-                <View style={{flexDirection:'row',alignItems:'center'}}>
-                    <AppText label={'GHS'} fontSize={10} color={colors.textTertiary} style={{ marginRight: 2 }} />
+                <View style={{flexDirection:'row',alignItems:'center',flexShrink:0}}>
                     <AppText label={formatCurrency(item.unit_price)} variant={1} color={colors.text} />
                 </View>
             </TouchableOpacity>
@@ -428,8 +421,8 @@ const Search = ({ navigation, route }) => {
             ) : (
                 <FlashList
                     data={filteredProducts}
-                    numColumns={source_nav === 'purchases' ? 2 : 1}
-                    keyExtractor={(item) => item.id}
+                    estimatedItemSize={64}
+                    keyExtractor={(item) => String(item.id)}
                     keyboardShouldPersistTaps="handled"
                     contentContainerStyle={styles.listContent}
                     style={[styles.list, { backgroundColor: colors.background }]}

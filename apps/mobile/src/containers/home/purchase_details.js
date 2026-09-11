@@ -7,15 +7,9 @@ import config from '../../config';
 import ScreenHeader from '../../components/screen_header';
 import useTheme from '../../hooks/useTheme';
 import { purchases as purchasesApi } from '../../services/api';
+import { formatCurrency, formatQuantity } from '../../utils/format';
 
 const defaultItem = { id: 'N/A', vendor: 'Unknown', amount: '0.00', date: 'N/A', status: 'N/A', poStatus: 'draft', user: 'Unknown', itemCount: 0 };
-
-const formatter = new Intl.NumberFormat('en-GH', {
-    style: 'currency',
-    currency: 'GHS',
-});
-
-const formatCurrency = (value) => formatter.format(Number(value)).replace('GH₵', '').trim();
 
 const PurchaseDetails = ({ navigation, route }) => {
     const { colors } = useTheme();
@@ -61,7 +55,7 @@ const PurchaseDetails = ({ navigation, route }) => {
 
     if (loading) {
         return (
-            <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
                 <ActivityIndicator size="large" color={config.THEME_COLOR} />
                 <AppText label="Loading purchase..." fontSize={14} color={colors.textSecondary} style={{ marginTop: 12 }} />
             </SafeAreaView>
@@ -73,7 +67,7 @@ const PurchaseDetails = ({ navigation, route }) => {
     };
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader onPress={backPress} label={'Purchase Details'}>
                 {/* <TouchableOpacity
                     activeOpacity={0.6}
@@ -124,7 +118,7 @@ const PurchaseDetails = ({ navigation, route }) => {
                             </View>
                             <View style={{ alignItems: 'flex-end' }}>
                                 <AppText label="Total Amount" fontSize={12} color={colors.textTertiary} />
-                                <AppText label={formatCurrency(item.total_amount)} fontSize={18} variant={1} color={config.THEME_COLOR} />
+                                <AppText label={formatCurrency(Number(item.total_amount) || 0)} fontSize={18} variant={1} color={config.THEME_COLOR} />
                             </View>
                         </View>
                         <View style={styles.tagRow}>
@@ -166,14 +160,21 @@ const PurchaseDetails = ({ navigation, route }) => {
                                 style={[styles.itemImage, { backgroundColor: colors.surfaceTertiary }]}
                                 resizeMode="cover"
                             />
-                            <View style={{ flex: 1, marginLeft: 10 }}>
+                            <View style={{ flex: 1, marginLeft: 10, marginRight: 10 }}>
                                 <AppText label={prod.name} fontSize={14} variant={1} color={colors.text} />
-                                {/* <AppText label="Category: General" fontSize={12} color={colors.textTertiary} /> */}
+                                <AppText
+                                    label={`${formatCurrency(Number(prod.unit_price) || 0)} × ${formatQuantity(prod.quantity)}`}
+                                    fontSize={12}
+                                    color={colors.textTertiary}
+                                    style={{ marginTop: 2 }}
+                                />
                             </View>
-                            <View style={{ alignItems: 'flex-end' }}>
-                                <AppText label={`x ${prod.quantity}`} fontSize={14} variant={1} color={colors.text} />
-                                <AppText label={formatCurrency(prod.quantity * prod.unit_price)} fontSize={12} color={colors.textTertiary} />
-                            </View>
+                            <AppText
+                                label={formatCurrency(Number(prod.quantity || 0) * Number(prod.unit_price || 0))}
+                                fontSize={14}
+                                variant={1}
+                                color={colors.text}
+                            />
                         </View>
                     ))}
                 </DetailSection>

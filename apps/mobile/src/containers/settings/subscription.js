@@ -238,7 +238,7 @@ const Subscription = ({ navigation, route }) => {
 
     if (!allowManage) {
         return (
-            <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]} edges={['top']}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.safeArea, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
                 <AppText label="You do not have access to manage subscription billing." fontSize={15} color={colors.textSecondary} style={{ paddingHorizontal: 24, textAlign: 'center' }} />
                 <TouchableOpacity activeOpacity={0.7} onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>
                     <AppText label="Back to profile" fontSize={15} color={config.THEME_COLOR} variant={1} />
@@ -249,7 +249,7 @@ const Subscription = ({ navigation, route }) => {
 
     if (loading) {
         return (
-            <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]} edges={['top']}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.safeArea, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
                 <ActivityIndicator size="large" color={config.THEME_COLOR} />
                 <AppText label="Loading subscription..." fontSize={14} color={colors.textSecondary} style={{ marginTop: 12 }} />
             </SafeAreaView>
@@ -257,7 +257,7 @@ const Subscription = ({ navigation, route }) => {
     }
 
     return (
-        <View style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
+        <View style={[styles.safeArea, { backgroundColor: colors.background }]}>
             <ScreenHeader
                 label={headerLabel}
                 onPress={headerOnPress}

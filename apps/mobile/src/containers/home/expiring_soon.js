@@ -67,7 +67,7 @@ const ExpiringSoon = ({ navigation, route }) => {
     const backPress = () => navigation.goBack();
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader onPress={backPress} label="Expiring soon">
                 <View style={styles.headerActions}>
                     <TouchableOpacity

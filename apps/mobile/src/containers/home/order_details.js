@@ -223,7 +223,7 @@ const OrderDetails = ({ navigation, route }) => {
 
     if (loading) {
         return (
-            <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
                 <ScreenHeader onPress={() => navigation.goBack()} label="Order details" />
                 <View style={styles.loader}>
                     <ActivityIndicator size="large" color={config.THEME_COLOR} />
@@ -259,7 +259,7 @@ const OrderDetails = ({ navigation, route }) => {
     const cancelledReason = cancelledEntry ? String(cancelledEntry.reason || '').trim() : '';
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader onPress={() => navigation.goBack()} label="Order details" />
             <ScrollView contentContainerStyle={{ padding: 0 }}>
                 {!order ? (

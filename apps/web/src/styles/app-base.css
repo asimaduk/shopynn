@@ -129,8 +129,3 @@ input:-webkit-autofill:active
 :focus {
     outline-color: transparent;
 }
-
-/*fullcalendar Fix*/
-.fc-scrollgrid-section-liquid {
-    height: 1px !important;
-}

@@ -444,7 +444,7 @@ const Returns = ({ navigation }) => {
     };
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={() => navigation.goBack()} label="Returns">
                 <View style={styles.headerActions}>
                     <TouchableOpacity

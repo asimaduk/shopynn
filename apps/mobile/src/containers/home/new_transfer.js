@@ -246,7 +246,7 @@ const NewTransfer = ({ navigation, route }) => {
 
     return (
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
-            <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.safeArea, { backgroundColor: colors.background }]}>
                 <ScreenHeader onPress={backPress} label="New Transfer">
                     <View style={styles.headerActions}>
                         <TouchableOpacity

@@ -298,7 +298,7 @@ const MerchantOnboard = ({ navigation }) => {
 
     if (loadingMe) {
         return (
-            <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
                 <ScreenHeader onPress={headerBack} label="Onboard business" />
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     <ActivityIndicator color={config.THEME_COLOR} size="large" />
@@ -309,7 +309,7 @@ const MerchantOnboard = ({ navigation }) => {
 
     if (!hasMerchant) {
         return (
-            <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
                 <ScreenHeader onPress={headerBack} label="Onboard business" />
                 <View style={{ padding: 16, paddingBottom: bottomPad }}>
                     <View style={sectionCard}>
@@ -373,7 +373,7 @@ const MerchantOnboard = ({ navigation }) => {
     const keyboardVerticalOffset = Platform.OS === 'ios' ? insets.top + 52 : 0;
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader onPress={headerBack} label="Onboard business" />
 
             <KeyboardAvoidingView

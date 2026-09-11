@@ -99,7 +99,7 @@ const ProductCategories = ({ navigation, route }) => {
     }
 
     return (
-        <SafeAreaView style={{flex:1, backgroundColor: colors.background}}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{flex:1, backgroundColor: colors.background}}>
             <ScreenHeader onPress={backPress} label={`Product Categories (${categories.length})`}>
                 <View style={{ flexDirection: 'row', paddingVertical: 0 }}>
                     <TouchableOpacity

@@ -50,7 +50,7 @@ const AboutApp = ({ navigation }) => {
     );
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={backPress} label={'About App'} />
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
                 <View style={[styles.heroCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>

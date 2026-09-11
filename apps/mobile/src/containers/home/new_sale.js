@@ -17,6 +17,7 @@ import { launchCamera } from 'react-native-image-picker';
 import useTheme from '../../hooks/useTheme';
 import { sales as salesApi, warehouses as warehousesApi, customers as customersApi, normalizeList } from '../../services/api';
 import { hasPermission, hasFeature, getScreenPlanAccess, navigateToScreenOrUpgrade } from '../../utils/permissions';
+import { getPrintAgentPrintUrl } from '../../utils/printAgent';
 import {
     SECURE_PENDING_SALES_KEY as PENDING_SALES_KEY,
     SECURE_HELD_SALES_KEY as HELD_SALES_KEY,
@@ -32,6 +33,30 @@ const formatter = new Intl.NumberFormat('en-GH', {
     currency: 'GHS',
 });
 const formatCurrency = (value) => formatter.format(Number(value)).replace('GH₵', '').trim();
+
+const NO_SYSTEM_QTY_MSG = "There's no system quantity.";
+
+/** Available qty for a warehouse, or null when unknown. */
+function getAvailableQtyForStore(product, warehouseId) {
+    const storesQuantities = product?.stores_quantities || product?.storesQuantities || [];
+    const hasStoreQtyData = Array.isArray(storesQuantities) && storesQuantities.length > 0;
+
+    if (warehouseId && hasStoreQtyData) {
+        const match = storesQuantities.find(
+            (s) => String(s?.warehouse_id ?? s?.warehouseId ?? '') === String(warehouseId)
+        );
+        const availableRaw = match?.quantity_available ?? match?.quantityAvailable ?? 0;
+        const availableQty = Number(availableRaw);
+        return Number.isNaN(availableQty) ? 0 : availableQty;
+    }
+
+    const inventoryRaw = product?.inventory;
+    if (inventoryRaw === null || inventoryRaw === undefined || inventoryRaw === '') {
+        return null;
+    }
+    const inventoryQty = Number(inventoryRaw);
+    return Number.isNaN(inventoryQty) ? null : inventoryQty;
+}
 
 /**
  * Merge voice-selected products into cart with per-warehouse stock checks.
@@ -223,23 +248,11 @@ const NewSale = ({ navigation, route }) => {
 
         const canMultiStoresForCheck = hasPermission(currentUser, 'stores.multi_access');
         const warehouseIdForCheck = canMultiStoresForCheck ? selectedStore?.id : (currentUser?.warehouse_id || selectedStore?.id);
-        const storesQuantities = product?.stores_quantities || product?.storesQuantities || [];
-        const hasStoreQtyData = Array.isArray(storesQuantities) && storesQuantities.length > 0;
+        const availableQty = getAvailableQtyForStore(product, warehouseIdForCheck);
 
-        // If we have store-level quantities, enforce availability before adding/opening modal.
-        if (warehouseIdForCheck && hasStoreQtyData) {
-            const match = storesQuantities.find((s) => String(s?.warehouse_id ?? s?.warehouseId ?? '') === String(warehouseIdForCheck));
-            const availableRaw = match?.quantity_available ?? match?.quantityAvailable ?? 0;
-            const availableQty = Number(availableRaw);
-
-            if (!Number.isNaN(availableQty) && availableQty < 1) {
-                Alert.alert('Not enough stock', `Available quantity in ${selectedStore?.name || 'selected store'} is ${availableQty}.`);
-                return;
-            }
-            else if (Number.isNaN(availableQty)) {
-                Alert.alert('Not enough stock', `No available quantity found for ${selectedStore?.name || 'selected store'}.`);
-                return;
-            }
+        if (availableQty !== null && availableQty < 1) {
+            Alert.alert('No system quantity', NO_SYSTEM_QTY_MSG);
+            return;
         }
 
         setSelectedProduct(product);
@@ -307,47 +320,24 @@ const NewSale = ({ navigation, route }) => {
         if (!selectedProduct) return;
         const qty = Math.max(1, parseInt(quantity, 10) || 1);
 
-        // Ensure selected warehouse has enough stock for this product.
-        // Product payload can include `stores_quantities` entries like:
-        // { warehouse_id, quantity_available }
         const warehouseId = resolvedWarehouseId;
-        const storesQuantities =
-            selectedProduct?.stores_quantities ||
-            selectedProduct?.storesQuantities ||
-            [];
-        const hasStoreQtyData = Array.isArray(storesQuantities) && storesQuantities.length > 0;
-    
-        if (warehouseId && hasStoreQtyData) {
-            const match = storesQuantities.find((s) => String(s?.warehouse_id ?? s?.warehouseId ?? '') === String(warehouseId));
-            const availableRaw = match?.quantity_available ?? match?.quantityAvailable ?? 0;
-            const availableQty = Number(availableRaw);
+        const availableQty = getAvailableQtyForStore(selectedProduct, warehouseId);
 
-            // If backend provides 0/number, enforce it; otherwise fall back to existing behavior.
-            if (!Number.isNaN(availableQty)) {
-                if (qty > availableQty) {
-                    const storeName = selectedStore?.name || 'selected store';
-                    Alert.alert(
-                        'Not enough stock',
-                        `Available quantity in ${storeName} is ${availableQty}.`
-                    );
-                    return;
-                }
-            }
-            else {
-                Alert.alert('Not enough stock', `Available quantity is ${availableQty}.`);
-                setOrders((prev) => prev.filter((o) => o.id !== selectedProduct.id && o.name !== selectedProduct.name));
-                setShowSetQuantity(false);
-                setSelectedProduct(null);
-                return;
-            }
-        } else if (warehouseId) {
-            // Fallback for products without store-level quantities.
-            const availableRaw = selectedProduct?.inventory;
-            const availableQty = Number(availableRaw);
-            if (!Number.isNaN(availableQty) && qty > availableQty) {
-                Alert.alert('Not enough stock', `Available quantity is ${availableQty}.`);
-                return;
-            }
+        if (availableQty !== null && availableQty < 1) {
+            Alert.alert('No system quantity', NO_SYSTEM_QTY_MSG);
+            setOrders((prev) => prev.filter((o) => o.id !== selectedProduct.id && o.name !== selectedProduct.name));
+            setShowSetQuantity(false);
+            setSelectedProduct(null);
+            return;
+        }
+
+        if (availableQty !== null && qty > availableQty) {
+            const storeName = selectedStore?.name || 'selected store';
+            Alert.alert(
+                'Not enough stock',
+                `Available quantity in ${storeName} is ${availableQty}.`
+            );
+            return;
         }
 
         setOrders((prev) => {
@@ -388,26 +378,15 @@ const NewSale = ({ navigation, route }) => {
 
     const handleMultiSelect = (records) => {
         const next = [...orders];
+        let blockedZeroStock = false;
         records.forEach((rec) => {
             const fnd = next.find((o) => o.id == rec.id);
             if (!fnd) {
-                // If store-level quantities exist, ensure this store has stock before adding.
                 const warehouseId = resolvedWarehouseId;
-                const storesQuantities = rec?.stores_quantities || rec?.storesQuantities || [];
-                const hasStoreQtyData = Array.isArray(storesQuantities) && storesQuantities.length > 0;
-
-                if (warehouseId && hasStoreQtyData) {
-                    const match = storesQuantities.find((s) => String(s?.warehouse_id ?? s?.warehouseId ?? '') === String(warehouseId));
-                    const availableRaw = match?.quantity_available ?? match?.quantityAvailable ?? 0;
-                    const availableQty = Number(availableRaw);
-                    if (!Number.isNaN(availableQty) && availableQty < 1) {
-                        Alert.alert('Not enough stock', `Available quantity in ${selectedStore?.name || 'selected store'} is ${availableQty} for ${rec?.name || 'selected product'}.`);
-                        return;
-                    }
-                    else if (Number.isNaN(availableQty)) {
-                        Alert.alert('Not enough stock', `No available quantity found for ${rec?.name || 'selected product'} in ${selectedStore?.name || 'selected store'}.`);
-                        return;
-                    }
+                const availableQty = getAvailableQtyForStore(rec, warehouseId);
+                if (availableQty !== null && availableQty < 1) {
+                    blockedZeroStock = true;
+                    return;
                 }
 
                 next.push({ ...rec, order_quantity: Math.max(1, parseInt(String(rec.order_quantity), 10) || 1) });
@@ -416,7 +395,11 @@ const NewSale = ({ navigation, route }) => {
 
         setOrders(next);
 
-        if (next.length > 0) {
+        if (blockedZeroStock) {
+            Alert.alert('No system quantity', NO_SYSTEM_QTY_MSG);
+        }
+
+        if (next.length > 0 && next.length > orders.length) {
             setSelectedProduct(next[0]);
             setQuantity('1');
             setShowSetQuantity(true);
@@ -471,6 +454,21 @@ const NewSale = ({ navigation, route }) => {
     useFocusEffect(
         React.useCallback(() => {
             let active = true;
+
+            // Clear customer when opening a fresh sale (from dashboard/sales),
+            // but keep it when returning from Search / barcode with an in-progress draft.
+            const routes = navigation.getState()?.routes || [];
+            const prevRouteName = routes[routes.length - 2]?.name;
+            const returningFromProductPicker =
+                prevRouteName === 'Search' || prevRouteName === 'BarcodeScanner';
+            if (
+                !returningFromProductPicker &&
+                !route.params?.restorePendingSale &&
+                !(ordersRef.current?.length > 0)
+            ) {
+                setSelectedCustomer(null);
+            }
+
             const loadData = async () => {
                 try {
                     const rawStores = await warehousesApi.list();
@@ -498,9 +496,7 @@ const NewSale = ({ navigation, route }) => {
                     const list = normalizeList(rawCustomers) || [];
                     if (active) {
                         setCustomers(list);
-                        if (!selectedCustomer && list.length > 0) {
-                            setSelectedCustomer(list[0]);
-                        }
+                        // Never auto-pick list[0] — user must choose a customer.
                     }
                 } catch (_) {
                     if (active) setCustomers([]);
@@ -511,7 +507,7 @@ const NewSale = ({ navigation, route }) => {
             return () => {
                 active = false;
             };
-        }, [selectedStore, selectedCustomer, loadHeldSales, canMultiStores, userWarehouseId])
+        }, [selectedStore, loadHeldSales, canMultiStores, userWarehouseId, navigation, route.params?.restorePendingSale])
     );
 
     const handleSavePrint = async () => {
@@ -553,6 +549,13 @@ const NewSale = ({ navigation, route }) => {
             }
             const printerType = normalizeWarehousePrinterType(warehouseRecordForPrinting?.printer_type);
             if (printerType === 'thermal') {
+                const printUrl = getPrintAgentPrintUrl(appSettings);
+                if (!printUrl) {
+                    Alert.alert(
+                        'Print agent not set',
+                        'Set the Print agent IP under More → Print agent (the PC running Shopynn Print). Your sale is complete.',
+                    );
+                } else {
                 const printPayload = {
                     id: Date.now(),
                     total_amount: totalAmount,
@@ -594,7 +597,7 @@ const NewSale = ({ navigation, route }) => {
                     },
                 };
                 try {
-                    const printRes = await fetch(config.LOCAL_PRINT_URL, {
+                    const printRes = await fetch(printUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(printPayload),
@@ -609,8 +612,11 @@ const NewSale = ({ navigation, route }) => {
                 } catch (printErr) {
                     Alert.alert(
                         'Print',
-                        printErr?.message ? String(printErr.message) : 'Could not reach print service.',
+                        printErr?.message
+                            ? String(printErr.message)
+                            : 'Could not reach print agent. Check More → Print agent.',
                     );
+                }
                 }
             } else if (printerType === 'a4') {
                 if (Toast && typeof Toast.show === 'function') {
@@ -732,7 +738,7 @@ const NewSale = ({ navigation, route }) => {
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.keyboard}>
-            <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.safeArea, { backgroundColor: colors.background }]}>
                 <ScreenHeader onPress={backPress} label="New Sale">
                     <View style={styles.headerActions}>
                         {heldItems.length > 0 ? (
@@ -891,6 +897,14 @@ const NewSale = ({ navigation, route }) => {
                     onPress={() => {
                         if (!canCreateSale) {
                             Alert.alert('Not allowed', 'You do not have permission to create sales.');
+                            return;
+                        }
+                        if (!selectedStore?.id) {
+                            Alert.alert('Select store', 'Please select a store before proceeding.');
+                            return;
+                        }
+                        if (!selectedCustomer?.id) {
+                            Alert.alert('Select customer', 'Please select a customer before proceeding.');
                             return;
                         }
                         setShowPaymentOptions(true);

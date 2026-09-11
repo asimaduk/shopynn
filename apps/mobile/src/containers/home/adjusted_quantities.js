@@ -380,7 +380,7 @@ const AdjustedQuantities = ({ navigation }) => {
     };
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={backPress} label={'Adjustments'}>
                 <View style={styles.headerActions}>
                     <TouchableOpacity

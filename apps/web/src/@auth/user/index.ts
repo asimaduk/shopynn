@@ -1,4 +1,4 @@
-import { FuseSettingsConfigType } from '@fuse/core/FuseSettings/FuseSettings';
+import { FuseSettingsConfigType } from '@fuse/core/FuseSettings/FuseSettingsTypes';
 import { PartialDeep } from 'type-fest';
 
 /** Plan caps + usage from `/api/users/me` (`company.plan_usage` / `subscription.limits`). */

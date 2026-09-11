@@ -183,7 +183,7 @@ const ProductImport = ({ navigation }) => {
     };
 
     return (
-        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.safeArea, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={backPress} label={'Import Products from Excel'}>
                 <View />
             </ScreenHeader>

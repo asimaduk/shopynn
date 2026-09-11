@@ -10,40 +10,97 @@ const canViewAllPurchasesForUser = async (user) => {
     return permissionCodes.includes("purchases.view_all");
 };
 
-export const getAllPurchasesService = async (user, requestQuery) => {
-    let query = `SELECT purchases.id, purchases.number_of_items, purchases.total_amount, purchases.discount_amount, purchases.invoice_number, purchases.created_at, purchases.created_at, purchases.current_status, purchases.notes, suppliers.name as supplier, users.first_name as receiver_name FROM purchases LEFT JOIN suppliers ON purchases.supplier_id = suppliers.id LEFT JOIN users ON purchases.receiver_id = users.id WHERE purchases.tenant_id = '${user.tenant_id}'`;
+export const getAllPurchasesService = async (user, requestQuery = {}) => {
+    const conditions = ["purchases.tenant_id = $1"];
+    const params = [user.tenant_id];
+    let paramIndex = 2;
 
     const canViewAll = await canViewAllPurchasesForUser(user);
 
     if (!canViewAll) {
-        query += ` AND purchases.receiver_id = '${user.id}'`;
+        conditions.push(`purchases.receiver_id = $${paramIndex}`);
+        params.push(user.id);
+        paramIndex++;
+    } else if (requestQuery.receivedBy) {
+        conditions.push(`purchases.receiver_id = $${paramIndex}`);
+        params.push(requestQuery.receivedBy);
+        paramIndex++;
     }
 
-    if(requestQuery && requestQuery.suppliedBy) {
-        query += ` AND purchases.supplier_id = '${requestQuery.suppliedBy}'`;
+    if (requestQuery.suppliedBy) {
+        conditions.push(`purchases.supplier_id = $${paramIndex}`);
+        params.push(requestQuery.suppliedBy);
+        paramIndex++;
     }
 
-    if(requestQuery && requestQuery.receivedBy && canViewAll) {
-        query += ` AND purchases.receiver_id = '${requestQuery.receivedBy}'`;
-    }
-
-    if(requestQuery && requestQuery.startDate) {
-        query += ` AND purchases.created_at BETWEEN '${requestQuery.startDate}' AND '${requestQuery.endDate}'`;
+    if (requestQuery.startDate && requestQuery.endDate) {
+        conditions.push(`purchases.created_at BETWEEN $${paramIndex} AND $${paramIndex + 1}`);
+        params.push(requestQuery.startDate, requestQuery.endDate);
+        paramIndex += 2;
     }
 
     const currentStatus = requestQuery?.current_status ?? requestQuery?.currentStatus;
     if (currentStatus !== undefined && currentStatus !== null && currentStatus !== '') {
         const cs = parseInt(currentStatus, 10);
         if (!Number.isNaN(cs)) {
-            query += ` AND purchases.current_status = ${cs}`;
+            conditions.push(`purchases.current_status = $${paramIndex}`);
+            params.push(cs);
+            paramIndex++;
         }
     }
 
-    query += ' ORDER BY created_at DESC';
-    // console.log('purchases query...',query);
+    const where = conditions.join(" AND ");
+    const selectSql = `
+        SELECT
+            purchases.id,
+            purchases.number_of_items,
+            purchases.total_amount,
+            purchases.discount_amount,
+            purchases.invoice_number,
+            purchases.created_at,
+            purchases.current_status,
+            purchases.notes,
+            suppliers.name AS supplier,
+            users.first_name AS receiver_name
+        FROM purchases
+        LEFT JOIN suppliers ON purchases.supplier_id = suppliers.id
+        LEFT JOIN users ON purchases.receiver_id = users.id
+        WHERE ${where}
+        ORDER BY purchases.created_at DESC
+    `;
 
-    const result = await pool.query(query);
-    return result.rows;
+    const limitRaw = requestQuery.limit ?? requestQuery.pageSize;
+    const hasLimit = limitRaw !== undefined && limitRaw !== null && String(limitRaw).trim() !== '';
+    if (!hasLimit) {
+        const result = await pool.query(selectSql, params);
+        return result.rows;
+    }
+
+    let limit = parseInt(limitRaw, 10);
+    if (Number.isNaN(limit) || limit <= 0) limit = 20;
+    if (limit > 100) limit = 100;
+
+    let offset = parseInt(requestQuery.offset ?? requestQuery.skip ?? 0, 10);
+    if (Number.isNaN(offset) || offset < 0) offset = 0;
+
+    const countResult = await pool.query(
+        `SELECT COUNT(*)::int AS total FROM purchases WHERE ${where}`,
+        params
+    );
+    const total = Number(countResult.rows[0]?.total || 0);
+
+    const pageParams = [...params, limit, offset];
+    const pageResult = await pool.query(
+        `${selectSql} LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+        pageParams
+    );
+
+    return {
+        items: pageResult.rows,
+        total,
+        limit,
+        offset,
+    };
 };
 
 /**

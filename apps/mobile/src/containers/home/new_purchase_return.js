@@ -46,7 +46,7 @@ const NewPurchaseReturn = ({ navigation }) => {
     };
 
     return (
-        <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.safe, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={() => navigation.goBack()} label="New purchase return" />
             <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
                 <View style={[styles.card, { backgroundColor: colors.surface }]}>

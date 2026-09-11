@@ -1,1 +1,1 @@
-export { default } from './FuseThemeSelector';
+export type { FuseThemeOption } from './ThemePreview';

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="notification_color">#0A74DA</color>
+    <!-- Matches iOS LaunchScreen background -->
+    <color name="splash_background">#FAF9F7</color>
+</resources>

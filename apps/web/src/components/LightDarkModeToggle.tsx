@@ -7,7 +7,7 @@ import { FuseThemeOption } from '@fuse/core/FuseThemeSelector/ThemePreview';
 import clsx from 'clsx';
 import { useMainTheme } from '@fuse/core/FuseSettings/hooks/fuseThemeHooks';
 import useFuseSettings from '@fuse/core/FuseSettings/hooks/useFuseSettings';
-import { FuseSettingsConfigType } from '@fuse/core/FuseSettings/FuseSettings';
+import { FuseSettingsConfigType } from '@fuse/core/FuseSettings/FuseSettingsTypes';
 import useUser from '@auth/useUser';
 import { useAppDispatch } from '@/store/hooks';
 

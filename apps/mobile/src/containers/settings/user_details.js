@@ -189,7 +189,7 @@ const UserDetails = ({ navigation, route }) => {
     );
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={backPress} label="User details">
                 {!user.deleted && (
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>

@@ -12,7 +12,7 @@ const CheckoutSuccess = ({ navigation, route }) => {
 	const orderNumber = route?.params?.orderNumber;
 
 	return (
-		<SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+		<SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
 			<ScreenHeader onPress={() => navigation.goBack()} label="Order Submitted" />
 			<View style={styles.container}>
 				<View style={[styles.iconWrap, { backgroundColor: '#dcfce7' }]}>

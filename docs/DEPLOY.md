@@ -110,3 +110,15 @@ Do not force-push rewritten history onto the old remotes.
 ## Print service
 
 `apps/print` stays in the monorepo for code unity. Do **not** deploy it to Railway or Vercel; it talks to local USB ESC/POS printers.
+
+### Merchant packages
+- **macOS:** `npm run package:mac -w @shopynn/print` → `apps/print/packaging/dist/ShopynnPrint-*.pkg`
+- **Windows:** `npm run package:bundle:win -w @shopynn/print`, then compile `apps/print/packaging/windows/shopynn-print.iss` with Inno Setup on a Windows machine → `ShopynnPrintSetup-*.exe`
+
+After install, merchants set the checkout PC’s LAN IP in:
+- Mobile: **More → Print agent**
+- Web: **Apps → Settings → Invoice & Receipt** (Print agent section)
+
+**Windows USB:** many printers still need a one-time [Zadig](https://zadig.akeo.ie/) **WinUSB** install so libusb can open the device. The installer finish page and `WINDOWS_USB_DRIVER.txt` cover this.
+
+See [`apps/print/README.md`](../apps/print/README.md) for health checks, firewall, Zadig steps, and uninstall.
