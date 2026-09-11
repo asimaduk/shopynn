@@ -16,25 +16,26 @@
  *   --keep-tx         With --wipe: keep sales/purchases (not recommended for demos)
  */
 import { v4 as uuidv4 } from 'uuid';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { DEMO_CATEGORIES, DEMO_PRODUCTS } from './demo-catalog-data.mjs';
 import { DEMO_CUSTOMERS, DEMO_SUPPLIERS, DEMO_EXPENSE_TEMPLATES } from './demo-activity-data.mjs';
 
-const args = process.argv.slice(2);
-const wipe = args.includes('--wipe');
-const keepTx = args.includes('--keep-tx');
-const activityOnly = args.includes('--activity-only');
-const noActivity = args.includes('--no-activity');
-const withActivity = !noActivity;
-const emailArg = args.find((a) => a.startsWith('--email='));
-const email = (emailArg ? emailArg.slice('--email='.length) : 'test@shopynn.local').trim().toLowerCase();
+const isCli =
+	Boolean(process.argv[1]) &&
+	path.resolve(fileURLToPath(import.meta.url)) === path.resolve(process.argv[1]);
 
-if (!wipe && !activityOnly) {
-	console.error('Refusing to run without --wipe or --activity-only.');
-	console.error('Example: npm run seed:demo-catalog -w @shopynn/api -- --wipe');
-	process.exit(1);
+function parseCliOptions() {
+	const args = process.argv.slice(2);
+	const emailArg = args.find((a) => a.startsWith('--email='));
+	return {
+		wipe: args.includes('--wipe'),
+		keepTx: args.includes('--keep-tx'),
+		activityOnly: args.includes('--activity-only'),
+		noActivity: args.includes('--no-activity'),
+		email: (emailArg ? emailArg.slice('--email='.length) : 'test@shopynn.local').trim().toLowerCase(),
+	};
 }
-
-const { default: pool } = await import('../src/config/db.js');
 
 function slugify(name) {
 	return String(name)
@@ -68,8 +69,8 @@ function money(n) {
 	return Math.round(Number(n) * 100) / 100;
 }
 
-async function resolveAccount() {
-	const { rows } = await pool.query(
+async function resolveAccount(db, email) {
+	const { rows } = await db.query(
 		`SELECT u.id AS user_id, u.tenant_id, u.warehouse_id, t.name AS tenant_name, u.email
 		 FROM users u
 		 JOIN tenants t ON t.id = u.tenant_id
@@ -82,7 +83,7 @@ async function resolveAccount() {
 	}
 	const row = rows[0];
 	if (!row.warehouse_id) {
-		const wh = await pool.query(
+		const wh = await db.query(
 			`SELECT id FROM warehouses WHERE tenant_id = $1 ORDER BY created_at ASC NULLS LAST LIMIT 1`,
 			[row.tenant_id]
 		);
@@ -160,6 +161,7 @@ async function wipeTenantCatalog(client, tenantId, { keepTransactions }) {
 
 async function seedCatalog(client, { tenantId, userId, warehouseId }) {
 	const categoryIds = {};
+	const skuPrefix = `D${String(tenantId).replace(/-/g, '').slice(0, 8)}`;
 
 	for (const cat of DEMO_CATEGORIES) {
 		const id = uuidv4();
@@ -176,7 +178,7 @@ async function seedCatalog(client, { tenantId, userId, warehouseId }) {
 		const categoryId = categoryIds[prod.category];
 		if (!categoryId) throw new Error(`Unknown category key: ${prod.category}`);
 		const id = uuidv4();
-		const sku = `DEMO-${prod.sku}`;
+		const sku = `${skuPrefix}-${prod.sku}`;
 		const slug = `${slugify(prod.name)}-${sku.toLowerCase()}`;
 		const altPrice = Math.round(prod.unit_price * 0.95 * 100) / 100;
 
@@ -440,8 +442,9 @@ async function seedSixMonthActivity(client, { tenantId, userId, warehouseId, cus
 	}
 
 	// Restore catalog stock levels so demos stay coherent after historical txs
+	const skuPrefix = `D${String(tenantId).replace(/-/g, '').slice(0, 8)}`;
 	for (const prod of DEMO_PRODUCTS) {
-		const sku = `DEMO-${prod.sku}`;
+		const sku = `${skuPrefix}-${prod.sku}`;
 		await client.query(
 			`UPDATE products SET inventory = $1, updated_at = NOW() WHERE tenant_id = $2 AND sku = $3`,
 			[prod.stock, tenantId, sku]
@@ -458,8 +461,30 @@ async function seedSixMonthActivity(client, { tenantId, userId, warehouseId, cus
 	return { salesCount, purchasesCount, expensesCount, from: start, to: end };
 }
 
-async function main() {
-	const account = await resolveAccount();
+/**
+ * @param {object} options
+ * @param {string} options.email
+ * @param {boolean} [options.wipe]
+ * @param {boolean} [options.activityOnly]
+ * @param {boolean} [options.noActivity]
+ * @param {boolean} [options.keepTx]
+ * @param {import('pg').Pool} [options.pool] - optional existing pool (caller closes it)
+ */
+export async function runDemoCatalogSeed(options = {}) {
+	const email = String(options.email || 'test@shopynn.local').trim().toLowerCase();
+	const wipe = Boolean(options.wipe);
+	const activityOnly = Boolean(options.activityOnly);
+	const keepTx = Boolean(options.keepTx);
+	const withActivity = !options.noActivity;
+
+	if (!wipe && !activityOnly) {
+		throw new Error('runDemoCatalogSeed requires wipe or activityOnly');
+	}
+
+	const ownsPool = !options.pool;
+	const db = options.pool || (await import('../src/config/db.js')).default;
+
+	const account = await resolveAccount(db, email);
 	console.log('Demo catalog / activity seed');
 	console.log(`  Email:     ${account.email}`);
 	console.log(`  Tenant:    ${account.tenant_name} (${account.tenant_id})`);
@@ -468,7 +493,7 @@ async function main() {
 		`  Mode:      ${activityOnly ? 'activity-only' : `wipe${keepTx ? ' (keep tx)' : ''}`}${withActivity ? ' + 6mo activity' : ' (no activity)'}`
 	);
 
-	const client = await pool.connect();
+	const client = await db.connect();
 	try {
 		await client.query('BEGIN');
 
@@ -516,19 +541,25 @@ async function main() {
 		await client.query('COMMIT');
 		console.log('');
 		console.log('Done. Pull-to-refresh / re-sync on mobile.');
+		return account;
 	} catch (err) {
 		await client.query('ROLLBACK');
 		throw err;
 	} finally {
 		client.release();
+		if (ownsPool) await db.end().catch(() => {});
 	}
 }
 
-main()
-	.catch((err) => {
+if (isCli) {
+	const opts = parseCliOptions();
+	if (!opts.wipe && !opts.activityOnly) {
+		console.error('Refusing to run without --wipe or --activity-only.');
+		console.error('Example: npm run seed:demo-catalog -w @shopynn/api -- --wipe');
+		process.exit(1);
+	}
+	runDemoCatalogSeed(opts).catch((err) => {
 		console.error('Demo catalog seed failed:', err.message || err);
 		process.exitCode = 1;
-	})
-	.finally(async () => {
-		await pool.end().catch(() => {});
 	});
+}

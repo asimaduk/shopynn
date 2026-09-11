@@ -99,8 +99,32 @@ SELECT id FROM schema_migrations ORDER BY id;
 
 Try a known login on shopynn-web.
 
+### 8. Reseed Shopynn Demo Store (field-agent demos)
+
+The truncate + EC2 restore **removes** any Railway-only demo tenant. Recreate it after cutover so agents still have a dedicated demo shop:
+
+```bash
+# From monorepo root — uses the same Railway DATABASE_URL as above
+DATABASE_URL="$RAILWAY_DATABASE_URL" \
+  npm run seed:demo-store -w @shopynn/api
+```
+
+Creates / refreshes:
+
+| Role | Email | Password |
+|------|-------|----------|
+| Demo owner | `demo@shopynn.app` | `DemoStore2026!` |
+| Field agent | `demo-agent@shopynn.app` | `DemoAgent2026!` |
+
+Tenant: **Shopynn Demo Store** (Premium) with Ghana catalog + ~6 months of sales/purchases/expenses.  
+Safe on top of EC2 data: demo emails and tenant-scoped SKUs are separate from production shops.  
+Details: [SEED_LOGINS.md](./SEED_LOGINS.md).
+
+Optional flags: `--skip-catalog` (accounts only), `--no-activity` (catalog without 6‑month txs).
+
 ## Notes
 
 - Prefer the **same** `JWT_SECRET` as EC2 if you want existing tokens to keep working.
 - S3/object storage is separate from Postgres — keep AWS env vars if uploads matter.
 - If `pg_restore` reports FK errors, you forgot `--disable-triggers` or skipped the truncate step.
+- Do **not** rely on keeping demo rows through steps 2–5; always re-run `seed:demo-store` after restore.

@@ -14,6 +14,14 @@ import useTheme from '../../hooks/useTheme';
 import { expenses as expensesApi, normalizeList } from '../../services/api';
 import { useFocusEffect } from '@react-navigation/native';
 
+const currencyFormatter = new Intl.NumberFormat('en-GH', {
+    style: 'currency',
+    currency: 'GHS',
+});
+
+const formatCurrency = (value) =>
+    currencyFormatter.format(Number(value) || 0).replace('GH₵', 'GHS ').trim();
+
 const dateRanges = [
     { id: '1', label: 'Today', value: 'today' },
     { id: '2', label: 'Yesterday', value: 'yesterday' },
@@ -461,7 +469,7 @@ const Expenditures = ({ navigation }) => {
                             <View style={{ flex: 1 }}>
                                 <AppText label="Total Amount" fontSize={11} color={colors.textSecondary} style={localStyles.statLabel} />
                                 <AppText
-                                    label={`GHS ${totalFilteredAmount.toFixed(2)}`}
+                                    label={formatCurrency(totalFilteredAmount)}
                                     fontSize={15}
                                     variant={1}
                                     color={colors.text}
