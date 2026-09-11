@@ -14,6 +14,7 @@
     "db:bootstrap": "bash scripts/bootstrap-db.sh",
     "db:migrate": "bash scripts/db-migrate.sh",
     "seed:test": "node --env-file=.env scripts/seed-test-account.mjs",
+    "seed:demo-catalog": "node --env-file=.env scripts/seed-demo-catalog.mjs",
     "seed:admin": "node --env-file=.env scripts/seed-system-admin.mjs",
     "seed:merchants": "node --env-file=.env scripts/seed-merchant-accounts.mjs"
   },

@@ -24,6 +24,16 @@ const formatter = new Intl.NumberFormat('en-GH', {
     currency: 'GHS',
 });
 
+/** Share of products; shows &lt;1% when a non-empty bucket would otherwise round to 0. */
+const stockPercentLabel = (part, whole) => {
+    const n = Number(part) || 0;
+    const d = Number(whole) || 0;
+    if (d <= 0) return '0% of products';
+    const pct = (n / d) * 100;
+    if (n > 0 && pct < 1) return '<1% of products';
+    return `${Math.round(pct)}% of products`;
+};
+
 const Dashboard = ({ navigation, route }) => {
     const user = useSelector(({ user }) => user);
     const subscriptionFeatures = useSelector(({ appSettings }) => appSettings?.subscriptionFeatures || []);
@@ -218,12 +228,13 @@ const Dashboard = ({ navigation, route }) => {
         const isPositive = changeType === 'positive';
         const changeColor = isPositive ? (config.GREEN_COLOR || '#10b981') : '#ef4444';
         const changeBg = isPositive ? (config.LIGHT_GREEN_COLOR || '#dcfce7') : '#fef2f2';
+        const resolvedIconBg = iconBg || `${iconColor}18`;
         
         return (
             <View style={[styles.metricCard, { backgroundColor: colors.surface, borderLeftColor: iconColor }]}>
                 <View style={styles.metricHeader}>
                     <AppText label={title} fontSize={12} color={colors.textTertiary} style={{ flex: 1 }} numberOfLines={1} />
-                    <View style={[styles.metricIconContainer, { backgroundColor: iconBg }]}>
+                    <View style={[styles.metricIconContainer, { backgroundColor: resolvedIconBg }]}>
                         <Lucide name={icon} size={16} color={iconColor} />
                     </View>
                 </View>
@@ -327,7 +338,7 @@ const Dashboard = ({ navigation, route }) => {
                             <MetricCard
                                 icon="shopping-cart"
                                 iconColor="#10b981"
-                                iconBg="#f0fdf4"
+                                iconBg="#10b98118"
                                 title="Total Sales"
                                 value={metrics.sales?.totalRevenue ?? 0}
                                 change={metrics.salesChange}
@@ -337,7 +348,7 @@ const Dashboard = ({ navigation, route }) => {
                             <MetricCard
                                 icon="package"
                                 iconColor={config.THEME_COLOR}
-                                iconBg="#f0f7ff"
+                                iconBg={`${config.THEME_COLOR}18`}
                                 title="Total Purchases"
                                 value={metrics.purchases?.totalAmount ?? 0}
                                 change={metrics.purchasesChange}
@@ -349,7 +360,7 @@ const Dashboard = ({ navigation, route }) => {
                             <MetricCard
                                 icon="wallet"
                                 iconColor="#f59e0b"
-                                iconBg="#fffbeb"
+                                iconBg="#f59e0b18"
                                 title="Expenditures"
                                 value={metrics.expenses?.totalAmount ?? 0}
                                 change={metrics.expendituresChange}
@@ -455,7 +466,7 @@ const Dashboard = ({ navigation, route }) => {
                             <View style={styles.stockValuationMetric}>
                                 <View style={styles.stockValuationMetricRow}>
                                     <Lucide name="box" size={16} color={colors.textTertiary} />
-                                    <AppText label={`${metrics.products?.activeProducts?.toLocaleString() ?? 0} products`} fontSize={13} color={colors.textSecondary} style={{ marginLeft: 6 }} />
+                                    <AppText label={`${(metrics.products?.totalCount ?? metrics.products?.activeProducts)?.toLocaleString() ?? 0} products`} fontSize={13} color={colors.textSecondary} style={{ marginLeft: 6 }} />
                                 </View>
                                 {/* <AppText label={formatCurrency(metrics.stockValuation?.))} fontSize={12} color={colors.textTertiary} style={{ marginTop: 2 }} /> */}
                             </View>
@@ -494,31 +505,31 @@ const Dashboard = ({ navigation, route }) => {
                         </View>
 
                         <View style={styles.stockStatusGrid}>
-                            <View style={[styles.stockStatusCard, { backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }]}>
+                            <View style={[styles.stockStatusCard, { backgroundColor: '#10b98118', borderColor: '#10b98133' }]}>
                                 <View style={styles.stockStatusCardTop}>
                                     <View style={[styles.stockStatusDot, { backgroundColor: '#10b981' }]} />
-                                    <AppText label="High Stock" fontSize={12} color={'#0f172a'} numberOfLines={1} />
+                                    <AppText label="High Stock" fontSize={12} color={colors.text} numberOfLines={1} />
                                 </View>
-                                <AppText label={metrics.stockStatus?.highStockTotal?.toLocaleString()} variant={1} fontSize={20} color={'#0f172a'} style={{ marginTop: 6 }} />
-                                <AppText label={`${metrics.products?.activeProducts > 0 ? Math.round((metrics.stockStatus?.highStockTotal / metrics.products?.activeProducts) * 100) : 0}% of products`} fontSize={11} color={'#334155'} style={{ marginTop: 2 }} />
+                                <AppText label={metrics.stockStatus?.highStockTotal?.toLocaleString()} variant={1} fontSize={20} color={colors.text} style={{ marginTop: 6 }} />
+                                <AppText label={stockPercentLabel(metrics.stockStatus?.highStockTotal, metrics.products?.activeProducts)} fontSize={11} color={colors.textSecondary} style={{ marginTop: 2 }} />
                             </View>
 
-                            <View style={[styles.stockStatusCard, { backgroundColor: '#fffbeb', borderColor: '#fde68a' }]}>
+                            <View style={[styles.stockStatusCard, { backgroundColor: '#f59e0b18', borderColor: '#f59e0b33' }]}>
                                 <View style={styles.stockStatusCardTop}>
                                     <View style={[styles.stockStatusDot, { backgroundColor: '#f59e0b' }]} />
-                                    <AppText label="Near Low" fontSize={12} color={'#0f172a'} numberOfLines={1} />
+                                    <AppText label="Near Low" fontSize={12} color={colors.text} numberOfLines={1} />
                                 </View>
-                                <AppText label={metrics.stockStatus?.nearLowTotal?.toLocaleString()} variant={1} fontSize={20} color={'#0f172a'} style={{ marginTop: 6 }} />
-                                <AppText label={`${metrics.products?.activeProducts > 0 ? Math.round((metrics.stockStatus?.nearLowTotal / metrics.products?.activeProducts) * 100) : 0}% of products`} fontSize={11} color={'#334155'} style={{ marginTop: 2 }} />
+                                <AppText label={metrics.stockStatus?.nearLowTotal?.toLocaleString()} variant={1} fontSize={20} color={colors.text} style={{ marginTop: 6 }} />
+                                <AppText label={stockPercentLabel(metrics.stockStatus?.nearLowTotal, metrics.products?.activeProducts)} fontSize={11} color={colors.textSecondary} style={{ marginTop: 2 }} />
                             </View>
 
-                            <View style={[styles.stockStatusCard, { backgroundColor: '#fef2f2', borderColor: '#fecaca' }]}>
+                            <View style={[styles.stockStatusCard, { backgroundColor: '#ef444418', borderColor: '#ef444433' }]}>
                                 <View style={styles.stockStatusCardTop}>
                                     <View style={[styles.stockStatusDot, { backgroundColor: '#ef4444' }]} />
-                                    <AppText label="Low Stock" fontSize={12} color={'#0f172a'} numberOfLines={1} />
+                                    <AppText label="Low Stock" fontSize={12} color={colors.text} numberOfLines={1} />
                                 </View>
-                                <AppText label={metrics.stockStatus?.lowStockTotal?.toLocaleString()} variant={1} fontSize={20} color={'#0f172a'} style={{ marginTop: 6 }} />
-                                <AppText label={`${metrics.products?.activeProducts > 0 ? Math.round((metrics.stockStatus?.lowStockTotal / metrics.products?.activeProducts) * 100) : 0}% of products`} fontSize={11} color={'#334155'} style={{ marginTop: 2 }} />
+                                <AppText label={metrics.stockStatus?.lowStockTotal?.toLocaleString()} variant={1} fontSize={20} color={colors.text} style={{ marginTop: 6 }} />
+                                <AppText label={stockPercentLabel(metrics.stockStatus?.lowStockTotal, metrics.products?.activeProducts)} fontSize={11} color={colors.textSecondary} style={{ marginTop: 2 }} />
                             </View>
                         </View>
                     </View>

@@ -90,9 +90,11 @@ export const getDashboardDataService = async (user, options = {}) => {
     );
     const expenses = expensesSummary.rows[0] || { total_count: 0, total_amount: 0, month_count: 0, month_amount: 0 };
 
-    // Inventory-based stats: all from inventories table, filtered by tenant_id
+    // Inventory-based stats: product SKUs + unit totals from inventories
     const productCountResult = await pool.query(
-        "SELECT COALESCE(SUM(quantity_available), 0)::int AS count FROM inventories WHERE tenant_id = $1",
+        `SELECT COUNT(DISTINCT product_id)::int AS count
+         FROM inventories
+         WHERE tenant_id = $1`,
         [tenant_id]
     );
     const productCount = productCountResult.rows[0]?.count ?? 0;
@@ -122,32 +124,30 @@ export const getDashboardDataService = async (user, options = {}) => {
     const totalExpensesAllTime = Number(expenses.total_amount || 0);
     const totalExpensesMonth = Number(expenses.month_amount || 0);
 
-    // Stock status: high (above 2x min), near low (between min and 2x min), low (at or below min)
+    // Stock status by product count (inventory rows): high (>2x min), near low (min..2x], low (<=min)
     const stockStatusResult = await pool.query(
         `SELECT
-            COALESCE(SUM(quantity_available) FILTER (
+            COUNT(*) FILTER (
                 WHERE quantity_available > 2 * COALESCE(minimum_stock_level, 0)
-            ), 0)::int AS high_stock_total,
-            COALESCE(SUM(quantity_available) FILTER (
+            )::int AS high_stock_total,
+            COUNT(*) FILTER (
                 WHERE quantity_available > COALESCE(minimum_stock_level, 0)
                   AND quantity_available <= 2 * COALESCE(minimum_stock_level, 0)
-            ), 0)::int AS near_low_total,
-            COALESCE(SUM(quantity_available) FILTER (
+            )::int AS near_low_total,
+            COUNT(*) FILTER (
                 WHERE quantity_available <= COALESCE(minimum_stock_level, 0)
-            ), 0)::int AS low_stock_total
+            )::int AS low_stock_total,
+            COUNT(*)::int AS active_products
          FROM inventories WHERE tenant_id = $1`,
         [tenant_id]
     );
-    const status = stockStatusResult.rows[0] || { high_stock_total: 0, near_low_total: 0, low_stock_total: 0 };
-
-    // Active products: total quantity available across all inventories for this tenant
-    const activeProductsResult = await pool.query(
-        `SELECT COALESCE(SUM(quantity_available), 0)::int AS count
-         FROM inventories
-         WHERE tenant_id = $1`,
-        [tenant_id]
-    );
-    const activeProducts = activeProductsResult.rows[0]?.count ?? 0;
+    const status = stockStatusResult.rows[0] || {
+        high_stock_total: 0,
+        near_low_total: 0,
+        low_stock_total: 0,
+        active_products: 0,
+    };
+    const activeProducts = Number(status.active_products) || 0;
 
     // Low stock: inventory rows where quantity_available <= minimum_stock_level
     const lowStockResult = await pool.query(

@@ -334,15 +334,17 @@ const Inventory = ({ navigation, route }) => {
                                 }} 
                                 style={[styles.productCard, { backgroundColor: colors.surface }]}>
                                 <View style={[styles.productImageContainer, { backgroundColor: colors.surfaceSecondary }]}>
-                                    <Image
-                                        source={
-                                            item.thumbnail
-                                                ? { uri: productImageUri(item.thumbnail) }
-                                                : require('../../assets/images/product-image-placeholder.png')
-                                        }
-                                        style={styles.productImage}
-                                        resizeMode="cover"
-                                    />
+                                    {item.thumbnail ? (
+                                        <Image
+                                            source={{ uri: productImageUri(item.thumbnail) }}
+                                            style={styles.productImage}
+                                            resizeMode="cover"
+                                        />
+                                    ) : (
+                                        <View style={[styles.productImageFallback, { backgroundColor: `${config.THEME_COLOR}18` }]}>
+                                            <Lucide name="image" size={22} color={colors.textTertiary} />
+                                        </View>
+                                    )}
                                 </View>
                                 <View style={styles.productInfo}>
                                     <View style={styles.productHeader}>
@@ -415,15 +417,17 @@ const Inventory = ({ navigation, route }) => {
                 <View style={styles.modalContent}>
                     {selectedItem ? (
                         <View style={[styles.modalHeroCard, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
-                            <Image
-                                source={
-                                    selectedItem.thumbnail
-                                        ? { uri: productImageUri(selectedItem.thumbnail) }
-                                        : require('../../assets/images/product-image-placeholder.png')
-                                }
-                                style={[styles.modalHeroImage, { backgroundColor: colors.surface }]}
-                                resizeMode="cover"
-                            />
+                            {selectedItem.thumbnail ? (
+                                <Image
+                                    source={{ uri: productImageUri(selectedItem.thumbnail) }}
+                                    style={[styles.modalHeroImage, { backgroundColor: colors.surface }]}
+                                    resizeMode="cover"
+                                />
+                            ) : (
+                                <View style={[styles.modalHeroImage, styles.modalHeroFallback, { backgroundColor: `${config.THEME_COLOR}18` }]}>
+                                    <Lucide name="image" size={28} color={colors.textTertiary} />
+                                </View>
+                            )}
                             <View style={styles.modalHeroBody}>
                                 <AppText
                                     label={selectedItem.name}
@@ -792,6 +796,12 @@ const styles = StyleSheet.create({
         width:'100%',
         height:'100%'
     },
+    productImageFallback: {
+        width: '100%',
+        height: '100%',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
     productInfo: {
         flex:1,
         marginLeft:12,
@@ -866,6 +876,10 @@ const styles = StyleSheet.create({
         width: 72,
         height: 72,
         borderRadius: 12,
+    },
+    modalHeroFallback: {
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     modalHeroBody: {
         flex: 1,

@@ -123,9 +123,7 @@ const ProductItem = ({ item, index, isSelected, multipleSelect, onPress }) => {
         onPress();
     };
 
-    const imageSource = item.thumbnail
-        ? { uri: config.BASE_API + '/images?id=' + item.thumbnail }
-        : require('../../assets/images/product-image-placeholder.png');
+    const hasThumbnail = Boolean(item.thumbnail);
 
     return (
         <Animated.View style={[
@@ -151,10 +149,25 @@ const ProductItem = ({ item, index, isSelected, multipleSelect, onPress }) => {
                     )}
                 </Animated.View>
 
-                <Image 
-                    source={imageSource} 
-                    style={{width:40,height:40,borderRadius:5,backgroundColor:colors.border}} 
-                />
+                {hasThumbnail ? (
+                    <Image
+                        source={{ uri: config.BASE_API + '/images?id=' + item.thumbnail }}
+                        style={{ width: 40, height: 40, borderRadius: 5, backgroundColor: colors.surfaceSecondary }}
+                    />
+                ) : (
+                    <View
+                        style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: 5,
+                            backgroundColor: `${config.THEME_COLOR}18`,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                        }}
+                    >
+                        <Lucide name="image" size={18} color={colors.textTertiary} />
+                    </View>
+                )}
                 <View style={{flex:1,padding:4,marginRight:10,minWidth:0}}>
                     <AppText label={item.name} variant={1} fontSize={16} color={colors.text} numberOfLines={1}/> 
                     <AppText label={`${item.inventory} in Stock`} variant={2} fontSize={13} color={colors.textSecondary} /> 

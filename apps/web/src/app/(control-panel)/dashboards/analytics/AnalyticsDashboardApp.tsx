@@ -196,14 +196,35 @@ function AnalyticsDashboardApp() {
 									<Box className="p-3 rounded-lg bg-green-50 border border-green-200">
 										<Typography variant="caption" color="text.secondary">High stock</Typography>
 										<Typography className="text-xl font-semibold">{highStock.toLocaleString()}</Typography>
+										<Typography variant="caption" color="text.secondary">
+											{activeProducts > 0
+												? highStock > 0 && (highStock / activeProducts) * 100 < 1
+													? '<1% of products'
+													: `${Math.round((highStock / activeProducts) * 100)}% of products`
+												: '0% of products'}
+										</Typography>
 									</Box>
 									<Box className="p-3 rounded-lg bg-amber-50 border border-amber-200">
 										<Typography variant="caption" color="text.secondary">Near low</Typography>
 										<Typography className="text-xl font-semibold">{nearLow.toLocaleString()}</Typography>
+										<Typography variant="caption" color="text.secondary">
+											{activeProducts > 0
+												? nearLow > 0 && (nearLow / activeProducts) * 100 < 1
+													? '<1% of products'
+													: `${Math.round((nearLow / activeProducts) * 100)}% of products`
+												: '0% of products'}
+										</Typography>
 									</Box>
 									<Box className="p-3 rounded-lg bg-red-50 border border-red-200">
 										<Typography variant="caption" color="text.secondary">Low stock</Typography>
 										<Typography className="text-xl font-semibold">{low.toLocaleString()}</Typography>
+										<Typography variant="caption" color="text.secondary">
+											{activeProducts > 0
+												? low > 0 && (low / activeProducts) * 100 < 1
+													? '<1% of products'
+													: `${Math.round((low / activeProducts) * 100)}% of products`
+												: '0% of products'}
+										</Typography>
 									</Box>
 								</Box>
 							</Paper>

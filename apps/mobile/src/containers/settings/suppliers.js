@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { TextInput, TouchableOpacity, View, ScrollView, Platform, StyleSheet, Share, Alert, ActivityIndicator } from 'react-native';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { TextInput, TouchableOpacity, View, ScrollView, Platform, StyleSheet, Share, Alert, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import ScreenHeader from '../../components/screen_header';
@@ -12,8 +12,9 @@ import AppModal from '../../components/app_modal';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import useTheme from '../../hooks/useTheme';
 import { useFocusEffect } from '@react-navigation/native';
-import { suppliers as suppliersApi, normalizeList } from '../../services/api';
+import { suppliers as suppliersApi, normalizePagedList } from '../../services/api';
 
+const PAGE_SIZE = 20;
 
 const dateRanges = [
     { id: '1', label: 'Today', value: 'today' },
@@ -63,11 +64,46 @@ const parseDateString = (dateStr) => {
     return isNaN(date.getTime()) ? null : date;
 };
 
+const mapSupplierRow = (s) => {
+    const name = s.name || s.company_name || s.supplier_name || 'Supplier';
+    const address = s.address || s.location || '';
+    const phone = s.phone || s.contact_phone || '';
+    const manager = s.manager || s.contact_person || s.contactPerson || '';
+    const createdRaw = s.created_at || s.createdAt || s.dateAdded;
+    const createdDate = createdRaw ? new Date(createdRaw) : null;
+    const created_at =
+        createdDate && !isNaN(createdDate.getTime()) ? createdDate.toISOString() : createdRaw || '';
+    return {
+        ...s,
+        id: s.id,
+        name,
+        address,
+        phone,
+        manager,
+        created_at,
+        dateAdded:
+            createdDate && !isNaN(createdDate.getTime())
+                ? createdDate.toLocaleString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                  })
+                : s.dateAdded || '',
+    };
+};
+
 const Suppliers = ({ navigation }) => {
     const { colors } = useTheme();
     const [suppliers, setSuppliers] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
+    const [totalCount, setTotalCount] = useState(0);
+    const [hasMore, setHasMore] = useState(false);
     const [searchText, setSearchText] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [showDateFilter, setShowDateFilter] = useState(false);
     const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
     const [selectedDateRange, setSelectedDateRange] = useState('all_time');
@@ -78,8 +114,22 @@ const Suppliers = ({ navigation }) => {
     const [exporting, setExporting] = useState(false);
     const [showExportFormatModal, setShowExportFormatModal] = useState(false);
     const [showSearch, setShowSearch] = useState(false);
+    const rowsRef = useRef([]);
+    const loadingMoreRef = useRef(false);
+    const hasMoreRef = useRef(false);
 
-    const getDateRangeBounds = () => {
+    useEffect(() => {
+        rowsRef.current = suppliers;
+    }, [suppliers]);
+    useEffect(() => {
+        hasMoreRef.current = hasMore;
+    }, [hasMore]);
+    useEffect(() => {
+        const t = setTimeout(() => setDebouncedSearch(searchText.trim()), 300);
+        return () => clearTimeout(t);
+    }, [searchText]);
+
+    const getDateRangeBounds = useCallback(() => {
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const yesterday = new Date(today);
@@ -110,97 +160,74 @@ const Suppliers = ({ navigation }) => {
             default:
                 return null; // all_time
         }
-    };
+    }, [selectedDateRange, customStartDate, customEndDate]);
 
-    const loadSuppliers = useCallback(async () => {
+    const buildListParams = useCallback((offset = 0) => {
+        const bounds = getDateRangeBounds();
+        const params = { limit: PAGE_SIZE, offset };
+        if (bounds) {
+            params.startDate = bounds.start?.toISOString?.()?.slice(0, 10);
+            params.endDate = bounds.end?.toISOString?.()?.slice(0, 10);
+        }
+        if (debouncedSearch) params.search = debouncedSearch;
+        return params;
+    }, [getDateRangeBounds, debouncedSearch]);
+
+    const loadSuppliers = useCallback(async ({ reset = true } = {}) => {
+        if (reset) {
+            setLoading(true);
+            loadingMoreRef.current = false;
+        } else {
+            if (loadingMoreRef.current || !hasMoreRef.current) return;
+            loadingMoreRef.current = true;
+            setLoadingMore(true);
+        }
+
         try {
-            const bounds = getDateRangeBounds();
-            const params = bounds ? { startDate: bounds.start?.toISOString?.()?.slice(0, 10), endDate: bounds.end?.toISOString?.()?.slice(0, 10) } : {};
-            const raw = await suppliersApi.list(params);
-            console.log('raw',raw);
-            const list = normalizeList(raw);
-            const mapped = (Array.isArray(list) ? list : []).map((s) => {
-                const name = s.name || s.company_name || s.supplier_name || 'Supplier';
-                const address = s.address || s.location || '';
-                const phone = s.phone || s.contact_phone || '';
-                const manager = s.manager || s.contact_person || s.contactPerson || '';
-                const createdRaw = s.created_at || s.createdAt || s.dateAdded;
-                const createdDate = createdRaw ? new Date(createdRaw) : null;
-                const created_at = createdDate && !isNaN(createdDate.getTime())
-                    ? createdDate.toISOString()
-                    : createdRaw || '';
-                return {
-                    ...s,
-                    id: s.id,
-                    name,
-                    address,
-                    phone,
-                    manager,
-                    created_at,
-                    // Preserve a human readable date string for legacy UI if needed
-                    dateAdded:
-                        createdDate && !isNaN(createdDate.getTime())
-                            ? createdDate.toLocaleString('en-US', {
-                                  year: 'numeric',
-                                  month: 'short',
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                              })
-                            : s.dateAdded || '',
-                };
-            });
-            setSuppliers(mapped);
+            const offset = reset ? 0 : rowsRef.current.length;
+            const raw = await suppliersApi.list(buildListParams(offset));
+            const { items, total } = normalizePagedList(raw);
+            const mapped = (Array.isArray(items) ? items : []).map(mapSupplierRow);
+            const next = reset ? mapped : [...rowsRef.current, ...mapped];
+            rowsRef.current = next;
+            const more = next.length < total && mapped.length > 0;
+            hasMoreRef.current = more;
+            setSuppliers(next);
+            setTotalCount(total);
+            setHasMore(more);
         } catch (_) {
-            setSuppliers([]);
+            if (reset) {
+                rowsRef.current = [];
+                hasMoreRef.current = false;
+                setSuppliers([]);
+                setTotalCount(0);
+                setHasMore(false);
+            }
         } finally {
             setLoading(false);
+            loadingMoreRef.current = false;
+            setLoadingMore(false);
         }
-    }, [selectedDateRange, customStartDate, customEndDate]);
+    }, [buildListParams]);
 
     useFocusEffect(
         React.useCallback(() => {
-            setLoading(true);
-            loadSuppliers();
+            loadSuppliers({ reset: true });
         }, [loadSuppliers]),
     );
 
-    const filteredData = useMemo(() => {
-        let result = [...suppliers];
+    const onRefresh = async () => {
+        setRefreshing(true);
+        await loadSuppliers({ reset: true });
+        setRefreshing(false);
+    };
 
-        // Apply search filter
-        if (searchText.trim()) {
-            const q = searchText.toLowerCase();
-            result = result.filter(
-                (item) => {
-                    const name = (item.name || '').toLowerCase();
-                    const location = (item.location || item.address || '').toLowerCase();
-                    const contact = (item.contactPerson || item.manager || '').toLowerCase();
-                    const phone = (item.phone || '').toLowerCase();
-                    return (
-                        name.includes(q) ||
-                        location.includes(q) ||
-                        contact.includes(q) ||
-                        phone.includes(q)
-                    );
-                }
-            );
-        }
+    const onEndReached = () => {
+        if (!loading && !refreshing) loadSuppliers({ reset: false });
+    };
 
-        // Apply date filter
-        if (selectedDateRange !== 'all_time') {
-            const bounds = getDateRangeBounds();
-            if (bounds) {
-                result = result.filter((item) => {
-                    const itemDate = parseDateString(item.created_at || item.dateAdded);
-                    if (!itemDate) return false;
-                    return itemDate >= bounds.start && itemDate < bounds.end;
-                });
-            }
-        }
-
-        return result;
-    }, [suppliers, searchText, selectedDateRange, customStartDate, customEndDate]);
+    const filteredData = suppliers;
+    const displayCount = totalCount;
 
     const handleSearch = (text) => {
         setSearchText(text);
@@ -507,7 +534,7 @@ const Suppliers = ({ navigation }) => {
                             <View style={{ flex: 1 }}>
                                 <AppText label="Suppliers" fontSize={11} color={colors.textSecondary} style={localStyles.statLabel} />
                                 <AppText
-                                    label={`${filteredData.length}`}
+                                    label={`${displayCount}`}
                                     fontSize={17}
                                     variant={1}
                                     color={colors.text}
@@ -555,6 +582,18 @@ const Suppliers = ({ navigation }) => {
                 estimatedItemSize={80}
                 showsVerticalScrollIndicator={false}
                 keyExtractor={(item) => item.id}
+                onEndReached={onEndReached}
+                onEndReachedThreshold={0.4}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={config.THEME_COLOR} />
+                }
+                ListFooterComponent={
+                    loadingMore ? (
+                        <View style={{ paddingVertical: 16 }}>
+                            <ActivityIndicator color={config.THEME_COLOR} />
+                        </View>
+                    ) : null
+                }
                 renderItem={({ item, index }) => (
                     <SupplierItem
                         item={item}
@@ -564,10 +603,16 @@ const Suppliers = ({ navigation }) => {
                 )}
                 ListEmptyComponent={() => (
                     <View style={{ alignItems: 'center', marginTop: 50 }}>
-                        <Lucide name="truck" color={colors.border} size={48} />
-                        <AppText label="No suppliers found" color={colors.textTertiary} style={{ marginTop: 12 }} />
-                        {selectedDateRange !== 'all_time' && (
-                            <AppText label="Try adjusting your date filter" fontSize={12} color={colors.placeholder} style={{ marginTop: 4 }} />
+                        {loading ? (
+                            <ActivityIndicator color={config.THEME_COLOR} />
+                        ) : (
+                            <>
+                                <Lucide name="truck" color={colors.border} size={48} />
+                                <AppText label="No suppliers found" color={colors.textTertiary} style={{ marginTop: 12 }} />
+                                {selectedDateRange !== 'all_time' && (
+                                    <AppText label="Try adjusting your date filter" fontSize={12} color={colors.placeholder} style={{ marginTop: 4 }} />
+                                )}
+                            </>
                         )}
                     </View>
                 )}
