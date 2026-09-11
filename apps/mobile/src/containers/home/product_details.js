@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSelector } from 'react-redux';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
 import config from '../../config';
@@ -16,6 +17,7 @@ import ScreenHeader from '../../components/screen_header';
 import useTheme from '../../hooks/useTheme';
 import { products as productsApi } from '../../services/api';
 import { normalizeProduct } from '../../utils/normalizeProduct';
+import { getScreenPlanAccess, navigateToScreenOrUpgrade } from '../../utils/permissions';
 
 const formatter = new Intl.NumberFormat('en-GH', {
     style: 'currency',
@@ -34,6 +36,9 @@ const resolveProductImageUri = (ref) => {
 const ProductDetails = ({ navigation, route }) => {
     const { colors } = useTheme();
     const { width } = useWindowDimensions();
+    const user = useSelector(({ user }) => user);
+    const subscriptionFeatures = useSelector(({ appSettings }) => appSettings?.subscriptionFeatures || []);
+    const adjustAccess = getScreenPlanAccess(user, 'NewAdjustments', subscriptionFeatures);
     const { product: paramProduct, productId } = route.params || {};
     const [product, setProduct] = useState(() => normalizeProduct(paramProduct || {}));
     const [loading, setLoading] = useState(!!(productId || paramProduct?.id));
@@ -113,13 +118,27 @@ const ProductDetails = ({ navigation, route }) => {
 
     const HeaderActions = () => (
         <View style={styles.headerActions}>
-            <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => navigation.navigate('NewAdjustments', { product })}
-                style={[styles.headerBtn, { backgroundColor: colors.surfaceSecondary }]}
-            >
-                <Lucide name="sliders-horizontal" color={config.THEME_COLOR} size={20} />
-            </TouchableOpacity>
+            {adjustAccess.show && (
+                <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() =>
+                        navigateToScreenOrUpgrade(
+                            navigation,
+                            user,
+                            'NewAdjustments',
+                            subscriptionFeatures,
+                            { product },
+                        )
+                    }
+                    style={[styles.headerBtn, { backgroundColor: colors.surfaceSecondary }]}
+                >
+                    <Lucide
+                        name={adjustAccess.locked ? 'lock' : 'sliders-horizontal'}
+                        color={config.THEME_COLOR}
+                        size={20}
+                    />
+                </TouchableOpacity>
+            )}
             <TouchableOpacity
                 activeOpacity={0.7}
                 onPress={() => navigation.navigate('ProductTransactions', { product })}

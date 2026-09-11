@@ -1,16 +1,16 @@
 /** Static legal copy for Shopynn marketing site. Review with counsel before production launch. */
 
-const UPDATED = "May 15, 2026";
+const UPDATED = "September 11, 2026";
 
 export const privacyPolicy = {
   title: "Privacy Policy",
   updated: UPDATED,
   intro:
-    "Shopynn Inc. (“Shopynn”, “we”, “us”) provides inventory and customer-ordering software for retailers. This policy explains what personal data we collect, how we use it, and the choices you have when you use our website, web application, and mobile apps.",
+    "Shopynn Technologies Ltd. (“Shopynn”, “we”, “us”) provides inventory and customer-ordering software for retailers. This sample policy explains what personal data we collect, how we use it, and the choices you have when you use our website, web application, and mobile apps.",
   sections: [
     {
       heading: "1. Who this policy applies to",
-      body: `This policy applies to visitors of shopynn.com, businesses that sign up for Shopynn, and users invited to a customer’s Shopynn account (e.g. staff, managers).
+      body: `This policy applies to visitors of our marketing site (including shopynn.vercel.app and any custom domain), businesses that sign up for Shopynn, and users invited to a customer’s Shopynn account (e.g. staff, managers).
 
 If you interact with a retailer that uses Shopynn, that business may also process your data under its own policies. Where we process data on their behalf, we act as a service provider to that business.`,
     },
@@ -83,7 +83,7 @@ export const termsOfService = {
   title: "Terms of Service",
   updated: UPDATED,
   intro:
-    "These Terms of Service (“Terms”) govern access to Shopynn’s website and software. By creating an account, starting a trial, or using our services, you agree to these Terms on behalf of yourself and the business you represent.",
+    "These sample Terms of Service (“Terms”) govern access to Shopynn’s website and software. By creating an account, starting a trial, or using our services, you agree to these Terms on behalf of yourself and the business you represent. Have counsel review before public launch.",
   sections: [
     {
       heading: "1. The service",

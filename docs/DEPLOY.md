@@ -31,6 +31,7 @@ Create **two** Vercel projects from the **same** Git repo:
    - Equivalent: `npx turbo-ignore @shopynn/web`
 
 2. **shopynn-site**
+   - Production URL: `https://shopynn.vercel.app` (update About App `MARKETING_SITE_URL` if renamed)
    - Root Directory: `apps/site`
    - Framework: **TanStack Start** (not Next.js — this app is Vite + TanStack Start)
    - Leave Build Command / Output Directory empty (Nitro writes `.vercel/output`)

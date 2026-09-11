@@ -337,7 +337,12 @@ const Sales = ({ navigation }) => {
                                 </TouchableOpacity>
                             )}
                         </View>
-                        <AppText label={`#${displayCount}`} fontSize={18} variant={2} color={config.THEME_COLOR} />
+                        <AppText
+                            label={`${displayCount} ${displayCount === 1 ? 'sale' : 'sales'}`}
+                            fontSize={18}
+                            variant={2}
+                            color={config.THEME_COLOR}
+                        />
                     </View>
 
                     <View style={styles.actionRow}>

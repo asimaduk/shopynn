@@ -55,13 +55,11 @@ const AboutApp = ({ navigation }) => {
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
                 <View style={[styles.heroCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                     <View style={styles.heroSection}>
-                        <View style={styles.logoContainer}>
-                            <Image
-                                source={require('../../assets/images/logo/ims-logo.png')}
-                                style={styles.logoImage}
-                                resizeMode="contain"
-                            />
-                        </View>
+                        <Image
+                            source={require('../../assets/images/logo/ims-logo.png')}
+                            style={styles.logoImage}
+                            resizeMode="contain"
+                        />
                         <AppText label="Shopynn" fontSize={30} variant={1} color={colors.text} style={{ marginTop: 14 }} />
                         <AppText label="Inventory + Customer Ordering Platform" fontSize={13} color={colors.textSecondary} style={{ marginTop: 4 }} />
                         <View style={[styles.versionPill, { backgroundColor: colors.primaryShade || (config.THEME_COLOR + '12') }]}>
@@ -157,11 +155,23 @@ const AboutApp = ({ navigation }) => {
                 <View style={styles.section}>
                     <AppText label="CONNECT & LEGAL" variant={1} fontSize={12} color={colors.textTertiary} style={styles.sectionTitle} />
                     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                        <LinkItem icon="globe" label="Official Website" onPress={() => openLink('https://shopynn.com')} />
+                        <LinkItem
+                            icon="globe"
+                            label="Official Website"
+                            onPress={() => openLink(config.MARKETING_SITE_URL)}
+                        />
                         <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-                        <LinkItem icon="shield-check" label="Privacy Policy" onPress={() => openLink('https://shopynn.com/privacy')} />
+                        <LinkItem
+                            icon="shield-check"
+                            label="Privacy Policy"
+                            onPress={() => openLink(`${config.MARKETING_SITE_URL}/privacy`)}
+                        />
                         <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-                        <LinkItem icon="file-text" label="Terms of Service" onPress={() => openLink('https://shopynn.com/terms')} />
+                        <LinkItem
+                            icon="file-text"
+                            label="Terms of Service"
+                            onPress={() => openLink(`${config.MARKETING_SITE_URL}/terms`)}
+                        />
                         <View style={[styles.divider, { backgroundColor: colors.divider }]} />
                         <LinkItem icon="mail" label="Contact Support" onPress={() => openLink('mailto:hello@shopynn.app')} />
                     </View>
@@ -196,22 +206,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 12,
     },
-    logoContainer: {
-        width: 92,
-        height: 92,
-        borderRadius: 24,
-        backgroundColor: '#FFFFFF',
-        justifyContent: 'center',
-        alignItems: 'center',
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 5,
-    },
     logoImage: {
-        width: 64,
-        height: 64,
+        width: 72,
+        height: 72,
     },
     versionPill: {
         marginTop: 10,
