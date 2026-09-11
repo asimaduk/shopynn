@@ -12,7 +12,13 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { dashboard as dashboardApi, sales as salesApi, purchases as purchasesApi, transfers as transferApi, adjustments as adjustmentApi, auditLogs as auditLogsApi, inventories as inventoryApi } from '../../services/api';
 import { formatDateRange, formatAction, formatDateAndTime, formatQuantity } from '../../utils/format';
 import { hasFeature, hasPermission } from '../../utils/permissions';
-import { alertExportError, shareReportCsvFile, shareReportPdfFromServer } from '../../utils/reportExport';
+import {
+    alertExportError,
+    buildReportCsvContent,
+    shareReportCsvFile,
+    shareReportExcelFromServer,
+    shareReportPdfFromServer,
+} from '../../utils/reportExport';
 
 const formatter = new Intl.NumberFormat('en-GH', { style: 'currency', currency: 'GHS' });
 const formatCurrency = (value) => formatter.format(Number(value)).replace('GH₵', 'GHS ').trim();
@@ -678,29 +684,23 @@ const ReportDetail = ({ navigation, route }) => {
             ? allRows.filter((r) => r.staff === selectedStaff)
             : allRows;
 
-    const generateCSV = () => {
-        let headers = '';
-        let csvRows = [];
-
-        // Generate headers based on first row
-        if (rows.length > 0) {
-            const firstRow = rows[0];
-            headers = Object.keys(firstRow).join(',') + '\n';
-            
-            rows.forEach((row) => {
-                const escapeCSV = (str) => {
-                    if (!str) return '';
-                    const string = String(str);
-                    if (string.includes(',') || string.includes('"') || string.includes('\n')) {
-                        return `"${string.replace(/"/g, '""')}"`;
-                    }
-                    return string;
-                };
-                csvRows.push(Object.values(row).map(escapeCSV).join(','));
-            });
-        }
-
-        return headers + csvRows.join('\n');
+    const buildExportPayload = () => {
+        const exportCards = cards.map((c) => ({
+            label: c.label,
+            value: c.value,
+        }));
+        const exportRows = rows.map((row) => {
+            const next = { ...row };
+            delete next._raw;
+            return next;
+        });
+        return {
+            title,
+            dateRangeLabel: currentRangeLabel,
+            cards: exportCards,
+            rows: exportRows,
+            companyName: appSettings.companyName || appSettings.receiptCompanyName || 'Shopynn',
+        };
     };
 
     const handleExportFormatSelect = (format) => {
@@ -715,28 +715,16 @@ const ReportDetail = ({ navigation, route }) => {
 
         setTimeout(async () => {
             try {
-                if (format === 'csv' || format === 'excel') {
+                const payload = buildExportPayload();
+                if (format === 'excel') {
+                    await shareReportExcelFromServer(payload);
+                } else if (format === 'csv') {
                     await shareReportCsvFile({
                         title,
-                        csvContent: generateCSV(),
+                        csvContent: buildReportCsvContent(payload),
                     });
                 } else if (format === 'pdf') {
-                    const exportCards = cards.map((c) => ({
-                        label: c.label,
-                        value: c.value,
-                    }));
-                    const exportRows = rows.map((row) => {
-                        const next = { ...row };
-                        delete next._raw;
-                        return next;
-                    });
-                    await shareReportPdfFromServer({
-                        title,
-                        dateRangeLabel: currentRangeLabel,
-                        cards: exportCards,
-                        rows: exportRows,
-                        companyName: appSettings.companyName || appSettings.receiptCompanyName || 'Shopynn',
-                    });
+                    await shareReportPdfFromServer(payload);
                 }
             } catch (error) {
                 if (error?.message !== 'User did not share') {
@@ -1374,14 +1362,38 @@ const ReportDetail = ({ navigation, route }) => {
 
                     <TouchableOpacity
                         activeOpacity={0.7}
-                        onPress={() => handleExportFormatSelect('csv')}
+                        onPress={() => handleExportFormatSelect('excel')}
                         style={[styles.exportOption, { backgroundColor: colors.surfaceSecondary }]}>
                         <View style={[styles.exportOptionIcon, { backgroundColor: colors.primaryShade }]}>
                             <Lucide name="file-spreadsheet" color={config.THEME_COLOR} size={24} />
                         </View>
                         <View style={styles.exportOptionContent}>
-                            <AppText label="CSV / Excel" variant={1} fontSize={16} color={colors.text} />
-                            <AppText label="Spreadsheet file you can open in Excel or Sheets" fontSize={12} color={colors.textSecondary} style={{ marginTop: 4 }} />
+                            <AppText label="Excel" variant={1} fontSize={16} color={colors.text} />
+                            <AppText
+                                label="Workbook with Summary + Details sheets (.xlsx)"
+                                fontSize={12}
+                                color={colors.textSecondary}
+                                style={{ marginTop: 4 }}
+                            />
+                        </View>
+                        <Lucide name="chevron-right" color={colors.border} size={20} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() => handleExportFormatSelect('csv')}
+                        style={[styles.exportOption, { backgroundColor: colors.surfaceSecondary }]}>
+                        <View style={[styles.exportOptionIcon, { backgroundColor: colors.surface }]}>
+                            <Lucide name="table" color={config.THEME_COLOR} size={24} />
+                        </View>
+                        <View style={styles.exportOptionContent}>
+                            <AppText label="CSV" variant={1} fontSize={16} color={colors.text} />
+                            <AppText
+                                label="Plain spreadsheet for Sheets, Numbers, or Excel"
+                                fontSize={12}
+                                color={colors.textSecondary}
+                                style={{ marginTop: 4 }}
+                            />
                         </View>
                         <Lucide name="chevron-right" color={colors.border} size={20} />
                     </TouchableOpacity>
@@ -1395,7 +1407,12 @@ const ReportDetail = ({ navigation, route }) => {
                         </View>
                         <View style={styles.exportOptionContent}>
                             <AppText label="PDF" variant={1} fontSize={16} color={colors.text} />
-                            <AppText label="Branded PDF report — share or save instantly" fontSize={12} color={colors.textSecondary} style={{ marginTop: 4 }} />
+                            <AppText
+                                label="Branded PDF report — share or save instantly"
+                                fontSize={12}
+                                color={colors.textSecondary}
+                                style={{ marginTop: 4 }}
+                            />
                         </View>
                         <Lucide name="chevron-right" color={colors.border} size={20} />
                     </TouchableOpacity>

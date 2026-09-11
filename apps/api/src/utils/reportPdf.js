@@ -249,8 +249,7 @@ export async function buildReportPdfBuffer(payload = {}) {
 			const headerH = 24;
 
 			const drawTableHeader = (top) => {
-				drawRoundedRect(doc, contentLeft, top, contentWidth, headerH, 6);
-				doc.fill(THEME);
+				doc.roundedRect(contentLeft, top, contentWidth, headerH, 6).fill(THEME);
 				// Cover bottom radius so body connects cleanly
 				doc.rect(contentLeft, top + headerH - 6, contentWidth, 6).fill(THEME);
 
@@ -303,8 +302,7 @@ export async function buildReportPdfBuffer(payload = {}) {
 			doc.moveTo(contentLeft, y).lineTo(contentLeft + contentWidth, y).strokeColor(LINE).lineWidth(1).stroke();
 			y += 12;
 		} else if (!rows.length) {
-			drawRoundedRect(doc, contentLeft, y, contentWidth, 48, 8);
-			doc.fill(SURFACE).strokeColor(LINE).lineWidth(1).stroke();
+			fillStrokeRoundRect(doc, contentLeft, y, contentWidth, 48, 8, SURFACE);
 			doc.fillColor(MUTED).font('Helvetica').fontSize(10);
 			doc.text('No detail rows for this period.', contentLeft, y + 18, {
 				width: contentWidth,

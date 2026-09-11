@@ -236,6 +236,10 @@ export const dashboard = {
         axios
             .post('/dashboard/reports/export.pdf', body, { responseType: 'arraybuffer' })
             .then((res) => res.data),
+    exportReportExcel: (body) =>
+        axios
+            .post('/dashboard/reports/export.xlsx', body, { responseType: 'arraybuffer' })
+            .then((res) => res.data),
 };
 
 // —— Sales ——

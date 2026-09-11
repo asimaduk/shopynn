@@ -1,5 +1,5 @@
 import express from "express";
-import { getDashboard, getProfitAndLoss, getCashFlow, exportReportPdf } from "../controllers/dashboard.js";
+import { getDashboard, getProfitAndLoss, getCashFlow, exportReportPdf, exportReportExcel } from "../controllers/dashboard.js";
 import auth from "../middleware/auth.js";
 import requireActiveSubscription from "../middleware/requireActiveSubscription.js";
 import requireFeature from "../middleware/requireFeature.js";
@@ -30,6 +30,14 @@ router.post(
     requireFeature("reports.export"),
     requirePermission("reports.export"),
     exportReportPdf
+);
+router.post(
+    "/reports/export.xlsx",
+    auth,
+    requireActiveSubscription,
+    requireFeature("reports.export"),
+    requirePermission("reports.export"),
+    exportReportExcel
 );
 router.get(
     "/",

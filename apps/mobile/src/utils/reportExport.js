@@ -12,11 +12,60 @@ function arrayBufferToBase64(buffer) {
     throw new Error('Cannot encode file for sharing on this device.');
 }
 
+function toUint8Array(data) {
+    if (data instanceof ArrayBuffer) return new Uint8Array(data);
+    if (data?.buffer) {
+        return new Uint8Array(data.buffer, data.byteOffset || 0, data.byteLength || data.length);
+    }
+    return new Uint8Array(data || []);
+}
+
 function sanitizeFileBase(name) {
     return String(name || 'report')
         .replace(/[^\w.-]+/g, '_')
         .replace(/_+/g, '_')
         .slice(0, 60) || 'report';
+}
+
+async function writeAndShareBinary({
+    title,
+    bytes,
+    filename,
+    mimeType,
+    minLength = 4,
+    magicCheck,
+}) {
+    if (bytes.length < minLength) {
+        throw new Error('Empty response from report export endpoint.');
+    }
+    if (typeof magicCheck === 'function' && !magicCheck(bytes)) {
+        throw new Error('Server did not return a valid export file. Please try again.');
+    }
+
+    const path = `${RNFS.CachesDirectoryPath}/${filename}`;
+    const base64 = arrayBufferToBase64(
+        bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+    );
+    await RNFS.writeFile(path, base64, 'base64');
+    const fileUrl = Platform.OS === 'ios' ? path : `file://${path}`;
+
+    await RNShare.open({
+        title: `${title} report`,
+        url: fileUrl,
+        type: mimeType,
+        filename,
+        failOnCancel: false,
+    });
+}
+
+function buildExportPayload({ title, dateRangeLabel, cards, rows, companyName }) {
+    return {
+        title,
+        dateRangeLabel,
+        cards,
+        rows,
+        companyName,
+    };
 }
 
 /**
@@ -30,44 +79,106 @@ export async function shareReportPdfFromServer({
     companyName,
 }) {
     const { dashboard: dashboardApi } = await import('../services/api');
-    const data = await dashboardApi.exportReportPdf({
-        title,
-        dateRangeLabel,
-        cards,
-        rows,
-        companyName,
-    });
-    const bytes =
-        data instanceof ArrayBuffer
-            ? new Uint8Array(data)
-            : data?.buffer
-              ? new Uint8Array(data.buffer, data.byteOffset || 0, data.byteLength || data.length)
-              : new Uint8Array(data || []);
-    if (bytes.length < 5) {
-        throw new Error('Empty response from report PDF endpoint.');
-    }
-    const magic = String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]);
-    if (magic !== '%PDF') {
-        throw new Error('Server did not return a PDF file. Please try again.');
-    }
-
+    const data = await dashboardApi.exportReportPdf(
+        buildExportPayload({ title, dateRangeLabel, cards, rows, companyName }),
+    );
+    const bytes = toUint8Array(data);
     const dateStr = new Date().toISOString().slice(0, 10);
     const base = sanitizeFileBase(`${title}_${dateStr}`);
-    const filename = `${base}.pdf`;
-    const path = `${RNFS.CachesDirectoryPath}/${filename}`;
-    const base64 = arrayBufferToBase64(
-        bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
-    );
-    await RNFS.writeFile(path, base64, 'base64');
-    const fileUrl = Platform.OS === 'ios' ? path : `file://${path}`;
-
-    await RNShare.open({
-        title: `${title} report`,
-        url: fileUrl,
-        type: 'application/pdf',
-        filename,
-        failOnCancel: false,
+    await writeAndShareBinary({
+        title,
+        bytes,
+        filename: `${base}.pdf`,
+        mimeType: 'application/pdf',
+        minLength: 5,
+        magicCheck: (b) =>
+            String.fromCharCode(b[0], b[1], b[2], b[3]) === '%PDF',
     });
+}
+
+/**
+ * Download a server-generated Excel workbook and open the native share sheet.
+ */
+export async function shareReportExcelFromServer({
+    title,
+    dateRangeLabel,
+    cards,
+    rows,
+    companyName,
+}) {
+    const { dashboard: dashboardApi } = await import('../services/api');
+    const data = await dashboardApi.exportReportExcel(
+        buildExportPayload({ title, dateRangeLabel, cards, rows, companyName }),
+    );
+    const bytes = toUint8Array(data);
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const base = sanitizeFileBase(`${title}_${dateStr}`);
+    await writeAndShareBinary({
+        title,
+        bytes,
+        filename: `${base}.xlsx`,
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        minLength: 4,
+        // ZIP/OOXML magic: PK..
+        magicCheck: (b) => b[0] === 0x50 && b[1] === 0x4b,
+    });
+}
+
+function humanizeKey(key) {
+    return String(key || '')
+        .replace(/_/g, ' ')
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function escapeCsvCell(value) {
+    if (value == null) return '';
+    const string = String(value);
+    if (/[",\n\r]/.test(string)) {
+        return `"${string.replace(/"/g, '""')}"`;
+    }
+    return string;
+}
+
+/**
+ * Build a UTF-8 CSV (with BOM) that Excel opens cleanly.
+ */
+export function buildReportCsvContent({ title, dateRangeLabel, cards, rows, companyName }) {
+    const detailRows = Array.isArray(rows) ? rows : [];
+    const columns =
+        detailRows.length > 0
+            ? Object.keys(detailRows[0]).filter((k) => k !== '_raw' && k !== 'id')
+            : [];
+    const lines = [];
+
+    lines.push(['Shopynn Report'].map(escapeCsvCell).join(','));
+    lines.push(['Company', companyName || 'Shopynn'].map(escapeCsvCell).join(','));
+    lines.push(['Report', title || 'Report'].map(escapeCsvCell).join(','));
+    lines.push(['Period', dateRangeLabel || 'All time'].map(escapeCsvCell).join(','));
+    lines.push(['Exported', new Date().toLocaleString('en-GB')].map(escapeCsvCell).join(','));
+    lines.push('');
+
+    if (Array.isArray(cards) && cards.length) {
+        lines.push(['Summary'].map(escapeCsvCell).join(','));
+        lines.push(['Metric', 'Value'].map(escapeCsvCell).join(','));
+        cards.forEach((c) => {
+            lines.push([c.label || 'Metric', c.value ?? ''].map(escapeCsvCell).join(','));
+        });
+        lines.push('');
+    }
+
+    lines.push(['Details'].map(escapeCsvCell).join(','));
+    if (columns.length) {
+        lines.push(columns.map(humanizeKey).map(escapeCsvCell).join(','));
+        detailRows.forEach((row) => {
+            lines.push(columns.map((key) => escapeCsvCell(row?.[key])).join(','));
+        });
+    } else {
+        lines.push(escapeCsvCell('No detail rows for this period.'));
+    }
+
+    // BOM helps Excel detect UTF-8 (currency symbols, accents)
+    return `\uFEFF${lines.join('\n')}`;
 }
 
 /**
@@ -95,5 +206,5 @@ export function alertExportError(error) {
         error?.response?.data?.message ||
         error?.message ||
         'Could not export report. Please try again.';
-    Alert.alert('Export failed', msg);
+    Alert.alert('Export failed', typeof msg === 'string' ? msg : 'Could not export report. Please try again.');
 }
