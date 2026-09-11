@@ -72,6 +72,15 @@ async function ensureStoreOrderPermissions() {
 			[uuidv4(), code, name, description]
 		);
 	}
+
+	// Mirrors sales.view_all — without this, non-owner staff only see their own receipts.
+	await pool.query(
+		`INSERT INTO permissions (id, code, name, description, created_at)
+		 SELECT $1::varchar, 'purchases.view_all', 'View all purchases',
+		        'View all tenant purchases (not only own receipts)', NOW()
+		 WHERE NOT EXISTS (SELECT 1 FROM permissions WHERE lower(code) = 'purchases.view_all')`,
+		[uuidv4()]
+	);
 }
 
 async function clearPasswordGate(userId, passwordHash) {
