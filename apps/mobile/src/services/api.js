@@ -232,6 +232,10 @@ export const dashboard = {
     get: (params) => axios.get('/dashboard', { params }).then((res) => getData(res)),
     profitAndLoss: (params) => axios.get('/dashboard/profit-and-loss', { params }).then((res) => getData(res)),
     cashFlow: (params) => axios.get('/dashboard/cash-flow', { params }).then((res) => getData(res)),
+    exportReportPdf: (body) =>
+        axios
+            .post('/dashboard/reports/export.pdf', body, { responseType: 'arraybuffer' })
+            .then((res) => res.data),
 };
 
 // —— Sales ——
