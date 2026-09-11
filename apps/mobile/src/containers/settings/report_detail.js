@@ -10,7 +10,7 @@ import AppModal from '../../components/app_modal';
 import useTheme from '../../hooks/useTheme';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { dashboard as dashboardApi, sales as salesApi, purchases as purchasesApi, transfers as transferApi, adjustments as adjustmentApi, auditLogs as auditLogsApi, inventories as inventoryApi } from '../../services/api';
-import { formatDateRange, formatAction, formatDateAndTime } from '../../utils/format';
+import { formatDateRange, formatAction, formatDateAndTime, formatQuantity } from '../../utils/format';
 import { hasFeature, hasPermission } from '../../utils/permissions';
 
 const formatter = new Intl.NumberFormat('en-GH', { style: 'currency', currency: 'GHS' });
@@ -325,7 +325,7 @@ const ReportDetail = ({ navigation, route }) => {
                             { label: 'Revenue', value: formatCurrency(res.revenue), icon: 'wallet', color: '#10b981' },
                             { label: 'Expenses', value: formatCurrency(res.expenses), icon: 'trending-down', color: '#ef4444' },
                             { label: 'Net profit', value: res.netProfit > 0 ? formatCurrency(res.netProfit) : '0', icon: 'chart-spline', color: config.THEME_COLOR },
-                            { label: 'Total sold units', value: res.totalSoldQty, icon: 'shopping-cart', color: '#f59e0b' },
+                            { label: 'Total sold units', value: formatQuantity(res.totalSoldQty), icon: 'shopping-cart', color: '#f59e0b' },
                         ],
                         rows: [
                             // { item: 'Sales', amount: res.revenue, type: 'income' },
@@ -352,7 +352,7 @@ const ReportDetail = ({ navigation, route }) => {
                     const data = {
                         cards: [
                             { label: 'Products', value: res.inventoryCount, icon: 'package', color: config.THEME_COLOR },
-                            { label: 'Total units', value: res.totalUnits, icon: 'layers', color: '#10b981' },
+                            { label: 'Total units', value: formatQuantity(res.totalUnits), icon: 'layers', color: '#10b981' },
                             { label: 'Stock value', value: formatCurrency(res.stockValue), icon: 'wallet', color: '#f59e0b' },
                             { label: 'Low stock', value: res.lowStockCount, icon: 'triangle-alert', color: '#ef4444' },
                         ],
@@ -1124,7 +1124,7 @@ const ReportDetail = ({ navigation, route }) => {
                                             {((row.quantity_available !== undefined || row.quantity !== undefined) && row.amount === undefined && row.cogs === undefined && row.balance === undefined) && (
                                                 <View style={[styles.qtyBadge, { backgroundColor: colors.surfaceSecondary }]}>
                                                     <Lucide name="package" size={12} color={colors.textSecondary} />
-                                                    <AppText label={`${row.quantity_available ?? row.quantity} units`} fontSize={13} color={colors.textSecondary} variant={1} style={{ marginLeft: 4 }} />
+                                                    <AppText label={`${formatQuantity(row.quantity_available ?? row.quantity)} units`} fontSize={13} color={colors.textSecondary} variant={1} style={{ marginLeft: 4 }} />
                                                 </View>
                                             )}
                                             

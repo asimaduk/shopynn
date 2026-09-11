@@ -9,7 +9,8 @@ export const formatCurrency = (amount) => {
 export const formatQuantity = (value) => {
     const n = Number(value);
     if (!Number.isFinite(n)) return String(value ?? 0);
-    return Number.isInteger(n) ? String(n) : String(parseFloat(n.toFixed(3)));
+    // Always trim via toFixed so Postgres numeric strings like "40.000" become "40".
+    return String(parseFloat(n.toFixed(3)));
 };
 
 export const formatDateAndTime = (date) => {

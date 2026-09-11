@@ -17,6 +17,7 @@ import ScreenHeader from '../../components/screen_header';
 import useTheme from '../../hooks/useTheme';
 import { products as productsApi } from '../../services/api';
 import { normalizeProduct } from '../../utils/normalizeProduct';
+import { formatQuantity } from '../../utils/format';
 import { getScreenPlanAccess, navigateToScreenOrUpgrade } from '../../utils/permissions';
 
 const formatter = new Intl.NumberFormat('en-GH', {
@@ -313,7 +314,7 @@ const ProductDetails = ({ navigation, route }) => {
                                 ]}
                             >
                                 <AppText label={sq.name || sq.warehouse_name || 'Warehouse'} fontSize={14} color={colors.text} />
-                                <AppText label={`${sq.quantity_available ?? sq.quantity ?? 0} units`} fontSize={14} fontFamily="FiraSans-SemiBold" color={config.THEME_COLOR} />
+                                <AppText label={`${formatQuantity(sq.quantity_available ?? sq.quantity ?? 0)} units`} fontSize={14} fontFamily="FiraSans-SemiBold" color={config.THEME_COLOR} />
                             </View>
                         ))}
                     </View>

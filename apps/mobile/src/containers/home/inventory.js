@@ -9,7 +9,7 @@ import config from '../../config';
 import AppModal from '../../components/app_modal';
 import useTheme from '../../hooks/useTheme';
 import { products as productsApi, normalizeList } from '../../services/api';
-import { formatCurrency } from '../../utils/format';
+import { formatCurrency, formatQuantity } from '../../utils/format';
 import { useSelector } from 'react-redux';
 import { canAccessScreen } from '../../utils/permissions';
 
@@ -368,7 +368,7 @@ const Inventory = ({ navigation, route }) => {
                                         </View>
                                         <View style={styles.metaItem}>
                                             <Lucide name="package" color={colors.textTertiary} size={12} />
-                                            <AppText label={`${qtyDisplay} units`} fontSize={11} color={colors.textSecondary} style={{marginLeft:4}} />
+                                            <AppText label={`${formatQuantity(qtyDisplay)} units`} fontSize={11} color={colors.textSecondary} style={{marginLeft:4}} />
                                         </View>
                                         <View style={[styles.stockBadge, {backgroundColor: stockStatus.bg}]}>
                                             <View style={[styles.stockDot, {backgroundColor: stockStatus.color}]} />
@@ -458,7 +458,7 @@ const Inventory = ({ navigation, route }) => {
                                     <View style={[styles.modalMetaChip, { backgroundColor: colors.surface }]}>
                                         <Lucide name="boxes" size={12} color={colors.textSecondary} />
                                         <AppText
-                                            label={`${productListedQuantity(selectedItem)} units`}
+                                            label={`${formatQuantity(productListedQuantity(selectedItem))} units`}
                                             fontSize={11}
                                             color={colors.textSecondary}
                                             style={{ marginLeft: 5 }}
