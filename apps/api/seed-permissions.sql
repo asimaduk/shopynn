@@ -61,6 +61,7 @@ INSERT INTO permissions (id, code, name, description, created_at) VALUES
 
 -- Purchases
 (gen_random_uuid()::text, 'purchases.view', 'View purchases', 'List and view purchases', now()),
+(gen_random_uuid()::text, 'purchases.view_all', 'View all purchases', 'View all tenant purchases (not only own receipts)', now()),
 (gen_random_uuid()::text, 'purchases.details.view', 'View purchase details', 'View purchase details screen', now()),
 (gen_random_uuid()::text, 'purchases.create', 'Create purchases', 'Create new purchase', now()),
 (gen_random_uuid()::text, 'purchases.return.create', 'Create purchase return', 'Create purchase returns', now()),
