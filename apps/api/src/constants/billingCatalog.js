@@ -16,7 +16,7 @@ export const TIER_TO_SUBSCRIPTION_TYPE = {
 /** Fallback amounts if DB catalog is empty (matches seed migration). */
 export const FALLBACK_CATALOG_AMOUNTS = {
     subscription_monthly: { free: 0, basic: 229, standard: 429, premium: 799 },
-    onboarding: { basic: 1000, standard: 2500, premium: 4000 },
+    onboarding: { basic: 700, standard: 1300, premium: 2000 },
 };
 
 /**
@@ -75,7 +75,7 @@ export const DEFAULT_BILLING_CATALOG_SEED = [
         label: "Basic assisted go-live",
         description:
             "Setup & training including product import and opening stock for a typical single shop.",
-        amount_ghs: 1000,
+        amount_ghs: 700,
         commission_eligible: "onboarding_15",
         is_active: true,
         sort_order: 11,
@@ -87,7 +87,7 @@ export const DEFAULT_BILLING_CATALOG_SEED = [
         label: "Standard assisted go-live",
         description:
             "Setup & training including product import and opening stock; multi-branch basics as needed.",
-        amount_ghs: 2500,
+        amount_ghs: 1300,
         commission_eligible: "onboarding_15",
         is_active: true,
         sort_order: 21,
@@ -99,7 +99,7 @@ export const DEFAULT_BILLING_CATALOG_SEED = [
         label: "Premium assisted go-live",
         description:
             "Setup & training including product import and opening stock; multi-user / multi-branch handoff.",
-        amount_ghs: 4000,
+        amount_ghs: 2000,
         commission_eligible: "onboarding_15",
         is_active: true,
         sort_order: 31,

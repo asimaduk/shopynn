@@ -24,7 +24,7 @@ You act as an **independent sales agent**. You introduce businesses you meet in 
 | **Standard** | **429** | **Multi-branch, transfers, roles (expected most common)** |
 | Premium | 799 | Full platform + customer online ordering |
 
-**Optional assisted go-live (setup / training):** GHS 1,000 (Basic) · 2,500 (Standard) · 4,000 (Premium). Includes product import and opening stock. Self-serve shops pay **GHS 0** for setup. True extras (data migration from another system, extra training day) are sold separately.
+**Optional assisted go-live (setup / training):** GHS 700 (Basic) · 1,300 (Standard) · 2,000 (Premium). Includes product import and opening stock. Self-serve shops pay **GHS 0** for setup. True extras (data migration from another system, extra training day) are sold separately.
 
 Hosting is included in the monthly subscription. Support is via WhatsApp (business hours; priority on Premium).
 
@@ -61,7 +61,7 @@ Residual stops if Shopynn clears or reassigns the serving agent (e.g. you leave 
 
 ### Example — Standard plan with assisted go-live
 
-- Assisted go-live: GHS 2,500 → commission **GHS 375** (15%)
+- Assisted go-live: GHS 1,300 → commission **GHS 195** (15%)
 - Monthly subscription: GHS 429 → residual **GHS ~21.45** each paid month (5%)
 
 Self-serve shops (no assisted go-live fee) still pay subscription only; you earn residual if you remain their serving agent.

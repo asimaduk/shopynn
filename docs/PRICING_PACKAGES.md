@@ -26,9 +26,9 @@ Budget-friendly monthly tiers (Ghana), hosting included, WhatsApp support.
 
 Includes product import (CSV) and opening stock setup for a typical shop.
 
-- Basic assisted go-live: **GHS 1,000**
-- Standard assisted go-live: **GHS 2,500**
-- Premium assisted go-live: **GHS 4,000**
+- Basic assisted go-live: **GHS 700**
+- Standard assisted go-live: **GHS 1,300**
+- Premium assisted go-live: **GHS 2,000**
 - Self-serve (owner sets up alone): **GHS 0**
 
 **Add-ons (true extras only):**
