@@ -58,6 +58,7 @@ const UserDetails = ({ navigation, route }) => {
                         permissions:
                             apiUser.user_permissions ||
                             apiUser.permissions ||
+                            apiUser.settings?.permissions ||
                             initialUser?.permissions ||
                             [],
                     };
@@ -294,12 +295,20 @@ const UserDetails = ({ navigation, route }) => {
                 <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 20, marginBottom: 20, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 }}>
                     <AppText label="Permissions" fontSize={14} variant={1} color={colors.text} style={{ marginBottom: 12 }} />
                     {user.permissions?.length > 0 ? (
-                        user.permissions.map((perm, i) => (
-                            <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                                <Lucide name="circle-check" size={16} color={config.GREEN_COLOR} style={{ marginRight: 8 }} />
-                                <AppText label={perm.name} fontSize={13} color={colors.textSecondary} />
-                            </View>
-                        ))
+                        user.permissions.map((perm, i) => {
+                            const label =
+                                (typeof perm === 'string' ? perm : null) ||
+                                perm?.name ||
+                                perm?.code ||
+                                perm?.description ||
+                                '';
+                            return (
+                                <View key={perm?.code || perm?.id || label || i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                                    <Lucide name="circle-check" size={16} color={config.GREEN_COLOR} style={{ marginRight: 8 }} />
+                                    <AppText label={label} fontSize={13} color={colors.textSecondary} style={{ flex: 1 }} />
+                                </View>
+                            );
+                        })
                     ) : (
                         <AppText label="No specific permissions assigned." fontSize={13} color={colors.textTertiary} />
                     )}

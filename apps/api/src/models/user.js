@@ -15,6 +15,36 @@ import { getUserPermissionsService } from "./userRole.js";
 
 const saltRounds = 12;
 
+/** Map permission codes → { code, name, description } for client display. */
+async function permissionsWithNames(permissionCodes = []) {
+    const codes = [...new Set((permissionCodes || []).filter(Boolean))];
+    if (!codes.length) return [];
+
+    const namedRes = await pool.query(
+        `SELECT code, name, description
+         FROM permissions
+         WHERE code = ANY($1::text[])`,
+        [codes]
+    );
+    const byCode = new Map(namedRes.rows.map((row) => [row.code, row]));
+
+    return codes.map((code) => {
+        const row = byCode.get(code);
+        if (row) {
+            return {
+                code: row.code,
+                name: row.name || row.code,
+                description: row.description || null,
+            };
+        }
+        // Fallback for codes not in permissions table (rare / legacy)
+        const name = String(code)
+            .replace(/[._]/g, " ")
+            .replace(/\b\w/g, (c) => c.toUpperCase());
+        return { code, name, description: null };
+    });
+}
+
 const updateLastLogin = (id) => {
     pool.query("UPDATE users SET last_login=$1 WHERE id=$2",[new Date(), id])    
 }
@@ -219,7 +249,7 @@ export const getUserByIdService = async (id) => {
                     userRes.rows[0].id,
                     userRes.rows[0].tenant_id
                 );
-                permissions = (permissionCodes || []).map((code) => ({ code }));
+                permissions = await permissionsWithNames(permissionCodes);
             }
 
             // Add settings with roles and permissions
@@ -319,7 +349,7 @@ export const getUserDetailsService = async (id) => {
     let permissions = [];
     if (user.tenant_id) {
         const permissionCodes = await getUserPermissionsService(id, user.tenant_id);
-        permissions = (permissionCodes || []).map((code) => ({ code }));
+        permissions = await permissionsWithNames(permissionCodes);
     }
 
     return {
