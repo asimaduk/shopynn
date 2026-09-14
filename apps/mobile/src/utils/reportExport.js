@@ -202,8 +202,23 @@ export async function shareReportCsvFile({ title, csvContent }) {
 }
 
 export function alertExportError(error) {
+    let data = error?.response?.data;
+    if (data instanceof ArrayBuffer) {
+        try {
+            data = JSON.parse(new TextDecoder().decode(data));
+        } catch {
+            data = null;
+        }
+    } else if (typeof data === 'string') {
+        try {
+            data = JSON.parse(data);
+        } catch {
+            /* keep string */
+        }
+    }
     const msg =
-        error?.response?.data?.message ||
+        (data && typeof data === 'object' && data.message) ||
+        (typeof data === 'string' && data) ||
         error?.message ||
         'Could not export report. Please try again.';
     Alert.alert('Export failed', typeof msg === 'string' ? msg : 'Could not export report. Please try again.');

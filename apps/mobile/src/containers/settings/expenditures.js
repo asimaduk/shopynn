@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { TextInput, TouchableOpacity, View, ScrollView, Platform, StyleSheet, Share, Alert, ActivityIndicator } from 'react-native';
+import { TextInput, TouchableOpacity, View, ScrollView, Platform, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
+import { useSelector } from 'react-redux';
 import ScreenHeader from '../../components/screen_header';
 import { FlashList } from '@shopify/flash-list';
 import styles from './styles';
@@ -13,6 +14,13 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import useTheme from '../../hooks/useTheme';
 import { expenses as expensesApi, normalizeList } from '../../services/api';
 import { useFocusEffect } from '@react-navigation/native';
+import {
+    alertExportError,
+    buildReportCsvContent,
+    shareReportCsvFile,
+    shareReportExcelFromServer,
+    shareReportPdfFromServer,
+} from '../../utils/reportExport';
 
 const currencyFormatter = new Intl.NumberFormat('en-GH', {
     style: 'currency',
@@ -35,6 +43,7 @@ const dateRanges = [
 
 const Expenditures = ({ navigation }) => {
     const { colors } = useTheme();
+    const appSettings = useSelector((s) => s.appSettings) || {};
     const [expenditures, setExpenditures] = useState([]);
     const [searchText, setSearchText] = useState('');
     const [showDateFilter, setShowDateFilter] = useState(false);
@@ -192,141 +201,32 @@ const Expenditures = ({ navigation }) => {
         if (selectedDate) setCustomEndDate(selectedDate);
     };
 
-    const generateCSV = () => {
-        const headers = 'ID,Description,Category,Amount,Date,User,Payment Method,Note\n';
-        const rows = filteredData.map((item) => {
-            const escapeCSV = (str) => {
-                if (!str) return '';
-                const string = String(str);
-                if (string.includes(',') || string.includes('"') || string.includes('\n')) {
-                    return `"${string.replace(/"/g, '""')}"`;
-                }
-                return string;
-            };
-            return [
-                item.id || '',
-                escapeCSV(item.description),
-                escapeCSV(item.category),
-                escapeCSV(item.amount),
-                escapeCSV(item.expense_date),
-                escapeCSV(item.creator_first_name + ' ' + item.creator_last_name),
-                escapeCSV(item.payment_method),
-                escapeCSV(item.note || ''),
-            ].join(',');
-        });
-        return headers + rows.join('\n');
-    };
-
-    const generatePDF = () => {
+    const buildExportPayload = () => {
         const dateRangeLabel = getDateRangeLabel();
-        const exportDate = new Date().toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-        });
-
-        let html = `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Expenditures Report</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            color: #333;
-        }
-        h1 {
-            color: #1e293b;
-            border-bottom: 3px solid ${config.THEME_COLOR || '#0A74DA'};
-            padding-bottom: 10px;
-            margin-bottom: 20px;
-        }
-        .header-info {
-            margin-bottom: 30px;
-            color: #64748b;
-            font-size: 14px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        th {
-            background-color: ${config.THEME_COLOR || '#0A74DA'};
-            color: #fff;
-            padding: 12px;
-            text-align: left;
-            font-weight: bold;
-        }
-        td {
-            padding: 10px;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        tr:nth-child(even) {
-            background-color: #f8fafc;
-        }
-        .footer {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 2px solid #e2e8f0;
-            color: #64748b;
-            font-size: 12px;
-            text-align: center;
-        }
-    </style>
-</head>
-<body>
-    <h1>Expenditures Report</h1>
-    <div class="header-info">
-        <p><strong>Date Range:</strong> ${dateRangeLabel}</p>
-        <p><strong>Export Date:</strong> ${exportDate}</p>
-        <p><strong>Total Expenditures:</strong> ${filteredData.length}</p>
-        <p><strong>Total Amount:</strong> ₵${filteredData.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0).toFixed(2)}</p>
-    </div>
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Description</th>
-                <th>Category</th>
-                <th>Amount</th>
-                <th>Date</th>
-                <th>User</th>
-                <th>Payment Method</th>
-                <th>Note</th>
-            </tr>
-        </thead>
-        <tbody>
-`;
-
-        filteredData.forEach((item) => {
-            html += `
-            <tr>
-                <td>${item.id || ''}</td>
-                <td>${item.description || ''}</td>
-                <td>${item.category || ''}</td>
-                <td>₵${item.amount || ''}</td>
-                <td>${item.expense_date || ''}</td>
-                <td>${item.creator_first_name + ' ' + item.creator_last_name || ''}</td>
-                <td>${item.payment_method || ''}</td>
-                <td>${item.note || ''}</td>
-            </tr>
-            `;
-        });
-
-        html += `
-        </tbody>
-    </table>
-    <div class="footer">
-        <p>Generated by Shopynn - Inventory Management System</p>
-    </div>
-</body>
-</html>
-        `;
-
-        return html;
+        const totalAmount = filteredData.reduce(
+            (sum, item) => sum + (parseFloat(item.amount || 0) || 0),
+            0,
+        );
+        const cards = [
+            { label: 'Expenditures', value: String(filteredData.length) },
+            { label: 'Total amount', value: formatCurrency(totalAmount) },
+        ];
+        const rows = filteredData.map((item) => ({
+            description: item.description || '',
+            category: item.category || '',
+            amount: formatCurrency(item.amount),
+            date: item.expense_date || '',
+            user: `${item.creator_first_name || ''} ${item.creator_last_name || ''}`.trim(),
+            payment_method: item.payment_method || '',
+            note: item.note || '',
+        }));
+        return {
+            title: 'Expenditures',
+            dateRangeLabel,
+            cards,
+            rows,
+            companyName: appSettings.companyName || appSettings.receiptCompanyName || 'Shopynn',
+        };
     };
 
     const handleExportFormatSelect = (format) => {
@@ -341,34 +241,21 @@ const Expenditures = ({ navigation }) => {
 
         setTimeout(async () => {
             try {
-                const dateRangeLabel = getDateRangeLabel().replace(/ /g, '_');
-                const dateStr = new Date().toISOString().split('T')[0];
-
-                if (format === 'csv' || format === 'excel') {
-                    const csvContent = generateCSV();
-                    const fileName = `Expenditures_${dateRangeLabel}_${dateStr}.csv`;
-
-                    await Share.share({
-                        message: csvContent,
-                        title: fileName,
+                const payload = buildExportPayload();
+                if (format === 'excel') {
+                    await shareReportExcelFromServer(payload);
+                } else if (format === 'csv') {
+                    await shareReportCsvFile({
+                        title: 'Expenditures',
+                        csvContent: buildReportCsvContent(payload),
                     });
                 } else if (format === 'pdf') {
-                    const htmlContent = generatePDF();
-                    const fileName = `Expenditures_${dateRangeLabel}_${dateStr}.html`;
-
-                    await Share.share({
-                        message: htmlContent,
-                        title: fileName,
-                    });
-
-                    Alert.alert(
-                        'PDF Export',
-                        'The HTML file has been shared. To convert to PDF:\n\n• iOS: Open in Safari, tap Share > Print > Save as PDF\n• Android: Open in browser, print > Save as PDF',
-                        [{ text: 'OK' }]
-                    );
+                    await shareReportPdfFromServer(payload);
                 }
             } catch (error) {
-                Alert.alert('Export Error', 'Could not export expenditures. Please try again.');
+                if (error?.message !== 'User did not share') {
+                    alertExportError(error);
+                }
             } finally {
                 setExporting(false);
             }
@@ -800,14 +687,38 @@ const Expenditures = ({ navigation }) => {
 
                     <TouchableOpacity
                         activeOpacity={0.7}
-                        onPress={() => handleExportFormatSelect('csv')}
+                        onPress={() => handleExportFormatSelect('excel')}
                         style={[localStyles.exportOption, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
                         <View style={[localStyles.exportOptionIcon, { backgroundColor: colors.primaryShade }]}>
                             <Lucide name="file-spreadsheet" color={config.THEME_COLOR} size={24} />
                         </View>
                         <View style={localStyles.exportOptionContent}>
-                            <AppText label="CSV / Excel" variant={1} fontSize={16} color={colors.text} />
-                            <AppText label="Comma-separated values, opens in Excel" fontSize={12} color={colors.textSecondary} style={{ marginTop: 4 }} />
+                            <AppText label="Excel" variant={1} fontSize={16} color={colors.text} />
+                            <AppText
+                                label="Workbook with Summary + Details sheets (.xlsx)"
+                                fontSize={12}
+                                color={colors.textSecondary}
+                                style={{ marginTop: 4 }}
+                            />
+                        </View>
+                        <Lucide name="chevron-right" color={colors.border} size={20} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() => handleExportFormatSelect('csv')}
+                        style={[localStyles.exportOption, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
+                        <View style={[localStyles.exportOptionIcon, { backgroundColor: colors.surface }]}>
+                            <Lucide name="table" color={config.THEME_COLOR} size={24} />
+                        </View>
+                        <View style={localStyles.exportOptionContent}>
+                            <AppText label="CSV" variant={1} fontSize={16} color={colors.text} />
+                            <AppText
+                                label="Spreadsheet file for Sheets, Numbers, or Excel"
+                                fontSize={12}
+                                color={colors.textSecondary}
+                                style={{ marginTop: 4 }}
+                            />
                         </View>
                         <Lucide name="chevron-right" color={colors.border} size={20} />
                     </TouchableOpacity>
@@ -821,7 +732,12 @@ const Expenditures = ({ navigation }) => {
                         </View>
                         <View style={localStyles.exportOptionContent}>
                             <AppText label="PDF" variant={1} fontSize={16} color={colors.text} />
-                            <AppText label="Formatted document for printing" fontSize={12} color={colors.textSecondary} style={{ marginTop: 4 }} />
+                            <AppText
+                                label="Branded PDF report — share or save instantly"
+                                fontSize={12}
+                                color={colors.textSecondary}
+                                style={{ marginTop: 4 }}
+                            />
                         </View>
                         <Lucide name="chevron-right" color={colors.border} size={20} />
                     </TouchableOpacity>
