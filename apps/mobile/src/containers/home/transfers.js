@@ -79,6 +79,7 @@ const ProductTransfers = ({ navigation }) => {
     const [exporting, setExporting] = useState(false);
     const [showExportFormatModal, setShowExportFormatModal] = useState(false);
     const [showSearch, setShowSearch] = useState(false);
+    const [loading, setLoading] = useState(true);
 
     const getDateRangeBounds = () => {
         const now = new Date();
@@ -113,7 +114,8 @@ const ProductTransfers = ({ navigation }) => {
         }
     };
 
-    const loadTransfers = useCallback(async () => {
+    const loadTransfers = useCallback(async ({ showLoader = true } = {}) => {
+        if (showLoader) setLoading(true);
         try {
             const bounds = getDateRangeBounds();
             const params = bounds ? { startDate: bounds.start?.toISOString?.()?.slice(0, 10), endDate: bounds.end?.toISOString?.()?.slice(0, 10) } : {};
@@ -121,13 +123,15 @@ const ProductTransfers = ({ navigation }) => {
             setTransfers(normalizeList(raw).length ? normalizeList(raw) : []);
         } catch (_) {
             setTransfers([]);
+        } finally {
+            setLoading(false);
         }
     }, [selectedDateRange, customStartDate, customEndDate]);
 
     const handleRefresh = useCallback(async () => {
         setRefreshing(true);
         try {
-            await loadTransfers();
+            await loadTransfers({ showLoader: false });
         } finally {
             setRefreshing(false);
         }
@@ -540,6 +544,12 @@ const ProductTransfers = ({ navigation }) => {
                 <AppText label={`${filteredData.length} Transfer${filteredData.length !== 1 ? 's' : ''} Found`} fontSize={16} variant={1} color={colors.text} style={{ marginLeft: 10 }} />
             </View> */}
 
+            {loading && !refreshing ? (
+                <View style={localStyles.loadingContainer}>
+                    <ActivityIndicator size="large" color={config.THEME_COLOR} />
+                    <AppText label="Loading transfers..." color={colors.textTertiary} style={{ marginTop: 10 }} />
+                </View>
+            ) : (
             <FlashList
                 contentContainerStyle={styles.listContent}
                 data={filteredData}
@@ -565,6 +575,7 @@ const ProductTransfers = ({ navigation }) => {
                     </View>
                 )}
             />
+            )}
 
             {/* Date Filter Modal */}
             <AppModal
@@ -863,6 +874,12 @@ const ProductTransfers = ({ navigation }) => {
 };
 
 const localStyles = StyleSheet.create({
+    loadingContainer: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingTop: 100,
+    },
     headerRow: {
         flexDirection: 'row',
         alignItems: 'center',

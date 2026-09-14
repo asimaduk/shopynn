@@ -24,6 +24,7 @@ import {
     clearSensitiveOfflineData,
 } from '../../utils/secureOfflineStorage';
 import { clearTokens } from '../../utils/secureStorage';
+import ConfirmDialog from '../../components/ConfirmDialog';
 
 const TAB_BAR_HEIGHT = 60;
 
@@ -76,6 +77,8 @@ const Settings = ({ navigation, route }) => {
     const [biometricSupported, setBiometricSupported] = useState(false);
     const [biometricEnabled, setBiometricEnabled] = useState(false);
     const [biometricLabel, setBiometricLabel] = useState('Biometrics');
+    const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+    const [signingOut, setSigningOut] = useState(false);
     const [pendingSalesCount, setPendingSalesCount] = useState(0);
     const profileImageUri = resolveProfileImageUri(
         user?.profile_image ?? user?.profileImage ?? user?.avatar ?? user?.settings?.profile?.image_url,
@@ -241,20 +244,22 @@ const Settings = ({ navigation, route }) => {
     };
 
     const handleSignOut = () => {
-        Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-            { text: 'Cancel', style: 'cancel' },
-            {
-                text: 'Sign Out',
-                style: 'destructive',
-                onPress: async () => {
-                    await clearTokens();
-                    await clearSensitiveOfflineData();
-                    dispatch({ type: SET_USER, payload: {} });
-                    dispatch({ type: SET_LOGGED_IN, payload: false });
-                },
-            }
-        ]);
-    }
+        setShowSignOutConfirm(true);
+    };
+
+    const confirmSignOut = async () => {
+        if (signingOut) return;
+        setSigningOut(true);
+        try {
+            await clearTokens();
+            await clearSensitiveOfflineData();
+            dispatch({ type: SET_USER, payload: {} });
+            dispatch({ type: SET_LOGGED_IN, payload: false });
+        } finally {
+            setSigningOut(false);
+            setShowSignOutConfirm(false);
+        }
+    };
 
     const handleShareApp = async () => {
         try {
@@ -1088,6 +1093,21 @@ const Settings = ({ navigation, route }) => {
                 </View>
             </ScrollView>
             )}
+
+            <ConfirmDialog
+                visible={showSignOutConfirm}
+                icon="log-out"
+                title="Sign out?"
+                message="You'll need to sign in again to access your shop."
+                cancelLabel="Stay signed in"
+                confirmLabel="Sign out"
+                destructive
+                loading={signingOut}
+                onCancel={() => {
+                    if (!signingOut) setShowSignOutConfirm(false);
+                }}
+                onConfirm={confirmSignOut}
+            />
         </SafeAreaView>
     )
 }

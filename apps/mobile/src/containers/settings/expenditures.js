@@ -58,6 +58,7 @@ const Expenditures = ({ navigation }) => {
     const [exporting, setExporting] = useState(false);
     const [showExportFormatModal, setShowExportFormatModal] = useState(false);
     const [showSearch, setShowSearch] = useState(false);
+    const [loading, setLoading] = useState(true);
 
     const getDateRangeBounds = () => {
         const now = new Date();
@@ -93,6 +94,7 @@ const Expenditures = ({ navigation }) => {
     };
 
     const loadExpenditures = useCallback(async () => {
+        setLoading(true);
         try {
             const bounds = getDateRangeBounds();
             const params = bounds
@@ -105,6 +107,8 @@ const Expenditures = ({ navigation }) => {
             setExpenditures(normalizeList(raw) || []);
         } catch (_) {
             setExpenditures([]);
+        } finally {
+            setLoading(false);
         }
     }, [selectedDateRange, appliedCustomStartDate, appliedCustomEndDate]);
 
@@ -398,6 +402,12 @@ const Expenditures = ({ navigation }) => {
                 <AppText label={`${filteredData.length} Expenditure${filteredData.length !== 1 ? 's' : ''} Found`} fontSize={16} variant={1} color={colors.text} style={{ marginLeft: 10 }} />
             </View> */}
 
+            {loading ? (
+                <View style={localStyles.loadingContainer}>
+                    <ActivityIndicator size="large" color={config.THEME_COLOR} />
+                    <AppText label="Loading expenditures..." color={colors.textTertiary} style={{ marginTop: 10 }} />
+                </View>
+            ) : (
             <FlashList
                 contentContainerStyle={styles.listContent}
                 data={filteredData}
@@ -421,6 +431,7 @@ const Expenditures = ({ navigation }) => {
                     </View>
                 )}
             />
+            )}
 
             {/* Date Filter Modal */}
             <AppModal
@@ -748,6 +759,12 @@ const Expenditures = ({ navigation }) => {
 };
 
 const localStyles = StyleSheet.create({
+    loadingContainer: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingTop: 100,
+    },
     headerRow: {
         paddingHorizontal: 15,
         paddingTop: 10,

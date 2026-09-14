@@ -21,15 +21,26 @@ const PurchaseItem = ({ item, index, onPress }) => {
             style={[styles.container, { backgroundColor: colors.surface, marginRight: isOdd ? 0 : 10 }]}
         >
             <View style={styles.header}>
-                <AppText label={`#${item.invoice_number}`} fontSize={11} color={colors.textTertiary} />
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <AppText
+                    label={`#${item.invoice_number}`}
+                    fontSize={11}
+                    color={colors.textTertiary}
+                    numberOfLines={1}
+                    style={styles.invoice}
+                />
+                <View style={styles.headerBadges}>
                     {item.poStatus && (
                         <View style={[styles.poBadge, { backgroundColor: item.poStatus === 'received' ? colors.successLight : item.poStatus === 'sent' ? colors.infoLight : colors.surfaceSecondary }]}>
                             <AppText label={item.poStatus} fontSize={9} color={item.poStatus === 'received' ? config.GREEN_COLOR : item.poStatus === 'sent' ? colors.info : colors.textSecondary} />
                         </View>
                     )}
                     <View style={[styles.statusBadge, { backgroundColor: item.current_status === 1 ? colors.successLight : colors.warningLight }]}>
-                        <Lucide name={item.current_status === 1 ? "circle-check" : "clock"} size={10} color={item.current_status === 1 ? config.GREEN_COLOR : '#ff9800'} />
+                        <Lucide
+                            name={item.current_status === 1 ? 'circle-check' : 'clock'}
+                            size={14}
+                            color={item.current_status === 1 ? config.GREEN_COLOR : '#ff9800'}
+                            style={styles.statusIcon}
+                        />
                     </View>
                 </View>
             </View>
@@ -77,9 +88,32 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: 8,
+        gap: 6,
     },
-    statusBadge: { padding: 4, borderRadius: 10 },
-    poBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+    invoice: {
+        flex: 1,
+        flexShrink: 1,
+        minWidth: 0,
+    },
+    headerBadges: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        flexShrink: 0,
+    },
+    statusBadge: {
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+        flexShrink: 0,
+    },
+    statusIcon: {
+        width: 14,
+        height: 14,
+    },
+    poBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, flexShrink: 0 },
     content: {
         marginBottom: 12,
     },
