@@ -26,6 +26,8 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+.cursor/
+.githooks/
 
 # Logs
 npm-debug.log*
