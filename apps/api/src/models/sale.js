@@ -2,6 +2,13 @@ import pool from "../config/db.js";
 import { v4 as uuidv4 } from 'uuid';
 import { sendEmailService } from "./mail.js";
 import { getUserPermissionsService, getUsersWithPermissionCodesForTenant } from "./userRole.js";
+import {
+    getBulkDiscountFromSettings,
+    resolveSaleUnitPrice,
+    lineDiscountAmount,
+    pricesMatch,
+    priceMismatchError,
+} from "../utils/bulkDiscount.js";
 
 const canViewAllSalesForUser = async (user) => {
     if (user.user_type === 1) return true;
@@ -1215,13 +1222,91 @@ export const createSaleService = async (payload) => {
         
         const { discount_amount, tenant_id, invoice_number, current_status, customer_id, warehouse_id, products, notes, created_at, creator_id, payment_type, payment_method, payment_number, payment_reference, payment_status, payment_date } = payload;
 
-        if(!products) {
+        if(!products || !products.length) {
             throw new Error("Products list cannot be empty.");
+        }
+        if (!tenant_id) {
+            throw new Error("tenant_id is required.");
+        }
+
+        const tenantRes = await client.query(`SELECT settings FROM tenants WHERE id = $1`, [tenant_id]);
+        if (!tenantRes.rowCount) {
+            throw new Error("Tenant not found.");
+        }
+        const bulkDiscount = getBulkDiscountFromSettings(tenantRes.rows[0].settings);
+
+        const productIds = [...new Set(products.map((p) => p.id).filter(Boolean))];
+        const productRes = await client.query(
+            `SELECT id, name, unit_price, alt_price FROM products WHERE id = ANY($1::varchar[]) AND tenant_id = $2`,
+            [productIds, tenant_id]
+        );
+        const productById = new Map(productRes.rows.map((row) => [String(row.id), row]));
+
+        let expectedDiscount = 0;
+        let expectedTotal = 0;
+        const pricedProducts = [];
+
+        for (const prod of products) {
+            const qty = Number(prod.quantity);
+            if (!Number.isFinite(qty) || qty <= 0) {
+                throw priceMismatchError(`Invalid quantity for product ${prod.id || prod.name || ''}.`.trim(), {
+                    product_id: prod.id,
+                });
+            }
+            const dbProduct = productById.get(String(prod.id));
+            if (!dbProduct) {
+                throw priceMismatchError(
+                    `Product not found for this shop${prod.name ? `: ${prod.name}` : ''}.`.trim(),
+                    { product_id: prod.id, code: 'PRODUCT_NOT_FOUND' }
+                );
+            }
+            const expectedUnit = resolveSaleUnitPrice(
+                qty,
+                dbProduct.unit_price,
+                dbProduct.alt_price,
+                bulkDiscount
+            );
+            const sentUnit = Number(prod.unit_price);
+            if (!pricesMatch(expectedUnit, sentUnit)) {
+                const label = dbProduct.name || prod.name || prod.id;
+                throw priceMismatchError(
+                    `Price mismatch for "${label}": expected ${Number(expectedUnit).toFixed(2)} per unit for qty ${qty}, but received ${Number.isFinite(sentUnit) ? Number(sentUnit).toFixed(2) : 'invalid'}. Refresh products or check bulk discount settings.`,
+                    {
+                        product_id: prod.id,
+                        product_name: label,
+                        quantity: qty,
+                        expected_unit_price: expectedUnit,
+                        received_unit_price: sentUnit,
+                        bulk_discount: bulkDiscount,
+                    }
+                );
+            }
+            const lineDisc = lineDiscountAmount(qty, dbProduct.unit_price, dbProduct.alt_price, bulkDiscount);
+            expectedDiscount += lineDisc;
+            expectedTotal += qty * expectedUnit;
+            pricedProducts.push({
+                ...prod,
+                quantity: qty,
+                unit_price: expectedUnit,
+                name: dbProduct.name || prod.name,
+            });
+        }
+
+        const sentDiscount = Number(discount_amount) || 0;
+        if (!pricesMatch(expectedDiscount, sentDiscount)) {
+            throw priceMismatchError(
+                `Discount mismatch: expected ${expectedDiscount.toFixed(2)}, but received ${sentDiscount.toFixed(2)}. Refresh and try again.`,
+                {
+                    expected_discount_amount: expectedDiscount,
+                    received_discount_amount: sentDiscount,
+                    bulk_discount: bulkDiscount,
+                }
+            );
         }
 
         const id = uuidv4();
-        const number_of_items = products.reduce((accumulator, currentItem) => accumulator + Number(currentItem.quantity), 0);
-        const total_amount = products.reduce((accumulator, currentItem) => accumulator + Number(currentItem.quantity) * Number(currentItem.unit_price), 0);
+        const number_of_items = pricedProducts.reduce((accumulator, currentItem) => accumulator + Number(currentItem.quantity), 0);
+        const total_amount = expectedTotal;
 
         let resolvedPaymentType = payment_type;
         if (resolvedPaymentType == null && payment_method) {
@@ -1243,7 +1328,7 @@ export const createSaleService = async (payload) => {
                 id,
                 number_of_items,
                 total_amount,
-                discount_amount,
+                expectedDiscount,
                 tenant_id,
                 invoice_number,
                 current_status || 1,
@@ -1260,7 +1345,7 @@ export const createSaleService = async (payload) => {
             ]
         );
 
-        for (const prod of products) {
+        for (const prod of pricedProducts) {
             // console.log('pid',prod.id,'warehouse_id',warehouse_id);
             const r1 = await client.query("SELECT inventories.id, inventories.quantity_available, inventories.minimum_stock_level, products.name FROM inventories LEFT JOIN products ON inventories.product_id = products.id WHERE inventories.product_id = $1 AND inventories.warehouse_id=$2 ORDER BY inventories.created_at DESC", [prod.id, warehouse_id]);
             // console.log('r1.rowCount',r1.rowCount);

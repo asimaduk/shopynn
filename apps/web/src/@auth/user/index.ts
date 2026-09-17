@@ -44,6 +44,12 @@ export type User = {
 		industry?: string | null;
 		industry_id?: string | null;
 		logo?: string | null;
+		settings?: {
+			bulk_discount?: {
+				enabled?: boolean;
+				quantity_threshold?: number;
+			};
+		} | null;
 		plan_usage?: TenantPlanUsage;
 		subscription?: {
 			id?: string;

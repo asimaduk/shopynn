@@ -10,6 +10,7 @@ import {
     TextInput,
     KeyboardAvoidingView,
     Platform,
+    Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -23,6 +24,8 @@ import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import useTheme from '../../hooks/useTheme';
 import { users as usersApi, tenants as tenantsApi, industries as industriesApi, images as imagesApi, normalizeList } from '../../services/api';
 import { setCompanyDetails } from '../../store/actions/appSettings';
+import { SET_USER } from '../../store/actions/user';
+import { normalizeBulkDiscount, DEFAULT_BULK_DISCOUNT } from '../../utils/bulkDiscount';
 
 const { width } = Dimensions.get('screen');
 
@@ -58,6 +61,9 @@ const CompanyProfile = ({ navigation }) => {
     const [showFullImage, setShowFullImage] = useState(false);
     const [showIndustryPicker, setShowIndustryPicker] = useState(false);
     const [industrySearch, setIndustrySearch] = useState('');
+    const [bulkEnabled, setBulkEnabled] = useState(DEFAULT_BULK_DISCOUNT.enabled);
+    const [bulkThreshold, setBulkThreshold] = useState(String(DEFAULT_BULK_DISCOUNT.quantity_threshold));
+    const currentUser = useSelector(({ user }) => user);
 
     const industryOptions = useMemo(
         () => (industries.length ? [...industries, OTHER_INDUSTRY] : [OTHER_INDUSTRY]),
@@ -151,6 +157,9 @@ const CompanyProfile = ({ navigation }) => {
             setServerLogoKey(c?.logo ?? null);
             setLocalLogoAsset(null);
             syncIndustryFromCompany(c, list);
+            const bulk = normalizeBulkDiscount(c?.settings?.bulk_discount);
+            setBulkEnabled(bulk.enabled);
+            setBulkThreshold(String(bulk.quantity_threshold));
         },
         [appSettings, syncIndustryFromCompany],
     );
@@ -276,6 +285,10 @@ const CompanyProfile = ({ navigation }) => {
         setSaving(true);
         try {
             const org = (organization || '').trim() || name;
+            const bulk = normalizeBulkDiscount({
+                enabled: bulkEnabled,
+                quantity_threshold: parseInt(bulkThreshold, 10),
+            });
             const body = {
                 name,
                 organization: org,
@@ -283,6 +296,9 @@ const CompanyProfile = ({ navigation }) => {
                 address,
                 email,
                 industry_id: industryForApi,
+                settings: {
+                    bulk_discount: bulk,
+                },
             };
 
             if (localLogoAsset?.uri) {
@@ -315,6 +331,21 @@ const CompanyProfile = ({ navigation }) => {
                     companyIndustry: industryLabel || appSettings.companyIndustry || '',
                 }),
             );
+            const nextSettings = updated?.settings || { bulk_discount: bulk };
+            dispatch({
+                type: SET_USER,
+                payload: {
+                    company: {
+                        ...(currentUser?.company || {}),
+                        name,
+                        organization: org,
+                        phone,
+                        address,
+                        email,
+                        settings: nextSettings,
+                    },
+                },
+            });
             Alert.alert('Saved', 'Company profile was updated.');
         } catch (err) {
             const msg = err?.response?.data?.message || err?.message || 'Could not save company profile.';
@@ -536,6 +567,48 @@ const CompanyProfile = ({ navigation }) => {
                                         style={{ flex: 1, color: colors.text, paddingVertical: 10, fontFamily: 'FiraSans-Regular' }}
                                     />
                                 </View>
+                            </View>
+                        </View>
+
+                        <View
+                            style={{
+                                marginTop: 20,
+                                padding: 14,
+                                borderRadius: 10,
+                                borderWidth: 1,
+                                borderColor: colors.border,
+                                backgroundColor: colors.surfaceSecondary || colors.background,
+                            }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                                <Lucide name="tag" size={18} color={config.THEME_COLOR} style={{ marginRight: 8 }} />
+                                <AppText label="Bulk / wholesale discount" variant={1} fontSize={14} color={colors.text} />
+                            </View>
+                            <AppText
+                                label="When on, New Sale uses wholesale (alt) price once quantity reaches the threshold. Off by default."
+                                fontSize={12}
+                                color={colors.textSecondary}
+                                style={{ marginBottom: 12 }}
+                            />
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                                <AppText label="Enable bulk discount" fontSize={14} color={colors.text} />
+                                <Switch
+                                    value={bulkEnabled}
+                                    onValueChange={setBulkEnabled}
+                                    trackColor={{ false: colors.border, true: config.THEME_COLOR }}
+                                    thumbColor="#fff"
+                                />
+                            </View>
+                            <AppText label="Apply wholesale when quantity ≥" fontSize={12} color={colors.textSecondary} style={{ marginBottom: 6 }} />
+                            <View style={[inputWrapStyle, { opacity: bulkEnabled ? 1 : 0.5 }]}>
+                                <TextInput
+                                    value={bulkThreshold}
+                                    onChangeText={(t) => setBulkThreshold(t.replace(/[^0-9]/g, ''))}
+                                    editable={bulkEnabled}
+                                    keyboardType="number-pad"
+                                    placeholder="10"
+                                    placeholderTextColor={colors.placeholder}
+                                    style={{ flex: 1, color: colors.text, paddingVertical: 10, fontFamily: 'FiraSans-Regular' }}
+                                />
                             </View>
                         </View>
                     </View>

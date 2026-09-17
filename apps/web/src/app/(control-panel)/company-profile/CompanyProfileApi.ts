@@ -1,7 +1,13 @@
 import { apiService as api } from 'src/store/apiService';
 import { PartialDeep } from 'type-fest';
+import { normalizeBulkDiscount, DEFAULT_BULK_DISCOUNT } from '@/utils/bulkDiscount';
 
 export const addTagTypes = ['company_profile'] as const;
+
+export type BulkDiscountSettings = {
+	enabled: boolean;
+	quantity_threshold: number;
+};
 
 export type CompanyProfile = {
 	id?: string;
@@ -10,6 +16,7 @@ export type CompanyProfile = {
 	phone?: string;
 	email?: string;
 	website?: string;
+	bulkDiscount?: BulkDiscountSettings;
 };
 
 type MeCompany = {
@@ -19,6 +26,9 @@ type MeCompany = {
 	email?: string | null;
 	organization?: string | null;
 	website?: string | null;
+	settings?: {
+		bulk_discount?: Partial<BulkDiscountSettings> | null;
+	} | null;
 };
 
 type MeResponse = {
@@ -26,6 +36,7 @@ type MeResponse = {
 };
 
 function mapMeToCompanyProfile(me: MeResponse | null | undefined): CompanyProfile | null {
+	const bulkDiscount = normalizeBulkDiscount(me?.company?.settings?.bulk_discount);
 	if (!me?.company?.name?.trim()) {
 		return {
 			id: 'tenant',
@@ -33,7 +44,8 @@ function mapMeToCompanyProfile(me: MeResponse | null | undefined): CompanyProfil
 			address: me?.company?.address ?? undefined,
 			phone: me?.company?.phone ?? undefined,
 			email: me?.company?.email ?? undefined,
-			website: me?.company?.website ?? undefined
+			website: me?.company?.website ?? undefined,
+			bulkDiscount
 		};
 	}
 	const c = me.company;
@@ -43,7 +55,8 @@ function mapMeToCompanyProfile(me: MeResponse | null | undefined): CompanyProfil
 		address: c.address ?? undefined,
 		phone: c.phone ?? undefined,
 		email: c.email ?? undefined,
-		website: c.website ?? undefined
+		website: c.website ?? undefined,
+		bulkDiscount
 	};
 }
 
@@ -67,7 +80,12 @@ const CompanyProfileApi = api
 						address: body.address,
 						phone: body.phone,
 						email: body.email,
-						website: body.website
+						website: body.website,
+						settings: body.bulkDiscount
+							? {
+									bulk_discount: normalizeBulkDiscount(body.bulkDiscount)
+								}
+							: undefined
 					}
 				}),
 				invalidatesTags: ['company_profile']
@@ -88,3 +106,5 @@ export type CompanyProfileApiType = {
 export function isCompanyProfileSet(profile: CompanyProfile | null | undefined): boolean {
 	return Boolean(profile?.companyName?.trim());
 }
+
+export { DEFAULT_BULK_DISCOUNT };

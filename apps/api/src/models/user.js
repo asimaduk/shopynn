@@ -12,6 +12,7 @@ import {
 } from "./subscription.js";
 import { SUPER_ADMIN_EXCLUDED_PERMISSION_CODES } from "../constants/permissionCodes.js";
 import { getUserPermissionsService } from "./userRole.js";
+import { getBulkDiscountFromSettings } from "../utils/bulkDiscount.js";
 
 const saltRounds = 12;
 
@@ -154,7 +155,7 @@ export const getUserByIdService = async (id) => {
         let company = null;
         if(userRes.rows[0]?.tenant_id){
             const tenantRes = await pool.query(
-                `SELECT t.name, t.phone, t.address, t.organization, t.email, t.industry_id, t.logo, t.subscription_id
+                `SELECT t.name, t.phone, t.address, t.organization, t.email, t.industry_id, t.logo, t.subscription_id, t.settings
                  FROM tenants t
                  WHERE t.id = $1`,
                 [userRes.rows[0].tenant_id]
@@ -220,6 +221,9 @@ export const getUserByIdService = async (id) => {
                     logo: tenantRes.rows[0].logo || null,
                     subscription,
                     plan_usage: planUsage,
+                    settings: {
+                        bulk_discount: getBulkDiscountFromSettings(tenantRes.rows[0].settings),
+                    },
                 };
             }
 

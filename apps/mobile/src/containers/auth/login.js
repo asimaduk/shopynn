@@ -199,6 +199,11 @@ const Login = ({ navigation, route }) => {
                     company: me.company
                         ? {
                               name: me.company.name ?? null,
+                              address: me.company.address ?? null,
+                              phone: me.company.phone ?? null,
+                              email: me.company.email ?? null,
+                              organization: me.company.organization ?? null,
+                              settings: me.company.settings ?? null,
                               subscription: me.company.subscription
                                   ? {
                                         id: me.company.subscription.id,

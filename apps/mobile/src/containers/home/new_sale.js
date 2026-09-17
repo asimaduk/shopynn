@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { Dimensions, StyleSheet, TouchableOpacity, ScrollView, View, TextInput, KeyboardAvoidingView, Platform, Image, Alert, Share } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,6 +25,14 @@ import {
     writeSecureList,
 } from '../../utils/secureOfflineStorage';
 import { normalizeWarehousePrinterType } from '../../utils/warehousePrinter';
+import {
+    getBulkDiscountFromCompany,
+    resolveSaleUnitPrice,
+    lineDiscountAmount,
+    lineTotal as calcLineTotal,
+    isPriceMismatchError,
+    getSaleApiErrorMessage,
+} from '../../utils/bulkDiscount';
 
 const { width, height } = Dimensions.get('screen');
 
@@ -119,6 +127,10 @@ const NewSale = ({ navigation, route }) => {
     const appSettings = useSelector((s) => s.appSettings) || {};
     const currentUser = useSelector(({ user }) => user);
     const subscriptionFeatures = useSelector(({ appSettings }) => appSettings?.subscriptionFeatures || []);
+    const bulkDiscount = useMemo(
+        () => getBulkDiscountFromCompany(currentUser?.company),
+        [currentUser?.company],
+    );
     const [stores, setStores] = useState([]);
     const [selectedStore, setSelectedStore] = useState(null);
     const [showStores, setShowStores] = useState(false);
@@ -406,20 +418,13 @@ const NewSale = ({ navigation, route }) => {
         }
     };
 
-    const lineTotal = (item) => {
-        const q = Number(item.order_quantity) || 0;
-        const u = Number(item.unit_price) || 0;
-        const a = Number(item.alt_price) || u;
-        return q < 10 ? q * u : q * a;
-    };
+    const lineTotal = (item) =>
+        calcLineTotal(item.order_quantity, item.unit_price, item.alt_price, bulkDiscount);
     const subtotal = orders.reduce((sum, c) => sum + (Number(c.order_quantity) * Number(c.unit_price)), 0);
-    const discountTotal = orders.reduce((sum, c) => {
-        const q = Number(c.order_quantity) || 0;
-        if (q < 10) return sum;
-        const u = Number(c.unit_price) || 0;
-        const a = Number(c.alt_price) || u;
-        return sum + q * (u - a);
-    }, 0);
+    const discountTotal = orders.reduce(
+        (sum, c) => sum + lineDiscountAmount(c.order_quantity, c.unit_price, c.alt_price, bulkDiscount),
+        0,
+    );
     const totalAmount = orders.reduce((sum, c) => sum + lineTotal(c), 0);
     const totalItems = orders.reduce((sum, c) => sum + (Number(c.order_quantity) || 0), 0);
 
@@ -518,10 +523,7 @@ const NewSale = ({ navigation, route }) => {
         const prefix = appSettings.invoicePrefix || 'INV';
         const num = appSettings.invoiceNextNumber != null ? appSettings.invoiceNextNumber : 1001;
         const invoiceNumber = `${prefix}-${num}`;
-        const totalAmount = orders.reduce(
-            (s, o) => s + (Number(o.order_quantity) || 0) * (Number(o.unit_price) || 0),
-            0,
-        );
+        const saleTotal = totalAmount;
         let salePayloadForRetry = null;
         try {
             const payload = {
@@ -530,10 +532,15 @@ const NewSale = ({ navigation, route }) => {
                 products: orders.map((o) => ({
                     id: o.id,
                     quantity: Number(o.order_quantity) || 0,
-                    unit_price: Number(o.unit_price) || 0,
+                    unit_price: resolveSaleUnitPrice(
+                        o.order_quantity,
+                        o.unit_price,
+                        o.alt_price,
+                        bulkDiscount,
+                    ),
                 })),
                 paymentMethod: selectedPaymentOption?.method || 'cash',
-                totalAmount,
+                totalAmount: saleTotal,
                 invoice_number: invoiceNumber,
                 discount_amount: discountTotal,
                 notes: ''
@@ -558,7 +565,7 @@ const NewSale = ({ navigation, route }) => {
                 } else {
                 const printPayload = {
                     id: Date.now(),
-                    total_amount: totalAmount,
+                    total_amount: saleTotal,
                     discount_amount: discountTotal,
                     invoice_number: invoiceNumber,
                     current_status: 1,
@@ -568,10 +575,12 @@ const NewSale = ({ navigation, route }) => {
                     products: orders.map((o) => ({
                         id: o.id,
                         quantity: Number(o.order_quantity) || 0,
-                        unit_price:
-                            Number(o.order_quantity) < 10
-                                ? Number(o.unit_price) || 0
-                                : Number(o.alt_price) || Number(o.unit_price) || 0,
+                        unit_price: resolveSaleUnitPrice(
+                            o.order_quantity,
+                            o.unit_price,
+                            o.alt_price,
+                            bulkDiscount,
+                        ),
                         name: o.name || o.product_name || 'Item',
                     })),
                     notes: `Paid with ${selectedPaymentOption?.method || 'cash'}${
@@ -650,11 +659,16 @@ const NewSale = ({ navigation, route }) => {
                 payment_number: selectedPaymentOption?.momoNumber || '',
                 store: selectedStore ? { name: selectedStore.name } : null,
                 discount_amount: discountTotal,
-                total_amount: totalAmount,
+                total_amount: saleTotal,
                 products: orders.map((o) => ({
                     name: o.name || o.product_name || 'Item',
                     quantity: Number(o.order_quantity) || 0,
-                    unit_price: Number(o.unit_price) || 0,
+                    unit_price: resolveSaleUnitPrice(
+                        o.order_quantity,
+                        o.unit_price,
+                        o.alt_price,
+                        bulkDiscount,
+                    ),
                 })),
                 user:
                     [currentUser?.first_name, currentUser?.last_name].filter(Boolean).join(' ') ||
@@ -664,11 +678,15 @@ const NewSale = ({ navigation, route }) => {
             setCompletedSaleForInvoice(saleForInvoice);
             setShowInvoiceShare(true);
         } catch (e) {
+            if (isPriceMismatchError(e)) {
+                Alert.alert('Price mismatch', getSaleApiErrorMessage(e));
+                return;
+            }
             try {
                 const pendingItem = {
                     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
                     customer: selectedCustomer?.name || 'Walk-in',
-                    amount: totalAmount,
+                    amount: saleTotal,
                     date: new Date().toLocaleString(),
                     attendant: null,
                     created_at: new Date().toISOString(),
@@ -846,7 +864,7 @@ const NewSale = ({ navigation, route }) => {
                                     </TouchableOpacity>
                                     <View style={{ flex: 1 }}>
                                         <AppText label={item.name} variant={2} numberOfLines={2} color={colors.text} />
-                                        <AppText label={`GH₵ ${item.order_quantity < 10 ? item.unit_price : item.alt_price} each`} fontSize={12} color={colors.textTertiary} style={{ marginTop: 2 }} />
+                                        <AppText label={`GH₵ ${resolveSaleUnitPrice(item.order_quantity, item.unit_price, item.alt_price, bulkDiscount)} each`} fontSize={12} color={colors.textTertiary} style={{ marginTop: 2 }} />
                                     </View>
                                 </TouchableOpacity>
                                 <View style={styles.orderRowRight}>
@@ -1056,7 +1074,7 @@ const NewSale = ({ navigation, route }) => {
                         {selectedProduct && (
                             <>
                                 <AppText label={selectedProduct.name} variant={1} fontSize={16} style={{ marginBottom: 8 }} color={colors.text} />
-                                <AppText label={`GHS ${((selectedProduct.order_quantity < 10) || (selectedProduct.order_quantity == null)) ? selectedProduct.unit_price : selectedProduct.alt_price} each`} fontSize={13} color={colors.textSecondary} style={{ marginBottom: 12 }} />
+                                <AppText label={`GHS ${resolveSaleUnitPrice(quantity || selectedProduct.order_quantity || 1, selectedProduct.unit_price, selectedProduct.alt_price, bulkDiscount)} each`} fontSize={13} color={colors.textSecondary} style={{ marginBottom: 12 }} />
                                 <TextInput
                                     value={quantity}
                                     placeholder="Quantity"

@@ -41,6 +41,16 @@ import { useCreateSaleMutation } from '../TradingApi';
 import { URLS } from '@/configs/settingsConfig';
 import { hasPermissionCodes } from '@auth/permissions';
 import { useVoiceSearch } from '@/hooks/useVoiceSearch';
+import {
+	getBulkDiscountFromCompany,
+	normalizeBulkDiscount,
+	resolveSaleUnitPrice,
+	lineDiscountAmount,
+	lineTotal as calcLineTotal,
+	isPriceMismatchError,
+	getSaleApiErrorMessage,
+} from '@/utils/bulkDiscount';
+import { useGetCompanyProfileQuery } from '../../company-profile/CompanyProfileApi';
 
 const _PRODUCTS_ = "_PRODUCTS_.";
 function safeString(v: any): string {
@@ -81,7 +91,14 @@ function NewSale() {
 
     const contentRef = useRef<HTMLDivElement>(null);
     const { data: user } = useUser();
+	const { data: companyProfile } = useGetCompanyProfileQuery(undefined, { refetchOnMountOrArgChange: true });
 	const [processing, setProcessing] = useState(false);
+	const bulkDiscount = useMemo(() => {
+		if (companyProfile?.bulkDiscount) {
+			return normalizeBulkDiscount(companyProfile.bulkDiscount);
+		}
+		return getBulkDiscountFromCompany((user as any)?.company);
+	}, [companyProfile, user]);
 
     // const products = useAppSelector(selectProducts);
     const { data: __products, currentData, refetch, isLoading } = useGetECommerceProductsWithPaginationQuery(
@@ -350,16 +367,29 @@ function NewSale() {
     const handleMakeNewSale = (paymentData) => {
         const nowIso = new Date().toISOString();
         const id = Date.now();
+        const orderTotal = currentOrder?.reduce(
+            (pr, c) => pr + calcLineTotal(c.order_quantity, c.unit_price, c.alt_price, bulkDiscount),
+            0
+        );
+        const orderDiscount = currentOrder?.reduce(
+            (pr, c) => pr + lineDiscountAmount(c.order_quantity, c.unit_price, c.alt_price, bulkDiscount),
+            0
+        );
         const payload = {
             id,
-            total_amount: currentOrder?.reduce((pr,c)=> pr + (c.order_quantity < 10 ? (c.order_quantity*c.unit_price) : (c.order_quantity*c.alt_price)), 0),
-            discount_amount: currentOrder?.reduce((pr,c)=> pr + (c.order_quantity < 10 ? 0 : (c.order_quantity* (c.unit_price - c.alt_price))), 0),
+            total_amount: orderTotal,
+            discount_amount: orderDiscount,
             invoice_number:`INV-${new Date().toJSON().split('T')[0]}-${Date.now()}`,
             current_status:1,
             customer_id: customer ? customers_data.find(c=> c.name == customer)?.id : null,
             customer: customer || 'Walk In',
             sale_date: new Date().toJSON(),
-            products: currentOrder.map(o=> {return {id: o.id, quantity: o.order_quantity, unit_price: (o.order_quantity < 10 ? o.unit_price:o.alt_price), name: o.name}}),
+            products: currentOrder.map(o=> {return {
+                id: o.id,
+                quantity: o.order_quantity,
+                unit_price: resolveSaleUnitPrice(o.order_quantity, o.unit_price, o.alt_price, bulkDiscount),
+                name: o.name
+            }}),
             notes: `Paid with ${paymentData.paymentType}${paymentData.transNumber ? (' '+paymentData.transNumber):''}`,
             cashier: user.displayName,
             created_at: new Date().toJSON(),
@@ -403,6 +433,24 @@ function NewSale() {
             setProcessing(true)
             createSale(payload)
                 .then((res)=> {
+                    if ('error' in res && res.error) {
+                        const err = res.error as any;
+                        const message = getSaleApiErrorMessage(err);
+                        if (isPriceMismatchError(err) || String(message).toLowerCase().includes('mismatch')) {
+                            toast.error(message);
+                            return;
+                        }
+                        dispatch(addItem({
+                            ...pendingRecord,
+                            attempts: 1,
+                            last_attempt_at: nowIso,
+                            last_error_code: getErrorCode(err) || null,
+                            last_error_message: message || null
+                        }));
+                        toast.error(message || 'Sale could not be uploaded. Saved to pending sales.');
+                        openInvoiceShare();
+                        return;
+                    }
                     if(res.data) {
                         toast.success('Sale uploaded successfully.')
                         const saleId = (res.data as { id?: string })?.id;
@@ -417,14 +465,19 @@ function NewSale() {
                     refetch()
                 })
                 .catch(err=> {
+                    const message = getSaleApiErrorMessage(err);
+                    if (isPriceMismatchError(err) || String(message).toLowerCase().includes('mismatch')) {
+                        toast.error(message);
+                        return;
+                    }
                     dispatch(addItem({
                         ...pendingRecord,
                         attempts: 1,
                         last_attempt_at: nowIso,
                         last_error_code: getErrorCode(err) || null,
-                        last_error_message: getErrorMessage(err) || null
+                        last_error_message: message || null
                     }));
-                    toast.success('Record saved in pending sales.');
+                    toast.error(message || 'Sale could not be uploaded. Saved to pending sales.');
                     openInvoiceShare();
                 })
                 .finally(()=> setProcessing(false))
@@ -913,9 +966,9 @@ function NewSale() {
                                     )}
                                     <div className='ml-2 flex-1'>
                                         <p className='mb-1'>{product.name}</p>
-                                        <span className='text-sm' >x{product.order_quantity} (₵{product.order_quantity < 10 ? product.unit_price : product.alt_price}</span>)
+                                        <span className='text-sm' >x{product.order_quantity} (₵{resolveSaleUnitPrice(product.order_quantity, product.unit_price, product.alt_price, bulkDiscount)}</span>)
                                         <div className='flex flex-1 justify-between items-center'>
-                                            <span><b>₵ {product.order_quantity < 10 ? Number(product.order_quantity*product.unit_price).toFixed(2) : Number(product.order_quantity*product.alt_price).toFixed(2)}</b></span>
+                                            <span><b>₵ {Number(calcLineTotal(product.order_quantity, product.unit_price, product.alt_price, bulkDiscount)).toFixed(2)}</b></span>
                                             <div className='flex justify-between items-center'>
                                                 {/* <span onClick={()=> handleReduceQuantity(product)} className='flex cursor-pointer justify-center items-center' style={{width:20,height:20,borderRadius:20,backgroundColor:'#ddd',color:'#fff'}}>-</span>
                                                 <span className='mx-2'>{product.order_quantity}</span>
@@ -970,7 +1023,7 @@ function NewSale() {
                             </div>
                             <div className='flex justify-between mb-2'>
                                 <p>Discount</p>
-                                <p>₵ {Number(currentOrder?.reduce((pr,c)=> pr + (c.order_quantity < 10 ? 0 : (c.order_quantity* (c.unit_price - c.alt_price))), 0)).toFixed(2)}</p>
+                                <p>₵ {Number(currentOrder?.reduce((pr,c)=> pr + lineDiscountAmount(c.order_quantity, c.unit_price, c.alt_price, bulkDiscount), 0)).toFixed(2)}</p>
                             </div>
                             <div className='flex justify-between mb-2'>
                                 <p>Items</p>
@@ -979,7 +1032,7 @@ function NewSale() {
                             <hr className='mb-2'/>
                             <div className='flex justify-between'>
                                 <p>Total</p>
-                                <p>₵ {Number(currentOrder?.reduce((pr,c)=> pr + (c.order_quantity < 10 ? (c.order_quantity*c.unit_price) : (c.order_quantity*c.alt_price)), 0)).toFixed(2)}</p>
+                                <p>₵ {Number(currentOrder?.reduce((pr,c)=> pr + calcLineTotal(c.order_quantity, c.unit_price, c.alt_price, bulkDiscount), 0)).toFixed(2)}</p>
                             </div>
                         </div>
                         <Button

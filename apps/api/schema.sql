@@ -15,7 +15,8 @@ create table tenants (
     website varchar(200),
     logo varchar(200),
     email varchar(300),
-    industry_id varchar(40)
+    industry_id varchar(40),
+    settings jsonb not null default '{}'::jsonb
 );
 
 create table subscriptions (

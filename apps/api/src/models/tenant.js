@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { onboardSubscriptionService } from "./subscription.js";
 import { createUserService } from "./user.js";
 import { assertShopOwnerEmailVerified } from "./emailVerification.js";
+import { mergeTenantSettings, getBulkDiscountFromSettings } from "../utils/bulkDiscount.js";
 
 /**
  * Create a tenant, then create and link a subscription (onboardSubscriptionService flow), then create a user.
@@ -212,7 +213,7 @@ export const getTenantByIdService = async (id) => {
  */
 export const updateTenantService = async (tenant_id, payload, options = {}) => {
     const { setup_inventory = false, creator_id = null } = options;
-    const { name, organization, phone, notes, address, email, city, state, country, postal_code, website, logo, product_categorization, industry_id, warehouse_name } = payload;
+    const { name, organization, phone, notes, address, email, city, state, country, postal_code, website, logo, product_categorization, industry_id, warehouse_name, settings } = payload;
 
     const updates = [];
     const values = [];
@@ -232,6 +233,15 @@ export const updateTenantService = async (tenant_id, payload, options = {}) => {
     if (product_categorization !== undefined) { updates.push(`product_categorization = $${i++}`); values.push(product_categorization); }
     if (industry_id !== undefined) { updates.push(`industry_id = $${i++}`); values.push(industry_id); }
     if (creator_id !== undefined) { updates.push(`updator_id = $${i++}`); values.push(creator_id); }
+    if (settings !== undefined) {
+        const current = await pool.query(`SELECT settings FROM tenants WHERE id = $1`, [tenant_id]);
+        if (!current.rowCount) {
+            throw new Error("Tenant not found.");
+        }
+        const merged = mergeTenantSettings(current.rows[0].settings, settings);
+        updates.push(`settings = $${i++}`);
+        values.push(JSON.stringify(merged));
+    }
     if (updates.length === 0 && !setup_inventory) {
         const row = await pool.query("SELECT * FROM tenants WHERE id = $1", [tenant_id]);
         return row.rows[0] || null;
@@ -294,11 +304,17 @@ export const updateTenantService = async (tenant_id, payload, options = {}) => {
     // }
 
     const row = await pool.query(
-        `SELECT id, name, organization, phone, email, notes, address, city, state, country, postal_code, website, logo, product_categorization, industry_id, created_at, updated_at
+        `SELECT id, name, organization, phone, email, notes, address, city, state, country, postal_code, website, logo, product_categorization, industry_id, settings, created_at, updated_at
          FROM tenants WHERE id = $1`,
         [tenant_id]
     );
-    return row.rows[0] || null;
+    const tenant = row.rows[0] || null;
+    if (tenant) {
+        tenant.settings = {
+            bulk_discount: getBulkDiscountFromSettings(tenant.settings),
+        };
+    }
+    return tenant;
 };
 
 /**

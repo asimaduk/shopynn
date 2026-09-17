@@ -6,6 +6,19 @@ export const createSale = async (req, res, next) => {
         const newSale = await createSaleService(req.body);
         handleResponse(res, 201, "Sale creation success.", newSale);
     } catch (error) {
+        if (error?.code === "PRICE_MISMATCH" || error?.status === 400) {
+            return handleResponse(res, 400, error.message, {
+                code: error.code || "PRICE_MISMATCH",
+                ...(error.details || {}),
+            });
+        }
+        if (
+            error?.message?.includes("Products list cannot be empty") ||
+            error?.message?.includes("tenant_id is required") ||
+            error?.message?.includes("Tenant not found")
+        ) {
+            return handleResponse(res, 400, error.message, null);
+        }
         next(error);
     }
 }

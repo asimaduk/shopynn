@@ -254,8 +254,7 @@ const NewPurchase = ({ navigation, route }) => {
     const lineTotal = (item) => {
         const q = Number(item.order_quantity) || 0;
         const u = Number(item.unit_price) || 0;
-        const a = Number(item.alt_price) || u;
-        return q < 10 ? q * u : q * a;
+        return q * u;
     };
     const subtotal = orders.reduce((sum, c) => sum + Number(c.order_quantity) * Number(c.unit_price), 0);
     const discount = Math.max(0, Number(discountAmount) || 0);
@@ -354,7 +353,7 @@ const NewPurchase = ({ navigation, route }) => {
                                     </TouchableOpacity>
                                     <View style={{ flex: 1 }}>
                                         <AppText label={item.name} variant={2} numberOfLines={2} color={colors.text} />
-                                        <AppText label={`GH₵ ${item.order_quantity < 10 ? item.unit_price : item.alt_price} each`} fontSize={12} color={colors.textTertiary} style={{ marginTop: 2 }} />
+                                        <AppText label={`GH₵ ${item.unit_price} each`} fontSize={12} color={colors.textTertiary} style={{ marginTop: 2 }} />
                                     </View>
                                 </TouchableOpacity>
                                 <View style={styles.orderRowRight}>
@@ -489,7 +488,7 @@ const NewPurchase = ({ navigation, route }) => {
                         {selectedProduct && (
                             <>
                                 <AppText label={selectedProduct.name} variant={1} fontSize={16} style={{ marginBottom: 8 }} color={colors.text} />
-                                <AppText label={`GH₵ ${selectedProduct.order_quantity < 10 ? selectedProduct.unit_price : selectedProduct.alt_price} each`} fontSize={13} color={colors.textSecondary} style={{ marginBottom: 12 }} />
+                                <AppText label={`GH₵ ${selectedProduct.unit_price} each`} fontSize={13} color={colors.textSecondary} style={{ marginBottom: 12 }} />
                                 <TextInput value={quantity} placeholder="Quantity" placeholderTextColor={colors.placeholder} keyboardType="number-pad" onChangeText={setQuantity} style={[styles.quantityInput, { borderColor: colors.inputBorder, color: colors.text }]} />
                                 <TouchableOpacity activeOpacity={0.8} disabled={!quantity || Number(quantity) < 1} onPress={handleAddProduct} style={[styles.addQtyBtn, (!quantity || Number(quantity) < 1) && [styles.addQtyBtnDisabled, { backgroundColor: colors.surfaceTertiary }]]}>
                                     <AppText label={orders.find((o) => o.id === selectedProduct.id || o.name === selectedProduct.name) ? "Update quantity" : "Add to purchase"} color={colors.textInverse} variant={1} />
