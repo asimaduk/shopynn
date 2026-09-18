@@ -101,8 +101,13 @@ axios.interceptors.request.use(
             url.includes('/users/shop-owner-signup');
 
         if (!isPublicAuth) {
-            const access_token = await getAccessToken();
-            if (access_token) config.headers['Authorization'] = `Bearer ${access_token}`;
+            const existingAuth =
+                config.headers?.Authorization ||
+                config.headers?.authorization;
+            if (!existingAuth) {
+                const access_token = await getAccessToken();
+                if (access_token) config.headers['Authorization'] = `Bearer ${access_token}`;
+            }
         } else if (config.headers) {
             delete config.headers.Authorization;
             delete config.headers.authorization;

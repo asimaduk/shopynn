@@ -1,6 +1,7 @@
 /**
  * Secure token storage using OS Keychain/Keystore.
- * Falls back to AsyncStorage if Keychain is unavailable.
+ * Always mirrors to AsyncStorage so /users/me right after login never races
+ * a Keychain read miss (common on iOS simulator / New Arch).
  * Use for BRS_ACCESS_TOKEN and BRS_REFRESH_TOKEN only.
  */
 import * as Keychain from 'react-native-keychain';
@@ -43,7 +44,7 @@ async function removeKeychain(service) {
 }
 
 /**
- * One-time migration: move tokens from AsyncStorage to Keychain.
+ * One-time migration: move tokens from AsyncStorage to Keychain (keep AsyncStorage mirror).
  */
 async function migrateFromAsyncStorage() {
     try {
@@ -54,8 +55,6 @@ async function migrateFromAsyncStorage() {
         if (access) await setKeychain(SERVICE_ACCESS, access);
         if (refresh) await setKeychain(SERVICE_REFRESH, refresh);
         await AsyncStorage.setItem(MIGRATION_DONE_KEY, 'true');
-        if (access) await AsyncStorage.removeItem(ACCESS_TOKEN_KEY);
-        if (refresh) await AsyncStorage.removeItem(REFRESH_TOKEN_KEY);
     } catch (_) {}
 }
 
@@ -81,13 +80,15 @@ export async function getRefreshToken() {
 
 /**
  * Set access and optional refresh token after login/refresh.
+ * Dual-write Keychain + AsyncStorage so the next request always finds the token.
  */
 export async function setTokens(accessToken, refreshToken = null) {
+    if (!accessToken) return;
     await setKeychain(SERVICE_ACCESS, accessToken);
-    if (refreshToken != null) await setKeychain(SERVICE_REFRESH, refreshToken);
-    if (!useKeychain) {
-        await AsyncStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
-        if (refreshToken != null) await AsyncStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+    await AsyncStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+    if (refreshToken != null) {
+        await setKeychain(SERVICE_REFRESH, refreshToken);
+        await AsyncStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
     }
 }
 

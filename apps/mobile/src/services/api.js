@@ -188,7 +188,15 @@ export const users = {
     forgotPassword: (email) => axios.post('/users/forgot-password', { email }).then((res) => res.data),
     resetPassword: (currentPassword, newPassword) => axios.post('/users/reset-password', { password: newPassword, old_password: currentPassword }).then((res) => res.data),
     changePassword: (currentPassword, newPassword) => axios.post('/users/change-password', { current_password: currentPassword, new_password: newPassword }).then((res) => res.data),
-    me: () => axios.get('/users/me').then((res) => getData(res)),
+    me: (accessToken) =>
+        axios
+            .get(
+                '/users/me',
+                accessToken
+                    ? { headers: { Authorization: `Bearer ${accessToken}` } }
+                    : undefined
+            )
+            .then((res) => getData(res)),
     updateProfileImage: (image) => {
         const form = new FormData();
         const uri = image?.uri;

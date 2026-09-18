@@ -11,6 +11,15 @@ import requireActiveSubscription from "../middleware/requireActiveSubscription.j
 
 const router = express.Router();
 
+// Public auth routes first so they are never captured by `/:id` (e.g. GET /users/login).
+router.post('/login', loginUser);
+router.post('/forgot-password', forgotPassword);
+router.post('/customer-signup/verify-reference', verifyStoreReferencePublic);
+router.post('/customer-signup', signupCustomerAccount);
+router.post('/shop-owner-signup/send-email-otp', sendShopOwnerSignupEmailOtp);
+router.post('/shop-owner-signup/verify-email-otp', verifyShopOwnerSignupEmailOtp);
+router.post('/system-add', createUser);
+
 router.post('/', auth, requireActiveSubscription, createUser);
 router.get('/', auth, requireActiveSubscription, getAllUsers);
 /** Allow inactive subscriptions so clients can show profile/billing renewal (session + RTK still gate the rest of the app). */
@@ -23,17 +32,10 @@ router.put('/me/preferences', auth, requireActiveSubscription, updateMyPreferenc
 router.put('/me/fcm-token', auth, updateMyFcmToken);
 router.put('/toggle-active', auth, requireActiveSubscription, toggleUserActive);
 router.post('/assign-merchant-permissions', auth, requireActiveSubscription, assignMerchantPermissionsToUserRole);
+router.post('/reset-password', auth, requireActiveSubscription, resetPassword);
+router.post('/change-password', auth, requireActiveSubscription, changePasswordWithTemporary);
 router.put('/:id/delete', auth, requireActiveSubscription, deleteUser);
 router.put('/:id', auth, requireActiveSubscription, updateUser);
 router.get('/:id', auth, requireActiveSubscription, getUserDetails);
-router.post('/login', loginUser);
-router.post('/customer-signup/verify-reference', verifyStoreReferencePublic);
-router.post('/customer-signup', signupCustomerAccount);
-router.post('/shop-owner-signup/send-email-otp', sendShopOwnerSignupEmailOtp);
-router.post('/shop-owner-signup/verify-email-otp', verifyShopOwnerSignupEmailOtp);
-router.post('/system-add', createUser);
-router.post('/reset-password', auth, requireActiveSubscription, resetPassword);
-router.post('/change-password', auth, requireActiveSubscription, changePasswordWithTemporary);
-router.post('/forgot-password', forgotPassword);
 
 export default router;

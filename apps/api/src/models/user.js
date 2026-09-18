@@ -293,8 +293,7 @@ export const getUserByIdService = async (id) => {
 
         delete rtn['temporary_password'];
         delete rtn['tenant_id'];
-        delete rtn['id'];
-        /** merchant_id retained for client routing / portal gating */
+        /** id + merchant_id retained for client routing / portal gating */
 
         // console.log('rtn', rtn);
         return rtn;

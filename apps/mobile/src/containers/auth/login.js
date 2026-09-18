@@ -158,7 +158,8 @@ const Login = ({ navigation, route }) => {
         await setTokens(token);
         let profile = { email: e, role: '' };
         try {
-            const me = await usersApi.me();
+            // Pass token explicitly so /users/me never races Keychain/AsyncStorage.
+            const me = await usersApi.me(token);
             if (me?.reset_password) {
                 Alert.alert('Reset password', 'Please reset your password to continue.');
                 navigation.navigate('ResetPassword', { changePassword: true });
@@ -182,8 +183,21 @@ const Login = ({ navigation, route }) => {
                 } else if (operateOnlyClientsTab) {
                     postLoginScreen = 'ClientsTab';
                 }
+                let resolvedUserId = me.id;
+                if (!resolvedUserId && token) {
+                    try {
+                        const payloadPart = String(token).split('.')[1] || '';
+                        const padded = payloadPart + '='.repeat((4 - (payloadPart.length % 4)) % 4);
+                        const json = globalThis.atob
+                            ? globalThis.atob(padded.replace(/-/g, '+').replace(/_/g, '/'))
+                            : Buffer.from(padded.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+                        resolvedUserId = JSON.parse(json)?.id ?? null;
+                    } catch (_) {
+                        resolvedUserId = null;
+                    }
+                }
                 profile = {
-                    id: me.id,
+                    id: resolvedUserId,
                     name: `${me.first_name} ${me.last_name}`,
                     email: me.email || e,
                     roles: me.settings?.roles?.map((r) => r.name).join(', ') || '',
@@ -319,13 +333,21 @@ const Login = ({ navigation, route }) => {
                 );
                 return;
             }
-            const serverMsg = err?.response?.data?.message || err?.message || 'Invalid email or password.';
-            // Always surface host/status while diagnosing Railway cutover (dev builds).
+            const inactive =
+                String(apiPayload?.code || '').toUpperCase() === 'ACCOUNT_INACTIVE' ||
+                apiPayload?.isActive === false;
+            if (status === 403 && inactive) {
+                Alert.alert('Account inactive', 'Your account is inactive. Contact your administrator.');
+                return;
+            }
+            const serverMsg =
+                (typeof err?.response?.data?.message === 'string' && err.response.data.message) ||
+                (typeof err?.response?.data?.error === 'string' && err.response.data.error) ||
+                err?.message ||
+                'Invalid email or password.';
             const detail = `${serverMsg}\nAPI: ${config.BASE_API}\nHTTP: ${status || 'network'}`;
             setLoginError(detail);
-            if (__DEV__) {
-                Alert.alert('Sign-in failed', detail);
-            }
+            Alert.alert('Sign-in failed', detail);
         } finally {
             setLoading(false);
         }

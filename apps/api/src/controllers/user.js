@@ -125,6 +125,13 @@ export const loginUser = async (req, res, next) => {
             });
             return;
         }
+        if (info?.isActive === false) {
+            handleResponse(res, 403, "Your account is inactive. Contact your administrator.", {
+                isActive: false,
+                code: "ACCOUNT_INACTIVE",
+            });
+            return;
+        }
         if (info && info.token) {
             handleResponse(res, 200, "Login success.", info);
         }
