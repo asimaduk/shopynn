@@ -20,6 +20,7 @@ import {
     getAdminTenantSettlements,
     getMyPayoutProfile,
     getPayoutBankOptions,
+    resolvePayoutAccount,
     getMySettlementSummary,
     getMySettlements,
     listAdminWithdrawalRequests,
@@ -60,6 +61,14 @@ router.get(
     requireFeature("payments.view"),
     requirePermission("payments.view"),
     getPayoutBankOptions
+);
+router.get(
+    "/payout-account-resolve",
+    auth,
+    requireActiveSubscription,
+    requireFeature("payments.view"),
+    requirePermission("payments.view"),
+    resolvePayoutAccount
 );
 router.get(
     "/me/payout-profile",

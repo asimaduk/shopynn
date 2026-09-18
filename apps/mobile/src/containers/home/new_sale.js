@@ -15,7 +15,8 @@ import VoiceAddToSaleModal from './VoiceAddToSaleModal';
 import { FlashList } from '@shopify/flash-list';
 import { launchCamera } from 'react-native-image-picker';
 import useTheme from '../../hooks/useTheme';
-import { sales as salesApi, warehouses as warehousesApi, customers as customersApi, normalizeList } from '../../services/api';
+import { sales as salesApi, warehouses as warehousesApi, customers as customersApi, payments as paymentsApi, platformSettings, normalizeList } from '../../services/api';
+import { MOMO_NETWORK_OPTIONS, getMomoNetworkIcon } from '../../utils/momoNetworks';
 import { hasPermission, hasFeature, getScreenPlanAccess, navigateToScreenOrUpgrade } from '../../utils/permissions';
 import { getPrintAgentPrintUrl } from '../../utils/printAgent';
 import {
@@ -25,6 +26,7 @@ import {
     writeSecureList,
 } from '../../utils/secureOfflineStorage';
 import { normalizeWarehousePrinterType } from '../../utils/warehousePrinter';
+import { buildInvoiceNumberFromSettings } from '../../utils/invoiceNumbering';
 import {
     getBulkDiscountFromCompany,
     resolveSaleUnitPrice,
@@ -157,7 +159,18 @@ const NewSale = ({ navigation, route }) => {
     const [showInvoiceShare, setShowInvoiceShare] = useState(false);
     const [showVoiceAdd, setShowVoiceAdd] = useState(false);
     const [completedSaleForInvoice, setCompletedSaleForInvoice] = useState(null);
-    const [selectedPaymentOption, setSelectedPaymentOption] = useState({ method: 'cash', balance: '', momoNumber: '' });
+    const [selectedPaymentOption, setSelectedPaymentOption] = useState({
+        method: 'cash',
+        amountTendered: '',
+        momoNumber: '',
+        provider: 'mtn',
+        transactionRef: null,
+        paid: false,
+    });
+    const [momoCharge, setMomoCharge] = useState({ enabled: true, percent: 2 });
+    const [momoSending, setMomoSending] = useState(false);
+    const [momoStatusText, setMomoStatusText] = useState('');
+    const [momoOtp, setMomoOtp] = useState('');
     const paymentOptionsScrollRef = useRef(null);
 
     const filteredStores = stores.filter((s) =>
@@ -203,7 +216,7 @@ const NewSale = ({ navigation, route }) => {
             paymentOption: selectedPaymentOption
                 ? {
                     method: selectedPaymentOption.method,
-                    balance: selectedPaymentOption.balance,
+                    amountTendered: selectedPaymentOption.amountTendered,
                     momoNumber: selectedPaymentOption.momoNumber,
                 }
                 : null,
@@ -232,7 +245,17 @@ const NewSale = ({ navigation, route }) => {
             setSelectedStore(held.store || null);
             setSelectedCustomer(held.customer || null);
             setOrders(Array.isArray(held.orders) ? held.orders : []);
-            if (held.paymentOption) setSelectedPaymentOption(held.paymentOption);
+            if (held.paymentOption) {
+                const po = held.paymentOption;
+                setSelectedPaymentOption({
+                    method: po.method || 'cash',
+                    amountTendered: po.amountTendered ?? po.balance ?? '',
+                    momoNumber: po.momoNumber || '',
+                    provider: po.provider || 'mtn',
+                    transactionRef: po.transactionRef || null,
+                    paid: Boolean(po.paid),
+                });
+            }
             setShowHeldItems(false);
             setHeldSearch('');
 
@@ -300,7 +323,17 @@ const NewSale = ({ navigation, route }) => {
         // Restore sale draft from a pending record.
         if (pendingSale.store) setSelectedStore(pendingSale.store);
         if (pendingSale.customer) setSelectedCustomer(pendingSale.customer);
-        if (pendingSale.paymentOption) setSelectedPaymentOption(pendingSale.paymentOption);
+        if (pendingSale.paymentOption) {
+            const po = pendingSale.paymentOption;
+            setSelectedPaymentOption({
+                method: po.method || 'cash',
+                amountTendered: po.amountTendered ?? po.balance ?? '',
+                momoNumber: po.momoNumber || '',
+                provider: po.provider || 'mtn',
+                transactionRef: po.transactionRef || null,
+                paid: Boolean(po.paid),
+            });
+        }
 
         const restoredOrders =
             (Array.isArray(pendingSale.orders_full) && pendingSale.orders_full.length && pendingSale.orders_full) ||
@@ -311,6 +344,95 @@ const NewSale = ({ navigation, route }) => {
             setOrders(restoredOrders);
         }
     }, [route.params?.restorePendingSale, navigation]);
+
+    useEffect(() => {
+        const parked = route.params?.restoreParkedMomo;
+        if (!parked?.transaction_ref) return;
+        navigation.setParams({ restoreParkedMomo: undefined });
+
+        const snap = parked.pos_cart_snapshot || {};
+        const lines = Array.isArray(snap.products)
+            ? snap.products
+            : Array.isArray(snap.currentOrder)
+              ? snap.currentOrder
+              : Array.isArray(snap.orders)
+                ? snap.orders
+                : [];
+        if (lines.length) {
+            setOrders(
+                lines.map((line) => ({
+                    ...line,
+                    quantity: Number(line.quantity ?? line.order_quantity) || 1,
+                    order_quantity: Number(line.order_quantity ?? line.quantity) || 1,
+                }))
+            );
+        }
+        if (snap.customer_name || snap.customer) {
+            setSelectedCustomer(
+                typeof snap.customer === 'object' && snap.customer
+                    ? snap.customer
+                    : { id: snap.customer_id, name: snap.customer_name || snap.customer }
+            );
+        }
+        if (snap.warehouse_id && snap.warehouse_name) {
+            setSelectedStore({ id: snap.warehouse_id, name: snap.warehouse_name });
+        } else if (snap.store) {
+            setSelectedStore(snap.store);
+        }
+
+        const paid = ['success', 'paid', 'completed'].includes(String(parked.status || '').toLowerCase());
+        setSelectedPaymentOption({
+            method: 'momo',
+            amountTendered: '',
+            momoNumber: String(parked.payment_number || snap.payment_number || '').replace(/\D/g, ''),
+            provider: snap.provider || 'mtn',
+            transactionRef: parked.transaction_ref,
+            paid,
+        });
+        setMomoStatusText(
+            paid
+                ? `Parked MoMo confirmed. ${completeLabel} to finish.`
+                : 'Resumed parked MoMo. Check status when the customer confirms.'
+        );
+        setShowPaymentOptions(true);
+    }, [route.params?.restoreParkedMomo, navigation]);
+
+    /** After POS “Add customer”, refresh list and reopen picker with the new customer selected. */
+    useEffect(() => {
+        const token = route.params?.posCustomerRefreshAt;
+        if (!token) return;
+        const newly = route.params?.newlyCreatedCustomer;
+        navigation.setParams({
+            posCustomerRefreshAt: undefined,
+            newlyCreatedCustomer: undefined,
+        });
+
+        let active = true;
+        (async () => {
+            try {
+                const rawCustomers = await customersApi.list();
+                const list = normalizeList(rawCustomers) || [];
+                if (!active) return;
+                setCustomers(list);
+                if (newly?.id) {
+                    const match =
+                        list.find((c) => String(c?.id) === String(newly.id)) || newly;
+                    setSelectedCustomer(match);
+                }
+                setCustomerSearch('');
+                setShowCustomers(true);
+            } catch (_) {
+                if (newly?.id && active) {
+                    setSelectedCustomer(newly);
+                    setShowCustomers(true);
+                }
+            }
+        })();
+
+        return () => {
+            active = false;
+        };
+    }, [route.params?.posCustomerRefreshAt, route.params?.newlyCreatedCustomer, navigation]);
 
     const backPress = () => {
         navigation.goBack();
@@ -515,15 +637,303 @@ const NewSale = ({ navigation, route }) => {
         }, [selectedStore, loadHeldSales, canMultiStores, userWarehouseId, navigation, route.params?.restorePendingSale])
     );
 
+    useEffect(() => {
+        if (!showPaymentOptions) return;
+        let active = true;
+        platformSettings
+            .getMomoPaymentCharge()
+            .then((data) => {
+                if (active && data) setMomoCharge(data);
+            })
+            .catch(() => {});
+        return () => {
+            active = false;
+        };
+    }, [showPaymentOptions]);
+
+    const momoFace = Number(totalAmount) || 0;
+    const momoPercent = momoCharge?.enabled ? Number(momoCharge.percent) || 0 : 0;
+    const momoFee = momoCharge?.enabled
+        ? Math.round(((momoFace * momoPercent) / 100) * 100) / 100
+        : 0;
+    const momoChargeTotal = Math.round((momoFace + momoFee) * 100) / 100;
+    const warehouseForPaymentLabel =
+        (resolvedWarehouseId != null && Array.isArray(stores)
+            ? stores.find((s) => String(s?.id) === String(resolvedWarehouseId))
+            : null) || selectedStore;
+    const paymentPrinterType = normalizeWarehousePrinterType(warehouseForPaymentLabel?.printer_type);
+    const willAutoPrint = paymentPrinterType === 'thermal' || paymentPrinterType === 'a4';
+    const completeLabel = willAutoPrint ? 'Complete & print' : 'Complete sale';
+    const completeAfterMomoLabel = willAutoPrint
+        ? 'Complete & print (after MoMo paid)'
+        : 'Complete sale (after MoMo paid)';
+    const cashTenderedParsed =
+        String(selectedPaymentOption.amountTendered || '').trim() === ''
+            ? null
+            : Number(String(selectedPaymentOption.amountTendered).replace(/,/g, ''));
+    const cashTenderedAmount =
+        cashTenderedParsed != null && Number.isFinite(cashTenderedParsed)
+            ? Math.round(cashTenderedParsed * 100) / 100
+            : null;
+    const cashChangeAmount =
+        cashTenderedAmount != null
+            ? Math.round(Math.max(0, cashTenderedAmount - momoFace) * 100) / 100
+            : 0;
+    const cashTenderOk = cashTenderedAmount == null || cashTenderedAmount + 0.001 >= momoFace;
+
+    const handleSendMomo = async (opts = {}) => {
+        const forceNew = Boolean(opts.forceNew);
+        const digits = String(selectedPaymentOption.momoNumber || '').replace(/\D/g, '');
+        if (digits.length < 10) {
+            Alert.alert('MoMo', 'Enter a full MoMo number (10 digits).');
+            return;
+        }
+        if (momoFace <= 0) {
+            Alert.alert('MoMo', 'Sale total must be greater than zero.');
+            return;
+        }
+        if (selectedPaymentOption.paid && selectedPaymentOption.transactionRef) {
+            Alert.alert('MoMo', `Payment already confirmed. ${completeLabel} — do not send another charge.`);
+            return;
+        }
+        setMomoSending(true);
+        setMomoStatusText(forceNew ? 'Starting a new MoMo prompt…' : 'Sending MoMo prompt…');
+        try {
+            const res = await paymentsApi.initiate({
+                face_amount: momoFace,
+                payment_method: 'mobile_money',
+                phone: digits,
+                provider: selectedPaymentOption.provider || 'mtn',
+                source: 'pos_sale',
+                payment_number: digits,
+                force_new: forceNew,
+            });
+            const ref = res?.transaction_ref;
+            if (!ref) {
+                Alert.alert('MoMo', 'No payment reference returned.');
+                setMomoSending(false);
+                return;
+            }
+            setSelectedPaymentOption((p) => ({ ...p, transactionRef: ref, momoNumber: digits }));
+
+            if (res?.reused || String(res?.status || '').toLowerCase() === 'success') {
+                setSelectedPaymentOption((p) => ({ ...p, paid: true, transactionRef: ref }));
+                setMomoStatusText(
+                    res?.display_text || `Previous MoMo payment already confirmed. ${completeLabel}.`,
+                );
+                return;
+            }
+
+            if (res?.resume) {
+                setMomoStatusText(
+                    res?.display_text ||
+                        'A MoMo prompt is already open. Ask the customer to approve it.',
+                );
+            } else {
+                setMomoStatusText(res?.display_text || 'Approve the MoMo prompt on the phone.');
+            }
+
+            const status = String(res?.status || '').toLowerCase();
+            if (status === 'success') {
+                setSelectedPaymentOption((p) => ({ ...p, paid: true, transactionRef: ref }));
+                setMomoStatusText('Payment confirmed.');
+            } else {
+                for (let i = 0; i < 12; i += 1) {
+                    await new Promise((r) => setTimeout(r, 2500));
+                    try {
+                        const v = await paymentsApi.verify(ref);
+                        const st = String(v?.status || '').toLowerCase();
+                        if (st === 'success' || st === 'paid' || st === 'completed') {
+                            setSelectedPaymentOption((p) => ({ ...p, paid: true, transactionRef: ref }));
+                            setMomoStatusText('Payment confirmed.');
+                            break;
+                        }
+                        setMomoStatusText(`Waiting… (${st || 'pending'})`);
+                    } catch (_) {
+                        /* continue */
+                    }
+                }
+            }
+        } catch (e) {
+            Alert.alert('MoMo', e?.response?.data?.message || e?.message || 'Could not start MoMo payment');
+            setMomoStatusText('');
+        } finally {
+            setMomoSending(false);
+        }
+    };
+
+    const handleCancelMomoAndSendAgain = () => {
+        if (selectedPaymentOption.paid && selectedPaymentOption.transactionRef) {
+            Alert.alert('MoMo', `Payment already succeeded. ${completeLabel} — do not send another charge.`);
+            return;
+        }
+        Alert.alert(
+            'New MoMo prompt?',
+            'The customer may still approve the previous prompt. Continue only if it failed or timed out.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Send again',
+                    style: 'destructive',
+                    onPress: async () => {
+                        const ref = selectedPaymentOption.transactionRef;
+                        if (ref) {
+                            try {
+                                await paymentsApi.posAbandon({ reference: ref });
+                            } catch (e) {
+                                const msg = e?.response?.data?.message || e?.message || '';
+                                if (/already succeeded/i.test(String(msg))) {
+                                    setSelectedPaymentOption((p) => ({ ...p, paid: true }));
+                                    setMomoStatusText(`MoMo already confirmed. ${completeLabel}.`);
+                                    return;
+                                }
+                            }
+                        }
+                        setSelectedPaymentOption((p) => ({
+                            ...p,
+                            transactionRef: null,
+                            paid: false,
+                        }));
+                        setMomoOtp('');
+                        setMomoStatusText('');
+                        await handleSendMomo({ forceNew: true });
+                    },
+                },
+            ],
+        );
+    };
+
+    const handleSubmitMomoOtp = async () => {
+        if (!selectedPaymentOption.transactionRef || !momoOtp) {
+            Alert.alert('MoMo', 'Enter the OTP from the network.');
+            return;
+        }
+        setMomoSending(true);
+        try {
+            const res = await paymentsApi.submitOtp({
+                reference: selectedPaymentOption.transactionRef,
+                otp: momoOtp,
+            });
+            const st = String(res?.status || '').toLowerCase();
+            if (st === 'success') {
+                setSelectedPaymentOption((p) => ({ ...p, paid: true }));
+                setMomoStatusText('Payment confirmed.');
+            } else {
+                setMomoStatusText(res?.display_text || 'OTP submitted — waiting…');
+            }
+        } catch (e) {
+            Alert.alert('MoMo', e?.response?.data?.message || e?.message || 'OTP failed');
+        } finally {
+            setMomoSending(false);
+        }
+    };
+
+    const handleCheckMomoStatus = async () => {
+        const ref = selectedPaymentOption.transactionRef;
+        if (!ref) return;
+        setMomoSending(true);
+        try {
+            const v = await paymentsApi.verify(ref);
+            const st = String(v?.status || '').toLowerCase();
+            if (st === 'success' || st === 'paid' || st === 'completed') {
+                setSelectedPaymentOption((p) => ({ ...p, paid: true }));
+                setMomoStatusText('Payment confirmed.');
+            } else {
+                setMomoStatusText(`Status: ${st || 'pending'}`);
+            }
+        } catch (e) {
+            Alert.alert('MoMo', e?.response?.data?.message || e?.message || 'Could not verify');
+        } finally {
+            setMomoSending(false);
+        }
+    };
+
+    const handleParkMomoAndServeNext = async () => {
+        const ref = selectedPaymentOption.transactionRef;
+        if (!ref) {
+            Alert.alert('MoMo', 'Send MoMo first before parking.');
+            return;
+        }
+        if (!orders.length) {
+            Alert.alert('MoMo', 'Cart is empty.');
+            return;
+        }
+        setMomoSending(true);
+        try {
+            await paymentsApi.posPark({
+                reference: ref,
+                cart_snapshot: {
+                    warehouse_id: selectedStore?.id || resolvedWarehouseId,
+                    warehouse_name: selectedStore?.name || null,
+                    customer_id: selectedCustomer?.id || null,
+                    customer_name: selectedCustomer?.name || null,
+                    products: orders.map((o) => ({ ...o })),
+                    provider: selectedPaymentOption.provider || 'mtn',
+                    payment_number: selectedPaymentOption.momoNumber,
+                    store: selectedStore,
+                    customer: selectedCustomer,
+                },
+            });
+            setOrders([]);
+            setSelectedCustomer(null);
+            setSelectedPaymentOption({
+                method: 'cash',
+                amountTendered: '',
+                momoNumber: '',
+                provider: 'mtn',
+                transactionRef: null,
+                paid: false,
+            });
+            setMomoStatusText('');
+            setMomoOtp('');
+            setShowPaymentOptions(false);
+            Toast.show({
+                type: 'success',
+                text1: 'MoMo parked',
+                text2: 'Serve the next customer — finish later from Pending MoMo.',
+            });
+        } catch (e) {
+            Alert.alert('MoMo', e?.response?.data?.message || e?.message || 'Could not park payment');
+        } finally {
+            setMomoSending(false);
+        }
+    };
+
     const handleSavePrint = async () => {
         if (!canCreateSale) {
             Alert.alert('Not allowed', 'You do not have permission to create sales.');
             return;
         }
-        const prefix = appSettings.invoicePrefix || 'INV';
-        const num = appSettings.invoiceNextNumber != null ? appSettings.invoiceNextNumber : 1001;
-        const invoiceNumber = `${prefix}-${num}`;
+        if (selectedPaymentOption.method === 'momo') {
+            const digits = String(selectedPaymentOption.momoNumber || '').replace(/\D/g, '');
+            if (digits.length < 10) {
+                Alert.alert('MoMo', 'Enter a full MoMo number (10 digits).');
+                return;
+            }
+            if (!selectedPaymentOption.paid || !selectedPaymentOption.transactionRef) {
+                Alert.alert('MoMo', `Tap Send and confirm payment before ${completeLabel}.`);
+                return;
+            }
+        }
+        if (selectedPaymentOption.method === 'cash' && !cashTenderOk) {
+            Alert.alert(
+                'Cash',
+                `Amount tendered must be at least the sale total (${momoFace.toFixed(2)}).`,
+            );
+            return;
+        }
+        const invoiceNumber = buildInvoiceNumberFromSettings(appSettings);
         const saleTotal = totalAmount;
+        const resolvedTendered =
+            selectedPaymentOption.method === 'cash'
+                ? cashTenderedAmount != null
+                    ? cashTenderedAmount
+                    : Math.round(saleTotal * 100) / 100
+                : null;
+        const resolvedChange =
+            selectedPaymentOption.method === 'cash' && resolvedTendered != null
+                ? Math.round(Math.max(0, resolvedTendered - saleTotal) * 100) / 100
+                : null;
         let salePayloadForRetry = null;
         try {
             const payload = {
@@ -539,14 +949,27 @@ const NewSale = ({ navigation, route }) => {
                         bulkDiscount,
                     ),
                 })),
-                paymentMethod: selectedPaymentOption?.method || 'cash',
+                payment_method: selectedPaymentOption?.method || 'cash',
+                payment_number: selectedPaymentOption?.momoNumber || '',
+                payment_transaction_ref: selectedPaymentOption?.transactionRef || null,
+                payment_reference: selectedPaymentOption?.transactionRef || null,
+                payment_type: selectedPaymentOption?.method === 'momo' ? 2 : 1,
+                amount_tendered: resolvedTendered,
+                change_amount: resolvedChange,
                 totalAmount: saleTotal,
                 invoice_number: invoiceNumber,
                 discount_amount: discountTotal,
-                notes: ''
-            }
+                notes: `Paid with ${selectedPaymentOption?.method || 'cash'}${
+                    selectedPaymentOption?.method === 'momo' && selectedPaymentOption?.momoNumber
+                        ? ` ${selectedPaymentOption.momoNumber}`
+                        : ''
+                }${selectedPaymentOption?.transactionRef ? ` ref ${selectedPaymentOption.transactionRef}` : ''}${
+                    resolvedTendered != null
+                        ? ` tendered ${resolvedTendered.toFixed(2)} change ${(resolvedChange || 0).toFixed(2)}`
+                        : ''
+                }`,
+            };
             salePayloadForRetry = payload;
-            // console.log('payload', payload);
             const created = await salesApi.create(payload);
 
             let warehouseRecordForPrinting = selectedStore;
@@ -586,8 +1009,8 @@ const NewSale = ({ navigation, route }) => {
                     notes: `Paid with ${selectedPaymentOption?.method || 'cash'}${
                         selectedPaymentOption?.method === 'momo' && selectedPaymentOption?.momoNumber
                             ? ` ${selectedPaymentOption.momoNumber}`
-                            : selectedPaymentOption?.method === 'cash' && selectedPaymentOption?.balance
-                              ? ` change ${selectedPaymentOption.balance}`
+                            : resolvedTendered != null
+                              ? ` tendered ${resolvedTendered.toFixed(2)} change ${(resolvedChange || 0).toFixed(2)}`
                               : ''
                     }`,
                     cashier:
@@ -657,6 +1080,8 @@ const NewSale = ({ navigation, route }) => {
                 customer_address: selectedCustomer?.address || '',
                 payment_method: selectedPaymentOption?.method || 'cash',
                 payment_number: selectedPaymentOption?.momoNumber || '',
+                amount_tendered: resolvedTendered,
+                change_amount: resolvedChange,
                 store: selectedStore ? { name: selectedStore.name } : null,
                 discount_amount: discountTotal,
                 total_amount: saleTotal,
@@ -721,7 +1146,10 @@ const NewSale = ({ navigation, route }) => {
                     paymentOption: pendingItem.paymentOption
                         ? {
                             method: pendingItem.paymentOption.method,
-                            balance: pendingItem.paymentOption.balance,
+                            amountTendered:
+                                pendingItem.paymentOption.amountTendered ??
+                                pendingItem.paymentOption.balance ??
+                                '',
                             momoNumber: pendingItem.paymentOption.momoNumber,
                         }
                         : null,
@@ -1042,7 +1470,7 @@ const NewSale = ({ navigation, route }) => {
                                 activeOpacity={0.7}
                                 onPress={() => {
                                     setShowCustomers(false);
-                                    navigation.navigate('CustomerForm');
+                                    navigation.navigate('CustomerForm', { fromPos: true });
                                 }}
                                 style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6 }}>
                                 <Lucide name="circle-plus" size={18} color={config.THEME_COLOR} />
@@ -1173,7 +1601,7 @@ const NewSale = ({ navigation, route }) => {
                                     style={styles.paymentOptionRow}>
                                     <View>
                                         <AppText label="Cash" variant={1} fontSize={16} color={colors.text} />
-                                        <AppText label="Enter change/balance if needed" fontSize={12} color={colors.textTertiary} style={{ marginTop: 4 }} />
+                                        <AppText label="Enter amount tendered" fontSize={12} color={colors.textTertiary} style={{ marginTop: 4 }} />
                                     </View>
                                     <View style={[styles.radioOuter, { borderColor: colors.border }, selectedPaymentOption.method === 'cash' && styles.radioOuterActive]}>
                                         {selectedPaymentOption.method === 'cash' && <View style={styles.radioInner} />}
@@ -1199,20 +1627,237 @@ const NewSale = ({ navigation, route }) => {
                                 </TouchableOpacity>
                             </View>
                             <View style={[styles.paymentSlide, { width }]}>
-                                <AppText label={selectedPaymentOption.method === 'cash' ? 'Change / balance (GHS)' : 'Mobile money number'} style={{ marginBottom: 10 }} color={colors.text} />
+                                {selectedPaymentOption.method === 'momo' ? (
+                                    <View style={{ marginBottom: 12 }}>
+                                        <AppText label={`Sale ${momoFace.toFixed(2)}`} color={colors.text} />
+                                        {momoFee > 0 ? (
+                                            <AppText
+                                                label={`Platform charge (${momoPercent}%): ${momoFee.toFixed(2)}`}
+                                                fontSize={12}
+                                                color={colors.textTertiary}
+                                                style={{ marginTop: 4 }}
+                                            />
+                                        ) : null}
+                                        <AppText
+                                            label={`Amount to pay: ${momoChargeTotal.toFixed(2)}`}
+                                            variant={1}
+                                            color={colors.text}
+                                            style={{ marginTop: 6 }}
+                                        />
+                                    </View>
+                                ) : (
+                                    <View style={{ marginBottom: 12 }}>
+                                        <AppText label={`Sale ${momoFace.toFixed(2)}`} color={colors.text} />
+                                        <AppText
+                                            label={`Change: ${cashChangeAmount.toFixed(2)}`}
+                                            fontSize={12}
+                                            color={colors.textTertiary}
+                                            style={{ marginTop: 4 }}
+                                        />
+                                    </View>
+                                )}
+                                <AppText
+                                    label={
+                                        selectedPaymentOption.method === 'cash'
+                                            ? 'Amount tendered (GHS)'
+                                            : 'Mobile money number'
+                                    }
+                                    style={{ marginBottom: 10 }}
+                                    color={colors.text}
+                                />
                                 <TextInput
-                                    placeholder={selectedPaymentOption.method === 'cash' ? '0.00' : '0XX XXX XXXX'}
+                                    placeholder={
+                                        selectedPaymentOption.method === 'cash'
+                                            ? momoFace.toFixed(2)
+                                            : '0XX XXX XXXX'
+                                    }
                                     placeholderTextColor={colors.placeholder}
                                     keyboardType={selectedPaymentOption.method === 'cash' ? 'decimal-pad' : 'phone-pad'}
-                                    value={selectedPaymentOption.method === 'cash' ? selectedPaymentOption.balance : selectedPaymentOption.momoNumber}
-                                    onChangeText={(val) => setSelectedPaymentOption((p) => (p.method === 'cash' ? { ...p, balance: val } : { ...p, momoNumber: val }))}
+                                    value={
+                                        selectedPaymentOption.method === 'cash'
+                                            ? selectedPaymentOption.amountTendered
+                                            : selectedPaymentOption.momoNumber
+                                    }
+                                    onChangeText={(val) =>
+                                        setSelectedPaymentOption((p) =>
+                                            p.method === 'cash'
+                                                ? { ...p, amountTendered: val }
+                                                : {
+                                                      ...p,
+                                                      momoNumber: val.replace(/\D/g, '').slice(0, 10),
+                                                      paid: false,
+                                                      transactionRef: null,
+                                                  }
+                                        )
+                                    }
                                     style={[styles.paymentInput, { borderColor: colors.inputBorder, color: colors.text }]}
                                 />
+                                {selectedPaymentOption.method === 'cash' && !cashTenderOk ? (
+                                    <AppText
+                                        label={`Must be at least ${momoFace.toFixed(2)}`}
+                                        fontSize={12}
+                                        color={colors.error}
+                                        style={{ marginTop: 6 }}
+                                    />
+                                ) : null}
+                                {selectedPaymentOption.method === 'momo' ? (
+                                    <View style={{ marginTop: 10, marginBottom: 8 }}>
+                                        <AppText label="Network" style={{ marginBottom: 8 }} color={colors.text} />
+                                        <View style={styles.networkRow}>
+                                            {MOMO_NETWORK_OPTIONS.map((network) => {
+                                                const active =
+                                                    selectedPaymentOption.provider === network.provider;
+                                                return (
+                                                    <TouchableOpacity
+                                                        key={network.id}
+                                                        activeOpacity={0.7}
+                                                        onPress={() =>
+                                                            setSelectedPaymentOption((p) => ({
+                                                                ...p,
+                                                                provider: network.provider,
+                                                                paid: false,
+                                                                transactionRef: null,
+                                                            }))
+                                                        }
+                                                        style={[
+                                                            styles.networkChip,
+                                                            {
+                                                                backgroundColor: active
+                                                                    ? `${network.color}22`
+                                                                    : colors.surfaceSecondary,
+                                                                borderColor: active
+                                                                    ? network.color
+                                                                    : colors.border,
+                                                            },
+                                                        ]}
+                                                    >
+                                                        <View style={styles.networkChipInner}>
+                                                            <Image
+                                                                source={getMomoNetworkIcon(network.id)}
+                                                                style={styles.networkLogo}
+                                                                resizeMode="contain"
+                                                            />
+                                                            <AppText
+                                                                label={network.label}
+                                                                fontSize={13}
+                                                                variant={active ? 1 : 2}
+                                                                color={colors.text}
+                                                            />
+                                                        </View>
+                                                    </TouchableOpacity>
+                                                );
+                                            })}
+                                        </View>
+                                        {!selectedPaymentOption.paid && !selectedPaymentOption.transactionRef ? (
+                                            <TouchableOpacity
+                                                activeOpacity={0.8}
+                                                style={[styles.savePrintBtn, { marginTop: 12 }]}
+                                                disabled={momoSending}
+                                                onPress={() => handleSendMomo()}
+                                            >
+                                                <AppText
+                                                    label={momoSending ? 'Sending…' : 'Send MoMo'}
+                                                    color={colors.textInverse}
+                                                    variant={1}
+                                                />
+                                            </TouchableOpacity>
+                                        ) : null}
+                                        {selectedPaymentOption.transactionRef && !selectedPaymentOption.paid ? (
+                                            <View style={{ marginTop: 10 }}>
+                                                <TextInput
+                                                    placeholder="OTP if required"
+                                                    placeholderTextColor={colors.placeholder}
+                                                    value={momoOtp}
+                                                    onChangeText={setMomoOtp}
+                                                    style={[
+                                                        styles.paymentInput,
+                                                        { borderColor: colors.inputBorder, color: colors.text },
+                                                    ]}
+                                                />
+                                                <TouchableOpacity
+                                                    activeOpacity={0.8}
+                                                    style={[styles.continuePaymentBtn, { marginTop: 8 }]}
+                                                    disabled={momoSending}
+                                                    onPress={handleSubmitMomoOtp}
+                                                >
+                                                    <AppText label="Submit OTP" color={colors.textInverse} variant={1} />
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    activeOpacity={0.7}
+                                                    style={[styles.reselectBtn, { marginTop: 8 }]}
+                                                    disabled={momoSending}
+                                                    onPress={handleCheckMomoStatus}
+                                                >
+                                                    <AppText label="Check status" color={colors.primary} />
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    activeOpacity={0.7}
+                                                    style={[styles.reselectBtn, { marginTop: 8 }]}
+                                                    disabled={momoSending}
+                                                    onPress={handleParkMomoAndServeNext}
+                                                >
+                                                    <AppText label="Park & serve next" color={colors.primary} />
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    activeOpacity={0.7}
+                                                    style={[styles.reselectBtn, { marginTop: 8 }]}
+                                                    disabled={momoSending}
+                                                    onPress={handleCancelMomoAndSendAgain}
+                                                >
+                                                    <AppText label="Cancel & send again" color={colors.textSecondary} />
+                                                </TouchableOpacity>
+                                            </View>
+                                        ) : null}
+                                        {selectedPaymentOption.transactionRef && selectedPaymentOption.paid ? (
+                                            <TouchableOpacity
+                                                activeOpacity={0.7}
+                                                style={[styles.reselectBtn, { marginTop: 10 }]}
+                                                disabled={momoSending}
+                                                onPress={handleParkMomoAndServeNext}
+                                            >
+                                                <AppText label="Park & serve next" color={colors.primary} />
+                                            </TouchableOpacity>
+                                        ) : null}
+                                        {momoStatusText ? (
+                                            <AppText
+                                                label={momoStatusText}
+                                                fontSize={12}
+                                                color={colors.textTertiary}
+                                                style={{ marginTop: 8 }}
+                                            />
+                                        ) : null}
+                                    </View>
+                                ) : null}
                                 <TouchableOpacity
                                     activeOpacity={0.8}
-                                    style={styles.savePrintBtn}
-                                    onPress={handleSavePrint}>
-                                    <AppText label="Save & Print" color={colors.textInverse} variant={1} />
+                                    disabled={
+                                        momoSending ||
+                                        (selectedPaymentOption.method === 'cash' && !cashTenderOk) ||
+                                        (selectedPaymentOption.method === 'momo' &&
+                                            !(selectedPaymentOption.paid && selectedPaymentOption.transactionRef))
+                                    }
+                                    style={[
+                                        styles.savePrintBtn,
+                                        (momoSending ||
+                                            (selectedPaymentOption.method === 'cash' && !cashTenderOk) ||
+                                            (selectedPaymentOption.method === 'momo' &&
+                                                !(
+                                                    selectedPaymentOption.paid &&
+                                                    selectedPaymentOption.transactionRef
+                                                ))) && { opacity: 0.45 },
+                                    ]}
+                                    onPress={handleSavePrint}
+                                >
+                                    <AppText
+                                        label={
+                                            selectedPaymentOption.method === 'momo' &&
+                                            !(selectedPaymentOption.paid && selectedPaymentOption.transactionRef)
+                                                ? completeAfterMomoLabel
+                                                : completeLabel
+                                        }
+                                        color={colors.textInverse}
+                                        variant={1}
+                                    />
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     activeOpacity={0.7}
@@ -1300,6 +1945,28 @@ const styles = StyleSheet.create({
     radioInner: { width: 12, height: 12, borderRadius: 6, backgroundColor: config.THEME_COLOR },
     continuePaymentBtn: { height: 50, backgroundColor: config.THEME_COLOR, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginTop: 20 },
     paymentInput: { height: 50, borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, fontFamily: 'FiraSans-Regular', fontSize: 16 },
+    networkRow: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    networkChip: {
+        flex: 1,
+        paddingVertical: 10,
+        paddingHorizontal: 8,
+        borderRadius: 8,
+        borderWidth: 1,
+        alignItems: 'center',
+    },
+    networkChipInner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    networkLogo: {
+        width: 22,
+        height: 22,
+        borderRadius: 4,
+    },
     savePrintBtn: { height: 50, backgroundColor: config.THEME_COLOR, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginTop: 20 },
     reselectBtn: { alignItems: 'center', paddingVertical: 14, marginTop: 8 },
     cancelPaymentBtn: { alignItems: 'center', paddingVertical: 14, marginHorizontal: 14 },

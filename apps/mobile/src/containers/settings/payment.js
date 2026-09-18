@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
@@ -7,7 +7,7 @@ import config from '../../config';
 import useTheme from '../../hooks/useTheme';
 import ScreenHeader from '../../components/screen_header';
 import { useSelector } from 'react-redux';
-import { orders, payments } from '../../services/api';
+import { orders, payments, platformSettings } from '../../services/api';
 import { MOMO_NETWORK_OPTIONS, getMomoNetworkIcon } from '../../utils/momoNetworks';
 
 const formatter = new Intl.NumberFormat('en-GH', {
@@ -45,11 +45,30 @@ const Payment = ({ navigation, route }) => {
     const [momoNetwork, setMomoNetwork] = useState('mtn'); // 'mtn', 'telecel', 'airteltigo'
     const [telecelVoucher, setTelecelVoucher] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [momoCharge, setMomoCharge] = useState({ enabled: true, percent: 2 });
 
     const formatCurrency = (value) => formatter.format(value).replace('GH₵', 'GHS ').trim();
     const isTelecel = momoNetwork === 'telecel';
 
     const isOrderFlow = flowType === 'order' || flowType === 'order_partial';
+
+    useEffect(() => {
+        if (!isOrderFlow) return;
+        platformSettings
+            .getMomoPaymentCharge()
+            .then((data) => {
+                if (data) setMomoCharge(data);
+            })
+            .catch(() => {});
+    }, [isOrderFlow]);
+
+    const faceAmount = Number(amount) || 0;
+    const feePercent = isOrderFlow && momoCharge?.enabled ? Number(momoCharge.percent) || 0 : 0;
+    const feeAmount =
+        isOrderFlow && feePercent > 0
+            ? Math.round(((faceAmount * feePercent) / 100) * 100) / 100
+            : 0;
+    const chargeAmount = Math.round((faceAmount + feeAmount) * 100) / 100;
 
     const validateMomoForm = () => {
         const phone = normalizeMomoNumber(momoNumber);
@@ -231,7 +250,7 @@ const Payment = ({ navigation, route }) => {
                     : 'Complete the payment prompt on your phone.');
             Alert.alert('Mobile money', msg);
             navigation.navigate('MomoStatus', {
-                amount,
+                amount: res?.charge_amount || chargeAmount || amount,
                 planName: planName || 'Order payment',
                 momoNumber: momo.phone,
                 momoNetwork,
@@ -279,8 +298,29 @@ const Payment = ({ navigation, route }) => {
                     <View style={[styles.summaryDivider, { backgroundColor: colors.divider }]} />
                     <View style={styles.summaryRow}>
                         <AppText label="Amount" fontSize={14} color={colors.textSecondary} />
-                        <AppText label={formatCurrency(amount)} variant={1} fontSize={18} color={config.THEME_COLOR} />
+                        <AppText label={formatCurrency(faceAmount)} variant={1} fontSize={18} color={config.THEME_COLOR} />
                     </View>
+                    {isOrderFlow && feeAmount > 0 ? (
+                        <>
+                            <View style={styles.summaryRow}>
+                                <AppText
+                                    label={`Platform charge (${feePercent}%)`}
+                                    fontSize={14}
+                                    color={colors.textSecondary}
+                                />
+                                <AppText label={formatCurrency(feeAmount)} fontSize={14} color={colors.text} />
+                            </View>
+                            <View style={styles.summaryRow}>
+                                <AppText label="Total to pay" fontSize={14} color={colors.textSecondary} />
+                                <AppText
+                                    label={formatCurrency(chargeAmount)}
+                                    variant={1}
+                                    fontSize={18}
+                                    color={config.THEME_COLOR}
+                                />
+                            </View>
+                        </>
+                    ) : null}
                     {nextBillingDate ? (
                         <>
                             <View style={[styles.summaryDivider, { backgroundColor: colors.divider }]} />
@@ -446,7 +486,7 @@ const Payment = ({ navigation, route }) => {
                     disabled={submitting}
                     style={[styles.payButton, { backgroundColor: config.THEME_COLOR }]}>
                     <Lucide name="credit-card" size={20} color={colors.textInverse} />
-                    <AppText label={submitting ? 'Please wait…' : `Pay ${formatCurrency(amount)}`} variant={1} fontSize={16} color={colors.textInverse} style={{ marginLeft: 8 }} />
+                    <AppText label={submitting ? 'Please wait…' : `Pay ${formatCurrency(isOrderFlow ? chargeAmount : amount)}`} variant={1} fontSize={16} color={colors.textInverse} style={{ marginLeft: 8 }} />
                 </TouchableOpacity>
                 </ScrollView>
             </KeyboardAvoidingView>

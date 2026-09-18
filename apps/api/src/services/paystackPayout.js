@@ -6,6 +6,7 @@ import {
     isAutoWithdrawalEnabled,
     isPaystackConfigured,
     listPayoutBanks,
+    resolveBankAccount,
 } from "../services/paymentGateway.js";
 import { payoutProfileToSnapshot } from "../models/payoutProfile.js";
 
@@ -69,6 +70,10 @@ export async function getPayoutBankOptionsService(type = "ghipss") {
         code: b.code || b.slug,
         slug: b.slug || null,
     }));
+}
+
+export async function resolvePayoutAccountService({ account_number, bank_code }) {
+    return resolveBankAccount({ account_number, bank_code });
 }
 
 export async function resolvePaystackBankCode(profile) {

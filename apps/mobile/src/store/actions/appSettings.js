@@ -1,6 +1,7 @@
 export const SET_INVOICE_PREFIX = 'SET_INVOICE_PREFIX';
 export const SET_INVOICE_NEXT = 'SET_INVOICE_NEXT';
 export const INCREMENT_INVOICE_NEXT = 'INCREMENT_INVOICE_NEXT';
+export const SET_INVOICE_REGISTER_CODE = 'SET_INVOICE_REGISTER_CODE';
 export const SET_RECEIPT_COMPANY_NAME = 'SET_RECEIPT_COMPANY_NAME';
 export const SET_CURRENCY = 'SET_CURRENCY';
 export const SET_EXCHANGE_RATE = 'SET_EXCHANGE_RATE';
@@ -15,6 +16,7 @@ export const SET_PRINT_AGENT = 'SET_PRINT_AGENT';
 export const setInvoicePrefix = (payload) => ({ type: SET_INVOICE_PREFIX, payload });
 export const setInvoiceNext = (payload) => ({ type: SET_INVOICE_NEXT, payload });
 export const incrementInvoiceNext = () => ({ type: INCREMENT_INVOICE_NEXT });
+export const setInvoiceRegisterCode = (payload) => ({ type: SET_INVOICE_REGISTER_CODE, payload });
 export const setReceiptCompanyName = (payload) => ({ type: SET_RECEIPT_COMPANY_NAME, payload });
 export const setCurrency = (payload) => ({ type: SET_CURRENCY, payload });
 export const setExchangeRate = (payload) => ({ type: SET_EXCHANGE_RATE, payload });

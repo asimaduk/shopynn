@@ -162,12 +162,14 @@ const ProductTransactions = ({ navigation, route }) => {
         let result = [...data];
         if (searchQuery.trim()) {
             const q = searchQuery.toLowerCase();
-            result = result.filter(
-                (t) =>
-                    t.description?.toLowerCase().includes(q) ||
-                    t.referenceId?.toLowerCase().includes(q) ||
-                    t.user?.toLowerCase().includes(q)
-            );
+            result = result.filter((t) => {
+                const inv = String(t.invoice_number ?? t.referenceId ?? '').toLowerCase();
+                return (
+                    String(t.description ?? '').toLowerCase().includes(q) ||
+                    String(t.user ?? '').toLowerCase().includes(q) ||
+                    inv.includes(q)
+                );
+            });
         }
         if (typeFilter !== 'all') {
             result = result.filter((t) => t.type === typeFilter);
@@ -281,7 +283,7 @@ const ProductTransactions = ({ navigation, route }) => {
                 item.amount || '',
                 escapeCSV(item.date),
                 escapeCSV(item.user),
-                escapeCSV(item.referenceId),
+                escapeCSV(item.invoice_number || item.referenceId),
                 escapeCSV(item.notes || ''),
             ].join(',');
         });
@@ -399,7 +401,7 @@ const ProductTransactions = ({ navigation, route }) => {
                 <td>${item.amount || 'GHS 0.00'}</td>
                 <td>${item.date || ''}</td>
                 <td>${item.user || ''}</td>
-                <td>${item.referenceId || ''}</td>
+                <td>${item.invoice_number || item.referenceId || ''}</td>
                 <td>${item.notes || ''}</td>
             </tr>
             `;

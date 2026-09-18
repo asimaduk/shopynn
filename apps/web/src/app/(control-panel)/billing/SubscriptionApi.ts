@@ -44,7 +44,7 @@ export type PaymentRecord = {
 	warehouse_name?: string;
 };
 
-const subscriptionTagTypes = ['payoutProfile', 'settlements'] as const;
+const subscriptionTagTypes = ['payoutProfile', 'settlements', 'posPendingMomo'] as const;
 
 const SubscriptionApi = api.enhanceEndpoints({ addTagTypes: subscriptionTagTypes }).injectEndpoints({
 	endpoints: (build) => ({
@@ -78,11 +78,53 @@ const SubscriptionApi = api.enhanceEndpoints({ addTagTypes: subscriptionTagTypes
 		initiatePayment: build.mutation<any, any>({
 			query: (body) => ({ url: '/api/payments/initiate', method: 'POST', body })
 		}),
+		submitPaymentOtp: build.mutation<any, { reference: string; otp: string }>({
+			query: (body) => ({ url: '/api/payments/submit-otp', method: 'POST', body })
+		}),
+		getOpenPosMomoPayment: build.query<
+			{
+				id?: string;
+				transaction_ref?: string;
+				status?: string;
+				reuse_mode?: 'success' | 'pending';
+				face_amount?: number;
+				fee_amount?: number;
+				amount?: number;
+			} | null,
+			{ face_amount: number; phone?: string }
+		>({
+			query: (params) => ({ url: '/api/payments/pos-open', params })
+		}),
+		abandonPosMomoPayment: build.mutation<any, { reference: string }>({
+			query: (body) => ({ url: '/api/payments/pos-abandon', method: 'POST', body }),
+			invalidatesTags: ['posPendingMomo']
+		}),
+		parkPosMomoPayment: build.mutation<any, { reference: string; cart_snapshot: Record<string, unknown> }>({
+			query: (body) => ({ url: '/api/payments/pos-park', method: 'POST', body }),
+			invalidatesTags: ['posPendingMomo']
+		}),
+		getPendingPosMomoPayments: build.query<any[], { status?: string } | void>({
+			query: (params) => ({ url: '/api/payments/pos-pending', params: params || undefined }),
+			transformResponse: (raw: any) => (Array.isArray(raw) ? raw : raw?.items ?? raw?.list ?? raw?.data ?? []),
+			providesTags: ['posPendingMomo']
+		}),
 		onboardSubscription: build.mutation<any, { subscription_type: number }>({
 			query: (body) => ({ url: '/api/subscriptions/onboard', method: 'POST', body })
 		}),
 		verifyPayment: build.query<any, string>({
 			query: (reference) => ({ url: `/api/payments/verify/${reference}` })
+		}),
+		getMomoPaymentCharge: build.query<
+			{ enabled: boolean; percent: number; min_percent: number },
+			void
+		>({
+			query: () => ({ url: '/api/platform-settings/momo-payment-charge' })
+		}),
+		updateMomoPaymentCharge: build.mutation<
+			{ enabled: boolean; percent: number; min_percent: number },
+			{ enabled?: boolean; percent?: number }
+		>({
+			query: (body) => ({ url: '/api/platform-settings/momo-payment-charge', method: 'PUT', body })
 		}),
 		getMySettlementSummary: build.query<
 			{
@@ -109,6 +151,15 @@ const SubscriptionApi = api.enhanceEndpoints({ addTagTypes: subscriptionTagTypes
 		getPayoutBankOptions: build.query<{ name: string; code: string; slug?: string | null }[], 'ghipss' | 'mobile_money'>({
 			query: (type) => ({ url: '/api/tenants/payout-banks', params: { type } })
 		}),
+		resolvePayoutAccount: build.query<
+			{ account_number: string; account_name: string; bank_id?: number | null; stub?: boolean },
+			{ account_number: string; bank_code: string }
+		>({
+			query: ({ account_number, bank_code }) => ({
+				url: '/api/tenants/payout-account-resolve',
+				params: { account_number, bank_code }
+			})
+		}),
 		updateMyPayoutProfile: build.mutation<any, Record<string, unknown>>({
 			query: (body) => ({ url: '/api/tenants/me/payout-profile', method: 'PUT', body }),
 			invalidatesTags: ['payoutProfile']
@@ -133,12 +184,21 @@ export const {
 	useGetPaymentEventsQuery,
 	useReversePaymentMutation,
 	useInitiatePaymentMutation,
+	useSubmitPaymentOtpMutation,
 	useOnboardSubscriptionMutation,
 	useLazyVerifyPaymentQuery,
+	useLazyGetOpenPosMomoPaymentQuery,
+	useAbandonPosMomoPaymentMutation,
+	useParkPosMomoPaymentMutation,
+	useGetPendingPosMomoPaymentsQuery,
+	useLazyGetPendingPosMomoPaymentsQuery,
+	useGetMomoPaymentChargeQuery,
+	useUpdateMomoPaymentChargeMutation,
 	useGetMySettlementSummaryQuery,
 	useGetMySettlementsQuery,
 	useGetMyPayoutProfileQuery,
 	useGetPayoutBankOptionsQuery,
+	useLazyResolvePayoutAccountQuery,
 	useUpdateMyPayoutProfileMutation,
 	useRequestMyWithdrawalMutation,
 	useRetryMyWithdrawalMutation

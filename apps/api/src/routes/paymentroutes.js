@@ -11,6 +11,10 @@ import {
     getPaymentReceipt,
     getPaymentEvents,
     reverseCashPayment,
+    getOpenPosMomoPayment,
+    abandonPosMomoPayment,
+    parkPosMomoPayment,
+    listPendingPosMomoPayments,
 } from "../controllers/payment.js";
 import { requirePermission } from "../middleware/requirePermission.js";
 import requireActiveSubscription from "../middleware/requireActiveSubscription.js";
@@ -26,6 +30,10 @@ const requireOrderPaymentHistory = [
 router.get("/", ...requireOrderPaymentHistory, getPaymentsHistory);
 router.post("/initiate", initiatePayment); //requirePermission("payments.initiate")
 router.post("/submit-otp", requirePermission("payments.initiate"), submitOtp);
+router.get("/pos-open", getOpenPosMomoPayment);
+router.post("/pos-abandon", abandonPosMomoPayment);
+router.post("/pos-park", parkPosMomoPayment);
+router.get("/pos-pending", listPendingPosMomoPayments);
 router.get("/verify", verifyPayment); //requirePermission("payments.verify"),
 router.get("/verify/:reference", verifyPayment); //requirePermission("payments.verify"),
 router.get("/tenant/:tenantId", ...requireOrderPaymentHistory, getPaymentsByTenantId);

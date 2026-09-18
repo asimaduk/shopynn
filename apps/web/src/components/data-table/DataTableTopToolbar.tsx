@@ -34,8 +34,8 @@ function DataTableTopToolbar<TData extends MRT_RowData>({ table }: MRT_TopToolba
 
 	const { isFullScreen, showGlobalFilter } = getState();
 
-	const isMobile = useMediaQuery('(max-width:720px)');
-	const isTablet = useMediaQuery('(max-width:1024px)');
+	const isMobile = useMediaQuery('(max-width:720px)', { noSsr: true });
+	const isTablet = useMediaQuery('(max-width:1024px)', { noSsr: true });
 
 	const toolbarProps = parseFromValuesOrFunc(muiTopToolbarProps, { table });
 

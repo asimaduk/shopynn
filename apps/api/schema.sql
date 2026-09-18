@@ -198,13 +198,16 @@ create table purchases (
     number_of_items integer,
     total_amount decimal(10,2),
     discount_amount decimal(10,2),
+    amount_paid decimal(12,2) not null default 0,
     invoice_number varchar(40) unique,
     created_at timestamp,
     updated_at timestamp,
     due_date timestamp,
     current_status integer,
+    -- payment_type: 1=cash, 2=momo, 3=bank, 4=other
     payment_type integer,
     payment_number varchar(50),
+    -- payment_status: 0=unpaid, 1=paid, 2=partial
     payment_status integer,
     payment_date timestamp,
     payment_reference varchar(50),
@@ -391,6 +394,8 @@ create table sales (
     payment_status integer,
     payment_date timestamp,
     payment_reference varchar(50),
+    amount_tendered decimal(10,2),
+    change_amount decimal(10,2),
     notes varchar(300),
     updated_by varchar(40) references users(id),
     creator_id varchar(40) references users(id),
@@ -515,9 +520,13 @@ create table expenses (
 create table payments (
     id varchar(40) primary key,
     amount decimal(10,2),
+    face_amount decimal(10,2),
+    fee_amount decimal(10,2),
+    payment_source varchar(40),
     subscription_id varchar(40) references subscriptions(id),
     customer_id varchar(40) references customers(id),
     order_id varchar(40) references orders(id),
+    sale_id varchar(40) references sales(id),
     tenant_id varchar(40) references tenants(id),
     creator_id varchar(40) references users(id),
     created_at timestamp,
@@ -525,13 +534,24 @@ create table payments (
     payment_method_type varchar(20),
     payment_number varchar(50),
     transaction_ref varchar(40),
-    status varchar(20)
+    status varchar(20),
+    pos_cart_snapshot jsonb
 );
 
 create index index_payments_order_id on payments(order_id);
 create unique index index_payments_transaction_ref_unique on payments(transaction_ref) where transaction_ref is not null;
 create index index_payments_status_created_at on payments(status, created_at);
 create index index_payments_method_created_at on payments(payment_method_type, created_at);
+create index index_payments_sale_id on payments(sale_id);
+create index index_payments_pos_unlinked on payments (tenant_id, created_at DESC)
+    where coalesce(payment_source, '') = 'pos_sale' and sale_id is null and order_id is null;
+
+create table platform_settings (
+    key varchar(100) primary key,
+    value jsonb not null default '{}'::jsonb,
+    updated_at timestamp not null default now(),
+    updated_by varchar(40) references users(id)
+);
 
 create table payment_events (
     id varchar(40) primary key,

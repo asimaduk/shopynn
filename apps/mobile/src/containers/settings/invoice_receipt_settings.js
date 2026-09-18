@@ -6,7 +6,8 @@ import { useSelector, useDispatch } from 'react-redux';
 import AppText from '../../components/text';
 import ScreenHeader from '../../components/screen_header';
 import config from '../../config';
-import { setInvoicePrefix, setInvoiceNext, setReceiptCompanyName, setCurrency, setExchangeRate, setValuationMethod } from '../../store/actions/appSettings';
+import { setInvoicePrefix, setInvoiceNext, setInvoiceRegisterCode, setReceiptCompanyName, setCurrency, setExchangeRate, setValuationMethod } from '../../store/actions/appSettings';
+import { buildInvoiceNumberFromSettings, normalizeInvoiceRegisterCode } from '../../utils/invoiceNumbering';
 
 const CURRENCIES = [
     { code: 'GHS', symbol: 'GH₵', name: 'Ghana Cedi' },
@@ -25,6 +26,7 @@ const InvoiceReceiptSettings = ({ navigation }) => {
     const dispatch = useDispatch();
     const appSettings = useSelector((s) => s.appSettings) || {};
     const [invoicePrefix, setLocalPrefix] = useState(appSettings.invoicePrefix || 'INV');
+    const [invoiceRegister, setLocalRegister] = useState(appSettings.invoiceRegisterCode || 'M');
     const [invoiceNext, setLocalNext] = useState(String(appSettings.invoiceNextNumber ?? 1001));
     const [companyName, setLocalCompanyName] = useState(appSettings.receiptCompanyName || 'Shopynn');
     const [currency, setLocalCurrency] = useState(appSettings.currency || 'GHS');
@@ -33,15 +35,17 @@ const InvoiceReceiptSettings = ({ navigation }) => {
 
     useEffect(() => {
         setLocalPrefix(appSettings.invoicePrefix || 'INV');
+        setLocalRegister(appSettings.invoiceRegisterCode || 'M');
         setLocalNext(String(appSettings.invoiceNextNumber ?? 1001));
         setLocalCompanyName(appSettings.receiptCompanyName || 'Shopynn');
         setLocalCurrency(appSettings.currency || 'GHS');
         setLocalExchange(String(appSettings.exchangeRateToGHS ?? 1));
         setLocalValuationMethod(appSettings.valuationMethod || 'fifo');
-    }, [appSettings.invoicePrefix, appSettings.invoiceNextNumber, appSettings.receiptCompanyName, appSettings.currency, appSettings.exchangeRateToGHS, appSettings.valuationMethod]);
+    }, [appSettings.invoicePrefix, appSettings.invoiceRegisterCode, appSettings.invoiceNextNumber, appSettings.receiptCompanyName, appSettings.currency, appSettings.exchangeRateToGHS, appSettings.valuationMethod]);
 
     const save = () => {
         dispatch(setInvoicePrefix(invoicePrefix.trim() || 'INV'));
+        dispatch(setInvoiceRegisterCode(normalizeInvoiceRegisterCode(invoiceRegister) || 'M'));
         const num = parseInt(invoiceNext, 10);
         if (!isNaN(num) && num >= 0) dispatch(setInvoiceNext(num));
         dispatch(setReceiptCompanyName(companyName.trim() || 'Shopynn'));
@@ -52,16 +56,50 @@ const InvoiceReceiptSettings = ({ navigation }) => {
         Alert.alert('Saved', 'Invoice & receipt settings updated.');
     };
 
+    const previewNumber = buildInvoiceNumberFromSettings({
+        invoicePrefix,
+        invoiceRegisterCode: invoiceRegister,
+        invoiceNextNumber: invoiceNext,
+    });
+
+
     return (
         <SafeAreaView edges={['bottom', 'left', 'right']} style={styles.safe}>
             <ScreenHeader onPress={() => navigation.goBack()} label="Invoice & Receipt" />
             <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
                 <View style={styles.card}>
                     <AppText label="Invoice number" variant={1} fontSize={14} style={styles.label} />
+                    <AppText
+                        label="Format: PREFIX-REGISTER-NUMBER (this device only — use a unique register code per till)"
+                        fontSize={12}
+                        color="#666"
+                        style={{ marginBottom: 10 }}
+                    />
                     <View style={styles.row}>
-                        <TextInput placeholder="INV" value={invoicePrefix} onChangeText={setLocalPrefix} style={[styles.input, { flex: 1, marginRight: 8 }]} />
-                        <TextInput placeholder="1001" value={invoiceNext} onChangeText={(t) => setLocalNext(t.replace(/[^0-9]/g, ''))} keyboardType="number-pad" style={[styles.input, { width: 90 }]} />
+                        <TextInput
+                            placeholder="INV"
+                            value={invoicePrefix}
+                            onChangeText={setLocalPrefix}
+                            autoCapitalize="characters"
+                            style={[styles.input, { flex: 1, marginRight: 8 }]}
+                        />
+                        <TextInput
+                            placeholder="M"
+                            value={invoiceRegister}
+                            onChangeText={(t) => setLocalRegister(normalizeInvoiceRegisterCode(t))}
+                            autoCapitalize="characters"
+                            maxLength={4}
+                            style={[styles.input, { width: 72, marginRight: 8 }]}
+                        />
+                        <TextInput
+                            placeholder="1001"
+                            value={invoiceNext}
+                            onChangeText={(t) => setLocalNext(t.replace(/[^0-9]/g, ''))}
+                            keyboardType="number-pad"
+                            style={[styles.input, { width: 90 }]}
+                        />
                     </View>
+                    <AppText label={`Next invoice: ${previewNumber}`} fontSize={12} color="#666" style={{ marginTop: 8 }} />
                 </View>
                 <View style={styles.card}>
                     <AppText label="Company name on receipt" variant={1} fontSize={14} style={styles.label} />

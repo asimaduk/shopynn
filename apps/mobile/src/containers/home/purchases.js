@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { StyleSheet, TouchableOpacity, View, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import Header from '../../components/main_header';
 import AppText from '../../components/text';
@@ -8,7 +9,7 @@ import { FlashList } from "@shopify/flash-list";
 import { useSelector } from 'react-redux';
 import config from '../../config';
 import PurchaseItem from './purchase_item';
-import { purchases as purchasesApi, normalizePagedList } from '../../services/api';
+import { purchases as purchasesApi, suppliers as suppliersApi, sales as salesApi, normalizePagedList, normalizeList } from '../../services/api';
 import AppModal from '../../components/app_modal';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import useTheme from '../../hooks/useTheme';
@@ -49,6 +50,10 @@ const Purchases = ({ navigation }) => {
     const [showStartPicker, setShowStartPicker] = useState(false);
     const [showEndPicker, setShowEndPicker] = useState(false);
     const [statusFilter, setStatusFilter] = useState('All');
+    const [supplierFilter, setSupplierFilter] = useState(null);
+    const [attendantFilter, setAttendantFilter] = useState(null);
+    const [filterSuppliers, setFilterSuppliers] = useState([]);
+    const [filterAttendants, setFilterAttendants] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
@@ -103,8 +108,10 @@ const Purchases = ({ navigation }) => {
             params.startDate = bounds.start?.toISOString?.()?.slice(0, 10);
             params.endDate = bounds.end?.toISOString?.()?.slice(0, 10);
         }
+        if (supplierFilter?.id) params.suppliedBy = supplierFilter.id;
+        if (attendantFilter?.id) params.receivedBy = attendantFilter.id;
         return params;
-    }, [getDateRangeBounds]);
+    }, [getDateRangeBounds, supplierFilter, attendantFilter]);
 
     const loadPurchasesData = useCallback(async ({ reset = true } = {}) => {
         if (reset) {
@@ -144,9 +151,33 @@ const Purchases = ({ navigation }) => {
         }
     }, [buildListParams]);
 
+    useFocusEffect(
+        useCallback(() => {
+            loadPurchasesData({ reset: true });
+        }, [loadPurchasesData])
+    );
+
     useEffect(() => {
-        loadPurchasesData({ reset: true });
-    }, [loadPurchasesData]);
+        if (!showFilter) return;
+        let active = true;
+        (async () => {
+            try {
+                const [supRaw, attRaw] = await Promise.all([
+                    suppliersApi.list().catch(() => []),
+                    salesApi.attendants().catch(() => []),
+                ]);
+                if (!active) return;
+                setFilterSuppliers(normalizeList(supRaw));
+                setFilterAttendants(normalizeList(attRaw));
+            } catch (_) {
+                if (active) {
+                    setFilterSuppliers([]);
+                    setFilterAttendants([]);
+                }
+            }
+        })();
+        return () => { active = false; };
+    }, [showFilter]);
 
     const onRefresh = async () => {
         setRefreshing(true);
@@ -608,16 +639,57 @@ const Purchases = ({ navigation }) => {
                 visible={showFilter}
                 handleClose={() => setShowFilter(false)}
                 title="Filter Purchases"
-                height="50%"
+                onRequestClose={() => setShowFilter(false)}
             >
-                <View style={{ padding: 20 }}>
+                <ScrollView style={{ maxHeight: 420 }} contentContainerStyle={{ padding: 20, paddingBottom: 28 }}>
                     <AppText label="PO Status" fontSize={14} color={colors.textSecondary} style={{ marginBottom: 12 }} />
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
                         {['All', 'Draft', 'Sent', 'Received'].map(status => (
-                            <TouchableOpacity key={status} onPress={() => { setStatusFilter(status); setShowFilter(false); }} style={[styles.filterChip, { borderColor: colors.border }, statusFilter === status && { backgroundColor: colors.text, borderColor: colors.text }]}>
+                            <TouchableOpacity key={status} onPress={() => setStatusFilter(status)} style={[styles.filterChip, { borderColor: colors.border }, statusFilter === status && { backgroundColor: colors.text, borderColor: colors.text }]}>
                                 <AppText label={status} color={statusFilter === status ? colors.textInverse : colors.textSecondary} />
                             </TouchableOpacity>
                         ))}
+                    </View>
+
+                    <AppText label="Supplier" fontSize={14} color={colors.textSecondary} style={{ marginTop: 18, marginBottom: 10 }} />
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                        <TouchableOpacity
+                            onPress={() => setSupplierFilter(null)}
+                            style={[styles.filterChip, { borderColor: colors.border }, !supplierFilter && { backgroundColor: colors.text, borderColor: colors.text }]}
+                        >
+                            <AppText label="All" color={!supplierFilter ? colors.textInverse : colors.textSecondary} />
+                        </TouchableOpacity>
+                        {filterSuppliers.slice(0, 12).map((s) => (
+                            <TouchableOpacity
+                                key={s.id}
+                                onPress={() => setSupplierFilter(s)}
+                                style={[styles.filterChip, { borderColor: colors.border }, supplierFilter?.id === s.id && { backgroundColor: config.THEME_COLOR, borderColor: config.THEME_COLOR }]}
+                            >
+                                <AppText label={s.name} color={supplierFilter?.id === s.id ? colors.textInverse : colors.textSecondary} />
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+
+                    <AppText label="Attendant" fontSize={14} color={colors.textSecondary} style={{ marginTop: 18, marginBottom: 10 }} />
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                        <TouchableOpacity
+                            onPress={() => setAttendantFilter(null)}
+                            style={[styles.filterChip, { borderColor: colors.border }, !attendantFilter && { backgroundColor: colors.text, borderColor: colors.text }]}
+                        >
+                            <AppText label="All" color={!attendantFilter ? colors.textInverse : colors.textSecondary} />
+                        </TouchableOpacity>
+                        {filterAttendants.slice(0, 12).map((a) => {
+                            const label = `${a.first_name || ''} ${a.last_name || ''}`.trim() || a.email || 'User';
+                            return (
+                                <TouchableOpacity
+                                    key={a.id}
+                                    onPress={() => setAttendantFilter(a)}
+                                    style={[styles.filterChip, { borderColor: colors.border }, attendantFilter?.id === a.id && { backgroundColor: config.THEME_COLOR, borderColor: config.THEME_COLOR }]}
+                                >
+                                    <AppText label={label} color={attendantFilter?.id === a.id ? colors.textInverse : colors.textSecondary} />
+                                </TouchableOpacity>
+                            );
+                        })}
                     </View>
 
                     <TouchableOpacity
@@ -627,7 +699,7 @@ const Purchases = ({ navigation }) => {
                     >
                         <AppText label="Apply Filters" fontSize={16} color={colors.textInverse} fontFamily="FiraSans-Medium" />
                     </TouchableOpacity>
-                </View>
+                </ScrollView>
             </AppModal>
         </SafeAreaView>
     );

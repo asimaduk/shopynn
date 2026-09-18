@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, Button, Chip, IconButton, Input, Paper, TextField, Tooltip } from '@mui/material';
+import { Box, Button, Chip, IconButton, Input, MenuItem, Paper, TextField, Tooltip } from '@mui/material';
 import GlobalStyles from '@mui/material/GlobalStyles';
 import Autocomplete from '@mui/material/Autocomplete';
 import { useMemo, useState } from 'react';
@@ -18,8 +18,35 @@ import { useGetSuppliersQuery } from '../../setups/suppliers/SupplierApi';
 import { URLS } from '@/configs/settingsConfig';
 import { useVoiceSearch } from '@/hooks/useVoiceSearch';
 
+const PAYMENT_STATUS = {
+	UNPAID: 0,
+	PAID: 1,
+	PARTIAL: 2
+} as const;
+
+const PAYMENT_TYPE = {
+	CASH: 1,
+	MOMO: 2,
+	BANK: 3,
+	OTHER: 4
+} as const;
+
+function paymentStatusLabel(status: number) {
+	if (status === PAYMENT_STATUS.PAID) return 'Paid';
+	if (status === PAYMENT_STATUS.PARTIAL) return 'Partial';
+	return 'Unpaid';
+}
+
+function paymentTypeLabel(type: number | null | undefined) {
+	if (type === PAYMENT_TYPE.MOMO) return 'MoMo';
+	if (type === PAYMENT_TYPE.BANK) return 'Bank';
+	if (type === PAYMENT_TYPE.OTHER) return 'Other';
+	if (type === PAYMENT_TYPE.CASH) return 'Cash';
+	return '—';
+}
+
 /**
- * The new sale page.
+ * The new purchase page.
  */
 function NewSale() {
     const [createPurchase] = useCreatePurchaseMutation();
@@ -31,6 +58,7 @@ function NewSale() {
     const { data: warehouses } = useGetWarehousesQuery(null, {refetchOnMountOrArgChange:true});
     const { data: products, isLoading } = useGetECommerceProductsWithPaginationQuery({pageType:'pos'}, {refetchOnMountOrArgChange:true});
     const [filterText, setFilterText] = useState('');
+    const [orderFilterText, setOrderFilterText] = useState('');
     const voiceSearch = useVoiceSearch({
         onResult: setFilterText,
         onError: (message) => toast.error(message)
@@ -44,6 +72,20 @@ function NewSale() {
     const [totalQuantity, setTotalQuantity] = useState(0);
 	const [processing, setProcessing] = useState(false);
     const [note, setNote] = useState("");
+    const [paymentStatus, setPaymentStatus] = useState(PAYMENT_STATUS.UNPAID);
+    const [paymentType, setPaymentType] = useState(PAYMENT_TYPE.CASH);
+    const [amountPaid, setAmountPaid] = useState('');
+    const [paymentReference, setPaymentReference] = useState('');
+    const [dueDate, setDueDate] = useState('');
+
+    const orderSubtotal = useMemo(
+        () => Number(currentOrder.reduce((pr, c) => pr + (c.order_quantity * c.unit_price), 0)),
+        [currentOrder]
+    );
+    const orderTotal = useMemo(
+        () => Math.max(0, orderSubtotal - (Number(discount) || 0)),
+        [orderSubtotal, discount]
+    );
 
     const filteredProducts = useMemo(() => {
         const list = products ?? [];
@@ -59,6 +101,18 @@ function NewSale() {
             return name.includes(q) || sku.includes(q) || barCode.includes(q);
         });
     }, [products, category?.id, category?.name, filterText]);
+
+    const filteredCurrentOrder = useMemo(() => {
+        const list = Array.isArray(currentOrder) ? currentOrder : [];
+        const q = orderFilterText.trim().toLowerCase();
+        if (!q) return list;
+        return list.filter((p: any) => {
+            const name = String(p?.name ?? '').toLowerCase();
+            const sku = String(p?.sku ?? '').toLowerCase();
+            const barCode = String(p?.bar_code ?? '').toLowerCase();
+            return name.includes(q) || sku.includes(q) || barCode.includes(q);
+        });
+    }, [currentOrder, orderFilterText]);
 
     const handleChangeCategory = (catr) => {
         setCategory(catr);
@@ -77,16 +131,31 @@ function NewSale() {
     }
 
     const handleSavePurchase = () => {
+        const paidParsed = amountPaid.trim() === '' ? null : Number(String(amountPaid).replace(/,/g, ''));
+        let resolvedAmountPaid = 0;
+        if (paymentStatus === PAYMENT_STATUS.PAID) {
+            resolvedAmountPaid = paidParsed != null && Number.isFinite(paidParsed) && paidParsed > 0
+                ? paidParsed
+                : orderTotal;
+        } else if (paymentStatus === PAYMENT_STATUS.PARTIAL) {
+            resolvedAmountPaid = paidParsed != null && Number.isFinite(paidParsed) ? paidParsed : 0;
+        }
+
         const payload = {
             number_of_items: totalQuantity,
-            total_amount: Number((currentOrder.reduce((pr,c)=> pr + (c.order_quantity*c.unit_price), 0)) - Number(discount)),
+            total_amount: orderTotal,
             discount_amount: Number(discount),
             invoice_number: invoice,
             current_status: 1,
             notes: note,
             warehouse_id: warehouses?.find(wh=> wh.name == warehouse)?.id,
             supplier_id: suppliers?.find(sup=> sup.name == supplier)?.id,
-            products: currentOrder.map(o=> ({id: o.id, quantity: Number(o.order_quantity), unit_price: o.unit_price}))
+            products: currentOrder.map(o=> ({id: o.id, quantity: Number(o.order_quantity), unit_price: o.unit_price})),
+            payment_status: paymentStatus,
+            payment_type: paymentStatus === PAYMENT_STATUS.UNPAID ? null : paymentType,
+            amount_paid: resolvedAmountPaid,
+            payment_reference: paymentStatus === PAYMENT_STATUS.UNPAID ? null : (paymentReference.trim() || null),
+            due_date: dueDate || null
         }
 
         // console.log('pl',payload);
@@ -104,8 +173,15 @@ function NewSale() {
                     setWarehouse('');
                     setInvoice('')
                     setCurrentOrder([]);
+                    setOrderFilterText('');
                     setNote('');
                     setTotalQuantity(0);
+                    setDiscount('');
+                    setPaymentStatus(PAYMENT_STATUS.UNPAID);
+                    setPaymentType(PAYMENT_TYPE.CASH);
+                    setAmountPaid('');
+                    setPaymentReference('');
+                    setDueDate('');
                     toast.success('New purchase saved successfully.');
                 }
                 else if(res.error) {
@@ -140,16 +216,14 @@ function NewSale() {
                     </div>
                 )}
                 <Paper className="w-5/7 h-full flex flex-col flex-1 p-4 overflow-x-auto" style={{backgroundColor:'#fefefe'}}>
-                    <div className='flex w-full pb-2 justify-between'>
+                    <div className='flex w-full pb-2 items-center gap-3'>
                         <Autocomplete
-                            className="w-1/3"
-                            // fullWidth
-                            // multiple
+                            className="min-w-0 flex-1"
+                            fullWidth
                             freeSolo
-                            options={suppliers?.map(s=> s.name)}
+                            options={suppliers?.map(s=> s.name) || []}
                             value={supplier as string}
                             onChange={(event, newValue) => {
-                                // onChange(newValue);
                                 setSupplier(newValue)
                             }}
                             renderInput={(params) => (
@@ -161,16 +235,20 @@ function NewSale() {
                                     InputLabelProps={{
                                         shrink: true
                                     }}
+                                    sx={{
+                                        "& .MuiOutlinedInput-input": {
+                                            height: 5,
+                                        },
+                                    }}
                                 />
                             )}
                         />
 
                         <Autocomplete
-                            className="w-1/3 mx-2"
-                            // fullWidth
-                            // multiple
+                            className="min-w-0 flex-1"
+                            fullWidth
                             freeSolo
-                            options={warehouses?.map(w=> w.name)}
+                            options={warehouses?.map(w=> w.name) || []}
                             value={warehouse as string}
                             onChange={(event, newValue) => {
                                 setWarehouse(newValue)
@@ -184,13 +262,17 @@ function NewSale() {
                                     InputLabelProps={{
                                         shrink: true
                                     }}
+                                    sx={{
+                                        "& .MuiOutlinedInput-input": {
+                                            height: 5,
+                                        },
+                                    }}
                                 />
                             )}
                         />
 
                         <TextField
-                            // {...params}
-                            className='w-1/3'
+                            className='min-w-0 flex-1'
                             placeholder="Invoice no."
                             label="Invoice"
                             variant="outlined"
@@ -203,35 +285,36 @@ function NewSale() {
                                     setInvoice(ev.target.value);
                                 }
                             }}
-                            InputProps={{
-                                style: {height:51}
+                            sx={{
+                                "& .MuiOutlinedInput-input": {
+                                    height: 5,
+                                },
                             }}
                         />
+                    </div>
 
-                        {/* <Paper className="flex h-11 w-1/3 items-center rounded-lg shadow-sm">
-                            <Input
-                                placeholder="Search..."
-                                disableUnderline
-                                fullWidth
-                                onChange={(event)=> {
-                                    setFilterText(event.target.value)
-                                }}
-                                inputProps={{
-                                    'aria-label': 'Search'
-                                }}
-                            />
+                    <div className="mb-1 flex w-full items-center gap-2">
+                        <Paper
+                            elevation={0}
+                            className="flex min-w-0 flex-1 items-center rounded-lg px-2"
+                            sx={{
+                                height: 36,
+                                minHeight: 36,
+                                maxHeight: 36,
+                                boxSizing: 'border-box',
+                                border: 1,
+                                borderColor: 'divider',
+                                boxShadow: 'none',
+                                overflow: 'hidden'
+                            }}
+                        >
                             <FuseSvgIcon
-                                className="mx-3"
+                                size={18}
+                                className="mx-1.5 shrink-0"
                                 color="action"
                             >
                                 heroicons-outline:magnifying-glass
                             </FuseSvgIcon>
-                        </Paper> */}
-                    </div>
-
-                    <div className='flex w-full pb-2 justify-end mb-2' style={{borderBottom:'1px solid #ccc'}}>
-                        <div className='w-2/3 mr-4'/>
-                        <Paper className="flex h-11 w-1/3 items-center rounded-lg shadow-sm">
                             <Input
                                 placeholder="Search name, SKU, or code..."
                                 disableUnderline
@@ -242,6 +325,15 @@ function NewSale() {
                                 }}
                                 inputProps={{
                                     'aria-label': 'Search products'
+                                }}
+                                sx={{
+                                    height: 36,
+                                    fontSize: 14,
+                                    '& .MuiInput-input': {
+                                        py: 0,
+                                        height: 36,
+                                        boxSizing: 'border-box'
+                                    }
                                 }}
                             />
                             <Tooltip
@@ -261,10 +353,12 @@ function NewSale() {
                                         aria-label={voiceSearch.listening ? 'Stop voice search' : 'Voice search'}
                                         sx={{
                                             color: voiceSearch.listening ? 'error.main' : 'action.active',
-                                            mr: 0.5
+                                            width: 28,
+                                            height: 28,
+                                            p: 0.25
                                         }}
                                     >
-                                        <FuseSvgIcon size={20}>
+                                        <FuseSvgIcon size={18}>
                                             {voiceSearch.listening
                                                 ? 'heroicons-solid:stop'
                                                 : 'heroicons-outline:microphone'}
@@ -272,12 +366,6 @@ function NewSale() {
                                     </IconButton>
                                 </span>
                             </Tooltip>
-                            <FuseSvgIcon
-                                className="mx-2"
-                                color="action"
-                            >
-                                heroicons-outline:magnifying-glass
-                            </FuseSvgIcon>
                         </Paper>
                     </div>
 
@@ -523,10 +611,35 @@ function NewSale() {
                             {/* <span className='text-sm' ><b>(R094-869)</b></span> */}
                         </div>
                     </div>
+
+                    <Paper className="flex h-9 w-full items-center rounded-md shadow-none border border-solid mb-1 px-1.5" sx={{ borderColor: 'divider' }}>
+                        <FuseSvgIcon size={16} color="action" className="mx-1 shrink-0">
+                            heroicons-outline:magnifying-glass
+                        </FuseSvgIcon>
+                        <Input
+                            placeholder="Filter order…"
+                            disableUnderline
+                            fullWidth
+                            value={orderFilterText}
+                            onChange={(event) => setOrderFilterText(event.target.value)}
+                            inputProps={{ 'aria-label': 'Filter receive order' }}
+                            sx={{ fontSize: 13 }}
+                        />
+                        {orderFilterText ? (
+                            <IconButton
+                                size="small"
+                                aria-label="Clear order filter"
+                                onClick={() => setOrderFilterText('')}
+                            >
+                                <FuseSvgIcon size={14}>heroicons-outline:x-mark</FuseSvgIcon>
+                            </IconButton>
+                        ) : null}
+                    </Paper>
+
                     <div className='grow-1 flex flex-col'>
                         <div className='grow-1 overflow-y-auto' style={{height:'200px'}}>
-                            {currentOrder.map((product,i)=> (
-                                <div className='flex mb-3 items-center py-2 pr-2' key={i}>
+                            {filteredCurrentOrder.map((product,i)=> (
+                                <div className='flex mb-3 items-center py-2 pr-2' key={product.id ?? i}>
                                     <span
                                         className='cursor-pointer' 
                                         onClick={()=> {
@@ -619,6 +732,11 @@ function NewSale() {
                                     </div>
                                 </div>
                             ))}
+                            {currentOrder.length > 0 && filteredCurrentOrder.length === 0 && (
+                                <Typography variant="body2" color="text.secondary" className="px-1 py-4 text-center">
+                                    No order lines match “{orderFilterText.trim()}”.
+                                </Typography>
+                            )}
                         </div>
                         <div className='p-4 my-2' style={{backgroundColor:'#eee',borderRadius:4}}>
                             <div className='flex justify-between mb-2'>
@@ -670,6 +788,85 @@ function NewSale() {
                                     }}
                                 />
                             </div>
+                            <div className='mt-2 mb-1 space-y-2'>
+                                <p className='text-sm font-medium'>Payment (optional)</p>
+                                <TextField
+                                    select
+                                    fullWidth
+                                    size="small"
+                                    label="Payment status"
+                                    value={paymentStatus}
+                                    onChange={(e) => {
+                                        const next = Number(e.target.value);
+                                        setPaymentStatus(next);
+                                        if (next === PAYMENT_STATUS.PAID && !amountPaid) {
+                                            setAmountPaid(String(orderTotal.toFixed(2)));
+                                        }
+                                        if (next === PAYMENT_STATUS.UNPAID) {
+                                            setAmountPaid('');
+                                            setPaymentReference('');
+                                        }
+                                    }}
+                                >
+                                    <MenuItem value={PAYMENT_STATUS.UNPAID}>Unpaid</MenuItem>
+                                    <MenuItem value={PAYMENT_STATUS.PAID}>Paid</MenuItem>
+                                    <MenuItem value={PAYMENT_STATUS.PARTIAL}>Partial</MenuItem>
+                                </TextField>
+                                {paymentStatus !== PAYMENT_STATUS.UNPAID && (
+                                    <>
+                                        <TextField
+                                            select
+                                            fullWidth
+                                            size="small"
+                                            label="Method"
+                                            value={paymentType}
+                                            onChange={(e) => setPaymentType(Number(e.target.value))}
+                                        >
+                                            <MenuItem value={PAYMENT_TYPE.CASH}>Cash</MenuItem>
+                                            <MenuItem value={PAYMENT_TYPE.MOMO}>MoMo</MenuItem>
+                                            <MenuItem value={PAYMENT_TYPE.BANK}>Bank</MenuItem>
+                                            <MenuItem value={PAYMENT_TYPE.OTHER}>Other</MenuItem>
+                                        </TextField>
+                                        <TextField
+                                            fullWidth
+                                            size="small"
+                                            label="Amount paid"
+                                            type="number"
+                                            value={amountPaid}
+                                            placeholder={String(orderTotal.toFixed(2))}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                if (val === '' || /^\d*\.?\d{0,2}$/.test(val)) {
+                                                    setAmountPaid(val);
+                                                }
+                                            }}
+                                            InputLabelProps={{ shrink: true }}
+                                        />
+                                        <TextField
+                                            fullWidth
+                                            size="small"
+                                            label="Payment reference"
+                                            value={paymentReference}
+                                            placeholder="MoMo / transfer ref"
+                                            onChange={(e) => {
+                                                if (e.target.value.length <= 50) setPaymentReference(e.target.value);
+                                            }}
+                                            InputLabelProps={{ shrink: true }}
+                                        />
+                                    </>
+                                )}
+                                {(paymentStatus === PAYMENT_STATUS.UNPAID || paymentStatus === PAYMENT_STATUS.PARTIAL) && (
+                                    <TextField
+                                        fullWidth
+                                        size="small"
+                                        label="Due date"
+                                        type="date"
+                                        value={dueDate}
+                                        onChange={(e) => setDueDate(e.target.value)}
+                                        InputLabelProps={{ shrink: true }}
+                                    />
+                                )}
+                            </div>
                             <hr className='mb-2'/>
                             <div className='flex justify-between'>
                                 <p>Total</p>
@@ -699,6 +896,17 @@ function NewSale() {
                                     toast.error('Select at least 1 product');
                                     return;
                                 }
+                                if (paymentStatus === PAYMENT_STATUS.PARTIAL) {
+                                    const paid = Number(String(amountPaid).replace(/,/g, ''));
+                                    if (!Number.isFinite(paid) || paid <= 0) {
+                                        toast.error('Enter amount paid for partial payment');
+                                        return;
+                                    }
+                                    if (paid >= orderTotal) {
+                                        toast.error('Partial amount must be less than total — use Paid instead');
+                                        return;
+                                    }
+                                }
 
                                 setOpenConfirm(true);
                             }}
@@ -723,10 +931,32 @@ function NewSale() {
 
                         setOpenConfirm(false);
                     }}
-                    leftText='No'
-                    message='Are you sure you want to receive or save this invoice/purchase?'
-                    rightText='Yes'
+                    leftText='Cancel'
+                    message='Review this purchase before receiving stock and saving the invoice.'
+                    rightText='Confirm & save'
                     title='Confirm Purchase'
+                    summary={{
+                        supplier,
+                        warehouse,
+                        invoice,
+                        items: currentOrder,
+                        subtotal: orderSubtotal,
+                        discount: Number(discount) || 0,
+                        totalItems: totalQuantity,
+                        note,
+                        total: orderTotal,
+                        paymentStatus: paymentStatusLabel(paymentStatus),
+                        paymentMethod: paymentStatus === PAYMENT_STATUS.UNPAID
+                            ? null
+                            : paymentTypeLabel(paymentType),
+                        amountPaid: paymentStatus === PAYMENT_STATUS.UNPAID
+                            ? 0
+                            : (amountPaid.trim() === ''
+                                ? (paymentStatus === PAYMENT_STATUS.PAID ? orderTotal : 0)
+                                : Number(String(amountPaid).replace(/,/g, '')) || 0),
+                        paymentReference: paymentReference.trim() || null,
+                        dueDate: dueDate || null
+                    }}
                 />
 			</div>
 		</>

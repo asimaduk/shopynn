@@ -270,8 +270,22 @@ export const createPaymentService = async (payload) => {
 
 /** Create a pending payment and return id + reference for checkout flow. Reference is short for gateway (e.g. Paystack). */
 export const createPendingPaymentForCheckoutService = async (payload) => {
-    let { amount, subscription_id, customer_id, order_id, tenant_id, creator_id, payment_method_type, quote_id } = payload;
-    if (!subscription_id && !order_id && tenant_id) {
+    let {
+        amount,
+        subscription_id,
+        customer_id,
+        order_id,
+        sale_id,
+        tenant_id,
+        creator_id,
+        payment_method_type,
+        quote_id,
+        face_amount,
+        fee_amount,
+        payment_source,
+        payment_number,
+    } = payload;
+    if (!subscription_id && !order_id && !sale_id && tenant_id) {
         const tenantRow = await pool.query(
             "SELECT subscription_id FROM tenants WHERE id = $1",
             [tenant_id]
@@ -280,21 +294,36 @@ export const createPendingPaymentForCheckoutService = async (payload) => {
     }
     const id = uuidv4();
     const transaction_ref = await createUniqueTransactionRef(payment_method_type);
+    const face =
+        face_amount != null && Number.isFinite(Number(face_amount))
+            ? Number(face_amount)
+            : Number(amount) || 0;
+    const fee =
+        fee_amount != null && Number.isFinite(Number(fee_amount)) ? Number(fee_amount) : 0;
     await pool.query(
-        `INSERT INTO payments (id, amount, subscription_id, customer_id, order_id, tenant_id, creator_id, payment_method_type, payment_number, transaction_ref, status, quote_id, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULL, $9, $10, $11, $12, $12)`,
+        `INSERT INTO payments (
+            id, amount, subscription_id, customer_id, order_id, sale_id, tenant_id, creator_id,
+            payment_method_type, payment_number, transaction_ref, status, quote_id,
+            face_amount, fee_amount, payment_source, created_at, updated_at
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $17)`,
         [
             id,
             amount ?? 0,
             subscription_id || null,
             customer_id || null,
             order_id || null,
+            sale_id || null,
             tenant_id,
             creator_id,
             payment_method_type || null,
+            payment_number || null,
             transaction_ref,
             "pending",
             quote_id || null,
+            face,
+            fee,
+            payment_source || null,
             new Date(),
         ]
     );
@@ -308,17 +337,21 @@ export const createPendingPaymentForCheckoutService = async (payload) => {
         metadata: {
             transaction_ref,
             amount: amount ?? 0,
+            face_amount: face,
+            fee_amount: fee,
             payment_method_type: payment_method_type || null,
+            payment_source: payment_source || null,
             quote_id: quote_id || null,
         },
     });
-    return { id, transaction_ref };
+    return { id, transaction_ref, face_amount: face, fee_amount: fee, amount: Number(amount) || 0 };
 };
 
 /** Get payment by gateway transaction reference and tenant (for verify/submit-otp and webhook). */
 export const getPaymentByTransactionRefService = async (transaction_ref, tenant_id) => {
     const result = await pool.query(
-        `SELECT id, amount, tenant_id, transaction_ref, status, order_id, subscription_id, quote_id
+        `SELECT id, amount, face_amount, fee_amount, payment_source, tenant_id, transaction_ref, status,
+                order_id, sale_id, subscription_id, quote_id, payment_method_type, payment_number
          FROM payments WHERE transaction_ref = $1 AND tenant_id = $2`,
         [transaction_ref, tenant_id]
     );
@@ -328,7 +361,8 @@ export const getPaymentByTransactionRefService = async (transaction_ref, tenant_
 /** Webhook: resolve payment row by reference only (reference should be unique). */
 export const getPaymentByTransactionRefGlobalService = async (transaction_ref) => {
     const result = await pool.query(
-        `SELECT id, amount, tenant_id, transaction_ref, status, order_id, subscription_id, quote_id
+        `SELECT id, amount, face_amount, fee_amount, payment_source, tenant_id, transaction_ref, status,
+                order_id, sale_id, subscription_id, quote_id, payment_method_type, payment_number
          FROM payments WHERE transaction_ref = $1 LIMIT 1`,
         [transaction_ref]
     );
@@ -340,6 +374,327 @@ export const amountsMatchOrderTotal = (paymentAmount, orderTotal) => {
     const b = Number(orderTotal);
     if (!Number.isFinite(a) || !Number.isFinite(b)) return false;
     return Math.abs(a - b) <= 0.02;
+};
+
+/** Face value credited to merchant settlements (falls back to amount for legacy rows). */
+export const paymentFaceAmount = (payment) => {
+    if (payment?.face_amount != null && Number.isFinite(Number(payment.face_amount))) {
+        return Math.round(Number(payment.face_amount) * 100) / 100;
+    }
+    return Math.round((Number(payment?.amount) || 0) * 100) / 100;
+};
+
+/**
+ * Find a recent POS MoMo payment that can be reused (success, unlinked) or resumed (pending).
+ * Prevents orphaned double-charges when cashier cancels/re-sends.
+ */
+export const findOpenPosMomoPaymentService = async ({
+    tenant_id,
+    face_amount,
+    phone,
+}) => {
+    const face = Math.round((Number(face_amount) || 0) * 100) / 100;
+    if (!tenant_id || !(face > 0)) return null;
+    const phoneDigits = String(phone || "").replace(/\D/g, "");
+
+    const successRes = await pool.query(
+        `SELECT id, transaction_ref, status, face_amount, fee_amount, amount, payment_number, created_at
+         FROM payments
+         WHERE tenant_id = $1
+           AND coalesce(payment_source, '') = 'pos_sale'
+           AND coalesce(payment_method_type, '') = 'mobile_money'
+           AND sale_id IS NULL
+           AND order_id IS NULL
+           AND lower(coalesce(status, '')) = 'success'
+           AND abs(coalesce(face_amount, amount) - $2) < 0.02
+           AND created_at > now() - interval '24 hours'
+           AND (
+             $3 = ''
+             OR regexp_replace(coalesce(payment_number, ''), '\\D', '', 'g') = $3
+           )
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [tenant_id, face, phoneDigits]
+    );
+    if (successRes.rows[0]) {
+        return { ...successRes.rows[0], reuse_mode: "success" };
+    }
+
+    const pendingRes = await pool.query(
+        `SELECT id, transaction_ref, status, face_amount, fee_amount, amount, payment_number, created_at
+         FROM payments
+         WHERE tenant_id = $1
+           AND coalesce(payment_source, '') = 'pos_sale'
+           AND coalesce(payment_method_type, '') = 'mobile_money'
+           AND sale_id IS NULL
+           AND order_id IS NULL
+           AND lower(coalesce(status, '')) IN ('pending', 'otp', 'ongoing', 'send_otp')
+           AND abs(coalesce(face_amount, amount) - $2) < 0.02
+           AND created_at > now() - interval '45 minutes'
+           AND (
+             $3 = ''
+             OR regexp_replace(coalesce(payment_number, ''), '\\D', '', 'g') = $3
+           )
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [tenant_id, face, phoneDigits]
+    );
+    if (pendingRes.rows[0]) {
+        return { ...pendingRes.rows[0], reuse_mode: "pending" };
+    }
+    return null;
+};
+
+/**
+ * Attach / refresh a POS cart snapshot on an unlinked POS MoMo payment so the cashier
+ * can serve other customers and resume later.
+ */
+export const parkPosMomoPaymentService = async ({
+    tenant_id,
+    transaction_ref,
+    cart_snapshot,
+    actor_user_id,
+}) => {
+    if (!tenant_id || !transaction_ref) {
+        const err = new Error("reference is required.");
+        err.status = 400;
+        throw err;
+    }
+    if (!cart_snapshot || typeof cart_snapshot !== "object" || Array.isArray(cart_snapshot)) {
+        const err = new Error("cart_snapshot object is required.");
+        err.status = 400;
+        throw err;
+    }
+    const products = Array.isArray(cart_snapshot.products)
+        ? cart_snapshot.products
+        : Array.isArray(cart_snapshot.currentOrder)
+          ? cart_snapshot.currentOrder
+          : null;
+    if (!products || products.length === 0) {
+        const err = new Error("cart_snapshot must include products.");
+        err.status = 400;
+        throw err;
+    }
+
+    const payRes = await pool.query(
+        `SELECT id, status, sale_id, payment_source, payment_method_type, face_amount, amount,
+                fee_amount, payment_number, transaction_ref, created_at
+         FROM payments
+         WHERE transaction_ref = $1 AND tenant_id = $2`,
+        [transaction_ref, tenant_id]
+    );
+    const payment = payRes.rows[0];
+    if (!payment) {
+        const err = new Error("Payment not found.");
+        err.status = 404;
+        throw err;
+    }
+    if (payment.sale_id) {
+        const err = new Error("Payment is already linked to a sale.");
+        err.status = 400;
+        err.code = "PAYMENT_ALREADY_LINKED";
+        throw err;
+    }
+    if (String(payment.payment_source || "") !== "pos_sale") {
+        const err = new Error("Only POS MoMo payments can be parked.");
+        err.status = 400;
+        throw err;
+    }
+
+    const snapshot = {
+        ...cart_snapshot,
+        products,
+        parked_at: new Date().toISOString(),
+        parked_by_user_id: actor_user_id || null,
+    };
+
+    const upd = await pool.query(
+        `UPDATE payments
+         SET pos_cart_snapshot = $1::jsonb, updated_at = now()
+         WHERE id = $2
+         RETURNING id, transaction_ref, status, face_amount, fee_amount, amount, payment_number,
+                   created_at, pos_cart_snapshot`,
+        [JSON.stringify(snapshot), payment.id]
+    );
+
+    await logPaymentEventService({
+        payment_id: payment.id,
+        order_id: null,
+        tenant_id,
+        actor_user_id: actor_user_id || null,
+        event_type: "pos_payment_parked",
+        note: "POS MoMo payment parked with cart snapshot.",
+        metadata: { transaction_ref, product_count: products.length },
+    });
+
+    return upd.rows[0];
+};
+
+/** Unlinked POS MoMo payments (pending or success) for the pending-payments screen. */
+export const listUnlinkedPosMomoPaymentsService = async (user, requestQuery = {}) => {
+    const tenant_id = user?.tenant_id;
+    if (!tenant_id) return [];
+
+    const conditions = [
+        "p.tenant_id = $1",
+        "coalesce(p.payment_source, '') = 'pos_sale'",
+        "coalesce(p.payment_method_type, '') = 'mobile_money'",
+        "p.sale_id IS NULL",
+        "p.order_id IS NULL",
+        "p.pos_cart_snapshot IS NOT NULL",
+        "p.created_at > now() - interval '48 hours'",
+        "lower(coalesce(p.status, '')) NOT IN ('abandoned', 'failed', 'reversed', 'cancelled')",
+    ];
+    const params = [tenant_id];
+    let paramIndex = 2;
+
+    const status = requestQuery.status;
+    if (status !== undefined && status !== null && String(status).trim() !== "") {
+        const st = String(status).trim().toLowerCase();
+        if (st === "pending") {
+            conditions.push(
+                `lower(coalesce(p.status, '')) IN ('pending', 'otp', 'ongoing', 'send_otp')`
+            );
+        } else if (st === "success" || st === "paid") {
+            conditions.push(`lower(coalesce(p.status, '')) IN ('success', 'paid', 'completed')`);
+        } else {
+            conditions.push(`lower(coalesce(p.status, '')) = $${paramIndex}`);
+            params.push(st);
+            paramIndex += 1;
+        }
+    }
+
+    const where = conditions.join(" AND ");
+    const result = await pool.query(
+        `SELECT p.id, p.amount, p.face_amount, p.fee_amount, p.payment_number, p.transaction_ref,
+                p.status, p.created_at, p.updated_at, p.pos_cart_snapshot, p.creator_id,
+                u.first_name AS creator_first_name, u.last_name AS creator_last_name
+         FROM payments p
+         LEFT JOIN users u ON p.creator_id = u.id
+         WHERE ${where}
+         ORDER BY p.created_at DESC
+         LIMIT 200`,
+        params
+    );
+    return result.rows;
+};
+
+/** Mark a pending POS MoMo payment abandoned so a new charge can be started. Refuses success. */
+export const abandonPosMomoPaymentService = async ({ tenant_id, transaction_ref, actor_user_id }) => {
+    const client = await pool.connect();
+    try {
+        await client.query("BEGIN");
+        const payRes = await client.query(
+            `SELECT id, status, sale_id, payment_source
+             FROM payments
+             WHERE transaction_ref = $1 AND tenant_id = $2
+             FOR UPDATE`,
+            [transaction_ref, tenant_id]
+        );
+        const payment = payRes.rows[0];
+        if (!payment) {
+            const err = new Error("Payment not found.");
+            err.status = 404;
+            throw err;
+        }
+        if (payment.sale_id) {
+            const err = new Error("Payment is already linked to a sale.");
+            err.status = 400;
+            err.code = "PAYMENT_ALREADY_LINKED";
+            throw err;
+        }
+        const st = String(payment.status || "").toLowerCase();
+        if (st === "success" || st === "paid" || st === "completed") {
+            const err = new Error(
+                "This MoMo payment already succeeded. Complete the sale with this reference — do not send another charge."
+            );
+            err.status = 400;
+            err.code = "PAYMENT_ALREADY_SUCCESS";
+            throw err;
+        }
+        await client.query(
+            `UPDATE payments SET status = 'abandoned', updated_at = now() WHERE id = $1`,
+            [payment.id]
+        );
+        await client.query("COMMIT");
+        await logPaymentEventService({
+            payment_id: payment.id,
+            order_id: null,
+            tenant_id,
+            actor_user_id: actor_user_id || null,
+            event_type: "payment_abandoned",
+            note: "POS MoMo payment abandoned so a new prompt can be sent.",
+            metadata: { transaction_ref },
+        });
+        return { transaction_ref, status: "abandoned" };
+    } catch (error) {
+        try {
+            await client.query("ROLLBACK");
+        } catch {
+            /* ignore */
+        }
+        throw error;
+    } finally {
+        client.release();
+    }
+};
+
+/**
+ * Attach a successful POS MoMo payment to a newly created sale.
+ */
+export const linkPosPaymentToSaleService = async ({
+    client,
+    transaction_ref,
+    sale_id,
+    tenant_id,
+    expected_face_amount,
+    payment_number,
+}) => {
+    const db = client || pool;
+    const payRes = await db.query(
+        `SELECT id, amount, face_amount, fee_amount, status, sale_id, payment_source, tenant_id
+         FROM payments WHERE transaction_ref = $1 AND tenant_id = $2 FOR UPDATE`,
+        [transaction_ref, tenant_id]
+    );
+    const payment = payRes.rows[0];
+    if (!payment) {
+        const err = new Error("MoMo payment not found for this reference.");
+        err.status = 400;
+        err.code = "PAYMENT_NOT_FOUND";
+        throw err;
+    }
+    if (String(payment.status || "").toLowerCase() !== "success") {
+        const err = new Error("MoMo payment is not confirmed yet. Wait for approval and try again.");
+        err.status = 400;
+        err.code = "PAYMENT_NOT_SUCCESS";
+        throw err;
+    }
+    if (payment.sale_id && payment.sale_id !== sale_id) {
+        const err = new Error("This MoMo payment is already linked to another sale.");
+        err.status = 400;
+        err.code = "PAYMENT_ALREADY_LINKED";
+        throw err;
+    }
+    const face = paymentFaceAmount(payment);
+    if (!amountsMatchOrderTotal(face, expected_face_amount)) {
+        const err = new Error(
+            `Payment amount mismatch: expected sale ${Number(expected_face_amount).toFixed(2)}, payment face ${face.toFixed(2)}.`
+        );
+        err.status = 400;
+        err.code = "PAYMENT_FACE_MISMATCH";
+        throw err;
+    }
+    await db.query(
+        `UPDATE payments
+         SET sale_id = $1,
+             payment_number = COALESCE($2, payment_number),
+             payment_source = COALESCE(payment_source, 'pos_sale'),
+             pos_cart_snapshot = NULL,
+             updated_at = now()
+         WHERE id = $3`,
+        [sale_id, payment_number || null, payment.id]
+    );
+    return payment;
 };
 
 /**
@@ -533,7 +888,8 @@ export const syncOrderPaymentAfterSuccess = async (transaction_ref, tenant_id) =
         }
     }
 
-    if (!amountsMatchOrderTotal(payment.amount, row.total_amount)) return null;
+    // Match order total to face value (gross charge may include platform fee).
+    if (!amountsMatchOrderTotal(paymentFaceAmount(payment), row.total_amount)) return null;
 
     const upd = await pool.query(
         `UPDATE orders SET payment_status = 'paid', amount_paid = total_amount, balance_due = 0, updated_at = now()

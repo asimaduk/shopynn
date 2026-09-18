@@ -132,6 +132,7 @@ const Settings = ({ navigation, route }) => {
     );
 
     const canPendingSales = canAccessScreen(user, 'PendingSales', subscriptionFeatures);
+    const canPendingMomo = canAccessScreen(user, 'PendingMomoPayments', subscriptionFeatures);
     const warehousesAccess = getScreenPlanAccess(user, 'Warehouses', subscriptionFeatures, subscriptionPlan);
     const transfersAccess = getScreenPlanAccess(user, 'ProductTransfers', subscriptionFeatures, subscriptionPlan);
     const ordersAccess = getScreenPlanAccess(user, 'Orders', subscriptionFeatures, subscriptionPlan);
@@ -494,7 +495,7 @@ const Settings = ({ navigation, route }) => {
                 </View>
 
                 {/* Operations Section */}
-                {(canPendingSales || canWarehouses || canTransfers || canOrders || canOrderPayments || canOrderSettlements || canAdjustments || canStockCount) && (
+                {(canPendingSales || canPendingMomo || canWarehouses || canTransfers || canOrders || canOrderPayments || canOrderSettlements || canAdjustments || canStockCount) && (
                     <View style={styles.section}>
                         <AppText label={'Operations'} variant={1} fontSize={14} color={colors.textTertiary} style={styles.sectionTitle} />
                     <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -601,6 +602,34 @@ const Settings = ({ navigation, route }) => {
                                             )}
                                         </View>
                                         <AppText label={'Review and approve sales'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
+                                    </View>
+                                    <Lucide name="chevron-right" color={colors.border} size={18} />
+                                </TouchableOpacity>
+                                {(canPendingMomo || canWarehouses || canTransfers || canAdjustments || canStockCount) && (
+                                    <View style={[styles.divider, { backgroundColor: colors.divider }]} />
+                                )}
+                            </>
+                        )}
+
+                        {canPendingMomo && (
+                            <>
+                                <TouchableOpacity
+                                    activeOpacity={0.6}
+                                    onPress={() => navigation.navigate('PendingMomoPayments')}
+                                    style={styles.menuItem}
+                                >
+                                    <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                        <Lucide name="smartphone" color="#d97706" size={20} />
+                                    </View>
+                                    <View style={styles.menuContent}>
+                                        <AppText label={'Pending MoMo'} variant={2} color={colors.text} fontSize={15} />
+                                        <AppText
+                                            label={'Parked POS MoMo — check status & complete'}
+                                            variant={2}
+                                            color={colors.textTertiary}
+                                            fontSize={12}
+                                            style={{ marginTop: 2 }}
+                                        />
                                     </View>
                                     <Lucide name="chevron-right" color={colors.border} size={18} />
                                 </TouchableOpacity>

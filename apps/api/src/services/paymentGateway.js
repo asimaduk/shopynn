@@ -193,25 +193,96 @@ async function paystackRequest(path, { method = "GET", body } = {}) {
 
 /**
  * List Ghana banks or mobile-money providers for payout recipient setup.
+ * Bank list is public on Paystack (no secret required); falls back to stub if offline.
  * @param {{ type?: 'ghipss' | 'mobile_money' }} opts
  */
 export async function listPayoutBanks(opts = {}) {
-    if (!PAYSTACK_SECRET) {
-        const stubMomo = [
-            { name: "MTN", code: "MTN", slug: "mtn" },
-            { name: "Telecel", code: "VOD", slug: "vod" },
-            { name: "AT", code: "ATL", slug: "atl" },
-        ];
-        const stubBanks = [
-            { name: "GCB Bank", code: "040", slug: "gcb" },
-            { name: "Ecobank Ghana", code: "130", slug: "ecobank-ghana" },
-        ];
-        return opts.type === "mobile_money" ? stubMomo : stubBanks;
+    const stubMomo = [
+        { name: "MTN", code: "MTN", slug: "mtn-mobile-money" },
+        { name: "Vodafone", code: "VOD", slug: "vod-mobile-money" },
+        { name: "AirtelTigo", code: "ATL", slug: "atl-mobile-money" },
+    ];
+    const stubBanks = [
+        { name: "Absa Bank Ghana Ltd", code: "030100", slug: "absa-bank-ghana-ltd" },
+        { name: "Access Bank", code: "280100", slug: "access-bank-ghana" },
+        { name: "ADB Bank Limited", code: "080100", slug: "adb-bank-limited" },
+        { name: "CAL Bank Limited", code: "140100", slug: "cal-bank-limited" },
+        { name: "Consolidated Bank Ghana Limited", code: "340100", slug: "consolidated-bank-ghana-limited" },
+        { name: "Ecobank Ghana Limited", code: "130100", slug: "ecobank-ghana-limited" },
+        { name: "Fidelity Bank Ghana Limited", code: "240100", slug: "fidelity-bank-ghana-limited" },
+        { name: "GCB Bank Limited", code: "040100", slug: "gcb-bank-limited" },
+        { name: "Guaranty Trust Bank (Ghana) Limited", code: "230100", slug: "guaranty-trust-bank-(ghana)-limited" },
+        { name: "National Investment Bank Limited", code: "050100", slug: "national-investment-bank-limited" },
+        { name: "Stanbic Bank Ghana Limited", code: "190100", slug: "stanbic-bank-ghana-limited" },
+        { name: "Standard Chartered Bank Ghana Limited", code: "020100", slug: "standard-chartered-bank-ghana-limited" },
+        { name: "United Bank for Africa Ghana Limited", code: "060100", slug: "united-bank-for-africa-ghana-limited" },
+        { name: "Zenith Bank Ghana", code: "120100", slug: "zenith-bank-ghana" },
+    ];
+
+    const excludeFromTransfers = new Set(["bank of ghana", "bank-of-ghana"]);
+    const filterBanks = (banks) =>
+        (Array.isArray(banks) ? banks : []).filter((b) => {
+            const name = String(b?.name || "").toLowerCase();
+            const slug = String(b?.slug || "").toLowerCase();
+            return !excludeFromTransfers.has(name) && !excludeFromTransfers.has(slug);
+        });
+
+    try {
+        const params = new URLSearchParams({ country: "ghana", currency: "GHS" });
+        if (opts.type) params.set("type", opts.type);
+        const headers = {};
+        if (PAYSTACK_SECRET) headers.Authorization = `Bearer ${PAYSTACK_SECRET}`;
+        const res = await fetch(`${PAYSTACK_BASE}/bank?${params.toString()}`, { headers });
+        const json = await res.json();
+        if (json?.status && Array.isArray(json.data) && json.data.length > 0) {
+            return filterBanks(json.data);
+        }
+    } catch (_) {
+        /* fall through to stub */
     }
-    const params = new URLSearchParams({ country: "ghana", currency: "GHS" });
-    if (opts.type) params.set("type", opts.type);
-    const data = await paystackRequest(`/bank?${params.toString()}`);
-    return Array.isArray(data) ? data : [];
+
+    return opts.type === "mobile_money" ? stubMomo : stubBanks;
+}
+
+/**
+ * Resolve Ghana bank account name via Paystack (name inquiry).
+ * Requires PAYSTACK_SECRET_KEY; returns a stub name in local/dev without a key.
+ * @param {{ account_number: string, bank_code: string }} opts
+ */
+export async function resolveBankAccount(opts = {}) {
+    const accountNumber = String(opts.account_number || "").replace(/\D/g, "");
+    const bankCode = String(opts.bank_code || "").trim();
+    if (accountNumber.length < 8) {
+        throw new Error("Enter a valid bank account number.");
+    }
+    if (!bankCode) {
+        throw new Error("Select a bank first.");
+    }
+
+    if (!PAYSTACK_SECRET) {
+        return {
+            account_number: accountNumber,
+            account_name: "Demo Account Holder",
+            bank_id: null,
+            stub: true,
+        };
+    }
+
+    const params = new URLSearchParams({
+        account_number: accountNumber,
+        bank_code: bankCode,
+    });
+    const data = await paystackRequest(`/bank/resolve?${params.toString()}`);
+    const accountName = String(data?.account_name || "").trim();
+    if (!accountName) {
+        throw new Error("Could not resolve account name for this number.");
+    }
+    return {
+        account_number: String(data?.account_number || accountNumber),
+        account_name: accountName,
+        bank_id: data?.bank_id ?? null,
+        stub: false,
+    };
 }
 
 /**

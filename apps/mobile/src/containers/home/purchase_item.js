@@ -9,6 +9,20 @@ import { formatCurrency } from '../../utils/format';
 const PurchaseItem = ({ item, index, onPress }) => {
     const { colors } = useTheme();
     const isOdd = index % 2 !== 0;
+    const payStatus = Number(item.payment_status);
+    const isPaid = payStatus === 1;
+    const isPartial = payStatus === 2;
+    const payBadgeBg = isPaid
+        ? colors.successLight
+        : isPartial
+          ? colors.warningLight || '#fef3c7'
+          : colors.errorLight || '#fee2e2';
+    const payIcon = isPaid ? 'circle-check' : isPartial ? 'circle-alert' : 'circle-x';
+    const payColor = isPaid
+        ? config.GREEN_COLOR
+        : isPartial
+          ? '#d97706'
+          : colors.error || '#dc2626';
 
     const formatDateAndTime = (date) => {
         return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) + ' ' + new Date(date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -34,11 +48,11 @@ const PurchaseItem = ({ item, index, onPress }) => {
                             <AppText label={item.poStatus} fontSize={9} color={item.poStatus === 'received' ? config.GREEN_COLOR : item.poStatus === 'sent' ? colors.info : colors.textSecondary} />
                         </View>
                     )}
-                    <View style={[styles.statusBadge, { backgroundColor: item.current_status === 1 ? colors.successLight : colors.warningLight }]}>
+                    <View style={[styles.statusBadge, { backgroundColor: payBadgeBg }]}>
                         <Lucide
-                            name={item.current_status === 1 ? 'circle-check' : 'clock'}
+                            name={payIcon}
                             size={14}
-                            color={item.current_status === 1 ? config.GREEN_COLOR : '#ff9800'}
+                            color={payColor}
                             style={styles.statusIcon}
                         />
                     </View>
@@ -65,7 +79,7 @@ const PurchaseItem = ({ item, index, onPress }) => {
                         style={{ fontVariant: ['tabular-nums'] }}
                     />
                 </View>
-                <AppText label={item.receiver_name} fontSize={10} color={colors.textTertiary} numberOfLines={1} style={{ marginTop: 4 }} />
+                <AppText label={item.attendant || item.receiver_name || '—'} fontSize={10} color={colors.textTertiary} numberOfLines={1} style={{ marginTop: 4 }} />
             </View>
         </TouchableOpacity>
     );

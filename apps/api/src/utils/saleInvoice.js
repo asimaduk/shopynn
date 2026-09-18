@@ -2,7 +2,11 @@
  * Build invoice view-model and PDF buffer for a sale (server-side).
  */
 
-const THEME = '#0A74DA';
+const ACCENT = '#0A74DA';
+const INK = '#0F172A';
+const MUTED = '#64748B';
+const LINE = '#E2E8F0';
+const SOFT = '#F8FAFC';
 
 function formatMoney(amount, currency = 'GHS') {
     const n = Number(amount);
@@ -11,10 +15,24 @@ function formatMoney(amount, currency = 'GHS') {
 }
 
 function formatDate(value) {
-    if (!value) return new Date().toLocaleString();
+    if (!value) {
+        return new Date().toLocaleString(undefined, {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+    }
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return String(value);
-    return d.toLocaleString();
+    return d.toLocaleString(undefined, {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
 }
 
 export function buildInvoiceFromSaleRow(sale, tenant = {}, warehouseName = '') {
@@ -71,6 +89,14 @@ export function buildInvoiceFromSaleRow(sale, tenant = {}, warehouseName = '') {
         subtotal,
         discount_amount: discount,
         total_amount: total,
+        amount_tendered:
+            sale.amount_tendered != null && sale.amount_tendered !== ''
+                ? Number(sale.amount_tendered)
+                : null,
+        change_amount:
+            sale.change_amount != null && sale.change_amount !== ''
+                ? Number(sale.change_amount)
+                : null,
     };
 }
 
@@ -103,6 +129,14 @@ export function formatInvoicePlainText(invoice) {
         lines.push(`Discount: ${formatMoney(invoice.discount_amount, invoice.currency)}`);
     }
     lines.push(`TOTAL: ${formatMoney(invoice.total_amount, invoice.currency)}`);
+    if (
+        invoice.payment_method === 'Cash' &&
+        invoice.amount_tendered != null &&
+        Number.isFinite(Number(invoice.amount_tendered))
+    ) {
+        lines.push(`Tendered: ${formatMoney(Number(invoice.amount_tendered), invoice.currency)}`);
+        lines.push(`Change: ${formatMoney(Number(invoice.change_amount) || 0, invoice.currency)}`);
+    }
     if (invoice.notes) lines.push(`Notes: ${invoice.notes}`);
     lines.push('--------------------------------');
     lines.push('Thank you for your business!');
@@ -119,78 +153,234 @@ export async function buildSaleInvoicePdfBuffer(invoice) {
         doc.on('end', () => resolve(Buffer.concat(chunks)));
         doc.on('error', reject);
 
-        doc.fillColor(THEME).fontSize(20).text(invoice.company.name, { align: 'left' });
-        doc.fillColor('#333333').fontSize(10);
-        if (invoice.company.address) doc.text(invoice.company.address);
-        if (invoice.company.phone) doc.text(`Tel: ${invoice.company.phone}`);
-        if (invoice.company.email) doc.text(invoice.company.email);
+        const pageWidth = doc.page.width;
+        const left = 48;
+        const right = pageWidth - 48;
+        const contentWidth = right - left;
 
-        doc.moveDown();
-        doc.fillColor(THEME).fontSize(16).text('Invoice');
-        doc.fillColor('#333333').fontSize(10);
-        doc.text(`Invoice #: ${invoice.invoice_number}`);
-        doc.text(`Date: ${formatDate(invoice.sale_date)}`);
-        doc.text(`Customer: ${invoice.customer_name}`);
-        if (invoice.customer_phone) doc.text(`Phone: ${invoice.customer_phone}`);
-        if (invoice.store_name) doc.text(`Store: ${invoice.store_name}`);
-        doc.text(`Payment: ${invoice.payment_method}`);
-        if (invoice.cashier) doc.text(`Cashier: ${invoice.cashier}`);
+        // Header: brand left, invoice badge right
+        doc.fillColor(INK).font('Helvetica-Bold').fontSize(18).text(invoice.company.name, left, 48, {
+            width: contentWidth * 0.58,
+            lineGap: 2,
+        });
+        let brandBottom = doc.y;
+        doc.fillColor(MUTED).font('Helvetica').fontSize(9);
+        if (invoice.company.address) {
+            doc.text(invoice.company.address, left, brandBottom + 4, { width: contentWidth * 0.58 });
+            brandBottom = doc.y;
+        }
+        if (invoice.company.phone) {
+            doc.text(invoice.company.phone, left, brandBottom + 2, { width: contentWidth * 0.58 });
+            brandBottom = doc.y;
+        }
+        if (invoice.company.email) {
+            doc.text(invoice.company.email, left, brandBottom + 2, { width: contentWidth * 0.58 });
+            brandBottom = doc.y;
+        }
 
-        doc.moveDown();
-        const tableTop = doc.y;
-        const colX = { item: 48, qty: 320, unit: 380, amount: 460 };
+        const badgeX = left + contentWidth * 0.55;
+        doc.fillColor(ACCENT).font('Helvetica-Bold').fontSize(9).text('INVOICE', badgeX, 48, {
+            width: contentWidth * 0.45,
+            align: 'right',
+            characterSpacing: 1.5,
+        });
+        doc.fillColor(INK).fontSize(14).text(String(invoice.invoice_number), badgeX, 62, {
+            width: contentWidth * 0.45,
+            align: 'right',
+        });
+        doc.fillColor(MUTED).font('Helvetica').fontSize(9).text(formatDate(invoice.sale_date), badgeX, 82, {
+            width: contentWidth * 0.45,
+            align: 'right',
+        });
 
-        doc.fontSize(10).fillColor('#ffffff');
-        doc.rect(48, tableTop, 515, 22).fill(THEME);
-        doc.fillColor('#ffffff');
-        doc.text('Item', colX.item + 6, tableTop + 6, { width: 260 });
-        doc.text('Qty', colX.qty, tableTop + 6, { width: 50, align: 'right' });
-        doc.text('Unit', colX.unit, tableTop + 6, { width: 70, align: 'right' });
-        doc.text('Amount', colX.amount, tableTop + 6, { width: 90, align: 'right' });
+        // Accent rule
+        const ruleY = Math.max(brandBottom, 100) + 16;
+        doc.rect(left, ruleY, contentWidth * 0.42, 3).fill(ACCENT);
+        doc.rect(left + contentWidth * 0.42, ruleY, contentWidth * 0.58, 3).fill(LINE);
 
-        let y = tableTop + 26;
-        doc.fillColor('#333333').fontSize(9);
-        invoice.line_items.forEach((row, i) => {
+        // Bill to / Details
+        let y = ruleY + 18;
+        doc.fillColor(MUTED).font('Helvetica-Bold').fontSize(8).text('BILL TO', left, y, {
+            characterSpacing: 1,
+        });
+        doc.text('DETAILS', left + contentWidth * 0.55, y, {
+            width: contentWidth * 0.45,
+            align: 'right',
+            characterSpacing: 1,
+        });
+
+        y += 14;
+        doc.fillColor(INK).font('Helvetica-Bold').fontSize(11).text(invoice.customer_name, left, y, {
+            width: contentWidth * 0.5,
+        });
+        const contactBits = [invoice.customer_phone, invoice.customer_email].filter(Boolean).join(' · ');
+        let leftColBottom = doc.y;
+        if (contactBits) {
+            doc.fillColor(MUTED).font('Helvetica').fontSize(9).text(contactBits, left, leftColBottom + 2, {
+                width: contentWidth * 0.5,
+            });
+            leftColBottom = doc.y;
+        }
+
+        const detailLines = [
+            `Payment · ${invoice.payment_method}${invoice.payment_reference ? ` (${invoice.payment_reference})` : ''}`,
+        ];
+        if (invoice.store_name) detailLines.push(`Store · ${invoice.store_name}`);
+        if (invoice.cashier) detailLines.push(`Cashier · ${invoice.cashier}`);
+
+        let detailY = y;
+        doc.font('Helvetica').fontSize(9);
+        detailLines.forEach((line) => {
+            doc.fillColor(INK).text(line, left + contentWidth * 0.45, detailY, {
+                width: contentWidth * 0.55,
+                align: 'right',
+            });
+            detailY = doc.y + 2;
+        });
+
+        y = Math.max(leftColBottom, detailY) + 20;
+
+        // Table header
+        const col = {
+            item: left,
+            qty: left + contentWidth * 0.52,
+            unit: left + contentWidth * 0.64,
+            amount: left + contentWidth * 0.8,
+        };
+        const colW = {
+            item: contentWidth * 0.5,
+            qty: contentWidth * 0.1,
+            unit: contentWidth * 0.14,
+            amount: contentWidth * 0.2,
+        };
+
+        doc.rect(left, y, contentWidth, 22).fill(SOFT);
+        doc.moveTo(left, y).lineTo(right, y).strokeColor(LINE).lineWidth(0.75).stroke();
+        doc
+            .moveTo(left, y + 22)
+            .lineTo(right, y + 22)
+            .stroke();
+
+        doc.fillColor(MUTED).font('Helvetica-Bold').fontSize(8);
+        const thY = y + 7;
+        doc.text('DESCRIPTION', col.item + 8, thY, { width: colW.item - 8, characterSpacing: 0.6 });
+        doc.text('QTY', col.qty, thY, { width: colW.qty, align: 'right', characterSpacing: 0.6 });
+        doc.text('UNIT PRICE', col.unit, thY, { width: colW.unit, align: 'right', characterSpacing: 0.6 });
+        doc.text('AMOUNT', col.amount, thY, { width: colW.amount - 4, align: 'right', characterSpacing: 0.6 });
+
+        y += 28;
+        doc.font('Helvetica').fontSize(9).fillColor(INK);
+
+        invoice.line_items.forEach((row) => {
             if (y > 700) {
                 doc.addPage();
                 y = 48;
             }
-            if (i % 2 === 1) {
-                doc.rect(48, y - 2, 515, 18).fill('#f4f6f8');
-                doc.fillColor('#333333');
-            }
-            doc.text(row.name, colX.item + 4, y, { width: 260 });
-            doc.text(String(row.quantity), colX.qty, y, { width: 50, align: 'right' });
-            doc.text(formatMoney(row.unit_price, invoice.currency), colX.unit, y, { width: 70, align: 'right' });
-            doc.text(formatMoney(row.line_total, invoice.currency), colX.amount, y, { width: 90, align: 'right' });
-            y += 20;
+            const nameHeight = doc.heightOfString(row.name, { width: colW.item - 8 });
+            const rowH = Math.max(18, nameHeight + 6);
+            doc.fillColor(INK).text(row.name, col.item + 8, y, { width: colW.item - 8 });
+            doc.fillColor(MUTED).text(String(row.quantity), col.qty, y, { width: colW.qty, align: 'right' });
+            doc.text(formatMoney(row.unit_price, invoice.currency), col.unit, y, {
+                width: colW.unit,
+                align: 'right',
+            });
+            doc.fillColor(INK).text(formatMoney(row.line_total, invoice.currency), col.amount, y, {
+                width: colW.amount - 4,
+                align: 'right',
+            });
+            y += rowH;
+            doc
+                .moveTo(left, y - 2)
+                .lineTo(right, y - 2)
+                .strokeColor(LINE)
+                .lineWidth(0.5)
+                .stroke();
         });
 
-        doc.moveDown(2);
-        const totalsY = Math.max(y + 10, doc.y);
-        doc.fontSize(10).fillColor('#333333');
+        if (invoice.line_items.length === 0) {
+            doc.fillColor(MUTED).text('No line items', left, y, { width: contentWidth, align: 'center' });
+            y += 24;
+        }
+
+        // Totals
+        y += 12;
+        const totalsWidth = 220;
+        const totalsX = right - totalsWidth;
+
         if (invoice.discount_amount > 0) {
-            doc.text(`Subtotal: ${formatMoney(invoice.subtotal, invoice.currency)}`, 360, totalsY, { align: 'right', width: 200 });
-            doc.text(`Discount: ${formatMoney(invoice.discount_amount, invoice.currency)}`, 360, totalsY + 16, {
+            doc.fillColor(MUTED).font('Helvetica').fontSize(9);
+            doc.text('Subtotal', totalsX, y, { width: 100 });
+            doc.fillColor(INK).text(formatMoney(invoice.subtotal, invoice.currency), totalsX + 100, y, {
+                width: 120,
                 align: 'right',
-                width: 200,
             });
-            doc.fontSize(12).text(`Total: ${formatMoney(invoice.total_amount, invoice.currency)}`, 360, totalsY + 36, {
+            y += 16;
+            doc.fillColor(MUTED).text('Discount', totalsX, y, { width: 100 });
+            doc.fillColor(INK).text(`−${formatMoney(invoice.discount_amount, invoice.currency)}`, totalsX + 100, y, {
+                width: 120,
                 align: 'right',
-                width: 200,
             });
-        } else {
-            doc.fontSize(12).text(`Total: ${formatMoney(invoice.total_amount, invoice.currency)}`, 360, totalsY, {
+            y += 14;
+        }
+
+        doc.roundedRect(totalsX, y, totalsWidth, 32, 4).fill(ACCENT);
+        doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(10);
+        doc.text('Amount due', totalsX + 12, y + 10, { width: 90 });
+        doc.fontSize(12).text(formatMoney(invoice.total_amount, invoice.currency), totalsX + 90, y + 9, {
+            width: totalsWidth - 102,
+            align: 'right',
+        });
+        y += 44;
+
+        if (
+            invoice.payment_method === 'Cash' &&
+            invoice.amount_tendered != null &&
+            Number.isFinite(Number(invoice.amount_tendered))
+        ) {
+            doc.fillColor(MUTED).font('Helvetica').fontSize(9);
+            doc.text('Tendered', totalsX, y, { width: 100 });
+            doc.fillColor(INK).text(formatMoney(Number(invoice.amount_tendered), invoice.currency), totalsX + 100, y, {
+                width: 120,
                 align: 'right',
-                width: 200,
             });
+            y += 14;
+            doc.fillColor(MUTED).text('Change', totalsX, y, { width: 100 });
+            doc.fillColor(INK).text(
+                formatMoney(Number(invoice.change_amount) || 0, invoice.currency),
+                totalsX + 100,
+                y,
+                { width: 120, align: 'right' },
+            );
+            y += 18;
         }
 
         if (invoice.notes) {
-            doc.moveDown(2).fontSize(9).text(`Notes: ${invoice.notes}`, 48, doc.y);
+            doc.rect(left, y, 3, 36).fill(ACCENT);
+            doc.rect(left + 3, y, contentWidth - 3, 36).fill(SOFT);
+            doc.fillColor(MUTED).font('Helvetica-Bold').fontSize(8).text('NOTES', left + 14, y + 8, {
+                characterSpacing: 0.8,
+            });
+            doc.fillColor(INK).font('Helvetica').fontSize(9).text(invoice.notes, left + 14, y + 18, {
+                width: contentWidth - 28,
+            });
+            y += 48;
         }
 
-        doc.fontSize(8).fillColor('#888888').text('Generated by Shopynn', 48, 780, { align: 'center', width: 515 });
+        // Footer
+        const footerY = Math.max(y + 24, 760);
+        doc
+            .moveTo(left, footerY)
+            .lineTo(right, footerY)
+            .strokeColor(LINE)
+            .lineWidth(0.75)
+            .stroke();
+        doc.fillColor(INK).font('Helvetica-Bold').fontSize(10).text('Thank you for your business', left, footerY + 12);
+        doc.fillColor(MUTED).font('Helvetica').fontSize(8).text('Generated with Shopynn', left, footerY + 26);
+        if (invoice.company.phone || invoice.company.email) {
+            const footRight = [invoice.company.phone, invoice.company.email].filter(Boolean).join('\n');
+            doc.text(footRight, left, footerY + 12, { width: contentWidth, align: 'right' });
+        }
+
         doc.end();
     });
 }

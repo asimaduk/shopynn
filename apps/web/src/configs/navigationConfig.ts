@@ -136,6 +136,15 @@ const navigationConfig: FuseNavItemType[] = [
 				requiredFeatures: ['sales.pending.view']
 			},
 			{
+				id: 'trading.pos-momo-payments',
+				title: 'Pending MoMo',
+				type: 'item',
+				icon: 'heroicons-outline:device-phone-mobile',
+				url: '/trading/pos-momo-payments',
+				requiredPermissions: ['sales.create'],
+				requiredFeatures: ['sales.create']
+			},
+			{
 				id: 'trading.sales-list',
 				title: 'Sales List',
 				type: 'item',
@@ -371,6 +380,15 @@ const navigationConfig: FuseNavItemType[] = [
 				type: 'item',
 				icon: 'heroicons-outline:banknotes',
 				url: '/tenants-directory/withdrawals',
+				requiredPermissions: ['tenants.directory.view'],
+				requiredFeatures: ['tenants.directory.view']
+			},
+			{
+				id: 'adminTools.platformMomoCharge',
+				title: 'MoMo platform charge',
+				type: 'item',
+				icon: 'heroicons-outline:calculator',
+				url: '/tenants-directory/payment-charge',
 				requiredPermissions: ['tenants.directory.view'],
 				requiredFeatures: ['tenants.directory.view']
 			},

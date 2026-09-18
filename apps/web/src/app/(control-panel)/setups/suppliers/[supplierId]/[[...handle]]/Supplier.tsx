@@ -25,7 +25,10 @@ import SupplierModel from '../../models/SupplierModel';
 const schema = z.object({
 	name: z.string().min(1, 'Name is required'),
 	manager: z.string().min(2, 'Manager / contact must be at least 2 characters'),
-	phone: z.string().min(1, 'Phone is required'),
+	phone: z
+		.string()
+		.min(1, 'Phone is required')
+		.regex(/^\d{10}$/, 'Enter a 10-digit phone number'),
 	address: z.string().min(1, 'Address is required'),
 	notes: z.string().optional()
 });
@@ -42,7 +45,7 @@ function normalizeSupplierForForm(supplier: Record<string, unknown>) {
 		...supplier,
 		name: supplier.name != null ? String(supplier.name) : '',
 		manager: supplier.manager != null ? String(supplier.manager) : '',
-		phone: supplier.phone != null ? String(supplier.phone) : '',
+		phone: supplier.phone != null ? String(supplier.phone).replace(/\D/g, '').slice(0, 10) : '',
 		address: supplier.address != null ? String(supplier.address) : '',
 		notes
 	});

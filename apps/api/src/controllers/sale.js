@@ -15,9 +15,14 @@ export const createSale = async (req, res, next) => {
         if (
             error?.message?.includes("Products list cannot be empty") ||
             error?.message?.includes("tenant_id is required") ||
-            error?.message?.includes("Tenant not found")
+            error?.message?.includes("Tenant not found") ||
+            error?.code === "MOMO_PAYMENT_REQUIRED" ||
+            error?.code === "PAYMENT_NOT_FOUND" ||
+            error?.code === "PAYMENT_NOT_SUCCESS" ||
+            error?.code === "PAYMENT_ALREADY_LINKED" ||
+            error?.code === "PAYMENT_FACE_MISMATCH"
         ) {
-            return handleResponse(res, 400, error.message, null);
+            return handleResponse(res, 400, error.message, error?.code ? { code: error.code } : null);
         }
         next(error);
     }
@@ -163,7 +168,11 @@ export const getAllSaleDetails = async (req, res, next) => {
 
 export const getSaleAttendants = async (req, res, next) => {
     try {
-        const saleAttendants = await getSaleAttendantsService();
+        const tenantId = req.user?.tenant_id ?? req.body?.tenant_id;
+        if (!tenantId) {
+            return handleResponse(res, 400, "Tenant context required.", []);
+        }
+        const saleAttendants = await getSaleAttendantsService(tenantId);
         handleResponse(res, 200, "Sales attendants.", saleAttendants);
     } catch (error) {
         next(error);

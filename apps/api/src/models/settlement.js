@@ -20,12 +20,17 @@ function toMoney(value) {
     return Math.round(n * 100) / 100;
 }
 
-async function sumDigitalOrderCollections(tenantId) {
+async function sumDigitalCollections(tenantId) {
     const res = await pool.query(
-        `SELECT COALESCE(SUM(p.amount), 0)::numeric AS total
+        `SELECT COALESCE(SUM(
+            CASE
+              WHEN p.face_amount IS NOT NULL THEN p.face_amount
+              ELSE p.amount
+            END
+         ), 0)::numeric AS total
          FROM payments p
          WHERE p.tenant_id = $1
-           AND p.order_id IS NOT NULL
+           AND (p.order_id IS NOT NULL OR p.sale_id IS NOT NULL)
            AND lower(coalesce(p.status, '')) = ANY($2::text[])
            AND lower(coalesce(p.payment_method_type, '')) <> 'cash'`,
         [tenantId, [...SUCCESS_STATUSES]]
@@ -47,7 +52,7 @@ async function sumSettlements(tenantId, statuses) {
 
 export const getTenantSettlementSummaryService = async (tenantId) => {
     const [digitalCollected, settledPaid, reservedPending] = await Promise.all([
-        sumDigitalOrderCollections(tenantId),
+        sumDigitalCollections(tenantId),
         sumSettlements(tenantId, ["paid"]),
         sumSettlements(tenantId, [...RESERVED_SETTLEMENT_STATUSES]),
     ]);
@@ -89,9 +94,13 @@ export const createTenantSettlementService = async (user, tenantId, body = {}) =
         throw new Error("Settlement amount must be greater than zero.");
     }
     const summary = await getTenantSettlementSummaryService(tenantId);
-    if (amount > summary.available_balance + 0.01) {
+    const available = toMoney(summary.available_balance);
+    if (available <= 0) {
+        throw new Error("No available balance to pay out.");
+    }
+    if (amount > available + 0.01) {
         throw new Error(
-            `Amount exceeds available balance (GHS ${summary.available_balance.toFixed(2)}).`
+            `Amount exceeds available balance (GHS ${available.toFixed(2)}).`
         );
     }
     const note = body.note != null ? String(body.note).trim() : "";

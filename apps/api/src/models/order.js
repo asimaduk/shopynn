@@ -12,6 +12,7 @@ import {
     syncOrderPaymentAfterSuccess,
 } from "./payment.js";
 import { initiateCheckout, submitChargeOtp } from "../services/paymentGateway.js";
+import { computeChargeForFaceAmountService } from "./platformSettings.js";
 import { sendToTokens } from "../services/firebaseMessaging.js";
 import {
     assertFulfillmentAllowedForInstallment,
@@ -1018,14 +1019,19 @@ export const initiateOrderPaymentService = async (user, orderId, body = {}) => {
         }
     }
 
+    const chargeMeta = await computeChargeForFaceAmountService(amount);
     const { id: payment_id, transaction_ref } = await createPendingPaymentForCheckoutService({
-        amount,
+        amount: chargeMeta.charge_amount,
+        face_amount: chargeMeta.face_amount,
+        fee_amount: chargeMeta.fee_amount,
         subscription_id: null,
         customer_id: null,
         order_id: orderId,
         tenant_id: user.tenant_id,
         creator_id: user.id,
         payment_method_type,
+        payment_source: "order",
+        payment_number: payment_method_type === "mobile_money" ? phone : null,
     });
 
     await pool.query(
@@ -1034,12 +1040,18 @@ export const initiateOrderPaymentService = async (user, orderId, body = {}) => {
     );
 
     const payload = {
-        amount,
+        amount: chargeMeta.charge_amount,
         email: email || user.email || "customer@example.com",
         reference: transaction_ref,
         callback_url: callback_url || undefined,
         payment_method: payment_method_type,
-        metadata: { payment_id, tenant_id: user.tenant_id, order_id: orderId },
+        metadata: {
+            payment_id,
+            tenant_id: user.tenant_id,
+            order_id: orderId,
+            face_amount: chargeMeta.face_amount,
+            fee_amount: chargeMeta.fee_amount,
+        },
         phone,
         provider,
     };
@@ -1053,12 +1065,20 @@ export const initiateOrderPaymentService = async (user, orderId, body = {}) => {
             status: result.status,
             display_text: result.display_text ?? undefined,
             ussd_code: result.ussd_code ?? undefined,
+            face_amount: chargeMeta.face_amount,
+            fee_amount: chargeMeta.fee_amount,
+            charge_amount: chargeMeta.charge_amount,
+            percent: chargeMeta.percent,
         };
     }
     return {
         redirect_url: result.redirect_url,
         transaction_ref: result.reference,
         payment_id,
+        face_amount: chargeMeta.face_amount,
+        fee_amount: chargeMeta.fee_amount,
+        charge_amount: chargeMeta.charge_amount,
+        percent: chargeMeta.percent,
     };
 };
 
@@ -1224,14 +1244,19 @@ export const initiatePartialOrderPaymentService = async (user, orderId, body = {
     try {
         await client.query("BEGIN");
 
+        const chargeMeta = await computeChargeForFaceAmountService(payAmount);
         const { id: payment_id, transaction_ref } = await createPendingPaymentForCheckoutService({
-            amount: payAmount,
+            amount: chargeMeta.charge_amount,
+            face_amount: chargeMeta.face_amount,
+            fee_amount: chargeMeta.fee_amount,
             subscription_id: null,
             customer_id: null,
             order_id: orderId,
             tenant_id: user.tenant_id,
             creator_id: user.id,
             payment_method_type,
+            payment_source: "order",
+            payment_number: payment_method_type === "mobile_money" ? phone : null,
         });
 
         const ledgerId = await createInstallmentLedgerRow(client, {
@@ -1251,7 +1276,7 @@ export const initiatePartialOrderPaymentService = async (user, orderId, body = {
         await client.query("COMMIT");
 
         const payload = {
-            amount: payAmount,
+            amount: chargeMeta.charge_amount,
             email: email || user.email || "customer@example.com",
             reference: transaction_ref,
             callback_url: callback_url || undefined,
@@ -1261,6 +1286,8 @@ export const initiatePartialOrderPaymentService = async (user, orderId, body = {
                 tenant_id: user.tenant_id,
                 order_id: orderId,
                 installment_ledger_id: ledgerId,
+                face_amount: chargeMeta.face_amount,
+                fee_amount: chargeMeta.fee_amount,
             },
             phone,
             provider,
@@ -1274,6 +1301,10 @@ export const initiatePartialOrderPaymentService = async (user, orderId, body = {
                 payment_id,
                 installment_ledger_id: ledgerId,
                 amount: payAmount,
+                face_amount: chargeMeta.face_amount,
+                fee_amount: chargeMeta.fee_amount,
+                charge_amount: chargeMeta.charge_amount,
+                percent: chargeMeta.percent,
                 balance_after: toMoney(order.balance_due - payAmount),
                 status: result.status,
                 display_text: result.display_text ?? undefined,
@@ -1286,6 +1317,10 @@ export const initiatePartialOrderPaymentService = async (user, orderId, body = {
             payment_id,
             installment_ledger_id: ledgerId,
             amount: payAmount,
+            face_amount: chargeMeta.face_amount,
+            fee_amount: chargeMeta.fee_amount,
+            charge_amount: chargeMeta.charge_amount,
+            percent: chargeMeta.percent,
             balance_after: toMoney(order.balance_due - payAmount),
         };
     } catch (e) {

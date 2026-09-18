@@ -27,7 +27,15 @@ const TradingApi = api
 				query: (purchaseId) => ({
 					url: `/api/purchases/${purchaseId}`
 				}),
-				// providesTags: ['']
+				providesTags: (_result, _error, purchaseId) => [{ type: 'eCommerce_order', id: `purchase-${purchaseId}` }]
+			}),
+			updatePurchasePayment: build.mutation<any, { id: string; body: Record<string, unknown> }>({
+				query: ({ id, body }) => ({
+					url: `/api/purchases/${id}/payment`,
+					method: 'PATCH',
+					body
+				}),
+				invalidatesTags: (_result, _error, { id }) => [{ type: 'eCommerce_order', id: `purchase-${id}` }]
 			}),
 			createPurchase: build.mutation<any, any>({
 				query: (newPurchase) => ({
@@ -256,6 +264,14 @@ export type Purchase = {
 	current_status: string;
 	invoice_number: string;
 	total_amount: string;
+	discount_amount?: string | number;
+	amount_paid?: string | number;
+	payment_status?: number | string;
+	payment_type?: number | string;
+	payment_reference?: string | null;
+	payment_number?: string | null;
+	payment_date?: string | null;
+	due_date?: string | null;
 	warehouse: string;
 	number_of_items: string;
 	supplier: string;
@@ -264,6 +280,10 @@ export type Purchase = {
 	supplier_phone: string;
 	supplier_email: string;
 	receiver_name: string;
+	receiver_first_name?: string;
+	receiver_last_name?: string;
+	attendant?: string;
+	notes?: string;
 }
 
 export type EcommerceProduct = {
@@ -353,6 +373,7 @@ export const {
 	// useUpdateECommerceProductMutation,
 	// useDeleteECommerceProductMutation,
 	useGetPurchaseQuery,
+	useUpdatePurchasePaymentMutation,
 	useGetSalesQuery,
 	useCreateSaleMutation,
 	useSendSaleInvoiceMutation,
@@ -365,6 +386,7 @@ export const {
 	// useGetInventoryQuery,
 	useCreatePurchaseMutation,
 	useGetPurchasesQuery,
+	useGetProductPurchasesByDateQuery,
 	useGetSaleQuery,
 	useGetAttendantsQuery,
 	useGetStoreOrdersQuery,

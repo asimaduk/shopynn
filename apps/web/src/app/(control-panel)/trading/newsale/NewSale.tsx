@@ -19,15 +19,16 @@ import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { useThemeMediaQuery } from '@fuse/hooks';
 import SelectHeldSale from './SelectHeldSale';
 import ConfirmDialog from './ConfirmDialog';
-import PaymentDialog from './PaymentDialog';
+import PaymentDialog, { type PosCartSnapshot } from './PaymentDialog';
 import A4ReceiptPreviewDialog, { type A4SaleReceiptPayload } from './A4ReceiptPreviewDialog';
 import SaleInvoiceDialog from '../sales/SaleInvoiceDialog';
+import { consumeResumeParkedMomo } from '../pos-momo-payments/resumeParkedMomo';
 
 import ContactsApi from '../../users/customers/ContactsApi';
 import ECommerceApi, { EcommerceProduct, useGetECommerceProductsWithPaginationQuery } from '../../inventory/ECommerceApi';
 import { useGetWarehousesQuery } from '../../setups/warehouses/WarehouseApi';
 import { normalizeWarehousePrinterType } from '../../setups/warehouses/models/WarehouseModel';
-import { getPrintAgentPrintUrl } from '@/utils/printAgent';
+import { allocateNextInvoiceNumber } from '@/utils/invoiceNumbering';
 
 import { store } from 'src/store/store';
 
@@ -117,6 +118,14 @@ function NewSale() {
     const [selectedValue, setSelectedValue] = useState(null);
     const [openConfirm, setOpenConfirm] = useState(false);
     const [openPayment, setOpenPayment] = useState(false);
+    const [resumeMomo, setResumeMomo] = useState<{
+        transactionRef: string;
+        phone?: string;
+        provider?: string;
+        chargePaid?: boolean;
+        statusText?: string;
+    } | null>(null);
+    const resumeConsumedRef = useRef(false);
     const [a4ReceiptPreview, setA4ReceiptPreview] = useState<{ open: boolean; payload: A4SaleReceiptPayload | null }>({
         open: false,
         payload: null
@@ -125,12 +134,14 @@ function NewSale() {
         open: boolean;
         order: Record<string, unknown> | null;
         saleId?: string;
+        autoPrintThermal?: boolean;
     }>({ open: false, order: null });
     const [buyers, setBuyers] = useState([]);
     const [category, setCategory] = useState({id:0,name:''});
     const [currentOrder, setCurrentOrder] = useState([]);
     const [customer, setCustomer] = useState(null);
     const [filterText, setFilterText] = useState('');
+    const [cartFilterText, setCartFilterText] = useState('');
     const [warehouse, setWarehouse] = useState(null);
 
     const voiceSearch = useVoiceSearch({
@@ -177,6 +188,18 @@ function NewSale() {
         });
     }, [products, category?.id, filterText]);
 
+    const filteredCurrentOrder = useMemo(() => {
+        const list = Array.isArray(currentOrder) ? currentOrder : [];
+        const q = cartFilterText.trim().toLowerCase();
+        if (!q) return list;
+        return list.filter((p: any) => {
+            const name = String(p?.name ?? '').toLowerCase();
+            const sku = String(p?.sku ?? '').toLowerCase();
+            const barCode = String(p?.bar_code ?? '').toLowerCase();
+            return name.includes(q) || sku.includes(q) || barCode.includes(q);
+        });
+    }, [currentOrder, cartFilterText]);
+
     const productsTotalCount = Array.isArray(products) ? products.length : 0;
 
     useEffect(() => {
@@ -191,6 +214,47 @@ function NewSale() {
             }
         }
     }, [user, canMultiStores, warehouses]);
+
+    /** Restore cart + reopen MoMo dialog from Pending MoMo payments. */
+    useEffect(() => {
+        if (resumeConsumedRef.current) return;
+        const parked = consumeResumeParkedMomo();
+        if (!parked?.transaction_ref) return;
+        resumeConsumedRef.current = true;
+
+        const snap = parked.pos_cart_snapshot || {};
+        const lines = Array.isArray(snap.products)
+            ? snap.products
+            : Array.isArray(snap.currentOrder)
+              ? snap.currentOrder
+              : [];
+        if (lines.length) {
+            setCurrentOrder(
+                lines.map((line: any) => ({
+                    ...line,
+                    order_quantity: Number(line.order_quantity ?? line.quantity) || 1
+                })) as any
+            );
+        }
+        if (snap.customer_name) setCustomer(String(snap.customer_name));
+        if (snap.warehouse_id && Array.isArray(warehouses)) {
+            const wh = warehouses.find((w: any) => String(w?.id) === String(snap.warehouse_id));
+            if (wh) setWarehouse(wh);
+        }
+
+        const st = String(parked.status || '').toLowerCase();
+        const paid = ['success', 'paid', 'completed'].includes(st);
+        setResumeMomo({
+            transactionRef: parked.transaction_ref,
+            phone: parked.payment_number || undefined,
+            provider: snap.provider || undefined,
+            chargePaid: paid,
+            statusText: paid
+                ? 'Parked MoMo payment confirmed. Complete the sale.'
+                : 'Resumed parked MoMo. Tap Check status when the customer confirms payment.'
+        });
+        setOpenPayment(true);
+    }, [warehouses]);
     
 	useEffect(() => {
 		if (Array.isArray(customers_data)) {
@@ -325,17 +389,20 @@ function NewSale() {
         dispatch(addHeldItem(pl));
         setCustomer(null);
         setCurrentOrder([]);
+        setCartFilterText('');
     }
 
     const onHoldSelect = (itm) => {
         setCustomer(itm.customer);
         setCurrentOrder(itm.currentOrder);
+        setCartFilterText('');
         setOpenHeld(false);
     }
 
     const cancelTransaction = () => {
         setCustomer(null);
         setCurrentOrder([]);
+        setCartFilterText('');
     }
 
     const updateLocalProductsQuantity = (order_products) => {
@@ -379,7 +446,7 @@ function NewSale() {
             id,
             total_amount: orderTotal,
             discount_amount: orderDiscount,
-            invoice_number:`INV-${new Date().toJSON().split('T')[0]}-${Date.now()}`,
+            invoice_number: allocateNextInvoiceNumber(),
             current_status:1,
             customer_id: customer ? customers_data.find(c=> c.name == customer)?.id : null,
             customer: customer || 'Walk In',
@@ -390,10 +457,17 @@ function NewSale() {
                 unit_price: resolveSaleUnitPrice(o.order_quantity, o.unit_price, o.alt_price, bulkDiscount),
                 name: o.name
             }}),
-            notes: `Paid with ${paymentData.paymentType}${paymentData.transNumber ? (' '+paymentData.transNumber):''}`,
+            notes: `Paid with ${paymentData.paymentType}${paymentData.transNumber ? (' '+paymentData.transNumber):''}${paymentData.payment_transaction_ref ? ` ref ${paymentData.payment_transaction_ref}` : ''}${paymentData.fee_amount ? ` (fee ${paymentData.fee_amount})` : ''}`,
             cashier: user.displayName,
             created_at: new Date().toJSON(),
             warehouse_id: warehouse?.id,
+            payment_method: paymentData.payment_method || paymentData.paymentType,
+            payment_number: paymentData.transNumber || paymentData.payment_number || null,
+            payment_reference: paymentData.payment_transaction_ref || null,
+            payment_transaction_ref: paymentData.payment_transaction_ref || null,
+            payment_type: String(paymentData.paymentType || '').toLowerCase() === 'momo' || paymentData.payment_method === 'momo' ? 2 : 1,
+            amount_tendered: paymentData.amount_tendered ?? null,
+            change_amount: paymentData.change_amount ?? null,
             company: {
                 name: (user as any)?.company?.name || (user as any)?.companyName || 'Shopynn',
                 organization: (user as any)?.company?.organization || '',
@@ -413,19 +487,39 @@ function NewSale() {
         };
 
         const customerRow = customer ? customers_data.find((c: { name?: string }) => c.name === customer) : null;
-        const openInvoiceShare = (saleId?: string) => {
+        const printerType = normalizeWarehousePrinterType(
+            (warehouseRecordForPrinting as { printer_type?: string } | null)?.printer_type
+        );
+
+        const openInvoiceShare = (saleId?: string, opts?: { autoPrintThermal?: boolean }) => {
             setInvoiceShare({
                 open: true,
                 saleId,
+                autoPrintThermal: Boolean(opts?.autoPrintThermal),
                 order: {
                     ...payload,
                     id: saleId,
                     customer_email: (customerRow as { email?: string })?.email || '',
                     customer_phone: (customerRow as { phone?: string })?.phone || '',
                     warehouse: warehouse?.name || '',
-                    payment_type: paymentData.paymentType === 'momo' ? 2 : 1
+                    payment_type:
+                        String(paymentData.paymentType || '').toLowerCase() === 'momo' ||
+                        paymentData.payment_method === 'momo'
+                            ? 2
+                            : 1
                 }
             });
+        };
+
+        /** After sale is saved: open invoice share; thermal auto-prints inside the dialog. */
+        const afterSaleSaved = (saleId?: string) => {
+            openInvoiceShare(saleId, { autoPrintThermal: printerType === 'thermal' });
+            if (printerType === 'a4' && isMobile) {
+                toast(
+                    'A4 invoice preview and print are available on a desktop browser. Open New Sale there to print this receipt. Your sale is complete.',
+                    { duration: 6000 }
+                );
+            }
         };
 
         //check if internet available, post
@@ -448,18 +542,18 @@ function NewSale() {
                             last_error_message: message || null
                         }));
                         toast.error(message || 'Sale could not be uploaded. Saved to pending sales.');
-                        openInvoiceShare();
+                        afterSaleSaved();
                         return;
                     }
                     if(res.data) {
                         toast.success('Sale uploaded successfully.')
                         const saleId = (res.data as { id?: string })?.id;
-                        openInvoiceShare(saleId);
+                        afterSaleSaved(saleId);
                     }
                     else {
                         dispatch(addItem(pendingRecord));
                         toast.success('Record saved in pending sales.');
-                        openInvoiceShare();
+                        afterSaleSaved();
                     }
 
                     refetch()
@@ -478,49 +572,21 @@ function NewSale() {
                         last_error_message: message || null
                     }));
                     toast.error(message || 'Sale could not be uploaded. Saved to pending sales.');
-                    openInvoiceShare();
+                    afterSaleSaved();
                 })
                 .finally(()=> setProcessing(false))
         }
         else {
             dispatch(addItem(pendingRecord));
             toast.success('Record saved in pending sales.');
-            openInvoiceShare();
+            afterSaleSaved();
         }
 
         updateLocalProductsQuantity(currentOrder)
         
         setCustomer(null);
         setCurrentOrder([]);
-
-        const printerType = normalizeWarehousePrinterType((warehouseRecordForPrinting as any)?.printer_type);
-        if (printerType === 'thermal') {
-            handleThermalPrinting(payload);
-        } else if (printerType === 'a4' && isMobile) {
-            toast(
-                'A4 invoice preview and print are available on a desktop browser. Open New Sale there to print this receipt. Your sale is complete.',
-                { duration: 6000 }
-            );
-        }
-    }
-
-    const handleThermalPrinting = async (payload) => {
-        const printUrl = getPrintAgentPrintUrl();
-        fetch(printUrl, {
-            method:'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(payload)
-        })
-        .then(response => response.json())
-        .then((data)=> {
-            if(data.status == 200) {
-                toast.success('Print successful')
-            }
-            else {
-                toast.error(`Error printing invoice: ${data.message}. Please try again.`)
-            }
-        })
-        .catch(err=> toast.error(`Error printing invoice: ${err.message}. Check Print agent settings.`))
+        setCartFilterText('');
     }
 
     const handleRefreshProducts = async () => {
@@ -559,17 +625,14 @@ function NewSale() {
 			<div className="w-full h-full flex flex-1 p-4 space-x-4">
             {/* <div className="flex flex-1 w-full h-full justify-between space-y-2 sm:space-y-0 py-6 sm:py-8 md:p-8"> */}
                 <Paper className="w-5/7 h-full flex flex-col flex-1 p-4 overflow-x-auto" style={{backgroundColor:'#fefefe'}}>
-                    <div className='flex w-full pb-2 justify-between'>
+                    <div className='flex w-full pb-2 items-center gap-3 justify-between'>
                         <Autocomplete
-                            className="w-1/3"
+                            className="min-w-0 flex-1"
                             fullWidth
-                            // multiple
                             freeSolo
                             options={buyers}
-                            // value={value as string}
                             value={customer as string}
                             onChange={(event, newValue) => {
-                                // onChange(newValue);
                                 setCustomer(newValue)
                             }}
                             renderInput={(params) => (
@@ -583,75 +646,84 @@ function NewSale() {
                                     }}
                                     sx={{
                                         "& .MuiOutlinedInput-input": {
-                                            height: 5, // Sets the height of the actual input element
+                                            height: 5,
                                         },
                                     }}
                                 />
                             )}
                         />
 
-                        <div className="mb-1 mt-2 flex justify-end gap-0.5">
-                            <Tooltip title="Refresh products" placement="top">
-                                <IconButton
-                                    size="small"
-                                    onClick={handleRefreshProducts}
-                                    aria-label="Refresh products"
-                                    sx={{
-                                        color: 'text.secondary',
-                                        border: 1,
-                                        borderColor: 'divider',
-                                        borderRadius: 1,
-                                        '&:hover': { bgcolor: 'action.hover', borderColor: 'action.disabled' }
-                                    }}
-                                >
-                                    <FuseSvgIcon size={18}>heroicons-outline:cube</FuseSvgIcon>
-                                </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Refresh customers" placement="top">
-                                <IconButton
-                                    size="small"
-                                    onClick={handleRefreshCustomers}
-                                    aria-label="Refresh customers"
-                                    sx={{
-                                        color: 'text.secondary',
-                                        border: 1,
-                                        borderColor: 'divider',
-                                        borderRadius: 1,
-                                        '&:hover': { bgcolor: 'action.hover', borderColor: 'action.disabled' }
-                                    }}
-                                >
-                                    <FuseSvgIcon size={18}>heroicons-outline:user-group</FuseSvgIcon>
-                                </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Refresh categories" placement="top">
-                                <IconButton
-                                    size="small"
-                                    onClick={handleRefreshCategories}
-                                    aria-label="Refresh categories"
-                                    sx={{
-                                        color: 'text.secondary',
-                                        border: 1,
-                                        borderColor: 'divider',
-                                        borderRadius: 1,
-                                        '&:hover': { bgcolor: 'action.hover', borderColor: 'action.disabled' }
-                                    }}
-                                >
-                                    <FuseSvgIcon size={18}>heroicons-outline:tag</FuseSvgIcon>
-                                </IconButton>
-                            </Tooltip>
-                        </div>
+                        {hasPermissionCodes(user, 'stores.multi_access') && (
+                            <Autocomplete
+                                disabled={currentOrder.length > 0}
+                                className="min-w-0 flex-1"
+                                fullWidth
+                                options={warehouses || []}
+                                value={warehouse}
+                                getOptionLabel={(option: any) => option?.name || ''}
+                                onChange={(event, newValue) => {
+                                    setWarehouse(newValue)
+                                }}
+                                renderInput={(params) => (
+                                    <TextField
+                                        {...params}
+                                        placeholder="Select store"
+                                        label="Store"
+                                        variant="outlined"
+                                        InputLabelProps={{ shrink: true }}
+                                        sx={{
+                                            "& .MuiOutlinedInput-input": {
+                                                height: 5,
+                                            },
+                                        }}
+                                    />
+                                )}
+                            />
+                        )}
+                    </div>
 
-                        <Paper className="flex h-11 w-1/3 items-center rounded-lg shadow-sm">
+                    <div className="mb-1 flex w-full items-center gap-2">
+                        <Paper
+                            elevation={0}
+                            className="flex min-w-0 flex-1 items-center rounded-lg px-2"
+                            sx={{
+                                height: 36,
+                                minHeight: 36,
+                                maxHeight: 36,
+                                boxSizing: 'border-box',
+                                border: 1,
+                                borderColor: 'divider',
+                                boxShadow: 'none',
+                                overflow: 'hidden'
+                            }}
+                        >
+                            <FuseSvgIcon
+                                size={18}
+                                className="mx-1.5 shrink-0"
+                                color="action"
+                            >
+                                heroicons-outline:magnifying-glass
+                            </FuseSvgIcon>
                             <Input
                                 placeholder="Search name, SKU, or code..."
                                 disableUnderline
                                 fullWidth
+                                autoFocus
                                 value={filterText}
                                 onChange={(event) => {
                                     setFilterText(event.target.value);
                                 }}
                                 inputProps={{
                                     'aria-label': 'Search products'
+                                }}
+                                sx={{
+                                    height: 36,
+                                    fontSize: 14,
+                                    '& .MuiInput-input': {
+                                        py: 0,
+                                        height: 36,
+                                        boxSizing: 'border-box'
+                                    }
                                 }}
                             />
                             <Tooltip
@@ -671,10 +743,12 @@ function NewSale() {
                                         aria-label={voiceSearch.listening ? 'Stop voice search' : 'Voice search'}
                                         sx={{
                                             color: voiceSearch.listening ? 'error.main' : 'action.active',
-                                            mr: 0.5
+                                            width: 28,
+                                            height: 28,
+                                            p: 0.25
                                         }}
                                     >
-                                        <FuseSvgIcon size={20}>
+                                        <FuseSvgIcon size={18}>
                                             {voiceSearch.listening
                                                 ? 'heroicons-solid:stop'
                                                 : 'heroicons-outline:microphone'}
@@ -682,13 +756,75 @@ function NewSale() {
                                     </IconButton>
                                 </span>
                             </Tooltip>
-                            <FuseSvgIcon
-                                className="mx-2"
-                                color="action"
-                            >
-                                heroicons-outline:magnifying-glass
-                            </FuseSvgIcon>
                         </Paper>
+                        <div className="flex shrink-0 items-center gap-0.5">
+                            <Tooltip title="Refresh products" placement="top">
+                                <IconButton
+                                    size="small"
+                                    onClick={handleRefreshProducts}
+                                    aria-label="Refresh products"
+                                    sx={{
+                                        color: 'text.secondary',
+                                        border: 1,
+                                        borderColor: 'divider',
+                                        borderRadius: 1,
+                                        width: 36,
+                                        height: 36,
+                                        minWidth: 36,
+                                        minHeight: 36,
+                                        p: 0,
+                                        boxSizing: 'border-box',
+                                        '&:hover': { bgcolor: 'action.hover', borderColor: 'action.disabled' }
+                                    }}
+                                >
+                                    <FuseSvgIcon size={18}>heroicons-outline:cube</FuseSvgIcon>
+                                </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Refresh customers" placement="top">
+                                <IconButton
+                                    size="small"
+                                    onClick={handleRefreshCustomers}
+                                    aria-label="Refresh customers"
+                                    sx={{
+                                        color: 'text.secondary',
+                                        border: 1,
+                                        borderColor: 'divider',
+                                        borderRadius: 1,
+                                        width: 36,
+                                        height: 36,
+                                        minWidth: 36,
+                                        minHeight: 36,
+                                        p: 0,
+                                        boxSizing: 'border-box',
+                                        '&:hover': { bgcolor: 'action.hover', borderColor: 'action.disabled' }
+                                    }}
+                                >
+                                    <FuseSvgIcon size={18}>heroicons-outline:user-group</FuseSvgIcon>
+                                </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Refresh categories" placement="top">
+                                <IconButton
+                                    size="small"
+                                    onClick={handleRefreshCategories}
+                                    aria-label="Refresh categories"
+                                    sx={{
+                                        color: 'text.secondary',
+                                        border: 1,
+                                        borderColor: 'divider',
+                                        borderRadius: 1,
+                                        width: 36,
+                                        height: 36,
+                                        minWidth: 36,
+                                        minHeight: 36,
+                                        p: 0,
+                                        boxSizing: 'border-box',
+                                        '&:hover': { bgcolor: 'action.hover', borderColor: 'action.disabled' }
+                                    }}
+                                >
+                                    <FuseSvgIcon size={18}>heroicons-outline:tag</FuseSvgIcon>
+                                </IconButton>
+                            </Tooltip>
+                        </div>
                     </div>
 
                     {categories?.length > 0 && (
@@ -893,43 +1029,16 @@ function NewSale() {
                     </Paper>
                 </Paper>
                 <Paper className="w-2/7 h-full p-3 flex flex-col" style={{backgroundColor:'#fff'}}>
-                    <div className='flex justify-between'>
-                        <h1 className='text-xl'><b>Current Order</b></h1>
+                    <div className='flex justify-between items-center gap-2'>
+                        <h1 className='text-xl shrink-0'><b>Current Order</b></h1>
                         <FuseSvgIcon
-                            className="mx-3 cursor-pointer"
+                            className="cursor-pointer shrink-0"
                             color="action"
                             onClick={openHeldItems}
                         >
                             heroicons-outline:adjustments-horizontal
                         </FuseSvgIcon>
                     </div>
-                    
-                    {hasPermissionCodes(user, 'stores.multi_access') && (
-                        <Autocomplete
-                            disabled={currentOrder.length>0}
-                            className="my-2"
-                            fullWidth
-                            options={warehouses}
-                            value={warehouse}
-                            getOptionLabel={(option:any) => option.name}
-                            onChange={(event, newValue) => {
-                                setWarehouse(newValue)
-                            }}
-                            renderInput={(params) => (
-                                <TextField
-                                    {...params}
-                                    placeholder="Select store"
-                                    label="Store"
-                                    variant="outlined"
-                                    sx={{
-                                        "& .MuiOutlinedInput-input": {
-                                            height: 5, // Sets the height of the actual input element
-                                        },
-                                    }}
-                                />
-                            )}
-                        />
-                    )}
 
                     <div className='flex items-center py-2'>
                         <img 
@@ -938,15 +1047,38 @@ function NewSale() {
                         />
                         <span className="ml-2">{customer || 'Walk In'}</span>
                     </div>
+
+                    <Paper className="flex h-9 w-full items-center rounded-md shadow-none border border-solid mb-1 px-1.5" sx={{ borderColor: 'divider' }}>
+                        <FuseSvgIcon size={16} color="action" className="mx-1 shrink-0">
+                            heroicons-outline:magnifying-glass
+                        </FuseSvgIcon>
+                        <Input
+                            placeholder="Filter cart…"
+                            disableUnderline
+                            fullWidth
+                            value={cartFilterText}
+                            onChange={(event) => setCartFilterText(event.target.value)}
+                            inputProps={{ 'aria-label': 'Filter current order' }}
+                            sx={{ fontSize: 13 }}
+                        />
+                        {cartFilterText ? (
+                            <IconButton
+                                size="small"
+                                aria-label="Clear cart filter"
+                                onClick={() => setCartFilterText('')}
+                            >
+                                <FuseSvgIcon size={14}>heroicons-outline:x-mark</FuseSvgIcon>
+                            </IconButton>
+                        ) : null}
+                    </Paper>
+
                     <div ref={contentRef} className='grow-1 flex flex-col'>
                         <div className='grow-1 overflow-y-auto' style={{height:'200px'}}>
-                            {currentOrder?.map((product,i)=> (
-                                <div className='flex mb-3 items-center py-2 pr-2' key={i}>
+                            {filteredCurrentOrder?.map((product,i)=> (
+                                <div className='flex mb-3 items-center py-2 pr-2' key={product.id ?? i}>
                                     <span
                                         className='cursor-pointer' 
                                         onClick={()=> {
-                                            // const tq = totalQuantity - product.order_quantity;
-                                            // setTotalQuantity(tq);
                                             const co = currentOrder?.length > 0 ? currentOrder?.filter(o=> o.id != product.id) : [];
                                             setCurrentOrder(co);
                                         }}>
@@ -970,9 +1102,6 @@ function NewSale() {
                                         <div className='flex flex-1 justify-between items-center'>
                                             <span><b>₵ {Number(calcLineTotal(product.order_quantity, product.unit_price, product.alt_price, bulkDiscount)).toFixed(2)}</b></span>
                                             <div className='flex justify-between items-center'>
-                                                {/* <span onClick={()=> handleReduceQuantity(product)} className='flex cursor-pointer justify-center items-center' style={{width:20,height:20,borderRadius:20,backgroundColor:'#ddd',color:'#fff'}}>-</span>
-                                                <span className='mx-2'>{product.order_quantity}</span>
-                                                <span onClick={()=> handleIncreaseQuantity(product)} className='flex cursor-pointer justify-center items-center' style={{width:20,height:20,borderRadius:20,backgroundColor:'#000',color:'#fff'}}>+</span> */}
                                                 <input 
                                                     value={product.order_quantity}
                                                     type='number' 
@@ -1014,6 +1143,11 @@ function NewSale() {
                                     </div>
                                 </div>
                             ))}
+                            {currentOrder.length > 0 && filteredCurrentOrder.length === 0 && (
+                                <Typography variant="body2" color="text.secondary" className="px-1 py-4 text-center">
+                                    No cart lines match “{cartFilterText.trim()}”.
+                                </Typography>
+                            )}
                         </div>
                         <div className='p-4 my-2' style={{backgroundColor:'#eee',borderRadius:4}}>
                             <div className='flex justify-between mb-2'>
@@ -1089,10 +1223,40 @@ function NewSale() {
 
                 <PaymentDialog
                     open={openPayment}
+                    saleTotal={
+                        currentOrder?.reduce(
+                            (pr, c) => pr + calcLineTotal(c.order_quantity, c.unit_price, c.alt_price, bulkDiscount),
+                            0
+                        ) || 0
+                    }
+                    printerType={(warehouseRecordForPrinting as { printer_type?: string } | null)?.printer_type}
+                    resumeMomo={resumeMomo}
+                    getCartSnapshot={(): PosCartSnapshot | null => {
+                        if (!currentOrder?.length) return null;
+                        return {
+                            warehouse_id: warehouse?.id || null,
+                            warehouse_name: warehouse?.name || null,
+                            customer_id: customer
+                                ? customers_data.find((c: { name?: string }) => c.name === customer)?.id || null
+                                : null,
+                            customer_name: customer || null,
+                            products: currentOrder.map((o: any) => ({ ...o })),
+                            bulk_discount: bulkDiscount
+                        };
+                    }}
                     handleClose={(response)=> { 
-                        if(response) {
+                        if (response && (response as { parked?: boolean }).parked) {
+                            setCustomer(null);
+                            setCurrentOrder([]);
+                            setCartFilterText('');
+                            setResumeMomo(null);
+                            toast.success('MoMo payment parked. Serve the next customer — finish later from Pending MoMo.');
+                        } else if(response) {
                             handleMakeNewSale(response)
-                        }                      
+                            setResumeMomo(null);
+                        } else {
+                            setResumeMomo(null);
+                        }
                         setOpenPayment(false)
                     }}
                 />
@@ -1109,6 +1273,8 @@ function NewSale() {
                     onClose={() => setInvoiceShare({ open: false, order: null })}
                     order={invoiceShare.order}
                     saleId={invoiceShare.saleId}
+                    autoPrintThermal={invoiceShare.autoPrintThermal}
+                    printerType={(warehouseRecordForPrinting as { printer_type?: string } | null)?.printer_type}
                 />
 			</div>
 		</>

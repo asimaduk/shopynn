@@ -66,10 +66,10 @@ const StyledSnackbar = styled(Snackbar)<StyledSnackbarProps>(({ theme }) => ({
 }));
 
 const variantIcon = {
-	success: 'check_circle',
-	warning: 'warning',
-	error: 'error_outline',
-	info: 'info'
+	success: 'heroicons-outline:check-circle',
+	warning: 'heroicons-outline:exclamation-triangle',
+	error: 'heroicons-outline:exclamation-circle',
+	info: 'heroicons-outline:information-circle'
 };
 
 /**
@@ -92,7 +92,13 @@ function FuseMessage() {
 				message={
 					<div className="flex items-center">
 						{variantIcon[options.variant] && (
-							<FuseSvgIcon color="inherit">{variantIcon[options.variant]}</FuseSvgIcon>
+							<FuseSvgIcon
+								size={20}
+								color="inherit"
+								className="shrink-0"
+							>
+								{variantIcon[options.variant]}
+							</FuseSvgIcon>
 						)}
 						<Typography className="mx-2">{options.message}</Typography>
 					</div>

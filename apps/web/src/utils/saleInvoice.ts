@@ -29,9 +29,9 @@ export type SaleInvoice = {
 	subtotal: number;
 	discount_amount: number;
 	total_amount: number;
+	amount_tendered?: number | null;
+	change_amount?: number | null;
 };
-
-const THEME = '#0A74DA';
 
 function escapeHtml(value: unknown) {
 	return String(value ?? '')
@@ -48,10 +48,24 @@ export function formatMoney(amount: number, currency = 'GH₵') {
 }
 
 export function formatInvoiceDate(value?: string) {
-	if (!value) return new Date().toLocaleString();
+	if (!value) {
+		return new Date().toLocaleString(undefined, {
+			day: 'numeric',
+			month: 'short',
+			year: 'numeric',
+			hour: '2-digit',
+			minute: '2-digit'
+		});
+	}
 	const d = new Date(value);
 	if (Number.isNaN(d.getTime())) return String(value);
-	return d.toLocaleString();
+	return d.toLocaleString(undefined, {
+		day: 'numeric',
+		month: 'short',
+		year: 'numeric',
+		hour: '2-digit',
+		minute: '2-digit'
+	});
 }
 
 export function normalizeSaleLineItems(order: Record<string, unknown> = {}): SaleInvoiceLine[] {
@@ -123,7 +137,15 @@ export function buildInvoiceFromSaleOrder(
 		line_items: lineItems,
 		subtotal,
 		discount_amount: discount,
-		total_amount: total
+		total_amount: total,
+		amount_tendered:
+			order.amount_tendered != null && order.amount_tendered !== ''
+				? Number(order.amount_tendered)
+				: null,
+		change_amount:
+			order.change_amount != null && order.change_amount !== ''
+				? Number(order.change_amount)
+				: null
 	};
 }
 
@@ -156,6 +178,16 @@ export function formatInvoiceText(invoice: SaleInvoice): string {
 		lines.push(`Discount: ${formatMoney(invoice.discount_amount, invoice.currency)}`);
 	}
 	lines.push(`TOTAL: ${formatMoney(invoice.total_amount, invoice.currency)}`);
+	if (
+		invoice.payment_method === 'Cash' &&
+		invoice.amount_tendered != null &&
+		Number.isFinite(Number(invoice.amount_tendered))
+	) {
+		lines.push(`Tendered: ${formatMoney(Number(invoice.amount_tendered), invoice.currency)}`);
+		lines.push(
+			`Change: ${formatMoney(Number(invoice.change_amount) || 0, invoice.currency)}`
+		);
+	}
 	if (invoice.notes) lines.push(`Notes: ${invoice.notes}`);
 	lines.push('--------------------------------');
 	lines.push('Thank you for your business!');
@@ -262,48 +294,100 @@ export function getInvoicePreviewHtml(invoice: SaleInvoice): string {
 			(row) => `
       <tr>
         <td>${escapeHtml(row.name)}</td>
-        <td class="num">${row.quantity}</td>
-        <td class="num">${escapeHtml(formatMoney(row.unit_price, invoice.currency))}</td>
+        <td class="num muted">${row.quantity}</td>
+        <td class="num muted">${escapeHtml(formatMoney(row.unit_price, invoice.currency))}</td>
         <td class="num">${escapeHtml(formatMoney(row.line_total, invoice.currency))}</td>
       </tr>`
 		)
 		.join('');
 
+	const contactBits = [invoice.customer_phone, invoice.customer_email].filter(Boolean);
 	const discount = Number(invoice.discount_amount) || 0;
-	const totals =
+	const totalsRows =
 		discount > 0
 			? `
-      <div class="row"><span>Subtotal</span><span>${escapeHtml(formatMoney(invoice.subtotal, invoice.currency))}</span></div>
-      <div class="row"><span>Discount</span><span>${escapeHtml(formatMoney(discount, invoice.currency))}</span></div>
-      <div class="row grand"><span>Total</span><span>${escapeHtml(formatMoney(invoice.total_amount, invoice.currency))}</span></div>`
-			: `<div class="row grand"><span>Total</span><span>${escapeHtml(formatMoney(invoice.total_amount, invoice.currency))}</span></div>`;
+      <div class="inv-total-row"><span>Subtotal</span><span>${escapeHtml(formatMoney(invoice.subtotal, invoice.currency))}</span></div>
+      <div class="inv-total-row"><span>Discount</span><span>−${escapeHtml(formatMoney(discount, invoice.currency))}</span></div>`
+			: '';
 
 	return `
-    <h1 style="font-size:1.35rem;margin:0 0 4px;font-weight:700;color:${THEME}">Invoice</h1>
-    <p style="margin:0 0 12px;font-weight:700">${escapeHtml(invoice.company.name)}</p>
-    <div class="meta">
-      ${invoice.company.address ? `<div>${escapeHtml(invoice.company.address)}</div>` : ''}
-      ${invoice.company.phone ? `<div>Tel: ${escapeHtml(invoice.company.phone)}</div>` : ''}
-      ${invoice.company.email ? `<div>${escapeHtml(invoice.company.email)}</div>` : ''}
-      <div><strong>Invoice:</strong> ${escapeHtml(invoice.invoice_number)}</div>
-      <div><strong>Date:</strong> ${escapeHtml(formatInvoiceDate(invoice.sale_date))}</div>
-      <div><strong>Customer:</strong> ${escapeHtml(invoice.customer_name)}</div>
-      <div><strong>Payment:</strong> ${escapeHtml(invoice.payment_method)}</div>
-      ${invoice.store_name ? `<div><strong>Store:</strong> ${escapeHtml(invoice.store_name)}</div>` : ''}
-      ${invoice.cashier ? `<div><strong>Cashier:</strong> ${escapeHtml(invoice.cashier)}</div>` : ''}
+    <div class="inv-root">
+      <header class="inv-header">
+        <div>
+          <h1 class="inv-brand-name">${escapeHtml(invoice.company.name)}</h1>
+          <div class="inv-brand-meta">
+            ${invoice.company.address ? `<div>${escapeHtml(invoice.company.address)}</div>` : ''}
+            ${invoice.company.phone ? `<div>${escapeHtml(invoice.company.phone)}</div>` : ''}
+            ${invoice.company.email ? `<div>${escapeHtml(invoice.company.email)}</div>` : ''}
+          </div>
+        </div>
+        <div class="inv-badge-wrap">
+          <p class="inv-badge">Invoice</p>
+          <p class="inv-number">${escapeHtml(invoice.invoice_number)}</p>
+          <p class="inv-date">${escapeHtml(formatInvoiceDate(invoice.sale_date))}</p>
+        </div>
+      </header>
+      <hr class="inv-rule" />
+      <section class="inv-meta">
+        <div class="inv-meta-col">
+          <p class="inv-label">Bill to</p>
+          <p class="inv-customer">${escapeHtml(invoice.customer_name)}</p>
+          ${contactBits.length ? `<p class="inv-customer-sub">${escapeHtml(contactBits.join(' · '))}</p>` : ''}
+        </div>
+        <div class="inv-meta-col right">
+          <p class="inv-label">Details</p>
+          <div class="inv-detail-row"><span>Payment · </span>${escapeHtml(invoice.payment_method)}${
+						invoice.payment_reference ? ` (${escapeHtml(invoice.payment_reference)})` : ''
+					}</div>
+          ${invoice.store_name ? `<div class="inv-detail-row"><span>Store · </span>${escapeHtml(invoice.store_name)}</div>` : ''}
+          ${invoice.cashier ? `<div class="inv-detail-row"><span>Cashier · </span>${escapeHtml(invoice.cashier)}</div>` : ''}
+        </div>
+      </section>
+      <table class="inv-table">
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th class="num">Qty</th>
+            <th class="num">Unit price</th>
+            <th class="num">Amount</th>
+          </tr>
+        </thead>
+        <tbody>${rows || '<tr><td colspan="4" class="inv-empty">No line items</td></tr>'}</tbody>
+      </table>
+      <div class="inv-totals-wrap">
+        <div class="inv-totals">
+          ${totalsRows}
+          <div class="inv-due">
+            <span>Amount due</span>
+            <span class="amount">${escapeHtml(formatMoney(invoice.total_amount, invoice.currency))}</span>
+          </div>
+          ${
+						invoice.payment_method === 'Cash' &&
+						invoice.amount_tendered != null &&
+						Number.isFinite(Number(invoice.amount_tendered))
+							? `<div class="inv-cash-settle">
+            <div class="inv-total-row"><span>Tendered</span><span>${escapeHtml(formatMoney(Number(invoice.amount_tendered), invoice.currency))}</span></div>
+            <div class="inv-total-row"><span>Change</span><span>${escapeHtml(formatMoney(Number(invoice.change_amount) || 0, invoice.currency))}</span></div>
+          </div>`
+							: ''
+					}
+        </div>
+      </div>
+      ${
+				invoice.notes
+					? `<div class="inv-notes"><p class="inv-notes-label">Notes</p><p class="inv-notes-body">${escapeHtml(invoice.notes)}</p></div>`
+					: ''
+			}
+      <footer class="inv-footer">
+        <div>
+          <p class="inv-thanks">Thank you for your business</p>
+          <p class="inv-powered">Generated with Shopynn</p>
+        </div>
+        <div class="inv-footer-right">
+          ${invoice.company.phone ? `<div>${escapeHtml(invoice.company.phone)}</div>` : ''}
+          ${invoice.company.email ? `<div>${escapeHtml(invoice.company.email)}</div>` : ''}
+        </div>
+      </footer>
     </div>
-    <table>
-      <thead>
-        <tr>
-          <th>Item</th>
-          <th class="num">Qty</th>
-          <th class="num">Unit</th>
-          <th class="num">Amount</th>
-        </tr>
-      </thead>
-      <tbody>${rows || '<tr><td colspan="4">No line items</td></tr>'}</tbody>
-    </table>
-    <div class="totals">${totals}</div>
-    ${invoice.notes ? `<p class="foot"><strong>Notes:</strong> ${escapeHtml(invoice.notes)}</p>` : ''}
   `;
 }

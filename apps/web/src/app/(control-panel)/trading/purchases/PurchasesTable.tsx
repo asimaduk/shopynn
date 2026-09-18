@@ -6,7 +6,7 @@ import Typography from '@mui/material/Typography';
 import Link from '@fuse/core/Link';
 import { Purchase } from '../TradingApi';
 import { formatCurrency } from 'src/app/(control-panel)/reports/reportMappers';
-// import PurchasesStatus from './PurchasesStatus';
+import { PurchasePaymentStatusChip } from './purchasePaymentStatus';
 
 function PurchasesTable({ purchases }) {
 
@@ -58,20 +58,30 @@ function PurchasesTable({ purchases }) {
 				id: 'number_of_items', 
 				accessorFn: (row) => row.number_of_items, 
 				header: 'Items',
-				// size: 128 
 			},
-			{ 
-				id: 'receiver', 
-				accessorFn: (row) => row.receiver_name, 
-				header: 'Receiver',
-				// size: 128 
+			{
+				id: 'payment_status',
+				accessorFn: (row) => Number((row as any).payment_status ?? 0),
+				header: 'Payment',
+				size: 120,
+				Cell: ({ row }) => (
+					<PurchasePaymentStatusChip status={(row.original as any).payment_status} />
+				)
 			},
-			// {
-			// 	id: 'status',
-			// 	accessorFn: (row) => <PurchasesStatus name={`${row.current_status}`} />,
-			// 	accessorKey: 'status',
-			// 	header: 'Status'
-			// }
+			{
+				id: 'attendant',
+				accessorFn: (row) => {
+					const full =
+						(row.attendant && String(row.attendant).trim()) ||
+						(row.receiver_name && String(row.receiver_name).trim()) ||
+						`${row.receiver_first_name ?? ''} ${row.receiver_last_name ?? ''}`.trim();
+					return full || '—';
+				},
+				header: 'Attendant',
+				Cell: ({ cell }) => (
+					<Typography variant="body2">{String(cell.getValue() ?? '—')}</Typography>
+				)
+			},
 		],
 		[]
 	);

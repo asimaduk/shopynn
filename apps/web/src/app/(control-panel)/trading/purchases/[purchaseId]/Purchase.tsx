@@ -3,8 +3,9 @@
 import FusePageCarded from '@fuse/core/FusePageCarded';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
+import Box from '@mui/material/Box';
 import { motion } from 'motion/react';
-import { SyntheticEvent, useState } from 'react';
+import { SyntheticEvent, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from '@fuse/core/Link';
 import useThemeMediaQuery from '@fuse/hooks/useThemeMediaQuery';
@@ -12,10 +13,12 @@ import FuseLoading from '@fuse/core/FuseLoading';
 import PageBreadcrumb from 'src/components/PageBreadcrumb';
 import FuseTabs from 'src/components/tabs/FuseTabs';
 import FuseTab from 'src/components/tabs/FuseTab';
+import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import DetailsTab from './tabs/details/DetailsTab';
 import ProductsTab from './tabs/products/ProductsTab';
 import { useGetPurchaseQuery } from '../../TradingApi';
 import { formatGhsCurrency } from '@/app/(control-panel)/dashboards/analytics/daily-sales/formatGhsCurrency';
+import { getPurchasePaymentMeta } from '../purchasePaymentStatus';
 
 /**
  * The purchase.
@@ -35,6 +38,12 @@ function Purchase() {
 	const isMobile = useThemeMediaQuery((_theme) => _theme.breakpoints.down('lg'));
 
 	const [tabValue, setTabValue] = useState('details');
+
+	const paymentMeta = useMemo(
+		() => getPurchasePaymentMeta(purchase?.payment_status),
+		[purchase?.payment_status]
+	);
+	const received = Number(purchase?.current_status) === 1;
 
 	/**
 	 * Tab Change
@@ -77,7 +86,7 @@ function Purchase() {
 		<FusePageCarded
 			header={
 				purchase && (
-					<div className="flex flex-1 flex-col py-8">
+					<div className="flex flex-1 flex-col py-8 gap-4">
 						<motion.div
 							initial={{ x: 20, opacity: 0 }}
 							animate={{ x: 0, opacity: 1, transition: { delay: 0.3 } }}
@@ -85,11 +94,43 @@ function Purchase() {
 							<PageBreadcrumb className="mb-2" />
 						</motion.div>
 
+						<motion.div
+							initial={{ opacity: 0, y: 8 }}
+							animate={{ opacity: 1, y: 0, transition: { delay: 0.25 } }}
+						>
+							<Box
+								sx={{
+									backgroundColor: paymentMeta.bannerBg,
+									borderRadius: 2,
+									px: 2.5,
+									py: 2,
+									display: 'flex',
+									alignItems: 'center',
+									justifyContent: 'space-between',
+									gap: 2,
+									color: '#fff'
+								}}
+							>
+								<div>
+									<Typography className="text-xl font-semibold text-white">
+										{paymentMeta.bannerLabel(received)}
+									</Typography>
+									<Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', mt: 0.5 }}>
+										{(purchase.attendant || purchase.receiver_name)
+											? `${purchase.attendant || purchase.receiver_name} · ${new Date(purchase.created_at).toLocaleString()}`
+											: new Date(purchase.created_at).toLocaleString()}
+									</Typography>
+								</div>
+								<FuseSvgIcon size={36} sx={{ color: '#fff' }}>
+									{paymentMeta.icon}
+								</FuseSvgIcon>
+							</Box>
+						</motion.div>
+
 						<div className='flex justify-between'>
 							<motion.div
 								initial={{ x: -20, opacity: 0 }}
 								animate={{ x: 0, opacity: 1, transition: { delay: 0.3 } }}
-								// className="flex flex-col min-w-0"
 								className='w-1/2'
 							>
 								<Typography className="text-2xl truncate font-semibold">
@@ -100,18 +141,11 @@ function Purchase() {
 								>
 									{purchase.supplier}
 								</Typography>
-								<Typography
-									variant="caption"
-									className="font-medium"
-								>
-								 	{new Date(purchase.created_at).toDateString()}
-								</Typography>
 							</motion.div>
 
 							<motion.div
 								initial={{ x: -20, opacity: 0 }}
 								animate={{ x: 0, opacity: 1, transition: { delay: 0.3 } }}
-								// className="flex flex-col min-w-0"
 								className='w-1/2 flex justify-end'
 							>
 								<div>

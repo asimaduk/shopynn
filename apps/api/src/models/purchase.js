@@ -3,11 +3,15 @@ import { v4 as uuidv4 } from 'uuid';
 import { getUserPermissionsService } from "./userRole.js";
 
 const canViewAllPurchasesForUser = async (user) => {
-    if (user.user_type === 1) return true;
+    if (Number(user.user_type) === 1) return true;
     const permissionCodes = Array.isArray(user.permissions)
         ? user.permissions
         : await getUserPermissionsService(user.id, user.tenant_id).catch(() => []);
-    return permissionCodes.includes("purchases.view_all");
+    // Admins with sales.view_all historically lacked purchases.view_all; treat either as tenant-wide list access.
+    return (
+        permissionCodes.includes("purchases.view_all") ||
+        permissionCodes.includes("sales.view_all")
+    );
 };
 
 export const getAllPurchasesService = async (user, requestQuery = {}) => {
@@ -16,20 +20,23 @@ export const getAllPurchasesService = async (user, requestQuery = {}) => {
     let paramIndex = 2;
 
     const canViewAll = await canViewAllPurchasesForUser(user);
+    const receivedBy = requestQuery.receivedBy || requestQuery.attendantId || null;
+    const suppliedBy = requestQuery.suppliedBy || requestQuery.supplierId || null;
 
     if (!canViewAll) {
+        // Staff without view-all: only own receipts. Extra attendant filter is ignored unless it is self.
         conditions.push(`purchases.receiver_id = $${paramIndex}`);
         params.push(user.id);
         paramIndex++;
-    } else if (requestQuery.receivedBy) {
+    } else if (receivedBy) {
         conditions.push(`purchases.receiver_id = $${paramIndex}`);
-        params.push(requestQuery.receivedBy);
+        params.push(receivedBy);
         paramIndex++;
     }
 
-    if (requestQuery.suppliedBy) {
+    if (suppliedBy) {
         conditions.push(`purchases.supplier_id = $${paramIndex}`);
-        params.push(requestQuery.suppliedBy);
+        params.push(suppliedBy);
         paramIndex++;
     }
 
@@ -56,12 +63,21 @@ export const getAllPurchasesService = async (user, requestQuery = {}) => {
             purchases.number_of_items,
             purchases.total_amount,
             purchases.discount_amount,
+            purchases.amount_paid,
             purchases.invoice_number,
             purchases.created_at,
             purchases.current_status,
+            purchases.payment_type,
+            purchases.payment_status,
+            purchases.payment_date,
+            purchases.payment_reference,
+            purchases.due_date,
             purchases.notes,
             suppliers.name AS supplier,
-            users.first_name AS receiver_name
+            users.first_name AS receiver_first_name,
+            users.last_name AS receiver_last_name,
+            NULLIF(TRIM(CONCAT(COALESCE(users.first_name, ''), ' ', COALESCE(users.last_name, ''))), '') AS receiver_name,
+            NULLIF(TRIM(CONCAT(COALESCE(users.first_name, ''), ' ', COALESCE(users.last_name, ''))), '') AS attendant
         FROM purchases
         LEFT JOIN suppliers ON purchases.supplier_id = suppliers.id
         LEFT JOIN users ON purchases.receiver_id = users.id
@@ -306,7 +322,23 @@ export const getPurchasesBySupplierIdService = async (user, supplier_id, request
 };
 
 export const getPurchaseByIdService = async (id) => {
-    const result = await pool.query("SELECT purchases.id, purchases.number_of_items, purchases.total_amount, purchases.discount_amount, purchases.invoice_number, purchases.created_at, purchases.current_status, purchases.notes, suppliers.name as supplier, suppliers.manager as supplier_manager, suppliers.phone, suppliers.address as supplier_address FROM purchases LEFT JOIN suppliers ON purchases.supplier_id = suppliers.id WHERE purchases.id = $1", [id]);
+    const result = await pool.query(
+        `SELECT purchases.id, purchases.number_of_items, purchases.total_amount, purchases.discount_amount,
+                purchases.amount_paid, purchases.invoice_number, purchases.created_at, purchases.current_status,
+                purchases.payment_type, purchases.payment_status, purchases.payment_date, purchases.payment_reference,
+                purchases.payment_number, purchases.due_date, purchases.notes,
+                suppliers.name as supplier, suppliers.manager as supplier_manager, suppliers.phone,
+                suppliers.address as supplier_address,
+                users.first_name AS receiver_first_name,
+                users.last_name AS receiver_last_name,
+                NULLIF(TRIM(CONCAT(COALESCE(users.first_name, ''), ' ', COALESCE(users.last_name, ''))), '') AS receiver_name,
+                NULLIF(TRIM(CONCAT(COALESCE(users.first_name, ''), ' ', COALESCE(users.last_name, ''))), '') AS attendant
+         FROM purchases
+         LEFT JOIN suppliers ON purchases.supplier_id = suppliers.id
+         LEFT JOIN users ON purchases.receiver_id = users.id
+         WHERE purchases.id = $1`,
+        [id]
+    );
     const rs = result.rows[0];
 
     const x = await pool.query("SELECT pd.id, pd.quantity, pd.unit_price, pd.created_at, products.id, products.name, products.thumbnail, products.sku, products.slug, products.thumbnail FROM purchasedetails pd LEFT JOIN products ON pd.product_id = products.id WHERE pd.purchase_id = $1",[id]);
@@ -319,6 +351,52 @@ export const getPurchaseByIdService = async (id) => {
     return rs;
 }
 
+/** payment_status: 0=unpaid, 1=paid, 2=partial. payment_type: 1=cash, 2=momo, 3=bank, 4=other */
+function normalizePurchasePayment(payload, netTotal) {
+    const statusRaw = Number(payload.payment_status);
+    const payment_status = [0, 1, 2].includes(statusRaw) ? statusRaw : 0;
+    const typeRaw = Number(payload.payment_type);
+    const payment_type = [1, 2, 3, 4].includes(typeRaw) ? typeRaw : null;
+
+    let amount_paid = Number(payload.amount_paid);
+    if (!Number.isFinite(amount_paid) || amount_paid < 0) amount_paid = 0;
+
+    if (payment_status === 0) {
+        return {
+            payment_status: 0,
+            payment_type: null,
+            amount_paid: 0,
+            payment_reference: null,
+            payment_number: null,
+            payment_date: null,
+            due_date: payload.due_date ? new Date(payload.due_date) : null
+        };
+    }
+
+    if (payment_status === 1) {
+        amount_paid = amount_paid > 0 ? Math.min(amount_paid, netTotal) : netTotal;
+    } else {
+        // partial
+        if (amount_paid <= 0) amount_paid = 0;
+        if (amount_paid >= netTotal) {
+            return normalizePurchasePayment({ ...payload, payment_status: 1, amount_paid: netTotal }, netTotal);
+        }
+    }
+
+    const ref = payload.payment_reference != null ? String(payload.payment_reference).trim().slice(0, 50) : '';
+    const num = payload.payment_number != null ? String(payload.payment_number).trim().slice(0, 50) : '';
+
+    return {
+        payment_status,
+        payment_type: payment_type || 1,
+        amount_paid,
+        payment_reference: ref || null,
+        payment_number: num || null,
+        payment_date: payload.payment_date ? new Date(payload.payment_date) : new Date(),
+        due_date: payload.due_date ? new Date(payload.due_date) : null
+    };
+}
+
 export const createPurchaseService = async (payload) => {
     const client = await pool.connect();
 
@@ -326,19 +404,31 @@ export const createPurchaseService = async (payload) => {
         await client.query('BEGIN');
         const { discount_amount, tenant_id, invoice_number, current_status, warehouse_id, supplier_id, products, notes, creator_id } = payload;
         
-        const total_amount = products.reduce((accumulator, currentItem) => accumulator + Number(currentItem.quantity * currentItem.unit_price), 0);
-        
-        if(!products) {
+        if(!products || !products.length) {
             throw new Error("Products list cannot be empty.");
         }
 
+        const total_amount = products.reduce((accumulator, currentItem) => accumulator + Number(currentItem.quantity * currentItem.unit_price), 0);
+        const discount = Number(discount_amount) || 0;
+        const netTotal = Math.max(0, total_amount - discount);
         const number_of_items = products.reduce((accumulator, currentItem) => accumulator + Number(currentItem.quantity), 0);
+        const payment = normalizePurchasePayment(payload, netTotal);
 
         const id = uuidv4();
         const result = await client.query(`
-            INSERT INTO purchases (id, number_of_items, total_amount, discount_amount, tenant_id, invoice_number, current_status, receiver_id, warehouse_id, supplier_id, notes, created_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
-            [id, number_of_items, total_amount, discount_amount, tenant_id, invoice_number, current_status, creator_id, warehouse_id, supplier_id, notes, new Date()]
+            INSERT INTO purchases (
+                id, number_of_items, total_amount, discount_amount, amount_paid, tenant_id, invoice_number,
+                current_status, receiver_id, warehouse_id, supplier_id, notes,
+                payment_type, payment_status, payment_date, payment_reference, payment_number, due_date, created_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+            RETURNING *`,
+            [
+                id, number_of_items, total_amount, discount, payment.amount_paid, tenant_id, invoice_number,
+                current_status, creator_id, warehouse_id, supplier_id, notes,
+                payment.payment_type, payment.payment_status, payment.payment_date,
+                payment.payment_reference, payment.payment_number, payment.due_date, new Date()
+            ]
         );
 
         for (const prod of products) {
@@ -379,6 +469,54 @@ export const updatePurchaseService = async (payload) => {
 
     return result.rows[0];
 }
+
+/**
+ * Record / update payment fields on an existing purchase (paid / partial / unpaid).
+ */
+export const updatePurchasePaymentService = async (user, purchaseId, payload = {}) => {
+    const existing = await pool.query(
+        `SELECT id, total_amount, discount_amount, tenant_id
+         FROM purchases
+         WHERE id = $1 AND tenant_id = $2`,
+        [purchaseId, user.tenant_id]
+    );
+    if (!existing.rowCount) {
+        const err = new Error("Purchase not found.");
+        err.status = 404;
+        throw err;
+    }
+
+    const row = existing.rows[0];
+    const netTotal = Math.max(0, Number(row.total_amount || 0) - Number(row.discount_amount || 0));
+    const payment = normalizePurchasePayment(payload, netTotal);
+
+    await pool.query(
+        `UPDATE purchases
+         SET payment_status = $1,
+             payment_type = $2,
+             amount_paid = $3,
+             payment_reference = $4,
+             payment_number = $5,
+             payment_date = $6,
+             due_date = $7,
+             updated_at = $8
+         WHERE id = $9 AND tenant_id = $10`,
+        [
+            payment.payment_status,
+            payment.payment_type,
+            payment.amount_paid,
+            payment.payment_reference,
+            payment.payment_number,
+            payment.payment_date,
+            payment.due_date,
+            new Date(),
+            purchaseId,
+            user.tenant_id,
+        ]
+    );
+
+    return getPurchaseByIdService(purchaseId);
+};
 
 //to be reviewed
 export const deletePurchaseService = async (id) => {

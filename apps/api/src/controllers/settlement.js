@@ -13,7 +13,7 @@ import {
     getTenantPayoutProfileService,
     upsertTenantPayoutProfileService,
 } from "../models/payoutProfile.js";
-import { getPayoutBankOptionsService } from "../services/paystackPayout.js";
+import { getPayoutBankOptionsService, resolvePayoutAccountService } from "../services/paystackPayout.js";
 import { handleResponse } from "../util/handleresponse.js";
 
 export const getMySettlementSummary = async (req, res, next) => {
@@ -42,6 +42,26 @@ export const getPayoutBankOptions = async (req, res, next) => {
         const banks = await getPayoutBankOptionsService(type);
         handleResponse(res, 200, "Payout banks.", banks);
     } catch (error) {
+        next(error);
+    }
+};
+
+export const resolvePayoutAccount = async (req, res, next) => {
+    try {
+        const resolved = await resolvePayoutAccountService({
+            account_number: req.query?.account_number || req.body?.account_number,
+            bank_code: req.query?.bank_code || req.body?.bank_code,
+        });
+        handleResponse(res, 200, "Account resolved.", resolved);
+    } catch (error) {
+        if (
+            error.message?.includes("valid bank account") ||
+            error.message?.includes("Select a bank") ||
+            error.message?.includes("Could not resolve") ||
+            error.message?.includes("Paystack")
+        ) {
+            return handleResponse(res, 400, error.message);
+        }
         next(error);
     }
 };
@@ -156,7 +176,8 @@ export const createAdminTenantSettlement = async (req, res, next) => {
     } catch (error) {
         if (
             error.message?.includes("greater than zero") ||
-            error.message?.includes("exceeds available balance")
+            error.message?.includes("exceeds available balance") ||
+            error.message?.includes("No available balance")
         ) {
             return handleResponse(res, 400, error.message);
         }

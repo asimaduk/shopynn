@@ -11,6 +11,7 @@ import _ from 'lodash';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import Link from '@fuse/core/Link';
 import useNavigate from '@fuse/hooks/useNavigate';
+import toast from 'react-hot-toast';
 import {
 	Supplier,
 	useCreateSupplierMutation,
@@ -52,8 +53,14 @@ function SupplierHeader({ updateProcessing }: SupplierHeaderProps) {
 	function handleSaveSupplier() {
 		updateProcessing(true);
 		saveSupplier(getValues())
-			.then(() => navigate('/setups/suppliers'))
-			.catch((err) => console.error(err))
+			.unwrap()
+			.then(() => {
+				toast.success('Supplier updated successfully.');
+				navigate('/setups/suppliers');
+			})
+			.catch(() => {
+				toast.error('Could not update supplier. Please try again.');
+			})
 			.finally(() => updateProcessing(false));
 	}
 
@@ -61,7 +68,13 @@ function SupplierHeader({ updateProcessing }: SupplierHeaderProps) {
 		updateProcessing(true);
 		createSupplier(getValues())
 			.unwrap()
-			.then(() => navigate('/setups/suppliers'))
+			.then(() => {
+				toast.success('Supplier created successfully.');
+				navigate('/setups/suppliers');
+			})
+			.catch(() => {
+				toast.error('Could not create supplier. Please try again.');
+			})
 			.finally(() => updateProcessing(false));
 	}
 

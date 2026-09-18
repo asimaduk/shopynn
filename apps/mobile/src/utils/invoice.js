@@ -129,6 +129,14 @@ export function buildInvoiceFromSale(sale = {}, appSettings = {}) {
         subtotal,
         discount_amount: discount,
         total_amount: total,
+        amount_tendered:
+            sale.amount_tendered != null && sale.amount_tendered !== ''
+                ? Number(sale.amount_tendered)
+                : null,
+        change_amount:
+            sale.change_amount != null && sale.change_amount !== ''
+                ? Number(sale.change_amount)
+                : null,
     };
 }
 
@@ -161,6 +169,14 @@ export function formatInvoiceText(invoice) {
         lines.push(`Discount: ${formatMoney(invoice.discount_amount, invoice.currency)}`);
     }
     lines.push(`TOTAL: ${formatMoney(invoice.total_amount, invoice.currency)}`);
+    if (
+        String(invoice.payment_method || '').toLowerCase().includes('cash') &&
+        invoice.amount_tendered != null &&
+        Number.isFinite(Number(invoice.amount_tendered))
+    ) {
+        lines.push(`Tendered: ${formatMoney(Number(invoice.amount_tendered), invoice.currency)}`);
+        lines.push(`Change: ${formatMoney(Number(invoice.change_amount) || 0, invoice.currency)}`);
+    }
     if (invoice.notes) lines.push(`Notes: ${invoice.notes}`);
     lines.push('--------------------------------');
     lines.push('Thank you for your business!');
@@ -181,13 +197,21 @@ export function formatInvoiceHtml(invoice) {
         .join('');
 
     const discount = Number(invoice.discount_amount) || 0;
+    const cashSettle =
+        String(invoice.payment_method || '').toLowerCase().includes('cash') &&
+        invoice.amount_tendered != null &&
+        Number.isFinite(Number(invoice.amount_tendered))
+            ? `
+        <div class="row"><span>Tendered</span><span>${escapeHtml(formatMoney(Number(invoice.amount_tendered), invoice.currency))}</span></div>
+        <div class="row"><span>Change</span><span>${escapeHtml(formatMoney(Number(invoice.change_amount) || 0, invoice.currency))}</span></div>`
+            : '';
     const totalsBlock =
         discount > 0
             ? `
         <div class="row"><span>Subtotal</span><span>${escapeHtml(formatMoney(invoice.subtotal, invoice.currency))}</span></div>
         <div class="row"><span>Discount</span><span>${escapeHtml(formatMoney(discount, invoice.currency))}</span></div>
-        <div class="row grand"><span>Total</span><span>${escapeHtml(formatMoney(invoice.total_amount, invoice.currency))}</span></div>`
-            : `<div class="row grand"><span>Total</span><span>${escapeHtml(formatMoney(invoice.total_amount, invoice.currency))}</span></div>`;
+        <div class="row grand"><span>Total</span><span>${escapeHtml(formatMoney(invoice.total_amount, invoice.currency))}</span></div>${cashSettle}`
+            : `<div class="row grand"><span>Total</span><span>${escapeHtml(formatMoney(invoice.total_amount, invoice.currency))}</span></div>${cashSettle}`;
 
     return `<!DOCTYPE html>
 <html>

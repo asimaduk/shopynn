@@ -3,7 +3,7 @@
 import GlobalStyles from '@mui/material/GlobalStyles';
 import PurchasesHeader from './PurchasesHeader';
 import PurchasesTable from './PurchasesTable';
-import TradingApi, { useGetAttendantsQuery, useGetPurchaseQuery } from '../TradingApi';
+import TradingApi, { useGetAttendantsQuery, useGetPurchasesQuery, useGetProductPurchasesByDateQuery } from '../TradingApi';
 import { useEffect, useState } from 'react';
 import store from '@/store/store';
 // import ECommerceApi from '../../inventory/ECommerceApi';
@@ -21,45 +21,64 @@ function Purchases() {
 	const [purchases, setPurchases] = useState([]);
 	const [loading, setLoading] = useState(false)
 
-	let { data, isLoading } = useGetPurchaseQuery(productSlug || '',{refetchOnMountOrArgChange: true});
+	const listQuery = productSlug ? `productSlug=${encodeURIComponent(productSlug)}` : '';
+	const { data: purchasesByDate, isLoading: loadingByDate } = useGetProductPurchasesByDateQuery(listQuery, {
+		skip: !productSlug,
+		refetchOnMountOrArgChange: true
+	});
+	const { data: allPurchases, isLoading: loadingAll } = useGetPurchasesQuery(undefined, {
+		skip: !!productSlug,
+		refetchOnMountOrArgChange: true
+	});
+	const data = productSlug ? purchasesByDate : allPurchases;
+	const isLoading = productSlug ? loadingByDate : loadingAll;
 	let { data: suppliers } = useGetSuppliersQuery(null, {refetchOnMountOrArgChange: true});
 	let { data: attendants } = useGetAttendantsQuery(null, {refetchOnMountOrArgChange: true});
 
-	useEffect(()=> {		
-		if(!isLoading) {
-			setPurchases(data)
+	useEffect(() => {
+		if (!isLoading) {
+			setPurchases(Array.isArray(data) ? data : data?.items ?? []);
 		}
-	},[isLoading])
+	}, [isLoading, data]);
 
 	const handleFilter = async (dates, supplierId, attendantId) => {
-		setLoading(true)
+		setLoading(true);
 		try {
-			let queryParams = `productSlug=${productSlug || ''}` 
-			
-			if(dates) {
-				queryParams += `&startDate=${dates.startDate}&endDate=${dates.endDate}`
-			} 
+			const params = new URLSearchParams();
+			params.set('productSlug', productSlug || '');
 
-			if(supplierId) {
-				queryParams += `&suppliedBy=${supplierId}`
+			if (dates?.startDate && dates?.endDate) {
+				params.set('startDate', dates.startDate);
+				params.set('endDate', dates.endDate);
 			}
 
-			if(attendantId) {
-				queryParams += `&receivedBy=${attendantId}`
+			if (supplierId) {
+				params.set('suppliedBy', supplierId);
 			}
-			
-			// console.log('queryParams',queryParams);
-			
-			const promise = store.store.dispatch(TradingApi.endpoints.getProductPurchasesByDate.initiate(queryParams,{forceRefetch:true}));
-			const { data: _data } = await promise; 			
 
-			setPurchases(_data);
-			setLoading(false)
+			if (attendantId) {
+				params.set('receivedBy', attendantId);
+			}
+
+			const promise = store.store.dispatch(
+				TradingApi.endpoints.getProductPurchasesByDate.initiate(params.toString(), {
+					forceRefetch: true
+				})
+			);
+			const { data: _data, error } = await promise;
+
+			if (error) {
+				toast.error('An error occurred. Please try again.');
+				return;
+			}
+
+			setPurchases(Array.isArray(_data) ? _data : _data?.items ?? []);
 		} catch (error) {
-			setLoading(false)
-			toast.error('An error occurred. Please try again.')
+			toast.error('An error occurred. Please try again.');
+		} finally {
+			setLoading(false);
 		}
-	}
+	};
 
 	return (
 		<>

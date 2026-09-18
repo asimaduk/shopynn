@@ -1,7 +1,8 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
+    Dimensions,
     FlatList,
     Image,
     Modal,
@@ -105,6 +106,9 @@ const OrderSettlements = ({ navigation }) => {
     const [withdrawNote, setWithdrawNote] = useState('');
     const [showBankPicker, setShowBankPicker] = useState(false);
     const [bankSearch, setBankSearch] = useState('');
+    const [editingPayout, setEditingPayout] = useState(false);
+    const [resolvingAccount, setResolvingAccount] = useState(false);
+    const [resolveHint, setResolveHint] = useState('');
 
     const filteredBanks = useMemo(() => {
         const q = bankSearch.trim().toLowerCase();
@@ -112,9 +116,12 @@ const OrderSettlements = ({ navigation }) => {
         return ghBanks.filter((b) => String(b.name || '').toLowerCase().includes(q));
     }, [ghBanks, bankSearch]);
 
-    const applyProfile = (data) => {
+    const applyProfile = (data, { openEditorIfEmpty = false } = {}) => {
         setProfile(data || null);
-        if (!data) return;
+        if (!data) {
+            if (openEditorIfEmpty) setEditingPayout(true);
+            return;
+        }
         setPayoutMethod(String(data.payout_method || 'momo').toLowerCase());
         setMomoNetwork(String(data.momo_network || 'mtn').toLowerCase());
         setMomoNumber(String(data.momo_number || ''));
@@ -123,6 +130,8 @@ const OrderSettlements = ({ navigation }) => {
         setBankAccountNumber(String(data.bank_account_number || ''));
         setBankAccountName(String(data.bank_account_name || ''));
         setAccountHolderName(String(data.account_holder_name || ''));
+        setResolveHint('');
+        if (openEditorIfEmpty) setEditingPayout(false);
     };
 
     const load = useCallback(async () => {
@@ -136,7 +145,7 @@ const OrderSettlements = ({ navigation }) => {
             setSummary(summaryData || null);
             setRows(Array.isArray(listData) ? listData : []);
             setGhBanks(Array.isArray(banksData) ? banksData : []);
-            applyProfile(profileData);
+            applyProfile(profileData, { openEditorIfEmpty: true });
         } catch (_) {
             setSummary(null);
             setRows([]);
@@ -153,6 +162,51 @@ const OrderSettlements = ({ navigation }) => {
             return undefined;
         }, [load]),
     );
+
+    useEffect(() => {
+        if (!editingPayout || payoutMethod !== 'bank') return;
+        const digits = String(bankAccountNumber || '').replace(/\D/g, '');
+        if (!paystackBankCode || digits.length < 10) {
+            setResolveHint('');
+            return undefined;
+        }
+        let cancelled = false;
+        const timer = setTimeout(async () => {
+            setResolvingAccount(true);
+            try {
+                const resolved = await tenants.resolvePayoutAccount({
+                    account_number: digits,
+                    bank_code: paystackBankCode,
+                });
+                if (cancelled) return;
+                const name = String(resolved?.account_name || '').trim();
+                if (!name) {
+                    setResolveHint('Could not look up this account name.');
+                    return;
+                }
+                setBankAccountName(name);
+                setAccountHolderName((prev) => (String(prev || '').trim() ? prev : name));
+                setResolveHint(
+                    resolved?.stub
+                        ? 'Demo name (Paystack not configured).'
+                        : 'Account name verified.',
+                );
+            } catch (error) {
+                if (cancelled) return;
+                setResolveHint(
+                    error?.response?.data?.message ||
+                        error?.message ||
+                        'Could not look up this account name.',
+                );
+            } finally {
+                if (!cancelled) setResolvingAccount(false);
+            }
+        }, 550);
+        return () => {
+            cancelled = true;
+            clearTimeout(timer);
+        };
+    }, [editingPayout, payoutMethod, paystackBankCode, bankAccountNumber]);
 
     const onRefresh = () => {
         setRefreshing(true);
@@ -183,6 +237,7 @@ const OrderSettlements = ({ navigation }) => {
                 account_holder_name: accountHolderName,
             });
             applyProfile(saved);
+            setEditingPayout(false);
             Alert.alert('Saved', 'Payout details updated.');
         } catch (error) {
             Alert.alert(
@@ -192,6 +247,18 @@ const OrderSettlements = ({ navigation }) => {
         } finally {
             setBusy(false);
         }
+    };
+
+    const onCancelEditPayout = () => {
+        applyProfile(profile);
+        setEditingPayout(false);
+    };
+
+    const momoNetworkLabel = (net) => {
+        const n = String(net || '').toLowerCase();
+        if (n === 'vodafone' || n === 'telecel' || n === 'vod') return 'Telecel';
+        if (n === 'airteltigo' || n === 'tgo' || n === 'at') return 'AirtelTigo';
+        return 'MTN';
     };
 
     const onRequestWithdrawal = () => {
@@ -279,22 +346,23 @@ const OrderSettlements = ({ navigation }) => {
         borderColor: colors.border,
     };
 
+    const statsGap = 10;
+    const statsPad = 16;
+    const tileWidth = (Dimensions.get('window').width - statsPad * 2 - statsGap) / 2;
+
     const localStyles = StyleSheet.create({
-        summaryRow: {
+        statsGrid: {
             flexDirection: 'row',
             flexWrap: 'wrap',
-            gap: 8,
-            paddingHorizontal: 16,
-            marginBottom: 8,
+            gap: statsGap,
+            paddingHorizontal: statsPad,
+            marginTop: 12,
+            marginBottom: 12,
         },
-        statCard: {
-            flex: 1,
-            minWidth: '46%',
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 10,
-            padding: 12,
-            borderRadius: 12,
+        statTile: {
+            width: tileWidth,
+            padding: 14,
+            borderRadius: 14,
             borderWidth: 1,
         },
         statIcon: {
@@ -303,6 +371,7 @@ const OrderSettlements = ({ navigation }) => {
             borderRadius: 10,
             alignItems: 'center',
             justifyContent: 'center',
+            marginBottom: 10,
         },
         section: {
             marginHorizontal: 16,
@@ -319,6 +388,45 @@ const OrderSettlements = ({ navigation }) => {
             borderBottomWidth: StyleSheet.hairlineWidth,
         },
     });
+
+    const statTiles = [
+        {
+            key: 'digital',
+            label: 'Digital collected',
+            value: formatAmount(summary?.digital_collected),
+            valueColor: colors.text,
+            icon: 'wallet',
+            iconColor: config.THEME_COLOR,
+            iconBg: colors.primaryShade,
+        },
+        {
+            key: 'paid',
+            label: 'Paid out',
+            value: formatAmount(summary?.settled_paid),
+            valueColor: '#16a34a',
+            icon: 'circle-check',
+            iconColor: '#16a34a',
+            iconBg: '#dcfce7',
+        },
+        {
+            key: 'pending',
+            label: 'Pending payout',
+            value: formatAmount(summary?.pending_settlements),
+            valueColor: '#d97706',
+            icon: 'clock',
+            iconColor: '#d97706',
+            iconBg: '#fef3c7',
+        },
+        {
+            key: 'available',
+            label: 'Available balance',
+            value: formatAmount(summary?.available_balance),
+            valueColor: '#2563eb',
+            icon: 'landmark',
+            iconColor: '#2563eb',
+            iconBg: '#dbeafe',
+        },
+    ];
 
     if (loading && !summary) {
         return (
@@ -360,114 +468,274 @@ const OrderSettlements = ({ navigation }) => {
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[config.THEME_COLOR]} tintColor={config.THEME_COLOR} />
                 }
                 contentContainerStyle={{ paddingBottom: 24 }}>
-                <View style={[localStyles.summaryRow, { marginTop: 12 }]}>
-                    <View style={[localStyles.statCard, cardStyle]}>
-                        <View style={[localStyles.statIcon, { backgroundColor: colors.primaryShade }]}>
-                            <Lucide name="wallet" size={16} color={config.THEME_COLOR} />
+                <View style={localStyles.statsGrid}>
+                    {statTiles.map((tile) => (
+                        <View
+                            key={tile.key}
+                            style={[
+                                localStyles.statTile,
+                                {
+                                    backgroundColor: colors.surface,
+                                    borderColor: colors.border,
+                                },
+                            ]}>
+                            <View style={[localStyles.statIcon, { backgroundColor: tile.iconBg }]}>
+                                <Lucide name={tile.icon} size={16} color={tile.iconColor} />
+                            </View>
+                            <AppText label={tile.label} fontSize={11} color={colors.textTertiary} numberOfLines={1} />
+                            <AppText
+                                label={tile.value}
+                                variant={1}
+                                fontSize={16}
+                                color={tile.valueColor}
+                                numberOfLines={1}
+                                style={{ marginTop: 4 }}
+                            />
                         </View>
-                        <View style={{ flex: 1 }}>
-                            <AppText label="Digital collected" fontSize={11} color={colors.textTertiary} />
-                            <AppText label={formatAmount(summary?.digital_collected)} variant={1} fontSize={16} color={colors.text} style={{ marginTop: 2 }} />
-                        </View>
-                    </View>
-                    <View style={[localStyles.statCard, cardStyle]}>
-                        <View style={[localStyles.statIcon, { backgroundColor: '#dcfce7' }]}>
-                            <Lucide name="circle-check" size={16} color="#16a34a" />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                            <AppText label="Paid out" fontSize={11} color={colors.textTertiary} />
-                            <AppText label={formatAmount(summary?.settled_paid)} variant={1} fontSize={16} color="#16a34a" style={{ marginTop: 2 }} />
-                        </View>
-                    </View>
-                </View>
-
-                <View style={localStyles.summaryRow}>
-                    <View style={[localStyles.statCard, cardStyle]}>
-                        <View style={[localStyles.statIcon, { backgroundColor: '#fef3c7' }]}>
-                            <Lucide name="clock" size={16} color="#d97706" />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                            <AppText label="Pending payout" fontSize={11} color={colors.textTertiary} />
-                            <AppText label={formatAmount(summary?.pending_settlements)} variant={1} fontSize={16} color="#d97706" style={{ marginTop: 2 }} />
-                        </View>
-                    </View>
-                    <View style={[localStyles.statCard, cardStyle]}>
-                        <View style={[localStyles.statIcon, { backgroundColor: '#dbeafe' }]}>
-                            <Lucide name="landmark" size={16} color="#2563eb" />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                            <AppText label="Available balance" fontSize={11} color={colors.textTertiary} />
-                            <AppText label={formatAmount(summary?.available_balance)} variant={1} fontSize={16} color="#2563eb" style={{ marginTop: 2 }} />
-                        </View>
-                    </View>
+                    ))}
                 </View>
 
                 <View style={localStyles.section}>
-                    <AppText label="Payout details" variant={1} fontSize={16} color={colors.text} />
-                    <AppText label="Withdrawals are sent automatically via Paystack to your saved account." fontSize={12} color={colors.textSecondary} style={{ marginTop: 4, marginBottom: 12 }} />
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-                        <MethodChip label="Mobile money" active={payoutMethod === 'momo'} onPress={() => setPayoutMethod('momo')} colors={colors} />
-                        <MethodChip label="Bank transfer" active={payoutMethod === 'bank'} onPress={() => setPayoutMethod('bank')} colors={colors} />
-                    </View>
-                    <TextInput value={accountHolderName} onChangeText={setAccountHolderName} placeholder="Account holder name" placeholderTextColor={colors.textTertiary} style={inputStyle} />
-                    {payoutMethod === 'momo' ? (
-                        <>
-                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-                                {['mtn', 'vodafone', 'airteltigo'].map((net) => (
-                                    <MethodChip
-                                        key={net}
-                                        label={net === 'vodafone' ? 'Telecel' : net === 'airteltigo' ? 'AT' : 'MTN'}
-                                        active={momoNetwork === net}
-                                        onPress={() => setMomoNetwork(net)}
-                                        colors={colors}
-                                        iconSource={getMomoNetworkIcon(net)}
-                                    />
-                                ))}
-                            </View>
-                            <TextInput value={momoNumber} onChangeText={setMomoNumber} placeholder="MoMo number" keyboardType="phone-pad" placeholderTextColor={colors.textTertiary} style={inputStyle} />
-                        </>
-                    ) : (
-                        <>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                        <AppText label="Payout details" variant={1} fontSize={16} color={colors.text} style={{ flex: 1 }} />
+                        {profile && !editingPayout ? (
                             <TouchableOpacity
                                 activeOpacity={0.7}
-                                onPress={() => {
-                                    setBankSearch('');
-                                    setShowBankPicker(true);
-                                }}
+                                onPress={() => setEditingPayout(true)}
                                 style={{
-                                    borderWidth: 1,
-                                    borderColor: colors.border,
-                                    borderRadius: 10,
-                                    paddingHorizontal: 12,
-                                    paddingVertical: 12,
-                                    marginBottom: 8,
                                     flexDirection: 'row',
                                     alignItems: 'center',
-                                    justifyContent: 'space-between',
+                                    gap: 6,
+                                    paddingHorizontal: 10,
+                                    paddingVertical: 6,
+                                    borderRadius: 8,
+                                    borderWidth: 1,
+                                    borderColor: colors.border,
                                 }}>
-                                <AppText
-                                    label={bankName || 'Select bank'}
-                                    fontSize={14}
-                                    color={bankName ? colors.text : colors.textTertiary}
-                                    numberOfLines={1}
-                                    style={{ flex: 1, marginRight: 8 }}
-                                />
-                                <Lucide name="chevron-down" size={18} color={colors.textTertiary} />
+                                <Lucide name="pencil" size={14} color={colors.text} />
+                                <AppText label="Edit" fontSize={12} color={colors.text} fontFamily="FiraSans-SemiBold" />
                             </TouchableOpacity>
-                            <TextInput value={bankAccountNumber} onChangeText={setBankAccountNumber} placeholder="Account number" placeholderTextColor={colors.textTertiary} style={inputStyle} />
-                            <TextInput value={bankAccountName} onChangeText={setBankAccountName} placeholder="Account name" placeholderTextColor={colors.textTertiary} style={inputStyle} />
+                        ) : null}
+                    </View>
+                    <AppText
+                        label="Withdrawals are sent automatically via Paystack to your saved account."
+                        fontSize={12}
+                        color={colors.textSecondary}
+                        style={{ marginTop: 4, marginBottom: 12 }}
+                    />
+
+                    {profile && !editingPayout ? (
+                        <View
+                            style={{
+                                borderWidth: 1,
+                                borderColor: colors.border,
+                                borderRadius: 10,
+                                padding: 12,
+                                backgroundColor: colors.surfaceSecondary || colors.background,
+                                gap: 8,
+                            }}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
+                                <AppText label="Method" fontSize={12} color={colors.textTertiary} />
+                                <AppText
+                                    label={String(profile.payout_method || '').toLowerCase() === 'bank' ? 'Bank transfer' : 'Mobile money'}
+                                    fontSize={13}
+                                    color={colors.text}
+                                    fontFamily="FiraSans-SemiBold"
+                                />
+                            </View>
+                            {profile.account_holder_name ? (
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
+                                    <AppText label="Account holder" fontSize={12} color={colors.textTertiary} />
+                                    <AppText
+                                        label={profile.account_holder_name}
+                                        fontSize={13}
+                                        color={colors.text}
+                                        numberOfLines={1}
+                                        style={{ flex: 1, textAlign: 'right' }}
+                                    />
+                                </View>
+                            ) : null}
+                            {String(profile.payout_method || '').toLowerCase() === 'bank' ? (
+                                <>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
+                                        <AppText label="Bank" fontSize={12} color={colors.textTertiary} />
+                                        <AppText
+                                            label={profile.bank_name || '—'}
+                                            fontSize={13}
+                                            color={colors.text}
+                                            numberOfLines={1}
+                                            style={{ flex: 1, textAlign: 'right' }}
+                                        />
+                                    </View>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
+                                        <AppText label="Account number" fontSize={12} color={colors.textTertiary} />
+                                        <AppText label={profile.bank_account_number || '—'} fontSize={13} color={colors.text} />
+                                    </View>
+                                    {profile.bank_account_name ? (
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
+                                            <AppText label="Account name" fontSize={12} color={colors.textTertiary} />
+                                            <AppText
+                                                label={profile.bank_account_name}
+                                                fontSize={13}
+                                                color={colors.text}
+                                                numberOfLines={1}
+                                                style={{ flex: 1, textAlign: 'right' }}
+                                            />
+                                        </View>
+                                    ) : null}
+                                </>
+                            ) : (
+                                <>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                        <AppText label="Network" fontSize={12} color={colors.textTertiary} />
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                            <Image
+                                                source={getMomoNetworkIcon(profile.momo_network)}
+                                                style={{ width: 18, height: 18 }}
+                                                resizeMode="contain"
+                                            />
+                                            <AppText label={momoNetworkLabel(profile.momo_network)} fontSize={13} color={colors.text} />
+                                        </View>
+                                    </View>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
+                                        <AppText label="MoMo number" fontSize={12} color={colors.textTertiary} />
+                                        <AppText label={profile.momo_number || '—'} fontSize={13} color={colors.text} />
+                                    </View>
+                                </>
+                            )}
+                        </View>
+                    ) : (
+                        <>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+                                <MethodChip label="Mobile money" active={payoutMethod === 'momo'} onPress={() => setPayoutMethod('momo')} colors={colors} />
+                                <MethodChip label="Bank transfer" active={payoutMethod === 'bank'} onPress={() => setPayoutMethod('bank')} colors={colors} />
+                            </View>
+                            <TextInput value={accountHolderName} onChangeText={setAccountHolderName} placeholder="Account holder name" placeholderTextColor={colors.textTertiary} style={inputStyle} />
+                            {payoutMethod === 'momo' ? (
+                                <>
+                                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+                                        {['mtn', 'vodafone', 'airteltigo'].map((net) => (
+                                            <MethodChip
+                                                key={net}
+                                                label={net === 'vodafone' ? 'Telecel' : net === 'airteltigo' ? 'AT' : 'MTN'}
+                                                active={momoNetwork === net}
+                                                onPress={() => setMomoNetwork(net)}
+                                                colors={colors}
+                                                iconSource={getMomoNetworkIcon(net)}
+                                            />
+                                        ))}
+                                    </View>
+                                    <TextInput value={momoNumber} onChangeText={setMomoNumber} placeholder="MoMo number" keyboardType="phone-pad" placeholderTextColor={colors.textTertiary} style={inputStyle} />
+                                </>
+                            ) : (
+                                <>
+                                    <TouchableOpacity
+                                        activeOpacity={0.7}
+                                        onPress={() => {
+                                            setBankSearch('');
+                                            setShowBankPicker(true);
+                                        }}
+                                        style={{
+                                            borderWidth: 1,
+                                            borderColor: colors.border,
+                                            borderRadius: 10,
+                                            paddingHorizontal: 12,
+                                            paddingVertical: 12,
+                                            marginBottom: 8,
+                                            flexDirection: 'row',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                        }}>
+                                        <AppText
+                                            label={bankName || 'Select bank'}
+                                            fontSize={14}
+                                            color={bankName ? colors.text : colors.textTertiary}
+                                            numberOfLines={1}
+                                            style={{ flex: 1, marginRight: 8 }}
+                                        />
+                                        <Lucide name="chevron-down" size={18} color={colors.textTertiary} />
+                                    </TouchableOpacity>
+                                    <View style={{ position: 'relative' }}>
+                                        <TextInput
+                                            value={bankAccountNumber}
+                                            onChangeText={(val) => {
+                                                setBankAccountNumber(String(val || '').replace(/\D/g, ''));
+                                                setResolveHint('');
+                                            }}
+                                            placeholder="Account number"
+                                            keyboardType="number-pad"
+                                            placeholderTextColor={colors.textTertiary}
+                                            style={inputStyle}
+                                        />
+                                        {resolvingAccount ? (
+                                            <ActivityIndicator
+                                                size="small"
+                                                color={config.THEME_COLOR}
+                                                style={{ position: 'absolute', right: 12, top: 12 }}
+                                            />
+                                        ) : null}
+                                    </View>
+                                    <TextInput
+                                        value={bankAccountName}
+                                        onChangeText={setBankAccountName}
+                                        placeholder="Account name"
+                                        placeholderTextColor={colors.textTertiary}
+                                        style={inputStyle}
+                                    />
+                                    <AppText
+                                        label={
+                                            resolveHint ||
+                                            (paystackBankCode
+                                                ? 'Name fills automatically after the account number.'
+                                                : 'Select a bank, then enter the account number to look up the name.')
+                                        }
+                                        fontSize={11}
+                                        color={
+                                            /verified|Demo name/i.test(resolveHint)
+                                                ? '#16a34a'
+                                                : resolveHint
+                                                  ? '#d97706'
+                                                  : colors.textTertiary
+                                        }
+                                        style={{ marginTop: -4, marginBottom: 10 }}
+                                    />
+                                </>
+                            )}
+                            <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                                {profile ? (
+                                    <TouchableOpacity
+                                        activeOpacity={0.7}
+                                        disabled={busy}
+                                        onPress={onCancelEditPayout}
+                                        style={{
+                                            flex: 1,
+                                            borderWidth: 1,
+                                            borderColor: colors.border,
+                                            borderRadius: 10,
+                                            paddingVertical: 12,
+                                            alignItems: 'center',
+                                            opacity: busy ? 0.6 : 1,
+                                        }}>
+                                        <AppText label="Cancel" color={colors.text} fontFamily="FiraSans-SemiBold" />
+                                    </TouchableOpacity>
+                                ) : null}
+                                <TouchableOpacity
+                                    activeOpacity={0.7}
+                                    disabled={busy}
+                                    onPress={onSaveProfile}
+                                    style={{
+                                        flex: 1,
+                                        backgroundColor: config.THEME_COLOR,
+                                        borderRadius: 10,
+                                        paddingVertical: 12,
+                                        alignItems: 'center',
+                                        opacity: busy ? 0.6 : 1,
+                                    }}>
+                                    <AppText label="Save payout details" color="#fff" fontFamily="FiraSans-SemiBold" />
+                                </TouchableOpacity>
+                            </View>
                         </>
                     )}
-                    <TouchableOpacity
-                        activeOpacity={0.7}
-                        disabled={busy}
-                        onPress={onSaveProfile}
-                        style={{ backgroundColor: config.THEME_COLOR, borderRadius: 10, paddingVertical: 12, alignItems: 'center', opacity: busy ? 0.6 : 1 }}>
-                        <AppText label="Save payout details" color="#fff" fontFamily="FiraSans-SemiBold" />
-                    </TouchableOpacity>
-                    {profile ? (
-                        <AppText label={`Saved: ${formatPayoutSnapshot(profile)}`} fontSize={11} color={colors.textTertiary} style={{ marginTop: 10 }} />
-                    ) : null}
                 </View>
 
                 <View style={localStyles.section}>
@@ -563,7 +831,7 @@ const OrderSettlements = ({ navigation }) => {
             </ScrollView>
 
             <Modal visible={showBankPicker} animationType="slide" onRequestClose={() => setShowBankPicker(false)}>
-                <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
+                <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }}>
                         <AppText label="Select bank" variant={1} fontSize={17} color={colors.text} style={{ flex: 1 }} />
                         <TouchableOpacity onPress={() => setShowBankPicker(false)}>
@@ -589,6 +857,8 @@ const OrderSettlements = ({ navigation }) => {
                                 onPress={() => {
                                     setPaystackBankCode(item.code);
                                     setBankName(item.name);
+                                    setBankAccountName('');
+                                    setResolveHint('');
                                     setShowBankPicker(false);
                                 }}
                                 style={{

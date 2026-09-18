@@ -1,5 +1,4 @@
 import { MaterialReactTable, useMaterialReactTable, MaterialReactTableProps, MRT_Icons } from 'material-react-table';
-import _ from 'lodash';
 import { useMemo } from 'react';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { Theme } from '@mui/material/styles/createTheme';
@@ -70,11 +69,12 @@ const tableIcons: Partial<MRT_Icons> = {
 };
 
 function DataTable<TData>(props: MaterialReactTableProps<TData>) {
-	const { columns, data, initialState: initialStateFromProps, ...rest } = props;
+	const { columns, data, initialState: initialStateFromProps, state: stateFromProps, ...rest } = props;
 
+	// Stable base options — do not depend on `rest` (parents often pass new object literals each render).
 	const defaults = useMemo(
 		() =>
-			_.defaults(rest, {
+			({
 				initialState: {
 					density: 'spacious',
 					showColumnFilters: false,
@@ -108,7 +108,6 @@ function DataTable<TData>(props: MaterialReactTableProps<TData>) {
 					className: 'flex-auto'
 				},
 				enableStickyHeader: true,
-				// enableStickyFooter: true,
 				paginationDisplayMode: 'pages',
 				positionToolbarAlertBanner: 'top',
 				muiPaginationProps: {
@@ -160,7 +159,6 @@ function DataTable<TData>(props: MaterialReactTableProps<TData>) {
 							backgroundColor: 'initial',
 							opacity: 1,
 							boxShadow: 'none',
-							// Set a fixed height for pinned rows
 							height: row.getIsPinned() ? `${density === 'comfortable' ? 53 : 69}px` : undefined
 						}
 					};
@@ -193,25 +191,27 @@ function DataTable<TData>(props: MaterialReactTableProps<TData>) {
 				}),
 				renderTopToolbar: (_props) => <DataTableTopToolbar {..._props} />,
 				icons: tableIcons
-			} as Partial<MaterialReactTableProps<TData>>),
-		[rest]
+			}) as Partial<MaterialReactTableProps<TData>>,
+		[]
 	);
 
-	const tableOptions = useMemo(
+	const initialState = useMemo(
 		() => ({
-			columns,
-			data,
-			...defaults,
-			...rest,
-			initialState: {
-				...defaults.initialState,
-				...(initialStateFromProps ?? {})
-			}
+			...defaults.initialState,
+			...(initialStateFromProps ?? {})
 		}),
-		[columns, data, defaults, rest, initialStateFromProps]
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- defaults.initialState is stable from empty-deps memo
+		[initialStateFromProps]
 	);
 
-	const tableInstance = useMaterialReactTable<TData>(tableOptions);
+	const tableInstance = useMaterialReactTable<TData>({
+		columns,
+		data: data ?? [],
+		...defaults,
+		...rest,
+		state: stateFromProps,
+		initialState
+	});
 
 	return <MaterialReactTable table={tableInstance} />;
 }

@@ -43,8 +43,10 @@ import contactRequestroutes from "./contactRequestroutes.js";
 import siteChatroutes from "./siteChatroutes.js";
 import billingroutes from "./billingroutes.js";
 import broadcastroutes from "./broadcastroutes.js";
+import platformSettingsRoutes from "./platformSettingsRoutes.js";
 
 router.use('/users', userroutes);
+router.use("/platform-settings", platformSettingsRoutes);
 router.use("/public", publicroutes);
 router.use("/app-versions", appVersionRoutes);
 router.use("/roles", auth, requireActiveSubscription, roleroutes);

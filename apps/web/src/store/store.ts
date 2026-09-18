@@ -28,23 +28,31 @@ const middlewares: Middleware[] = [apiService.middleware, dynamicMiddleware];
 const LAZY_PERSIST_BLACKLIST = [
 	'newsales',
 	'pendingsales',
+	'contactsApp',
 	'fuseMessage',
 ] as const;
 
+/** Keys safe to rehydrate before route-level lazy slices inject. Everything else is stripped on migrate. */
+const PERSIST_REHYDRATE_ALLOWLIST = new Set([
+	'apiService',
+	'_persist',
+	'navbar',
+	'fuseDialog',
+	'fuseMessage',
+]);
+
 const persistConfig = {
 	key: 'root',
+	version: 2,
 	storage,
 	blacklist: [...LAZY_PERSIST_BLACKLIST],
 	transforms: [apiServicePersistTransform],
 	migrate: (persistedState: RootState | undefined) => {
 		let next = { ...(persistedState ?? {}) } as Record<string, unknown>;
-		// Remove legacy "navigation" key (sidebar now uses config directly)
-		if (next && 'navigation' in next) {
-			const { navigation: _, ...rest } = next;
-			next = rest as Record<string, unknown>;
-		}
-		for (const key of LAZY_PERSIST_BLACKLIST) {
-			delete next[key];
+		for (const key of Object.keys(next)) {
+			if (!PERSIST_REHYDRATE_ALLOWLIST.has(key) || (LAZY_PERSIST_BLACKLIST as readonly string[]).includes(key)) {
+				delete next[key];
+			}
 		}
 		// Slim bloated apiService from older persist full-cache versions
 		if (next?.apiService) {

@@ -262,6 +262,7 @@ export const sales = {
     },
     dailySales: (params) => axios.get('/sales/daily-summary', { params }).then((res) => getData(res)),
     byDate: (params) => axios.get('/sales/by-date', { params }).then((res) => getData(res)),
+    attendants: () => axios.get('/sales/attendants').then((res) => getData(res)),
 };
 
 // —— Purchases ——
@@ -271,6 +272,7 @@ export const purchases = {
     bySupplier: (params) => axios.get('/purchases/suppliers-summary', { params }).then((res) => getData(res)),
     get: (id) => axios.get(`/purchases/${id}`).then((res) => getData(res)),
     create: (body) => axios.post('/purchases', body).then((res) => getData(res)),
+    updatePayment: (id, body) => axios.patch(`/purchases/${id}/payment`, body).then((res) => getData(res)),
 };
 
 // —— Orders (customer/store ordering) ——
@@ -522,9 +524,20 @@ export const payments = {
     initiate: (body) => axios.post('/payments/initiate', body).then((res) => getData(res)),
     /** Telecel/Vodafone voucher (Paystack charge/submit_otp) after dialling *110# */
     submitOtp: (body) => axios.post('/payments/submit-otp', body).then((res) => getData(res)),
+    posOpen: (params) => axios.get('/payments/pos-open', { params }).then((res) => getData(res)),
+    posAbandon: (body) => axios.post('/payments/pos-abandon', body).then((res) => getData(res)),
+    posPark: (body) => axios.post('/payments/pos-park', body).then((res) => getData(res)),
+    posPending: (params) => axios.get('/payments/pos-pending', { params }).then((res) => getData(res)),
     byCustomer: (customerId, params) =>
         axios.get(`/payments/customer/${customerId}`, { params }).then((res) => getData(res)),
     verify: (reference) => axios.get('/payments/verify', { params: { reference } }).then((res) => getData(res)),
+};
+
+export const platformSettings = {
+    getMomoPaymentCharge: () =>
+        axios.get('/platform-settings/momo-payment-charge').then((res) => getData(res)),
+    updateMomoPaymentCharge: (body) =>
+        axios.put('/platform-settings/momo-payment-charge', body).then((res) => getData(res)),
 };
 
 // —— Audit Logs ——
@@ -546,6 +559,8 @@ export const tenants = {
     myPayoutProfile: () => axios.get('/tenants/me/payout-profile').then((res) => getData(res)),
     updateMyPayoutProfile: (body) => axios.put('/tenants/me/payout-profile', body).then((res) => getData(res)),
     payoutBanks: (params) => axios.get('/tenants/payout-banks', { params }).then((res) => getData(res)),
+    resolvePayoutAccount: (params) =>
+        axios.get('/tenants/payout-account-resolve', { params }).then((res) => getData(res)),
     requestWithdrawal: (body) => axios.post('/tenants/me/withdrawals', body).then((res) => getData(res)),
     retryWithdrawal: (id) => axios.post(`/tenants/me/withdrawals/${id}/retry`).then((res) => getData(res)),
     adminSettlementSummary: (tenantId) =>

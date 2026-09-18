@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSelector, useDispatch } from 'react-redux';
 import { Lucide } from '@react-native-vector-icons/lucide';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { formatPurchaseReceipt } from '../../utils/receipt';
 import { incrementInvoiceNext } from '../../store/actions/appSettings';
 import AppText from '../../components/text';
@@ -22,6 +23,23 @@ const formatter = new Intl.NumberFormat('en-GH', {
     currency: 'GHS',
 });
 const formatCurrency = (value) => formatter.format(Number(value)).replace('GH₵', '').trim();
+
+const PAYMENT_STATUS = { UNPAID: 0, PAID: 1, PARTIAL: 2 };
+const PAYMENT_TYPE = { CASH: 1, MOMO: 2, BANK: 3, OTHER: 4 };
+
+const paymentStatusLabel = (status) => {
+    if (status === PAYMENT_STATUS.PAID) return 'Paid';
+    if (status === PAYMENT_STATUS.PARTIAL) return 'Partial';
+    return 'Unpaid';
+};
+
+const paymentTypeLabel = (type) => {
+    if (type === PAYMENT_TYPE.MOMO) return 'MoMo';
+    if (type === PAYMENT_TYPE.BANK) return 'Bank';
+    if (type === PAYMENT_TYPE.OTHER) return 'Other';
+    if (type === PAYMENT_TYPE.CASH) return 'Cash';
+    return '—';
+};
 
 const NewPurchase = ({ navigation, route }) => {
     const { colors } = useTheme();
@@ -52,6 +70,36 @@ const NewPurchase = ({ navigation, route }) => {
     const [showPaymentOptions, setShowPaymentOptions] = useState(false);
     const [selectedPaymentOption, setSelectedPaymentOption] = useState({ method: 'cash', balance: '', momoNumber: '' });
     const paymentOptionsScrollRef = useRef(null);
+    const [showConfirm, setShowConfirm] = useState(false);
+    const [paymentStatus, setPaymentStatus] = useState(PAYMENT_STATUS.UNPAID);
+    const [paymentType, setPaymentType] = useState(PAYMENT_TYPE.CASH);
+    const [amountPaid, setAmountPaid] = useState('');
+    const [paymentReference, setPaymentReference] = useState('');
+    const [dueDate, setDueDate] = useState('');
+    const [dueDateValue, setDueDateValue] = useState(new Date());
+    const [showDueDatePicker, setShowDueDatePicker] = useState(false);
+    const [note, setNote] = useState('');
+
+    const formatDueDateLabel = (isoDate) => {
+        if (!isoDate) return '';
+        const d = new Date(`${isoDate}T00:00:00`);
+        if (Number.isNaN(d.getTime())) return isoDate;
+        return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    };
+
+    const toIsoDate = (date) => {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    };
+
+    const onDueDateChange = (_event, selected) => {
+        if (Platform.OS === 'android') setShowDueDatePicker(false);
+        if (!selected) return;
+        setDueDateValue(selected);
+        setDueDate(toIsoDate(selected));
+    };
 
     const filteredStores = stores.filter((s) =>
         !storeSearch.trim() || (s.name && s.name.toLowerCase().includes(storeSearch.toLowerCase()))
@@ -228,20 +276,50 @@ const NewPurchase = ({ navigation, route }) => {
             Alert.alert('Add invoice number', 'Please enter an invoice number.');
             return;
         }
-        
+
+        const paidParsed = amountPaid.trim() === '' ? null : Number(String(amountPaid).replace(/,/g, ''));
+        let resolvedAmountPaid = 0;
+        if (paymentStatus === PAYMENT_STATUS.PAID) {
+            resolvedAmountPaid =
+                paidParsed != null && Number.isFinite(paidParsed) && paidParsed > 0
+                    ? paidParsed
+                    : totalAmount;
+        } else if (paymentStatus === PAYMENT_STATUS.PARTIAL) {
+            resolvedAmountPaid = paidParsed != null && Number.isFinite(paidParsed) ? paidParsed : 0;
+            if (resolvedAmountPaid <= 0) {
+                Alert.alert('Amount paid', 'Enter amount paid for partial payment.');
+                return;
+            }
+            if (resolvedAmountPaid >= totalAmount) {
+                Alert.alert('Amount paid', 'Partial amount must be less than total — use Paid instead.');
+                return;
+            }
+        }
+
         setSaving(true);
         try {
             await purchasesApi.create({
                 warehouse_id: selectedStore?.id,
                 supplier_id: selectedSupplier?.id,
                 invoice_number: invoiceNumber.trim() || undefined,
+                current_status: 1,
+                notes: note.trim() || undefined,
+                discount_amount: Math.max(0, Number(discountAmount) || 0),
                 products: orders.map((o) => ({
                     id: o.id,
                     quantity: Number(o.order_quantity) || 0,
                     unit_price: Number(o.unit_price) || 0,
                 })),
-                discount: Math.max(0, Number(discountAmount) || 0),
+                payment_status: paymentStatus,
+                payment_type: paymentStatus === PAYMENT_STATUS.UNPAID ? null : paymentType,
+                amount_paid: resolvedAmountPaid,
+                payment_reference:
+                    paymentStatus === PAYMENT_STATUS.UNPAID
+                        ? null
+                        : paymentReference.trim() || null,
+                due_date: dueDate.trim() || null,
             });
+            setShowConfirm(false);
             Alert.alert('Success', 'Purchase saved.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
         } catch (err) {
             const msg = err?.response?.data?.message || err?.message || 'Failed to save purchase.';
@@ -273,6 +351,12 @@ const NewPurchase = ({ navigation, route }) => {
                     </TouchableOpacity>
                 </ScreenHeader>
 
+                <ScrollView
+                    style={styles.pageScroll}
+                    contentContainerStyle={styles.pageScrollContent}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator
+                >
                 <View style={styles.section}>
                     <View style={styles.sectionRow}>
                         <TouchableOpacity activeOpacity={0.7} onPress={() => setShowStores(true)} style={[styles.storeCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -328,22 +412,19 @@ const NewPurchase = ({ navigation, route }) => {
                         <AppText label="Tap to add products" fontSize={14} color={colors.textTertiary} style={{ marginTop: 6 }} />
                     </TouchableOpacity>
                 ) : (
-                    <FlashList
-                        data={orders}
-                        keyExtractor={(item, index) => item.id || `${item.name}-${index}` || String(index)}
-                        estimatedItemSize={64}
-                        contentContainerStyle={styles.listContent}
-                        style={styles.list}
-                        renderItem={({ item }) => (
-                            <View style={[styles.orderRow, { backgroundColor: colors.surface, borderBottomColor: colors.borderLight }]}>
+                    <View style={[styles.ordersList, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                        {orders.map((item, index) => (
+                            <View
+                                key={item.id || `${item.name}-${index}`}
+                                style={[styles.orderRow, { borderBottomColor: colors.borderLight }, index === orders.length - 1 && { borderBottomWidth: 0 }]}
+                            >
                                 <TouchableOpacity
                                     activeOpacity={0.7}
                                     onPress={() => { setSelectedProduct(item); setShowMenu(true); }}
                                     style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
                                     <TouchableOpacity
                                         activeOpacity={0.7}
-                                        onPress={(e) => {
-                                            e.stopPropagation();
+                                        onPress={() => {
                                             setSelectedProduct(item);
                                             setQuantity(String(item.order_quantity));
                                             setShowSetQuantity(true);
@@ -373,8 +454,8 @@ const NewPurchase = ({ navigation, route }) => {
                                     </TouchableOpacity>
                                 </View>
                             </View>
-                        )}
-                    />
+                        ))}
+                    </View>
                 )}
 
                 <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -397,6 +478,172 @@ const NewPurchase = ({ navigation, route }) => {
                         <AppText label="Items" fontSize={14} color={colors.textSecondary} />
                         <AppText label={String(totalItems)} fontSize={14} color={colors.text} />
                     </View>
+                    <View style={{ marginTop: 8 }}>
+                        <AppText label="Note (optional)" fontSize={12} color={colors.textTertiary} style={{ marginBottom: 6 }} />
+                        <TextInput
+                            placeholder="Add a note…"
+                            placeholderTextColor={colors.placeholder}
+                            value={note}
+                            onChangeText={(t) => { if (t.length <= 200) setNote(t); }}
+                            multiline
+                            style={[styles.noteInput, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border }]}
+                        />
+                    </View>
+                    <View style={{ marginTop: 12 }}>
+                        <AppText label="Payment (optional)" fontSize={13} variant={1} color={colors.text} style={{ marginBottom: 8 }} />
+                        <View style={styles.chipRow}>
+                            {[
+                                { id: PAYMENT_STATUS.UNPAID, label: 'Unpaid' },
+                                { id: PAYMENT_STATUS.PAID, label: 'Paid' },
+                                { id: PAYMENT_STATUS.PARTIAL, label: 'Partial' },
+                            ].map((opt) => (
+                                <TouchableOpacity
+                                    key={opt.id}
+                                    activeOpacity={0.7}
+                                    onPress={() => {
+                                        setPaymentStatus(opt.id);
+                                        if (opt.id === PAYMENT_STATUS.PAID && !amountPaid) {
+                                            setAmountPaid(String(totalAmount.toFixed(2)));
+                                        }
+                                        if (opt.id === PAYMENT_STATUS.UNPAID) {
+                                            setAmountPaid('');
+                                            setPaymentReference('');
+                                        }
+                                        if (opt.id === PAYMENT_STATUS.PAID) {
+                                            setDueDate('');
+                                        }
+                                    }}
+                                    style={[
+                                        styles.chip,
+                                        { borderColor: colors.border },
+                                        paymentStatus === opt.id && { backgroundColor: config.THEME_COLOR, borderColor: config.THEME_COLOR },
+                                    ]}
+                                >
+                                    <AppText
+                                        label={opt.label}
+                                        fontSize={12}
+                                        color={paymentStatus === opt.id ? colors.textInverse : colors.textSecondary}
+                                    />
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                        {paymentStatus !== PAYMENT_STATUS.UNPAID && (
+                            <>
+                                <View style={[styles.chipRow, { marginTop: 8 }]}>
+                                    {[
+                                        { id: PAYMENT_TYPE.CASH, label: 'Cash' },
+                                        { id: PAYMENT_TYPE.MOMO, label: 'MoMo' },
+                                        { id: PAYMENT_TYPE.BANK, label: 'Bank' },
+                                        { id: PAYMENT_TYPE.OTHER, label: 'Other' },
+                                    ].map((opt) => (
+                                        <TouchableOpacity
+                                            key={opt.id}
+                                            activeOpacity={0.7}
+                                            onPress={() => setPaymentType(opt.id)}
+                                            style={[
+                                                styles.chip,
+                                                { borderColor: colors.border },
+                                                paymentType === opt.id && { backgroundColor: colors.text, borderColor: colors.text },
+                                            ]}
+                                        >
+                                            <AppText
+                                                label={opt.label}
+                                                fontSize={12}
+                                                color={paymentType === opt.id ? colors.textInverse : colors.textSecondary}
+                                            />
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                                <TextInput
+                                    placeholder={`Amount paid (${totalAmount.toFixed(2)})`}
+                                    placeholderTextColor={colors.placeholder}
+                                    keyboardType="decimal-pad"
+                                    value={amountPaid}
+                                    onChangeText={(val) => {
+                                        if (val === '' || /^\d*\.?\d{0,2}$/.test(val)) setAmountPaid(val);
+                                    }}
+                                    style={[styles.paymentFieldInput, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border }]}
+                                />
+                                <TextInput
+                                    placeholder="Payment reference"
+                                    placeholderTextColor={colors.placeholder}
+                                    value={paymentReference}
+                                    onChangeText={(t) => { if (t.length <= 50) setPaymentReference(t); }}
+                                    style={[styles.paymentFieldInput, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border }]}
+                                />
+                            </>
+                        )}
+                        {(paymentStatus === PAYMENT_STATUS.UNPAID || paymentStatus === PAYMENT_STATUS.PARTIAL) && (
+                            <View style={{ marginTop: 8 }}>
+                                <TouchableOpacity
+                                    activeOpacity={0.7}
+                                    onPress={() => {
+                                        if (dueDate) {
+                                            const parsed = new Date(`${dueDate}T00:00:00`);
+                                            if (!Number.isNaN(parsed.getTime())) setDueDateValue(parsed);
+                                        }
+                                        setShowDueDatePicker(true);
+                                    }}
+                                    style={[styles.paymentFieldInput, styles.dueDateBtn, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}
+                                >
+                                    <Lucide name="calendar-days" size={16} color={colors.textTertiary} />
+                                    <AppText
+                                        label={dueDate ? formatDueDateLabel(dueDate) : 'Due date'}
+                                        fontSize={14}
+                                        color={dueDate ? colors.text : colors.placeholder}
+                                        style={{ marginLeft: 8, flex: 1 }}
+                                    />
+                                    {dueDate ? (
+                                        <TouchableOpacity
+                                            activeOpacity={0.7}
+                                            onPress={() => setDueDate('')}
+                                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                        >
+                                            <Lucide name="x" size={16} color={colors.textTertiary} />
+                                        </TouchableOpacity>
+                                    ) : null}
+                                </TouchableOpacity>
+                                {Platform.OS === 'ios' && showDueDatePicker ? (
+                                    <AppModal
+                                        visible={showDueDatePicker}
+                                        title="Due date"
+                                        handleClose={() => setShowDueDatePicker(false)}
+                                        onRequestClose={() => setShowDueDatePicker(false)}
+                                    >
+                                        <View style={{ padding: 16, backgroundColor: colors.surface }}>
+                                            <DateTimePicker
+                                                value={dueDateValue}
+                                                mode="date"
+                                                display="spinner"
+                                                onChange={onDueDateChange}
+                                                minimumDate={new Date()}
+                                                style={{ width: '100%', height: 200 }}
+                                            />
+                                            <TouchableOpacity
+                                                activeOpacity={0.8}
+                                                onPress={() => {
+                                                    setDueDate(toIsoDate(dueDateValue));
+                                                    setShowDueDatePicker(false);
+                                                }}
+                                                style={[styles.confirmPrimaryBtn, { marginTop: 12 }]}
+                                            >
+                                                <AppText label="Done" variant={1} fontSize={15} color={colors.textInverse} />
+                                            </TouchableOpacity>
+                                        </View>
+                                    </AppModal>
+                                ) : null}
+                                {Platform.OS === 'android' && showDueDatePicker ? (
+                                    <DateTimePicker
+                                        value={dueDateValue}
+                                        mode="date"
+                                        display="default"
+                                        onChange={onDueDateChange}
+                                        minimumDate={new Date()}
+                                    />
+                                ) : null}
+                            </View>
+                        )}
+                    </View>
                     <View style={[styles.summaryRow, styles.totalRow, { borderTopColor: colors.border }]}>
                         <AppText label="Total" variant={1} fontSize={16} color={colors.text} />
                         <AppText label={formatCurrency(totalAmount)} variant={1} fontSize={18} color={config.THEME_COLOR} />
@@ -405,7 +652,7 @@ const NewPurchase = ({ navigation, route }) => {
 
                 <TouchableOpacity
                     activeOpacity={0.8}
-                    disabled={orders.length === 0}
+                    disabled={orders.length === 0 || saving}
                     onPress={() => {
                         if (orders.length === 0) return;
                         if (!selectedStore?.id) {
@@ -420,13 +667,21 @@ const NewPurchase = ({ navigation, route }) => {
                             Alert.alert('Add invoice number', 'Please enter an invoice number.');
                             return;
                         }
-                        Alert.alert('Confirm', 'Receive / save this purchase order?', [
-                            { text: 'Cancel', style: 'cancel' },
-                            { text: 'Yes', onPress: () => handleSavePurchase() },
-                        ]);
+                        if (paymentStatus === PAYMENT_STATUS.PARTIAL) {
+                            const paid = Number(String(amountPaid).replace(/,/g, ''));
+                            if (!Number.isFinite(paid) || paid <= 0) {
+                                Alert.alert('Amount paid', 'Enter amount paid for partial payment.');
+                                return;
+                            }
+                            if (paid >= totalAmount) {
+                                Alert.alert('Amount paid', 'Partial amount must be less than total — use Paid instead.');
+                                return;
+                            }
+                        }
+                        setShowConfirm(true);
                     }}
-                    style={[styles.proceedBtn, orders.length === 0 && [styles.proceedBtnDisabled, { backgroundColor: colors.surfaceTertiary }]]}>
-                    <AppText label="Proceed" variant={1} fontSize={16} color={colors.textInverse} />
+                    style={[styles.proceedBtn, (orders.length === 0 || saving) && [styles.proceedBtnDisabled, { backgroundColor: colors.surfaceTertiary }]]}>
+                    <AppText label={saving ? 'Saving…' : 'Proceed'} variant={1} fontSize={16} color={colors.textInverse} />
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -442,6 +697,7 @@ const NewPurchase = ({ navigation, route }) => {
                     <Lucide name="x" size={18} color={colors.textSecondary} />
                     <AppText label="Cancel" fontSize={14} color={colors.textSecondary} style={{ marginLeft: 6 }} />
                 </TouchableOpacity>
+                </ScrollView>
 
                 <AppModal title="Select store" handleClose={handleStoreClose} onRequestClose={handleStoreClose} visible={showStores}>
                     <View style={styles.modalContent}>
@@ -581,6 +837,114 @@ const NewPurchase = ({ navigation, route }) => {
                         <TouchableOpacity activeOpacity={0.7} onPress={handlePaymentOptionsClose} style={styles.cancelPaymentBtn}><AppText label="Cancel" color={colors.textSecondary} /></TouchableOpacity>
                     </View>
                 </AppModal>
+
+                <AppModal
+                    title="Confirm Purchase"
+                    handleClose={() => !saving && setShowConfirm(false)}
+                    onRequestClose={() => !saving && setShowConfirm(false)}
+                    visible={showConfirm}
+                >
+                    <ScrollView style={{ maxHeight: height * 0.55 }} contentContainerStyle={{ padding: 14, paddingBottom: 20 }}>
+                        <AppText
+                            label="Review this purchase before receiving stock and saving the invoice."
+                            fontSize={13}
+                            color={colors.textSecondary}
+                            style={{ marginBottom: 12 }}
+                        />
+                        <View style={[styles.confirmCard, { borderColor: colors.border, backgroundColor: colors.surfaceSecondary }]}>
+                            <AppText label={`Supplier: ${selectedSupplier?.name || '—'}`} fontSize={13} color={colors.text} />
+                            <AppText label={`Store: ${selectedStore?.name || '—'}`} fontSize={13} color={colors.text} style={{ marginTop: 4 }} />
+                            <AppText label={`Invoice #: ${invoiceNumber.trim() || '—'}`} fontSize={13} color={colors.text} style={{ marginTop: 4 }} />
+                            <AppText label={`Items: ${totalItems}`} fontSize={13} color={colors.text} style={{ marginTop: 4 }} />
+                        </View>
+                        <View style={[styles.confirmCard, { borderColor: colors.border, marginTop: 10 }]}>
+                            {orders.slice(0, 8).map((item, idx) => (
+                                <View key={item.id || idx} style={[styles.confirmLine, idx > 0 && { borderTopColor: colors.borderLight, borderTopWidth: 1 }]}>
+                                    <View style={{ flex: 1, paddingRight: 8 }}>
+                                        <AppText label={item.name} fontSize={13} color={colors.text} numberOfLines={2} />
+                                        <AppText
+                                            label={`${item.order_quantity} × ${formatCurrency(item.unit_price)}`}
+                                            fontSize={11}
+                                            color={colors.textTertiary}
+                                        />
+                                    </View>
+                                    <AppText label={formatCurrency(lineTotal(item))} fontSize={13} variant={1} color={colors.text} />
+                                </View>
+                            ))}
+                            {orders.length > 8 ? (
+                                <AppText
+                                    label={`+${orders.length - 8} more item(s)`}
+                                    fontSize={12}
+                                    color={colors.textTertiary}
+                                    style={{ marginTop: 8 }}
+                                />
+                            ) : null}
+                        </View>
+                        <View style={[styles.confirmCard, { borderColor: colors.border, marginTop: 10 }]}>
+                            <View style={styles.summaryRow}>
+                                <AppText label="Subtotal" fontSize={13} color={colors.textSecondary} />
+                                <AppText label={formatCurrency(subtotal)} fontSize={13} color={colors.text} />
+                            </View>
+                            <View style={styles.summaryRow}>
+                                <AppText label="Discount" fontSize={13} color={colors.textSecondary} />
+                                <AppText label={formatCurrency(discount)} fontSize={13} color={colors.text} />
+                            </View>
+                            <View style={styles.summaryRow}>
+                                <AppText label="Payment" fontSize={13} color={colors.textSecondary} />
+                                <AppText
+                                    label={
+                                        paymentStatus === PAYMENT_STATUS.UNPAID
+                                            ? 'Unpaid'
+                                            : `${paymentStatusLabel(paymentStatus)} · ${paymentTypeLabel(paymentType)}`
+                                    }
+                                    fontSize={13}
+                                    color={colors.text}
+                                />
+                            </View>
+                            {paymentStatus !== PAYMENT_STATUS.UNPAID ? (
+                                <View style={styles.summaryRow}>
+                                    <AppText label="Amount paid" fontSize={13} color={colors.textSecondary} />
+                                    <AppText
+                                        label={formatCurrency(
+                                            amountPaid.trim() === ''
+                                                ? paymentStatus === PAYMENT_STATUS.PAID
+                                                    ? totalAmount
+                                                    : 0
+                                                : Number(String(amountPaid).replace(/,/g, '')) || 0
+                                        )}
+                                        fontSize={13}
+                                        color={colors.text}
+                                    />
+                                </View>
+                            ) : null}
+                            {note.trim() ? (
+                                <AppText label={`Note: ${note.trim()}`} fontSize={12} color={colors.textTertiary} style={{ marginTop: 6 }} />
+                            ) : null}
+                            <View style={[styles.summaryRow, styles.totalRow, { borderTopColor: colors.border }]}>
+                                <AppText label="Total" variant={1} fontSize={15} color={colors.text} />
+                                <AppText label={formatCurrency(totalAmount)} variant={1} fontSize={16} color={config.THEME_COLOR} />
+                            </View>
+                        </View>
+                        <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+                            <TouchableOpacity
+                                activeOpacity={0.7}
+                                disabled={saving}
+                                onPress={() => setShowConfirm(false)}
+                                style={[styles.confirmSecondaryBtn, { borderColor: colors.border, flex: 1 }]}
+                            >
+                                <AppText label="Cancel" fontSize={15} color={colors.textSecondary} />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                activeOpacity={0.8}
+                                disabled={saving}
+                                onPress={handleSavePurchase}
+                                style={[styles.confirmPrimaryBtn, { flex: 1, opacity: saving ? 0.7 : 1 }]}
+                            >
+                                <AppText label={saving ? 'Saving…' : 'Confirm & save'} variant={1} fontSize={15} color={colors.textInverse} />
+                            </TouchableOpacity>
+                        </View>
+                    </ScrollView>
+                </AppModal>
             </SafeAreaView>
         </KeyboardAvoidingView>
     );
@@ -589,6 +953,8 @@ const NewPurchase = ({ navigation, route }) => {
 const styles = StyleSheet.create({
     keyboard: { flex: 1 },
     safeArea: { flex: 1 },
+    pageScroll: { flex: 1 },
+    pageScrollContent: { paddingBottom: 28, flexGrow: 1 },
     headerBtn: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginBottom: 4, marginLeft: 10 },
     section: { marginHorizontal: 12, marginTop: 8, gap: 10 },
     sectionRow: { flexDirection: 'row', gap: 10 },
@@ -599,9 +965,8 @@ const styles = StyleSheet.create({
     invoiceNumberRow: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 12, borderWidth: 1 },
     invoiceNumberInput: { height: 40, borderRadius: 8, borderWidth: 1, paddingHorizontal: 10, fontFamily: 'FiraSans-Regular', fontSize: 14 },
     listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: config.THEME_COLOR, paddingHorizontal: 14, paddingVertical: 12, marginHorizontal: 12, marginTop: 12, borderTopLeftRadius: 12, borderTopRightRadius: 12 },
-    emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 48, marginHorizontal: 12, marginTop: 8, borderRadius: 12, borderWidth: 1 },
-    list: { flex: 1, marginHorizontal: 12, marginTop: 0 },
-    listContent: { paddingBottom: 16 },
+    emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 48, marginHorizontal: 12, marginTop: 0, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderWidth: 1, borderTopWidth: 0 },
+    ordersList: { marginHorizontal: 12, marginTop: 0, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderWidth: 1, borderTopWidth: 0, overflow: 'hidden' },
     orderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, borderBottomWidth: 1 },
     orderRowLeft: { flex: 1, flexDirection: 'row', alignItems: 'center' },
     orderRowRight: { flexDirection: 'row', alignItems: 'center' },
@@ -611,6 +976,15 @@ const styles = StyleSheet.create({
     summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
     totalRow: { borderTopWidth: 1, marginTop: 8, paddingTop: 12 },
     discountInput: { height: 40, width: 100, borderRadius: 8, paddingHorizontal: 10, fontFamily: 'FiraSans-Regular', fontSize: 14, textAlign: 'right' },
+    noteInput: { minHeight: 64, borderRadius: 8, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 8, fontFamily: 'FiraSans-Regular', fontSize: 14, textAlignVertical: 'top' },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
+    paymentFieldInput: { height: 42, borderRadius: 8, borderWidth: 1, paddingHorizontal: 10, marginTop: 8, fontFamily: 'FiraSans-Regular', fontSize: 14 },
+    dueDateBtn: { marginTop: 0, flexDirection: 'row', alignItems: 'center' },
+    confirmCard: { borderWidth: 1, borderRadius: 10, padding: 12 },
+    confirmLine: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingVertical: 8 },
+    confirmPrimaryBtn: { height: 48, borderRadius: 10, backgroundColor: config.THEME_COLOR, alignItems: 'center', justifyContent: 'center' },
+    confirmSecondaryBtn: { height: 48, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
     proceedBtn: { height: 52, marginHorizontal: 12, marginTop: 12, backgroundColor: config.THEME_COLOR, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
     proceedBtnDisabled: { opacity: 0.8 },
     cancelBtn: { flexDirection: 'row', alignItems: 'center', marginTop: 12, marginHorizontal: 16, paddingBottom: 16, alignSelf: 'center' },

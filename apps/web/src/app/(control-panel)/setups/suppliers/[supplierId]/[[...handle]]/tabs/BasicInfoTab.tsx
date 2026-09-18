@@ -105,14 +105,28 @@ function BasicInfoTab() {
 						<TextField
 							{...field}
 							value={field.value ?? ''}
+							onChange={(e) => {
+								const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+								field.onChange(digits);
+							}}
 							required
 							label="Phone"
 							id="phone"
+							type="tel"
+							inputMode="numeric"
+							autoComplete="tel"
 							variant="outlined"
 							fullWidth
 							sx={textFieldSx}
 							error={!!errors.phone}
-							helperText={errors?.phone?.message as string}
+							helperText={
+								(errors?.phone?.message as string) || '10 digits (numbers only)'
+							}
+							inputProps={{
+								maxLength: 10,
+								inputMode: 'numeric',
+								pattern: '[0-9]*'
+							}}
 						/>
 					)}
 				/>

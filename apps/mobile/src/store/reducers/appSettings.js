@@ -2,6 +2,7 @@ import {
     SET_INVOICE_PREFIX,
     SET_INVOICE_NEXT,
     INCREMENT_INVOICE_NEXT,
+    SET_INVOICE_REGISTER_CODE,
     SET_RECEIPT_COMPANY_NAME,
     SET_CURRENCY,
     SET_EXCHANGE_RATE,
@@ -19,10 +20,21 @@ import {
     normalizePrintAgentHost,
     normalizePrintAgentPort,
 } from '../../utils/printAgent';
+import {
+    DEFAULT_INVOICE_PREFIX,
+    DEFAULT_INVOICE_REGISTER_CODE,
+    DEFAULT_INVOICE_NEXT_NUMBER,
+    normalizeInvoicePrefix,
+    normalizeInvoiceRegisterCode,
+    normalizeInvoiceNextNumber,
+} from '../../utils/invoiceNumbering';
 
 const CURRENCY_SYMBOLS = { GHS: 'GH₵', USD: '$', EUR: '€', GBP: '£' };
 const initialState = {
-    invoicePrefix: 'INV', invoiceNextNumber: 1001, receiptCompanyName: 'Shopynn',
+    invoicePrefix: DEFAULT_INVOICE_PREFIX,
+    invoiceRegisterCode: DEFAULT_INVOICE_REGISTER_CODE,
+    invoiceNextNumber: DEFAULT_INVOICE_NEXT_NUMBER,
+    receiptCompanyName: 'Shopynn',
     currency: 'GHS', currencySymbol: 'GH₵', exchangeRateToGHS: 1,
     themeMode: 'system', // 'light', 'dark', or 'system'
     valuationMethod: 'fifo', // 'fifo' | 'lifo' | 'weighted_average' - for COGS and stock value
@@ -38,9 +50,18 @@ const initialState = {
 
 export default function appSettings(state = initialState, action) {
     switch (action.type) {
-        case SET_INVOICE_PREFIX: return { ...state, invoicePrefix: action.payload };
-        case SET_INVOICE_NEXT: return { ...state, invoiceNextNumber: Number(action.payload) || state.invoiceNextNumber };
-        case INCREMENT_INVOICE_NEXT: return { ...state, invoiceNextNumber: (state.invoiceNextNumber || 1001) + 1 };
+        case SET_INVOICE_PREFIX:
+            return { ...state, invoicePrefix: normalizeInvoicePrefix(action.payload) };
+        case SET_INVOICE_NEXT:
+            return { ...state, invoiceNextNumber: normalizeInvoiceNextNumber(action.payload) };
+        case INCREMENT_INVOICE_NEXT:
+            return { ...state, invoiceNextNumber: (state.invoiceNextNumber || DEFAULT_INVOICE_NEXT_NUMBER) + 1 };
+        case SET_INVOICE_REGISTER_CODE:
+            return {
+                ...state,
+                invoiceRegisterCode:
+                    normalizeInvoiceRegisterCode(action.payload) || DEFAULT_INVOICE_REGISTER_CODE,
+            };
         case SET_RECEIPT_COMPANY_NAME: return { ...state, receiptCompanyName: action.payload };
         case SET_CURRENCY: return { ...state, currency: action.payload, currencySymbol: CURRENCY_SYMBOLS[action.payload] || 'GH₵' };
         case SET_EXCHANGE_RATE: return { ...state, exchangeRateToGHS: Number(action.payload) || 1 };

@@ -13,8 +13,13 @@ import {
     getPaymentReceiptService,
     getPaymentEventsService,
     reverseCashOrderPaymentService,
+    findOpenPosMomoPaymentService,
+    abandonPosMomoPaymentService,
+    parkPosMomoPaymentService,
+    listUnlinkedPosMomoPaymentsService,
 } from "../models/payment.js";
 import { initiateCheckout, submitChargeOtp, verifyTransaction } from "../services/paymentGateway.js";
+import { computeChargeForFaceAmountService } from "../models/platformSettings.js";
 
 export const getPaymentsHistory = async (req, res, next) => {
     try {
@@ -110,18 +115,44 @@ export const createPayment = async (req, res, next) => {
 
 /**
  * Initiate payment: card (redirect URL for web checkout) or mobile_money (Charge API, no redirect).
- * Body: { amount, payment_method: 'card' | 'mobile_money', email?, callback_url?, subscription_id?, customer_id?, phone?, provider? }
- * For mobile_money: phone and provider (mtn, tgo, vod for Ghana; mpesa for Kenya) are required.
+ * Body: {
+ *   amount | face_amount,
+ *   payment_method: 'card' | 'mobile_money',
+ *   source?: 'pos_sale' | 'subscription' | ...,
+ *   apply_platform_fee?: boolean,
+ *   email?, callback_url?, subscription_id?, customer_id?, phone?, provider?
+ * }
+ * Platform fee applies when source=pos_sale or apply_platform_fee=true (not for subscription billing).
  */
 export const initiatePayment = async (req, res, next) => {
     try {
-        const { amount, payment_method, email, callback_url, subscription_id, customer_id, phone, provider } = req.body;
-        if (!amount || (amount !== Number(amount) && isNaN(Number(amount)))) {
+        const {
+            amount,
+            face_amount,
+            payment_method,
+            email,
+            callback_url,
+            subscription_id,
+            customer_id,
+            phone,
+            provider,
+            source,
+            apply_platform_fee,
+            payment_number,
+            force_new,
+        } = req.body;
+
+        const rawFace = face_amount != null ? Number(face_amount) : Number(amount);
+        if (!Number.isFinite(rawFace) || rawFace <= 0) {
             return handleResponse(res, 400, "Invalid or missing amount.");
         }
+
         const tenant_id = req.user?.tenant_id;
         const creator_id = req.user?.id;
         const payment_method_type = payment_method === "mobile_money" ? "mobile_money" : "card";
+        const payment_source = source ? String(source).trim().toLowerCase() : null;
+        const shouldApplyPlatformFee =
+            apply_platform_fee === true || payment_source === "pos_sale";
 
         if (payment_method_type === "mobile_money") {
             if (!phone || !provider) {
@@ -129,22 +160,98 @@ export const initiatePayment = async (req, res, next) => {
             }
         }
 
+        let face = Math.round(rawFace * 100) / 100;
+        let fee = 0;
+        let charge = face;
+        let chargeMeta = null;
+        if (shouldApplyPlatformFee) {
+            chargeMeta = await computeChargeForFaceAmountService(face);
+            face = chargeMeta.face_amount;
+            fee = chargeMeta.fee_amount;
+            charge = chargeMeta.charge_amount;
+        }
+
+        const feeBreakdown = {
+            face_amount: face,
+            fee_amount: fee,
+            charge_amount: charge,
+            percent: chargeMeta?.percent ?? 0,
+        };
+
+        // POS MoMo: reuse confirmed orphan payments / resume open pending instead of double-charging.
+        if (payment_source === "pos_sale" && payment_method_type === "mobile_money") {
+            const open = await findOpenPosMomoPaymentService({
+                tenant_id,
+                face_amount: face,
+                phone: payment_number || phone,
+            });
+
+            if (open?.reuse_mode === "success") {
+                return handleResponse(res, 200, "Existing confirmed MoMo payment reused.", {
+                    transaction_ref: open.transaction_ref,
+                    payment_id: open.id,
+                    status: "success",
+                    reused: true,
+                    resume: false,
+                    display_text: "Previous MoMo payment already confirmed. Complete the sale.",
+                    ...feeBreakdown,
+                    face_amount: Number(open.face_amount) || face,
+                    fee_amount: Number(open.fee_amount) || fee,
+                    charge_amount: Number(open.amount) || charge,
+                });
+            }
+
+            if (open?.reuse_mode === "pending" && !force_new) {
+                return handleResponse(res, 200, "Resuming open MoMo payment.", {
+                    transaction_ref: open.transaction_ref,
+                    payment_id: open.id,
+                    status: open.status || "pending",
+                    reused: false,
+                    resume: true,
+                    display_text:
+                        "A MoMo prompt is already open for this amount. Ask the customer to approve it, or use Check status.",
+                    ...feeBreakdown,
+                    face_amount: Number(open.face_amount) || face,
+                    fee_amount: Number(open.fee_amount) || fee,
+                    charge_amount: Number(open.amount) || charge,
+                });
+            }
+
+            if (open?.reuse_mode === "pending" && force_new) {
+                await abandonPosMomoPaymentService({
+                    tenant_id,
+                    transaction_ref: open.transaction_ref,
+                    actor_user_id: creator_id,
+                });
+            }
+        }
+
         const { id: payment_id, transaction_ref } = await createPendingPaymentForCheckoutService({
-            amount: Number(amount),
+            amount: charge,
+            face_amount: face,
+            fee_amount: fee,
             subscription_id: subscription_id || null,
             customer_id: customer_id || null,
             tenant_id,
             creator_id,
             payment_method_type,
+            payment_source: payment_source || (shouldApplyPlatformFee ? "pos_sale" : null),
+            payment_number: payment_number || (payment_method_type === "mobile_money" ? phone : null),
         });
 
         const payload = {
-            amount: Number(amount),
+            amount: charge,
             email: email || req.user?.email || "customer@example.com",
             reference: transaction_ref,
             callback_url: callback_url || undefined,
             payment_method: payment_method_type,
-            metadata: { payment_id, tenant_id },
+            metadata: {
+                payment_id,
+                tenant_id,
+                face_amount: face,
+                fee_amount: fee,
+                payment_source: payment_source || null,
+            },
             phone,
             provider,
         };
@@ -158,14 +265,101 @@ export const initiatePayment = async (req, res, next) => {
                 status: result.status,
                 display_text: result.display_text ?? undefined,
                 ussd_code: result.ussd_code ?? undefined,
+                reused: false,
+                resume: false,
+                ...feeBreakdown,
             });
         } else {
             handleResponse(res, 200, "Checkout session created.", {
                 redirect_url: result.redirect_url,
                 transaction_ref: result.reference,
                 payment_id,
+                reused: false,
+                resume: false,
+                ...feeBreakdown,
             });
         }
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Look up a reusable/resumable POS MoMo payment for this sale total + phone.
+ */
+export const getOpenPosMomoPayment = async (req, res, next) => {
+    try {
+        const face_amount = Number(req.query.face_amount);
+        const phone = req.query.phone || req.query.payment_number || "";
+        if (!Number.isFinite(face_amount) || face_amount <= 0) {
+            return handleResponse(res, 400, "face_amount is required.");
+        }
+        const open = await findOpenPosMomoPaymentService({
+            tenant_id: req.user.tenant_id,
+            face_amount,
+            phone,
+        });
+        handleResponse(res, 200, open ? "Open POS MoMo payment found." : "No open POS MoMo payment.", open);
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Abandon a pending POS MoMo payment so a new prompt can be sent.
+ */
+export const abandonPosMomoPayment = async (req, res, next) => {
+    try {
+        const reference = req.body?.reference || req.body?.transaction_ref;
+        if (!reference) {
+            return handleResponse(res, 400, "reference is required.");
+        }
+        const result = await abandonPosMomoPaymentService({
+            tenant_id: req.user.tenant_id,
+            transaction_ref: reference,
+            actor_user_id: req.user?.id,
+        });
+        handleResponse(res, 200, "Payment abandoned.", result);
+    } catch (error) {
+        if (error?.status) {
+            return handleResponse(res, error.status, error.message);
+        }
+        next(error);
+    }
+};
+
+/**
+ * Park an unlinked POS MoMo payment with a cart snapshot so the cashier can serve others.
+ */
+export const parkPosMomoPayment = async (req, res, next) => {
+    try {
+        const reference = req.body?.reference || req.body?.transaction_ref;
+        const cart_snapshot = req.body?.cart_snapshot || req.body?.cartSnapshot;
+        if (!reference) {
+            return handleResponse(res, 400, "reference is required.");
+        }
+        const result = await parkPosMomoPaymentService({
+            tenant_id: req.user.tenant_id,
+            transaction_ref: reference,
+            cart_snapshot,
+            actor_user_id: req.user?.id,
+        });
+        handleResponse(res, 200, "Payment parked.", result);
+    } catch (error) {
+        if (error?.status) {
+            return handleResponse(res, error.status, error.message);
+        }
+        next(error);
+    }
+};
+
+/**
+ * List unlinked POS MoMo payments (pending or paid, not yet completed as a sale).
+ */
+export const listPendingPosMomoPayments = async (req, res, next) => {
+    try {
+        const list = await listUnlinkedPosMomoPaymentsService(req.user, req.query);
+        handleResponse(res, 200, "Pending POS MoMo payments.", list);
     } catch (error) {
         next(error);
     }

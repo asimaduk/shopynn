@@ -23,6 +23,18 @@ import {
 	normalizePrintAgentPort,
 	savePrintAgentConfig
 } from '@/utils/printAgent';
+import {
+	DEFAULT_INVOICE_PREFIX,
+	DEFAULT_INVOICE_REGISTER_CODE,
+	DEFAULT_INVOICE_NEXT_NUMBER,
+	formatInvoiceNumber,
+	loadInvoiceNumberingConfig,
+	normalizeInvoicePrefix,
+	normalizeInvoiceRegisterCode,
+	normalizeInvoiceNextNumber,
+	peekNextInvoiceNumber,
+	saveInvoiceNumberingConfig
+} from '@/utils/invoiceNumbering';
 
 type SectionCardProps = {
 	title: string;
@@ -87,6 +99,9 @@ export default function ReceiptSettingsPage() {
 	const initialCompany = useMemo(() => data?.receiptCompanyName || '', [data]);
 
 	const [companyName, setCompanyName] = useState(initialCompany);
+	const [invoicePrefix, setInvoicePrefix] = useState(DEFAULT_INVOICE_PREFIX);
+	const [invoiceRegister, setInvoiceRegister] = useState(DEFAULT_INVOICE_REGISTER_CODE);
+	const [invoiceNext, setInvoiceNext] = useState(String(DEFAULT_INVOICE_NEXT_NUMBER));
 	const [printHost, setPrintHost] = useState('127.0.0.1');
 	const [printPort, setPrintPort] = useState('3001');
 	const [agentStatus, setAgentStatus] = useState<AgentStatus>('idle');
@@ -102,12 +117,22 @@ export default function ReceiptSettingsPage() {
 		const cfg = loadPrintAgentConfig();
 		setPrintHost(cfg.host);
 		setPrintPort(String(cfg.port));
+		const inv = loadInvoiceNumberingConfig();
+		setInvoicePrefix(inv.prefix);
+		setInvoiceRegister(inv.registerCode);
+		setInvoiceNext(String(inv.nextNumber));
 	}, []);
 
 	const markDirty = () => {
 		setDirty(true);
 		setSaveMessage(null);
 	};
+
+	const invoicePreview = formatInvoiceNumber({
+		prefix: invoicePrefix,
+		registerCode: invoiceRegister,
+		number: invoiceNext
+	});
 
 	const onSave = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -116,12 +141,28 @@ export default function ReceiptSettingsPage() {
 			setSaveMessage({ type: 'error', text: 'Enter the LAN IP of the computer running Shopynn Print.' });
 			return;
 		}
+		const register = normalizeInvoiceRegisterCode(invoiceRegister);
+		if (!register) {
+			setSaveMessage({
+				type: 'error',
+				text: 'Register code is required (1–4 letters or digits, e.g. A, T1, W).'
+			});
+			return;
+		}
 
 		try {
 			await updateReceiptSettings({ receiptCompanyName: companyName.trim() }).unwrap();
 			const saved = savePrintAgentConfig({ host, port: printPort });
 			setPrintHost(saved.host);
 			setPrintPort(String(saved.port));
+			const invSaved = saveInvoiceNumberingConfig({
+				prefix: normalizeInvoicePrefix(invoicePrefix),
+				registerCode: register,
+				nextNumber: normalizeInvoiceNextNumber(invoiceNext)
+			});
+			setInvoicePrefix(invSaved.prefix);
+			setInvoiceRegister(invSaved.registerCode);
+			setInvoiceNext(String(invSaved.nextNumber));
 			setDirty(false);
 			setSaveMessage({ type: 'success', text: 'Invoice & receipt settings saved.' });
 		} catch (err) {
@@ -234,6 +275,55 @@ export default function ReceiptSettingsPage() {
 						{saveMessage.text}
 					</Alert>
 				) : null}
+
+				<SectionCard
+					title="Invoice numbering"
+					subtitle="Stored on this browser/device so offline sales stay unique. Use a different register code on each till."
+					icon="heroicons-outline:hashtag"
+				>
+					<Box className="grid gap-4 sm:grid-cols-3">
+						<TextField
+							fullWidth
+							label="Prefix"
+							placeholder="INV"
+							value={invoicePrefix}
+							disabled={saving}
+							onChange={(e) => {
+								setInvoicePrefix(e.target.value.toUpperCase());
+								markDirty();
+							}}
+							inputProps={{ maxLength: 8 }}
+						/>
+						<TextField
+							fullWidth
+							label="Register code"
+							placeholder="W"
+							value={invoiceRegister}
+							disabled={saving}
+							onChange={(e) => {
+								setInvoiceRegister(normalizeInvoiceRegisterCode(e.target.value));
+								markDirty();
+							}}
+							helperText="1–4 letters/digits (e.g. A, T1)"
+							inputProps={{ maxLength: 4 }}
+						/>
+						<TextField
+							fullWidth
+							label="Next number"
+							placeholder="1001"
+							value={invoiceNext}
+							disabled={saving}
+							onChange={(e) => {
+								setInvoiceNext(e.target.value.replace(/[^0-9]/g, ''));
+								markDirty();
+							}}
+							inputProps={{ inputMode: 'numeric' }}
+						/>
+					</Box>
+					<Typography variant="body2" color="text.secondary" className="mt-3">
+						Next invoice: <strong>{invoicePreview || peekNextInvoiceNumber()}</strong>
+					</Typography>
+				</SectionCard>
 
 				<SectionCard
 					title="Receipt branding"

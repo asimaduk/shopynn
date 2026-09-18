@@ -1,5 +1,13 @@
 import { handleResponse } from "../util/handleresponse.js";
-import { createPurchaseService, getAllPurchasesService, getAllPurchaseDetailsService, getPurchasesSummaryService, getSuppliersSummaryService, getPurchaseByIdService } from "../models/purchase.js";
+import {
+    createPurchaseService,
+    getAllPurchasesService,
+    getAllPurchaseDetailsService,
+    getPurchasesSummaryService,
+    getSuppliersSummaryService,
+    getPurchaseByIdService,
+    updatePurchasePaymentService,
+} from "../models/purchase.js";
 
 export const createPurchase = async (req, res, next) => {
     try {
@@ -26,6 +34,25 @@ export const getPurchaseById = async (req, res, next) => {
         next(error);
     }
 }
+
+export const updatePurchasePayment = async (req, res, next) => {
+    try {
+        const purchase = await updatePurchasePaymentService(req.user, req.params.id, req.body || {});
+        handleResponse(res, 200, "Purchase payment updated.", purchase);
+    } catch (error) {
+        if (error.status === 404 || error.message === "Purchase not found.") {
+            return handleResponse(res, 404, "Purchase not found.");
+        }
+        if (
+            error.message?.includes("payment") ||
+            error.message?.includes("required") ||
+            error.message?.includes("amount")
+        ) {
+            return handleResponse(res, 400, error.message);
+        }
+        next(error);
+    }
+};
 
 export const getAllPurchases = async (req, res, next) => {
     try {

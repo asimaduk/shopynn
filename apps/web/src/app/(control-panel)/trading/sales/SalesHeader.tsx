@@ -116,9 +116,14 @@ function SalesHeader({
 						disablePortal
 						id="select-attendant"
 						onChange={handleChange}
-						options={attendants}//?.map((att, i)=> att.first_name)}
-						getOptionLabel={(option:any) => (`${option.first_name} ${option.last_name}`)}
-						getOptionKey={(option) => option.username}
+						options={attendants ?? []}
+						getOptionLabel={(option: any) => {
+							const name =
+								`${option?.first_name ?? ''} ${option?.last_name ?? ''}`.trim() || 'Unknown';
+							return option?.email ? `${name} (${option.email})` : name;
+						}}
+						getOptionKey={(option: any) => String(option?.id)}
+						isOptionEqualToValue={(option: any, value: any) => option?.id === value?.id}
 						sx={{minWidth:200, marginRight:10}}
 						renderInput={(params) => (
 							<TextField 

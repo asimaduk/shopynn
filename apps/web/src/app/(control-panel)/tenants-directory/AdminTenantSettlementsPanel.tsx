@@ -32,6 +32,7 @@ export default function AdminTenantSettlementsPanel({ tenantId }: AdminTenantSet
 	const [note, setNote] = useState('');
 	const [payoutRefById, setPayoutRefById] = useState<Record<string, string>>({});
 	const [rejectReasonById, setRejectReasonById] = useState<Record<string, string>>({});
+	const [formError, setFormError] = useState('');
 
 	const { data: summary, isFetching: summaryLoading, refetch: refetchSummary } = useGetAdminTenantSettlementSummaryQuery(tenantId);
 	const { data: rows = [], isFetching: rowsLoading, refetch: refetchRows } = useGetAdminTenantSettlementsQuery(tenantId);
@@ -40,21 +41,38 @@ export default function AdminTenantSettlementsPanel({ tenantId }: AdminTenantSet
 	const [approve, { isLoading: approving }] = useApproveAdminSettlementMutation();
 	const [reject, { isLoading: rejecting }] = useRejectAdminSettlementMutation();
 
+	const available = Math.max(0, Number(summary?.available_balance ?? 0));
+	const digitalCollected = Number(summary?.digital_collected ?? 0);
+	const settledPaid = Number(summary?.settled_paid ?? 0);
+	const overpaidBy = Math.max(0, settledPaid - digitalCollected);
+
 	const refresh = () => {
 		refetchSummary();
 		refetchRows();
 	};
 
 	const onCreate = async () => {
+		setFormError('');
 		const parsed = Number(amount);
-		if (!Number.isFinite(parsed) || parsed <= 0) return;
+		if (!Number.isFinite(parsed) || parsed <= 0) {
+			setFormError('Enter a payout amount greater than zero.');
+			return;
+		}
+		if (available <= 0) {
+			setFormError('No available balance to pay out.');
+			return;
+		}
+		if (parsed > available + 0.001) {
+			setFormError(`Amount exceeds available balance (GHS ${available.toFixed(2)}).`);
+			return;
+		}
 		try {
 			await createSettlement({ tenantId, amount: parsed, note: note.trim() || undefined }).unwrap();
 			setAmount('');
 			setNote('');
 			refresh();
-		} catch (_) {
-			/* ignore */
+		} catch (err: any) {
+			setFormError(err?.data?.message || err?.message || 'Could not create settlement.');
 		}
 	};
 
@@ -96,6 +114,16 @@ export default function AdminTenantSettlementsPanel({ tenantId }: AdminTenantSet
 		);
 	}
 
+	const parsedAmount = Number(amount);
+	const amountExceeds =
+		Number.isFinite(parsedAmount) && parsedAmount > 0 && parsedAmount > available + 0.001;
+	const canCreate =
+		Number.isFinite(parsedAmount) &&
+		parsedAmount > 0 &&
+		available > 0 &&
+		!amountExceeds &&
+		!creating;
+
 	return (
 		<Box>
 			<Typography variant="subtitle1" fontWeight={700} className="mb-2">
@@ -106,14 +134,14 @@ export default function AdminTenantSettlementsPanel({ tenantId }: AdminTenantSet
 					<Typography variant="caption" color="text.secondary">
 						Digital collected
 					</Typography>
-					<Typography fontWeight={600}>{formatGhsCurrency(summary?.digital_collected ?? 0, 2, 2)}</Typography>
+					<Typography fontWeight={600}>{formatGhsCurrency(digitalCollected, 2, 2)}</Typography>
 				</Box>
 				<Box>
 					<Typography variant="caption" color="text.secondary">
 						Paid out
 					</Typography>
 					<Typography fontWeight={600} color="success.main">
-						{formatGhsCurrency(summary?.settled_paid ?? 0, 2, 2)}
+						{formatGhsCurrency(settledPaid, 2, 2)}
 					</Typography>
 				</Box>
 				<Box>
@@ -129,15 +157,48 @@ export default function AdminTenantSettlementsPanel({ tenantId }: AdminTenantSet
 						Available
 					</Typography>
 					<Typography fontWeight={600} color="primary.main">
-						{formatGhsCurrency(summary?.available_balance ?? 0, 2, 2)}
+						{formatGhsCurrency(available, 2, 2)}
 					</Typography>
 				</Box>
 			</Box>
 
+			{overpaidBy > 0.01 ? (
+				<Typography variant="body2" color="error" className="mb-2">
+					Paid out exceeds digital collected by {formatGhsCurrency(overpaidBy, 2, 2)}. Further manual
+					payouts are blocked until new collections arrive.
+				</Typography>
+			) : null}
+
 			<Box className="mb-3 flex flex-wrap items-end gap-2 rounded-lg border border-divider p-3">
-				<TextField size="small" label="Manual payout (GHS)" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} sx={{ minWidth: 140 }} />
-				<TextField size="small" label="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} sx={{ flex: 1, minWidth: 160 }} />
-				<Button variant="contained" onClick={onCreate} disabled={creating || !amount}>
+				<TextField
+					size="small"
+					label="Manual payout (GHS)"
+					type="number"
+					value={amount}
+					onChange={(e) => {
+						setFormError('');
+						setAmount(e.target.value);
+					}}
+					error={Boolean(formError) || amountExceeds}
+					helperText={
+						formError ||
+						(amountExceeds
+							? `Max available: GHS ${available.toFixed(2)}`
+							: available > 0
+								? `Available: GHS ${available.toFixed(2)}`
+								: 'No available balance')
+					}
+					inputProps={{ min: 0, max: available, step: '0.01' }}
+					sx={{ minWidth: 140 }}
+				/>
+				<TextField
+					size="small"
+					label="Note (optional)"
+					value={note}
+					onChange={(e) => setNote(e.target.value)}
+					sx={{ flex: 1, minWidth: 160 }}
+				/>
+				<Button variant="contained" onClick={onCreate} disabled={!canCreate}>
 					Create settlement
 				</Button>
 			</Box>

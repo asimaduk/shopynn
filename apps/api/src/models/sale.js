@@ -9,6 +9,7 @@ import {
     pricesMatch,
     priceMismatchError,
 } from "../utils/bulkDiscount.js";
+import { linkPosPaymentToSaleService } from "./payment.js";
 
 const canViewAllSalesForUser = async (user) => {
     if (user.user_type === 1) return true;
@@ -1022,6 +1023,8 @@ const SALE_BY_ID_SELECT = `
             sales.payment_date,
             sales.payment_number,
             sales.payment_status,
+            sales.amount_tendered,
+            sales.change_amount,
             customers.name AS customer,
             customers.phone AS customer_phone,
             customers.email AS customer_email,
@@ -1220,7 +1223,7 @@ export const createSaleService = async (payload) => {
         await client.query('BEGIN');
         // console.log('pl is',payload);
         
-        const { discount_amount, tenant_id, invoice_number, current_status, customer_id, warehouse_id, products, notes, created_at, creator_id, payment_type, payment_method, payment_number, payment_reference, payment_status, payment_date } = payload;
+        const { discount_amount, tenant_id, invoice_number, current_status, customer_id, warehouse_id, products, notes, created_at, creator_id, payment_type, payment_method, payment_number, payment_reference, payment_status, payment_date, payment_transaction_ref, amount_tendered, change_amount } = payload;
 
         if(!products || !products.length) {
             throw new Error("Products list cannot be empty.");
@@ -1317,13 +1320,60 @@ export const createSaleService = async (payload) => {
         }
         if (resolvedPaymentType != null) resolvedPaymentType = Number(resolvedPaymentType);
 
+        const isMomo =
+            resolvedPaymentType === 2 ||
+            String(payment_method || "").toLowerCase() === "momo" ||
+            String(payment_method || "").toLowerCase() === "mobile_money";
+
+        if (isMomo && !payment_transaction_ref) {
+            const err = new Error("MoMo sales require a confirmed payment reference. Use Send on Make Payment first.");
+            err.status = 400;
+            err.code = "MOMO_PAYMENT_REQUIRED";
+            throw err;
+        }
+
+        const isCash =
+            resolvedPaymentType === 1 ||
+            String(payment_method || "").toLowerCase() === "cash";
+
+        let resolvedTendered = null;
+        let resolvedChange = null;
+        if (isCash) {
+            const tenderedRaw = amount_tendered != null && String(amount_tendered).trim() !== ""
+                ? Number(amount_tendered)
+                : total_amount;
+            if (!Number.isFinite(tenderedRaw) || tenderedRaw < 0) {
+                const err = new Error("Amount tendered must be a valid non-negative number.");
+                err.status = 400;
+                err.code = "INVALID_AMOUNT_TENDERED";
+                throw err;
+            }
+            const tendered = Math.round(tenderedRaw * 100) / 100;
+            if (tendered + 0.001 < total_amount) {
+                const err = new Error(
+                    `Amount tendered (${tendered.toFixed(2)}) is less than sale total (${Number(total_amount).toFixed(2)}).`
+                );
+                err.status = 400;
+                err.code = "INSUFFICIENT_TENDER";
+                throw err;
+            }
+            const changeRaw =
+                change_amount != null && String(change_amount).trim() !== ""
+                    ? Number(change_amount)
+                    : tendered - total_amount;
+            const change = Math.round((Number.isFinite(changeRaw) ? changeRaw : tendered - total_amount) * 100) / 100;
+            resolvedTendered = tendered;
+            resolvedChange = Math.max(0, change);
+        }
+
         const result = await client.query(`
             INSERT INTO sales (
                 id, number_of_items, total_amount, discount_amount, tenant_id, invoice_number, current_status,
                 customer_id, warehouse_id, notes, created_at, creator_id,
-                payment_type, payment_number, payment_reference, payment_status, payment_date
+                payment_type, payment_number, payment_reference, payment_status, payment_date,
+                amount_tendered, change_amount
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING id`,
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING id`,
             [
                 id,
                 number_of_items,
@@ -1339,11 +1389,24 @@ export const createSaleService = async (payload) => {
                 creator_id,
                 Number.isFinite(resolvedPaymentType) ? resolvedPaymentType : null,
                 payment_number || null,
-                payment_reference || null,
-                payment_status != null ? payment_status : null,
-                payment_date || null,
+                payment_reference || payment_transaction_ref || null,
+                payment_status != null ? payment_status : (isMomo ? "paid" : null),
+                payment_date || (isMomo ? new Date() : null),
+                resolvedTendered,
+                resolvedChange,
             ]
         );
+
+        if (isMomo && payment_transaction_ref) {
+            await linkPosPaymentToSaleService({
+                client,
+                transaction_ref: payment_transaction_ref,
+                sale_id: result.rows[0].id,
+                tenant_id,
+                expected_face_amount: total_amount,
+                payment_number,
+            });
+        }
 
         for (const prod of pricedProducts) {
             // console.log('pid',prod.id,'warehouse_id',warehouse_id);
@@ -1416,7 +1479,25 @@ export const getAllSaleDetailsService = async () => {
     return result.rows;
 }
 
-export const getSaleAttendantsService = async () => {
-    const result = await pool.query("SELECT id, first_name, last_name, is_active, email FROM users");
+export const getSaleAttendantsService = async (tenant_id) => {
+    if (!tenant_id) {
+        return [];
+    }
+    // Staff/filter attendants for sales & purchases — tenant-scoped, exclude deleted + storefront customers.
+    const result = await pool.query(
+        `SELECT u.id, u.first_name, u.last_name, u.is_active, u.email
+         FROM users u
+         WHERE u.tenant_id = $1
+           AND COALESCE(u.deleted, false) = false
+           AND NOT EXISTS (
+               SELECT 1
+               FROM customer_profiles cp
+               WHERE cp.user_id = u.id
+                 AND cp.tenant_id = u.tenant_id
+                 AND (cp.profile_type IS NULL OR lower(trim(cp.profile_type)) = 'customer')
+           )
+         ORDER BY u.first_name ASC, u.last_name ASC, u.email ASC`,
+        [tenant_id]
+    );
     return result.rows;
 }

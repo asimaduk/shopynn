@@ -12,35 +12,10 @@ type SuppliersTableProps = {
 };
 
 function SuppliersTable({ data: suppliers, isLoading }: SuppliersTableProps) {
+	const rows = useMemo(() => (Array.isArray(suppliers) ? suppliers : []), [suppliers]);
 
 	const columns = useMemo<MRT_ColumnDef<Supplier>[]>(
 		() => [
-			// {
-			// 	accessorFn: (row) => row.featuredImageId,
-			// 	id: 'featuredImageId',
-			// 	header: '',
-			// 	enableColumnFilter: false,
-			// 	enableColumnDragging: false,
-			// 	size: 64,
-			// 	enableSorting: false,
-			// 	Cell: ({ row }) => (
-			// 		<div className="flex items-center justify-center">
-			// 			{row.original?.images?.length > 0 && row.original.featuredImageId ? (
-			// 				<img
-			// 					className="w-full max-h-9 max-w-9 block rounded-sm"
-			// 					src={_.find(row.original.images, { id: row.original.featuredImageId })?.url}
-			// 					alt={row.original.name}
-			// 				/>
-			// 			) : (
-			// 				<img
-			// 					className="w-full max-h-9 max-w-9 block rounded-sm"
-			// 					src="/assets/images/apps/ecommerce/product-image-placeholder.png"
-			// 					alt={row.original.name}
-			// 				/>
-			// 			)}
-			// 		</div>
-			// 	)
-			// },
 			{
 				accessorKey: 'name',
 				header: 'Name',
@@ -81,20 +56,27 @@ function SuppliersTable({ data: suppliers, isLoading }: SuppliersTableProps) {
 		[]
 	);
 
+	const initialState = useMemo(
+		() => ({
+			density: 'compact' as const,
+			showColumnFilters: false,
+			showGlobalFilter: true
+		}),
+		[]
+	);
+
+	const state = useMemo(() => ({ isLoading }), [isLoading]);
+
 	return (
 		<Paper
 			className="flex flex-col flex-auto shadow-1 rounded-t-lg overflow-hidden rounded-b-none w-full h-full"
 			elevation={0}
 		>
 			<DataTable
-				data={suppliers}
+				data={rows}
 				columns={columns}
-				initialState={{
-					density: 'compact',
-					showColumnFilters: false,
-					showGlobalFilter: true,
-				}}
-				state={{ isLoading }}
+				initialState={initialState}
+				state={state}
 				enableRowSelection={false}
 				enableRowActions={false}
 			/>

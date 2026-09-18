@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useDeferredValue, useMemo, useState } from 'react';
 import GlobalStyles from '@mui/material/GlobalStyles';
 import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
@@ -22,14 +22,20 @@ import {
 export default function NewsletterSubscribersPage() {
 	const [search, setSearch] = useState('');
 	const [statusFilter, setStatusFilter] = useState<string>('');
+	const deferredSearch = useDeferredValue(search.trim());
 
-	const { data, isLoading, refetch } = useGetNewsletterSubscribersQuery({
-		q: search.trim() || undefined,
+	const { data, isLoading, isFetching, refetch } = useGetNewsletterSubscribersQuery({
+		q: deferredSearch || undefined,
 		status: statusFilter || undefined
 	});
 	const [updateSubscriber] = useUpdateNewsletterSubscriberMutation();
 
 	const subscribers = data?.subscribers ?? [];
+
+	const tableState = useMemo(
+		() => ({ isLoading: isLoading || isFetching }),
+		[isLoading, isFetching]
+	);
 
 	const columns = useMemo<MRT_ColumnDef<NewsletterSubscriber>[]>(
 		() => [
@@ -109,7 +115,7 @@ export default function NewsletterSubscribersPage() {
 				<DataTable
 					columns={columns}
 					data={subscribers}
-					state={{ isLoading }}
+					state={tableState}
 					enableRowSelection={false}
 					enableRowActions
 					initialState={{ density: 'compact' }}

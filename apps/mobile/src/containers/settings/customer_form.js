@@ -74,18 +74,42 @@ const CustomerForm = ({ navigation, route }) => {
                     name: form.name.trim(),
                     phone: form.phone.trim(),
                     email: form.email?.trim() || undefined,
-                    // address: form.location?.trim() || undefined,
-                    // contactPerson: form.contactPerson?.trim() || undefined,
                     address: form.address?.trim() || undefined,
                     notes: form.notes?.trim() || undefined,
                 };
+                let createdId = editItem?.id;
                 if (isEdit) {
                     await customersApi.update(editItem.id, { ...body, id: editItem.id });
                 } else {
-                    await customersApi.create(body);
+                    const created = await customersApi.create(body);
+                    createdId = created?.id || created?.data?.id || created;
                 }
+                const fromPos = Boolean(route.params?.fromPos);
                 Alert.alert('Success', `Customer ${isEdit ? 'updated' : 'created'} successfully`, [
-                    { text: 'OK', onPress: () => navigation.goBack() },
+                    {
+                        text: 'OK',
+                        onPress: () => {
+                            if (fromPos && !isEdit) {
+                                navigation.navigate({
+                                    name: 'NewSale',
+                                    params: {
+                                        posCustomerRefreshAt: Date.now(),
+                                        newlyCreatedCustomer: {
+                                            id: createdId,
+                                            name: body.name,
+                                            phone: body.phone,
+                                            email: body.email,
+                                            address: body.address,
+                                            notes: body.notes,
+                                        },
+                                    },
+                                    merge: true,
+                                });
+                                return;
+                            }
+                            navigation.goBack();
+                        },
+                    },
                 ]);
             } catch (err) {
                 const msg =

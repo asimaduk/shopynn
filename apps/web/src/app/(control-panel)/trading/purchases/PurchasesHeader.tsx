@@ -50,14 +50,24 @@ function PurchasesHeader({
 	};
 
 	const handleExportExcel = () => {
-		const ws = XLSX.utils.json_to_sheet(purchases.map(purc=> ({Date:purc.created_at, 'Invoice #':purc.invoice_number, Supplier:purc.supplier, 'No. of Items':purc.number_of_items, Total:purc.total_amount, Attendant: purc.attendant, Notes: purc.notes}))); // Convert data to worksheet
+		const ws = XLSX.utils.json_to_sheet(purchases.map(purc=> ({
+			Date: purc.created_at,
+			'Invoice #': purc.invoice_number,
+			Supplier: purc.supplier,
+			'No. of Items': purc.number_of_items,
+			Total: purc.total_amount,
+			Attendant: (purc.attendant && String(purc.attendant).trim()) ||
+				`${purc.receiver_name ?? ''} ${purc.receiver_last_name ?? ''}`.trim() ||
+				'—',
+			Notes: purc.notes
+		}))); // Convert data to worksheet
 		const wb = XLSX.utils.book_new(); // Create new workbook
 		XLSX.utils.book_append_sheet(wb, ws, 'Sheet1'); // Append worksheet to workbook
 		XLSX.writeFile(wb, `Purchases || ${new Date().toJSON()}.xlsx`); // Write and download the Excel file
 	};
 
 	const filterByDate = (dates) => {
-		handleFilter(dates, (supplier && supplier.id) || '')
+		handleFilter(dates, (supplier && supplier.id) || '', (staff && staff.id) || '');
 		setFilterDates(dates);
 	}
 
@@ -106,9 +116,14 @@ function PurchasesHeader({
 					disablePortal
 					id="select-attendant"
 					onChange={handleAttendantChange}
-					options={attendants}//?.map((att, i)=> att.first_name)}
-					getOptionLabel={(option:any) => (`${option.first_name} ${option.last_name}`)}
-					getOptionKey={(option) => option.username}
+					options={attendants ?? []}
+					getOptionLabel={(option: any) => {
+						const name =
+							`${option?.first_name ?? ''} ${option?.last_name ?? ''}`.trim() || 'Unknown';
+						return option?.email ? `${name} (${option.email})` : name;
+					}}
+					getOptionKey={(option: any) => String(option?.id)}
+					isOptionEqualToValue={(option: any, value: any) => option?.id === value?.id}
 					sx={{minWidth:200, marginRight:10}}
 					renderInput={(params) => (
 						<TextField 
@@ -126,8 +141,10 @@ function PurchasesHeader({
 					disablePortal
 					id="select-supplier"
 					onChange={handleChange}
-					options={suppliers}//?.map((att, i)=> att.first_name)}
-					getOptionLabel={(option:any) => option.name}
+					options={suppliers ?? []}
+					getOptionLabel={(option: any) => option?.name ?? ''}
+					getOptionKey={(option: any) => String(option?.id ?? option?.name ?? '')}
+					isOptionEqualToValue={(option: any, value: any) => option?.id === value?.id}
 					sx={{minWidth:250, marginRight:10}}
 					renderInput={(params) => (
 						<TextField 

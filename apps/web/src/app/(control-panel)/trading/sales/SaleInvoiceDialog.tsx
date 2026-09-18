@@ -1,7 +1,9 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Button from '@mui/material/Button';
+import Chip from '@mui/material/Chip';
+import Alert from '@mui/material/Alert';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
@@ -9,6 +11,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import CircularProgress from '@mui/material/CircularProgress';
+import Typography from '@mui/material/Typography';
 import toast from 'react-hot-toast';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import useUser from '@auth/useUser';
@@ -18,13 +21,24 @@ import {
 	buildWhatsAppUrl,
 	digitsOnlyPhone,
 	downloadInvoicePdf,
-	formatInvoiceDate,
 	formatInvoiceText,
-	formatMoney,
-	shareInvoicePdfFile,
-	type SaleInvoice
+	shareInvoicePdfFile
 } from '@/utils/saleInvoice';
 import { useLazyGetSaleInvoicePdfQuery, useSendSaleInvoiceMutation } from '../TradingApi';
+import { getPrintAgentPrintUrl } from '@/utils/printAgent';
+import {
+	normalizeWarehousePrinterType,
+	type WarehousePrinterType
+} from '../../setups/warehouses/models/WarehouseModel';
+import InvoiceDocument, {
+	INVOICE_PRINT_STYLES,
+	wrapInvoicePrintDocument
+} from './InvoiceDocument';
+
+export type InvoicePrintNotice = {
+	severity: 'success' | 'error' | 'info' | 'warning';
+	message: string;
+};
 
 type SaleInvoiceDialogProps = {
 	open: boolean;
@@ -32,161 +46,152 @@ type SaleInvoiceDialogProps = {
 	order: Record<string, unknown> | null | undefined;
 	/** When set, enables server PDF download and email-with-PDF attachment */
 	saleId?: string;
+	/** Store printer preference — thermal uses Shopynn Print agent */
+	printerType?: WarehousePrinterType | string | null;
+	/** When true and printer is thermal, send to print agent once on open */
+	autoPrintThermal?: boolean;
 };
 
-function InvoicePreviewBody({ invoice }: { invoice: SaleInvoice }) {
-	const cell = (border = '1px solid #ddd') =>
-		({
-			border,
-			padding: '10px 12px'
-		}) as const;
-
-	return (
-		<>
-			<h1 style={{ fontSize: '1.35rem', margin: '0 0 4px', fontWeight: 700, color: '#0A74DA' }}>
-				Invoice
-			</h1>
-			<p style={{ margin: '0 0 12px', fontWeight: 700 }}>{invoice.company.name}</p>
-			<div className="meta" style={{ color: '#555', fontSize: '0.875rem', marginBottom: 20, lineHeight: 1.5 }}>
-				{invoice.company.address ? <div>{invoice.company.address}</div> : null}
-				{invoice.company.phone ? <div>Tel: {invoice.company.phone}</div> : null}
-				{invoice.company.email ? <div>{invoice.company.email}</div> : null}
-				<div>
-					<strong>Invoice:</strong> {invoice.invoice_number}
-				</div>
-				<div>
-					<strong>Date:</strong> {formatInvoiceDate(invoice.sale_date)}
-				</div>
-				<div>
-					<strong>Customer:</strong> {invoice.customer_name}
-				</div>
-				<div>
-					<strong>Payment:</strong> {invoice.payment_method}
-				</div>
-				{invoice.store_name ? (
-					<div>
-						<strong>Store:</strong> {invoice.store_name}
-					</div>
-				) : null}
-				{invoice.cashier ? (
-					<div>
-						<strong>Cashier:</strong> {invoice.cashier}
-					</div>
-				) : null}
-			</div>
-			<table style={{ width: '100%', borderCollapse: 'collapse', margin: '16px 0', fontSize: '0.9rem' }}>
-				<thead>
-					<tr>
-						<th style={{ ...cell(), background: '#0A74DA', color: '#fff', textAlign: 'left' }}>Item</th>
-						<th style={{ ...cell(), background: '#0A74DA', color: '#fff', textAlign: 'right' }}>Qty</th>
-						<th style={{ ...cell(), background: '#0A74DA', color: '#fff', textAlign: 'right' }}>Unit</th>
-						<th style={{ ...cell(), background: '#0A74DA', color: '#fff', textAlign: 'right' }}>Amount</th>
-					</tr>
-				</thead>
-				<tbody>
-					{invoice.line_items.map((row, i) => (
-						<tr key={i}>
-							<td style={{ ...cell(), textAlign: 'left' }}>{row.name}</td>
-							<td style={{ ...cell(), textAlign: 'right' }}>{row.quantity}</td>
-							<td style={{ ...cell(), textAlign: 'right' }}>{formatMoney(row.unit_price, invoice.currency)}</td>
-							<td style={{ ...cell(), textAlign: 'right' }}>{formatMoney(row.line_total, invoice.currency)}</td>
-						</tr>
-					))}
-					{invoice.line_items.length === 0 ? (
-						<tr>
-							<td colSpan={4} style={cell()}>
-								No line items
-							</td>
-						</tr>
-					) : null}
-				</tbody>
-			</table>
-			<div className="totals" style={{ marginTop: 12, maxWidth: 280, marginLeft: 'auto', fontSize: '0.95rem' }}>
-				{invoice.discount_amount > 0 ? (
-					<>
-						<div className="row" style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-							<span>Subtotal</span>
-							<span>{formatMoney(invoice.subtotal, invoice.currency)}</span>
-						</div>
-						<div className="row" style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-							<span>Discount</span>
-							<span>{formatMoney(invoice.discount_amount, invoice.currency)}</span>
-						</div>
-					</>
-				) : null}
-				<div
-					className="row grand"
-					style={{
-						display: 'flex',
-						justifyContent: 'space-between',
-						fontWeight: 700,
-						fontSize: '1.05rem',
-						borderTop: '2px solid #111',
-						marginTop: 8,
-						paddingTop: 10
-					}}
-				>
-					<span>Total</span>
-					<span>{formatMoney(invoice.total_amount, invoice.currency)}</span>
-				</div>
-			</div>
-			{invoice.notes ? (
-				<p className="foot" style={{ marginTop: 24, fontSize: '0.85rem', color: '#666' }}>
-					<strong>Notes:</strong> {invoice.notes}
-				</p>
-			) : null}
-		</>
-	);
-}
-
-export default function SaleInvoiceDialog({ open, onClose, order, saleId }: SaleInvoiceDialogProps) {
+export default function SaleInvoiceDialog({
+	open,
+	onClose,
+	order,
+	saleId,
+	printerType,
+	autoPrintThermal = false
+}: SaleInvoiceDialogProps) {
 	const { data: user } = useUser();
 	const printRef = useRef<HTMLDivElement>(null);
 	const [busy, setBusy] = useState<string | null>(null);
+	const [printNotice, setPrintNotice] = useState<InvoicePrintNotice | null>(null);
+	const autoPrintKeyRef = useRef<string | null>(null);
 	const [sendSaleInvoice] = useSendSaleInvoiceMutation();
 	const [fetchSaleInvoicePdf] = useLazyGetSaleInvoicePdfQuery();
 	const resolvedSaleId = saleId || (order?.id != null ? String(order.id) : undefined);
+	const resolvedPrinterType = normalizeWarehousePrinterType(printerType);
 
 	const invoice = useMemo(() => {
 		if (!order) return null;
-		const company = (user as { company?: Record<string, string> })?.company;
+		const company = user?.company;
 		return buildInvoiceFromSaleOrder(order, {
-			name: company?.name || (user as { companyName?: string })?.companyName || 'Shopynn',
+			name: company?.name || 'Shopynn',
 			address: company?.address || '',
 			phone: company?.phone || '',
 			email: company?.email || ''
 		});
 	}, [order, user]);
 
+	const canEmailPdf = Boolean(resolvedSaleId && invoice?.customer_email?.trim());
 	const pdfFilename = `invoice-${String(invoice?.invoice_number || 'sale').replace(/[^\w.-]+/g, '_')}.pdf`;
 
-	const handlePrint = () => {
-		const el = printRef.current;
-		if (!el || !invoice) return;
-		const w = window.open('', '_blank', 'noopener,noreferrer');
-		if (!w) {
-			toast.error('Pop-up blocked. Allow pop-ups to print.');
+	useEffect(() => {
+		if (!open) {
+			setPrintNotice(null);
+			setBusy(null);
+			autoPrintKeyRef.current = null;
+		}
+	}, [open]);
+
+	const handleThermalPrint = useCallback(async () => {
+		if (!order) return;
+		const printUrl = getPrintAgentPrintUrl();
+		if (!printUrl) {
+			setPrintNotice({
+				severity: 'error',
+				message: 'Print agent not set. Configure it under Settings → Invoice & Receipt.'
+			});
 			return;
 		}
-		const title = String(invoice.invoice_number).replace(/</g, '');
-		w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${title}</title>
-			<style>
-				body{font-family:system-ui,sans-serif;margin:0;padding:32px;color:#111;}
-				.meta{color:#555;font-size:0.875rem;margin-bottom:20px;line-height:1.5;}
-				table{width:100%;border-collapse:collapse;margin:16px 0;font-size:0.9rem;}
-				th,td{border:1px solid #ddd;padding:10px 12px;}
-				th{background:#0A74DA;color:#fff;}
-				td.num,th.num{text-align:right;}
-			</style></head><body>${el.innerHTML}</body></html>`);
-		w.document.close();
-		w.focus();
-		requestAnimationFrame(() => {
-			try {
-				w.print();
-			} finally {
-				w.close();
+		setBusy('thermal');
+		setPrintNotice({ severity: 'info', message: 'Sending to thermal printer…' });
+		try {
+			const res = await fetch(printUrl, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(order)
+			});
+			const data = await res.json().catch(() => ({}));
+			if (data?.status == 200 || res.ok) {
+				setPrintNotice({ severity: 'success', message: 'Print successful' });
+			} else {
+				setPrintNotice({
+					severity: 'error',
+					message: `Thermal print failed: ${data?.message || res.statusText || 'Check Print agent settings.'}`
+				});
 			}
-		});
+		} catch (err) {
+			setPrintNotice({
+				severity: 'error',
+				message: `Thermal print failed: ${(err as Error)?.message || 'Check Print agent settings.'}`
+			});
+		} finally {
+			setBusy(null);
+		}
+	}, [order]);
+
+	useEffect(() => {
+		if (!open || !autoPrintThermal || resolvedPrinterType !== 'thermal' || !order) return;
+		const key = String(order.id || order.invoice_number || 'sale');
+		if (autoPrintKeyRef.current === key) return;
+		autoPrintKeyRef.current = key;
+		void handleThermalPrint();
+	}, [open, autoPrintThermal, resolvedPrinterType, order, handleThermalPrint]);
+
+	const handleBrowserPrint = () => {
+		const el = printRef.current;
+		if (!el || !invoice) return;
+
+		// Use a hidden iframe — `window.open(..., 'noopener')` cannot write document content
+		// (blank tab), and closing the print window too early also fails on Safari/Chrome.
+		const iframe = document.createElement('iframe');
+		iframe.setAttribute('title', 'Invoice print');
+		iframe.style.cssText =
+			'position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;pointer-events:none;';
+		document.body.appendChild(iframe);
+
+		const win = iframe.contentWindow;
+		const doc = win?.document;
+		if (!win || !doc) {
+			iframe.remove();
+			setPrintNotice({ severity: 'error', message: 'Could not open print preview.' });
+			return;
+		}
+
+		const title = String(invoice.invoice_number).replace(/</g, '');
+		doc.open();
+		doc.write(wrapInvoicePrintDocument(title, el.innerHTML));
+		doc.close();
+
+		const cleanup = () => {
+			try {
+				iframe.remove();
+			} catch {
+				/* ignore */
+			}
+		};
+
+		win.addEventListener('afterprint', cleanup);
+		// Give the iframe a moment to layout images/fonts, then print.
+		window.setTimeout(() => {
+			try {
+				win.focus();
+				win.print();
+				setPrintNotice({ severity: 'success', message: 'Print dialog opened' });
+			} catch {
+				setPrintNotice({ severity: 'error', message: 'Print failed. Try Download PDF instead.' });
+				cleanup();
+			}
+			// Fallback cleanup if afterprint never fires (some browsers).
+			window.setTimeout(cleanup, 60_000);
+		}, 300);
+	};
+
+	const handlePrint = () => {
+		if (resolvedPrinterType === 'thermal') {
+			void handleThermalPrint();
+			return;
+		}
+		handleBrowserPrint();
 	};
 
 	const downloadServerPdf = async () => {
@@ -288,99 +293,224 @@ export default function SaleInvoiceDialog({ open, onClose, order, saleId }: Sale
 
 	return (
 		<Dialog open={open} onClose={onClose} maxWidth="md" fullWidth scroll="paper">
-			<DialogTitle>Send invoice</DialogTitle>
+			<DialogTitle sx={{ pr: printNotice ? { xs: 2, sm: 2 } : undefined }}>
+				<Stack
+					direction="row"
+					alignItems="flex-start"
+					justifyContent="space-between"
+					spacing={1.5}
+					useFlexGap
+					sx={{ gap: 1.5 }}
+				>
+					<Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap" useFlexGap>
+						<span>Send invoice</span>
+						{resolvedPrinterType === 'thermal' ? (
+							<Chip
+								size="small"
+								variant="outlined"
+								icon={<FuseSvgIcon size={14}>heroicons-outline:printer</FuseSvgIcon>}
+								label="Printer: Thermal"
+								sx={{
+									fontWeight: 600,
+									borderColor: 'grey.400',
+									color: 'text.secondary',
+									bgcolor: 'transparent',
+									'& .MuiChip-icon': { color: 'text.secondary' }
+								}}
+							/>
+						) : resolvedPrinterType === 'a4' ? (
+							<Chip
+								size="small"
+								variant="outlined"
+								icon={<FuseSvgIcon size={14}>heroicons-outline:document-text</FuseSvgIcon>}
+								label="Printer: A4"
+								sx={{
+									fontWeight: 600,
+									borderColor: 'grey.400',
+									color: 'text.secondary',
+									bgcolor: 'transparent',
+									'& .MuiChip-icon': { color: 'text.secondary' }
+								}}
+							/>
+						) : null}
+					</Stack>
+					{printNotice ? (
+						<Alert
+							severity={printNotice.severity}
+							variant="filled"
+							onClose={() => setPrintNotice(null)}
+							sx={{
+								py: 0.25,
+								px: 1.25,
+								alignItems: 'center',
+								maxWidth: { xs: '100%', sm: 340 },
+								flexShrink: 0,
+								'& .MuiAlert-message': {
+									fontSize: 13,
+									fontWeight: 600,
+									py: 0.5
+								}
+							}}
+						>
+							{printNotice.message}
+						</Alert>
+					) : null}
+				</Stack>
+			</DialogTitle>
 			<DialogContent dividers>
 				<Stack spacing={2} sx={{ mb: 2 }}>
 					<Stack direction="row" flexWrap="wrap" gap={1}>
-						<Button
-							variant="contained"
-							color="primary"
-							disabled={!!busy}
-							onClick={() => runPdfAction('download')}
-							startIcon={
-								busy === 'download' ? (
-									<CircularProgress size={16} color="inherit" />
-								) : (
-									<FuseSvgIcon size={18}>heroicons-outline:arrow-down-tray</FuseSvgIcon>
-								)
-							}
-						>
-							Download PDF
-						</Button>
-						{resolvedSaleId ? (
-							<Button
-								variant="contained"
-								color="secondary"
-								disabled={!!busy}
-								onClick={() => runPdfAction('server-email')}
-								startIcon={
-									busy === 'server-email' ? (
-										<CircularProgress size={16} color="inherit" />
-									) : (
-										<FuseSvgIcon size={18}>heroicons-outline:paper-airplane</FuseSvgIcon>
-									)
+						{(
+							[
+								{
+									key: 'download',
+									label: 'Download PDF',
+									busyKey: 'download',
+									icon: 'heroicons-outline:arrow-down-tray',
+									onClick: () => runPdfAction('download'),
+									show: true
+								},
+								{
+									key: 'server-email',
+									label: `Email PDF (${invoice.customer_email})`,
+									busyKey: 'server-email',
+									icon: 'heroicons-outline:paper-airplane',
+									onClick: () => runPdfAction('server-email'),
+									show: canEmailPdf
+								},
+								{
+									key: 'email',
+									label: 'Email (device)',
+									busyKey: 'email',
+									icon: 'heroicons-outline:envelope',
+									onClick: () => runPdfAction('email'),
+									show: true
+								},
+								{
+									key: 'whatsapp',
+									label: 'WhatsApp',
+									busyKey: 'whatsapp',
+									icon: 'heroicons-outline:chat-bubble-left-right',
+									onClick: () => runPdfAction('whatsapp'),
+									show: true
+								},
+								{
+									key: 'print-thermal',
+									label: 'Print receipt',
+									busyKey: 'thermal',
+									icon: 'heroicons-outline:printer',
+									onClick: handlePrint,
+									show: resolvedPrinterType === 'thermal'
+								},
+								{
+									key: 'print',
+									label: 'Print',
+									busyKey: 'print',
+									icon: 'heroicons-outline:printer',
+									onClick: handlePrint,
+									show: resolvedPrinterType !== 'thermal'
+								},
+								{
+									key: 'print-browser',
+									label: 'Print (browser)',
+									busyKey: 'print-browser',
+									icon: 'heroicons-outline:document-text',
+									onClick: handleBrowserPrint,
+									show: resolvedPrinterType === 'thermal'
 								}
-							>
-								Email PDF
-								{invoice.customer_email ? ` (${invoice.customer_email})` : ''}
-							</Button>
-						) : null}
-						<Button
-							variant="outlined"
-							disabled={!!busy}
-							onClick={() => runPdfAction('email')}
-							startIcon={
-								busy === 'email' ? (
-									<CircularProgress size={16} />
-								) : (
-									<FuseSvgIcon size={18}>heroicons-outline:envelope</FuseSvgIcon>
-								)
-							}
-						>
-							Email (device)
-						</Button>
-						<Button
-							variant="outlined"
-							color="success"
-							disabled={!!busy}
-							onClick={() => runPdfAction('whatsapp')}
-							startIcon={
-								busy === 'whatsapp' ? (
-									<CircularProgress size={16} color="inherit" />
-								) : (
-									<FuseSvgIcon size={18}>heroicons-outline:chat-bubble-left-right</FuseSvgIcon>
-								)
-							}
-						>
-							WhatsApp
-						</Button>
-						<Button
-							variant="outlined"
-							disabled={!!busy}
-							onClick={handlePrint}
-							startIcon={<FuseSvgIcon size={18}>heroicons-outline:printer</FuseSvgIcon>}
-						>
-							Print
-						</Button>
+							] as const
+						)
+							.filter((b) => b.show)
+							.map((b) => (
+								<Button
+									key={b.key}
+									variant="outlined"
+									color="inherit"
+									disabled={!!busy}
+									onClick={b.onClick}
+									startIcon={
+										busy === b.busyKey ? (
+											<CircularProgress size={16} color="inherit" />
+										) : (
+											<FuseSvgIcon size={18}>{b.icon}</FuseSvgIcon>
+										)
+									}
+									sx={{
+										borderRadius: '5px',
+										borderColor: 'grey.400',
+										color: 'text.primary',
+										bgcolor: 'background.paper',
+										textTransform: 'none',
+										fontWeight: 600,
+										px: 1.5,
+										'&:hover': {
+											borderColor: 'grey.600',
+											bgcolor: 'action.hover'
+										}
+									}}
+								>
+									{b.label}
+								</Button>
+							))}
 					</Stack>
-					<Box component="p" sx={{ typography: 'caption', color: 'text.secondary', m: 0 }}>
-						Email PDF sends from the server with the invoice attached (requires customer email). Download uses the
-						server PDF when the sale is saved; otherwise a browser-generated PDF is used.
-					</Box>
+					{resolvedPrinterType === 'thermal' ? (
+						<Stack
+							direction="row"
+							alignItems="flex-start"
+							spacing={1}
+							sx={(theme) => ({
+								p: 1.25,
+								borderRadius: '5px',
+								bgcolor: theme.palette.mode === 'dark' ? 'rgba(46, 125, 50, 0.16)' : 'rgba(46, 125, 50, 0.08)',
+								border: '1px solid',
+								borderColor: 'success.light'
+							})}
+						>
+							<FuseSvgIcon size={18} color="success">
+								heroicons-outline:check-circle
+							</FuseSvgIcon>
+							<Typography variant="caption" color="text.secondary" sx={{ m: 0 }}>
+								This store is set to <strong>thermal</strong>. “Print receipt” sends to the Shopynn Print
+								agent. Use “Print (browser)” for a normal paper/PDF print.
+								{/* {!canEmailPdf
+									? ' Email PDF stays hidden until the sale has a customer email.'
+									: ' Email PDF sends from the server with the invoice attached.'} */}
+							</Typography>
+						</Stack>
+					) : (
+						<Box component="p" sx={{ typography: 'caption', color: 'text.secondary', m: 0 }}>
+							{canEmailPdf
+								? 'Email PDF sends from the server with the invoice attached. '
+								: 'Email PDF is hidden until the sale has a customer email. '}
+							Print opens the browser print dialog. Download uses the server PDF when the sale is saved;
+							otherwise a browser-generated PDF is used.
+						</Box>
+					)}
 				</Stack>
-				<Box sx={{ maxHeight: '55vh', overflow: 'auto', bgcolor: 'grey.50', p: 2, borderRadius: 1 }}>
+				<Box
+					sx={{
+						maxHeight: '55vh',
+						overflow: 'auto',
+						bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'grey.900' : '#EEF2F7'),
+						p: 2.5,
+						borderRadius: 2
+					}}
+				>
+					<style>{INVOICE_PRINT_STYLES}</style>
 					<Box
 						ref={printRef}
 						sx={{
-							bgcolor: 'background.paper',
-							boxShadow: 2,
-							p: 4,
+							bgcolor: '#fff',
+							boxShadow: '0 12px 40px rgba(15, 23, 42, 0.12)',
+							borderRadius: 1,
+							p: { xs: 3, sm: 4.5 },
 							maxWidth: 720,
 							mx: 'auto',
-							minHeight: 320
+							minHeight: 420,
+							color: '#0F172A'
 						}}
 					>
-						<InvoicePreviewBody invoice={invoice} />
+						<InvoiceDocument invoice={invoice} />
 					</Box>
 				</Box>
 			</DialogContent>
