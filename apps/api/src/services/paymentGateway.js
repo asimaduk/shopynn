@@ -70,6 +70,17 @@ export async function chargeMobileMoney(opts) {
         };
     }
 
+    // Paystack Ghana Charge expects local MSISDN: 0XXXXXXXXX (10 digits).
+    let phoneDigits = String(phone || "").replace(/\D/g, "");
+    if (phoneDigits.startsWith("233") && phoneDigits.length >= 12) {
+        phoneDigits = `0${phoneDigits.slice(3)}`;
+    } else if (phoneDigits.length === 9) {
+        phoneDigits = `0${phoneDigits}`;
+    }
+    if (!/^0\d{9}$/.test(phoneDigits)) {
+        throw new Error("Enter a valid Ghana MoMo number (10 digits, e.g. 024XXXXXXX).");
+    }
+
     const res = await fetch(`${PAYSTACK_BASE}/charge`, {
         method: "POST",
         headers: {
@@ -82,7 +93,7 @@ export async function chargeMobileMoney(opts) {
             currency: MOBILE_MONEY_CURRENCY,
             reference,
             mobile_money: {
-                phone: String(phone).trim(),
+                phone: phoneDigits,
                 provider: String(provider).toLowerCase(),
             },
             metadata: opts.metadata || {},
@@ -91,7 +102,15 @@ export async function chargeMobileMoney(opts) {
 
     const data = await res.json();
     if (!data.status) {
-        throw new Error(data.message || "Mobile money charge failed.");
+        const detail =
+            data.message ||
+            data.data?.message ||
+            data.data?.gateway_response ||
+            "Mobile money charge failed.";
+        const err = new Error(detail);
+        err.status = 400;
+        err.code = "MOMO_CHARGE_FAILED";
+        throw err;
     }
 
     const d = data.data || {};

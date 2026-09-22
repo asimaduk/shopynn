@@ -16,7 +16,7 @@ import { FlashList } from '@shopify/flash-list';
 import { launchCamera } from 'react-native-image-picker';
 import useTheme from '../../hooks/useTheme';
 import { sales as salesApi, warehouses as warehousesApi, customers as customersApi, payments as paymentsApi, platformSettings, normalizeList } from '../../services/api';
-import { MOMO_NETWORK_OPTIONS, getMomoNetworkIcon } from '../../utils/momoNetworks';
+import { MOMO_NETWORK_OPTIONS, getMomoNetworkIcon, validateMomoNumberForProvider, isTelecelMomoProvider } from '../../utils/momoNetworks';
 import { hasPermission, hasFeature, getScreenPlanAccess, navigateToScreenOrUpgrade } from '../../utils/permissions';
 import { getPrintAgentPrintUrl } from '../../utils/printAgent';
 import {
@@ -36,7 +36,7 @@ import {
     getSaleApiErrorMessage,
 } from '../../utils/bulkDiscount';
 
-const { width, height } = Dimensions.get('screen');
+const { height } = Dimensions.get('screen');
 
 const formatter = new Intl.NumberFormat('en-GH', {
     style: 'currency',
@@ -171,7 +171,8 @@ const NewSale = ({ navigation, route }) => {
     const [momoSending, setMomoSending] = useState(false);
     const [momoStatusText, setMomoStatusText] = useState('');
     const [momoOtp, setMomoOtp] = useState('');
-    const paymentOptionsScrollRef = useRef(null);
+    const [momoNeedsOtp, setMomoNeedsOtp] = useState(false);
+    const momoPollGenRef = useRef(0);
 
     const filteredStores = stores.filter((s) =>
         !storeSearch.trim() || (s.name && s.name.toLowerCase().includes(storeSearch.toLowerCase()))
@@ -394,6 +395,8 @@ const NewSale = ({ navigation, route }) => {
                 ? `Parked MoMo confirmed. ${completeLabel} to finish.`
                 : 'Resumed parked MoMo. Check status when the customer confirms.'
         );
+        setMomoNeedsOtp(false);
+        setMomoOtp('');
         setShowPaymentOptions(true);
     }, [route.params?.restoreParkedMomo, navigation]);
 
@@ -507,8 +510,16 @@ const NewSale = ({ navigation, route }) => {
     }
 
     const handlePaymentOptionsClose = () => {
-        setShowPaymentOptions(false)
-    }
+        momoPollGenRef.current += 1;
+        setShowPaymentOptions(false);
+    };
+
+    const momoStatusNeedsOtp = (status, displayText) => {
+        const st = String(status || '').toLowerCase();
+        if (st === 'send_otp' || st === 'otp' || st === 'send_pin' || st === 'pay_offline') return true;
+        const t = String(displayText || '').toLowerCase();
+        return /\botp\b|\bvoucher\b|\*110#/.test(t);
+    };
 
     const handleMultiSelect = (records) => {
         const next = [...orders];
@@ -681,13 +692,35 @@ const NewSale = ({ navigation, route }) => {
             : 0;
     const cashTenderOk = cashTenderedAmount == null || cashTenderedAmount + 0.001 >= momoFace;
 
+    const extractMomoError = (e) => {
+        const data = e?.response?.data;
+        const candidates = [
+            data?.error,
+            data?.message,
+            data?.data?.message,
+            typeof data?.error === 'object' ? data?.error?.message : null,
+            e?.message,
+        ];
+        for (const c of candidates) {
+            if (typeof c === 'string' && c.trim() && c.trim() !== 'Something failed.') return c.trim();
+        }
+        for (const c of candidates) {
+            if (typeof c === 'string' && c.trim()) return c.trim();
+        }
+        return 'Could not start MoMo payment';
+    };
+
     const handleSendMomo = async (opts = {}) => {
         const forceNew = Boolean(opts.forceNew);
-        const digits = String(selectedPaymentOption.momoNumber || '').replace(/\D/g, '');
-        if (digits.length < 10) {
-            Alert.alert('MoMo', 'Enter a full MoMo number (10 digits).');
+        const check = validateMomoNumberForProvider(
+            selectedPaymentOption.momoNumber,
+            selectedPaymentOption.provider || 'mtn',
+        );
+        if (!check.ok) {
+            Alert.alert('MoMo', check.message);
             return;
         }
+        const digits = check.digits;
         if (momoFace <= 0) {
             Alert.alert('MoMo', 'Sale total must be greater than zero.');
             return;
@@ -696,7 +729,11 @@ const NewSale = ({ navigation, route }) => {
             Alert.alert('MoMo', `Payment already confirmed. ${completeLabel} — do not send another charge.`);
             return;
         }
+        momoPollGenRef.current += 1;
+        const pollGen = momoPollGenRef.current;
         setMomoSending(true);
+        setMomoNeedsOtp(false);
+        setMomoOtp('');
         setMomoStatusText(forceNew ? 'Starting a new MoMo prompt…' : 'Sending MoMo prompt…');
         try {
             const res = await paymentsApi.initiate({
@@ -711,17 +748,22 @@ const NewSale = ({ navigation, route }) => {
             const ref = res?.transaction_ref;
             if (!ref) {
                 Alert.alert('MoMo', 'No payment reference returned.');
-                setMomoSending(false);
+                setMomoStatusText('');
                 return;
             }
             setSelectedPaymentOption((p) => ({ ...p, transactionRef: ref, momoNumber: digits }));
 
             if (res?.reused || String(res?.status || '').toLowerCase() === 'success') {
                 setSelectedPaymentOption((p) => ({ ...p, paid: true, transactionRef: ref }));
+                setMomoNeedsOtp(false);
                 setMomoStatusText(
                     res?.display_text || `Previous MoMo payment already confirmed. ${completeLabel}.`,
                 );
                 return;
+            }
+
+            if (momoStatusNeedsOtp(res?.status, res?.display_text) || isTelecelMomoProvider(selectedPaymentOption.provider)) {
+                setMomoNeedsOtp(true);
             }
 
             if (res?.resume) {
@@ -729,34 +771,45 @@ const NewSale = ({ navigation, route }) => {
                     res?.display_text ||
                         'A MoMo prompt is already open. Ask the customer to approve it.',
                 );
+            } else if (isTelecelMomoProvider(selectedPaymentOption.provider)) {
+                setMomoStatusText(
+                    res?.display_text ||
+                        'Dial *110# on the Telecel line, then enter the voucher below.',
+                );
             } else {
                 setMomoStatusText(res?.display_text || 'Approve the MoMo prompt on the phone.');
             }
 
-            const status = String(res?.status || '').toLowerCase();
-            if (status === 'success') {
-                setSelectedPaymentOption((p) => ({ ...p, paid: true, transactionRef: ref }));
-                setMomoStatusText('Payment confirmed.');
-            } else {
-                for (let i = 0; i < 12; i += 1) {
-                    await new Promise((r) => setTimeout(r, 2500));
-                    try {
-                        const v = await paymentsApi.verify(ref);
-                        const st = String(v?.status || '').toLowerCase();
-                        if (st === 'success' || st === 'paid' || st === 'completed') {
-                            setSelectedPaymentOption((p) => ({ ...p, paid: true, transactionRef: ref }));
-                            setMomoStatusText('Payment confirmed.');
-                            break;
-                        }
-                        setMomoStatusText(`Waiting… (${st || 'pending'})`);
-                    } catch (_) {
-                        /* continue */
+            // Unlock actions immediately — do not hold the spinner across polling.
+            setMomoSending(false);
+
+            for (let i = 0; i < 12; i += 1) {
+                await new Promise((r) => setTimeout(r, 2500));
+                if (pollGen !== momoPollGenRef.current) return;
+                try {
+                    const v = await paymentsApi.verify(ref);
+                    if (pollGen !== momoPollGenRef.current) return;
+                    const st = String(v?.status || '').toLowerCase();
+                    if (momoStatusNeedsOtp(st, v?.display_text)) {
+                        setMomoNeedsOtp(true);
                     }
+                    if (st === 'success' || st === 'paid' || st === 'completed') {
+                        setSelectedPaymentOption((p) => ({ ...p, paid: true, transactionRef: ref }));
+                        setMomoNeedsOtp(false);
+                        setMomoStatusText('Payment confirmed.');
+                        break;
+                    }
+                    setMomoStatusText(
+                        v?.display_text || `Waiting for approval… (${st || 'pending'})`,
+                    );
+                } catch (_) {
+                    /* continue */
                 }
             }
         } catch (e) {
-            Alert.alert('MoMo', e?.response?.data?.message || e?.message || 'Could not start MoMo payment');
+            Alert.alert('MoMo', extractMomoError(e));
             setMomoStatusText('');
+            setMomoNeedsOtp(false);
         } finally {
             setMomoSending(false);
         }
@@ -795,6 +848,7 @@ const NewSale = ({ navigation, route }) => {
                             paid: false,
                         }));
                         setMomoOtp('');
+                        setMomoNeedsOtp(false);
                         setMomoStatusText('');
                         await handleSendMomo({ forceNew: true });
                     },
@@ -804,8 +858,9 @@ const NewSale = ({ navigation, route }) => {
     };
 
     const handleSubmitMomoOtp = async () => {
+        const isTelecel = isTelecelMomoProvider(selectedPaymentOption.provider);
         if (!selectedPaymentOption.transactionRef || !momoOtp) {
-            Alert.alert('MoMo', 'Enter the OTP from the network.');
+            Alert.alert('MoMo', isTelecel ? 'Enter the Telecel voucher from *110#.' : 'Enter the OTP from the network.');
             return;
         }
         setMomoSending(true);
@@ -817,12 +872,20 @@ const NewSale = ({ navigation, route }) => {
             const st = String(res?.status || '').toLowerCase();
             if (st === 'success') {
                 setSelectedPaymentOption((p) => ({ ...p, paid: true }));
+                setMomoNeedsOtp(false);
                 setMomoStatusText('Payment confirmed.');
+            } else if (momoStatusNeedsOtp(st, res?.display_text) || isTelecel) {
+                setMomoNeedsOtp(true);
+                setMomoStatusText(
+                    res?.display_text ||
+                        (isTelecel ? 'Voucher still required — dial *110# again if needed.' : 'OTP still required.'),
+                );
             } else {
-                setMomoStatusText(res?.display_text || 'OTP submitted — waiting…');
+                setMomoNeedsOtp(isTelecel);
+                setMomoStatusText(res?.display_text || (isTelecel ? 'Voucher submitted — waiting…' : 'OTP submitted — waiting…'));
             }
         } catch (e) {
-            Alert.alert('MoMo', e?.response?.data?.message || e?.message || 'OTP failed');
+            Alert.alert('MoMo', extractMomoError(e));
         } finally {
             setMomoSending(false);
         }
@@ -837,9 +900,13 @@ const NewSale = ({ navigation, route }) => {
             const st = String(v?.status || '').toLowerCase();
             if (st === 'success' || st === 'paid' || st === 'completed') {
                 setSelectedPaymentOption((p) => ({ ...p, paid: true }));
+                setMomoNeedsOtp(false);
                 setMomoStatusText('Payment confirmed.');
+            } else if (momoStatusNeedsOtp(st, v?.display_text)) {
+                setMomoNeedsOtp(true);
+                setMomoStatusText(v?.display_text || 'Enter the OTP / voucher from the network.');
             } else {
-                setMomoStatusText(`Status: ${st || 'pending'}`);
+                setMomoStatusText(v?.display_text || `Status: ${st || 'pending'}`);
             }
         } catch (e) {
             Alert.alert('MoMo', e?.response?.data?.message || e?.message || 'Could not verify');
@@ -858,6 +925,7 @@ const NewSale = ({ navigation, route }) => {
             Alert.alert('MoMo', 'Cart is empty.');
             return;
         }
+        momoPollGenRef.current += 1;
         setMomoSending(true);
         try {
             await paymentsApi.posPark({
@@ -886,6 +954,7 @@ const NewSale = ({ navigation, route }) => {
             });
             setMomoStatusText('');
             setMomoOtp('');
+            setMomoNeedsOtp(false);
             setShowPaymentOptions(false);
             Toast.show({
                 type: 'success',
@@ -1592,183 +1661,254 @@ const NewSale = ({ navigation, route }) => {
                 <VoiceAddToSaleModal visible={showVoiceAdd} onClose={() => setShowVoiceAdd(false)} onApply={handleVoiceCartApply} />
 
                 <AppModal title="Payment" handleClose={handlePaymentOptionsClose} onRequestClose={handlePaymentOptionsClose} visible={showPaymentOptions}>
-                    <View style={styles.paymentModalContent}>
-                        <ScrollView keyboardShouldPersistTaps="handled" horizontal pagingEnabled ref={paymentOptionsScrollRef} showsHorizontalScrollIndicator={false}>
-                            <View style={[styles.paymentSlide, { width }]}>
-                                <TouchableOpacity
-                                    activeOpacity={0.7}
-                                    onPress={() => setSelectedPaymentOption((p) => ({ ...p, method: 'cash' }))}
-                                    style={styles.paymentOptionRow}>
-                                    <View>
-                                        <AppText label="Cash" variant={1} fontSize={16} color={colors.text} />
-                                        <AppText label="Enter amount tendered" fontSize={12} color={colors.textTertiary} style={{ marginTop: 4 }} />
-                                    </View>
-                                    <View style={[styles.radioOuter, { borderColor: colors.border }, selectedPaymentOption.method === 'cash' && styles.radioOuterActive]}>
-                                        {selectedPaymentOption.method === 'cash' && <View style={styles.radioInner} />}
-                                    </View>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    activeOpacity={0.7}
-                                    onPress={() => setSelectedPaymentOption((p) => ({ ...p, method: 'momo' }))}
-                                    style={[styles.paymentOptionRow, styles.paymentOptionRowBorder, { borderTopColor: colors.border }]}>
-                                    <View>
-                                        <AppText label="Mobile money" variant={1} fontSize={16} color={colors.text} />
-                                        <AppText label="Enter MoMo number" fontSize={12} color={colors.textTertiary} style={{ marginTop: 4 }} />
-                                    </View>
-                                    <View style={[styles.radioOuter, { borderColor: colors.border }, selectedPaymentOption.method === 'momo' && styles.radioOuterActive]}>
-                                        {selectedPaymentOption.method === 'momo' && <View style={styles.radioInner} />}
-                                    </View>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    activeOpacity={0.8}
-                                    onPress={() => paymentOptionsScrollRef.current?.scrollTo({ x: width, y: 0, animated: true })}
-                                    style={styles.continuePaymentBtn}>
-                                    <AppText label="Continue" color={colors.textInverse} variant={1} />
-                                </TouchableOpacity>
-                            </View>
-                            <View style={[styles.paymentSlide, { width }]}>
-                                {selectedPaymentOption.method === 'momo' ? (
-                                    <View style={{ marginBottom: 12 }}>
-                                        <AppText label={`Sale ${momoFace.toFixed(2)}`} color={colors.text} />
-                                        {momoFee > 0 ? (
-                                            <AppText
-                                                label={`Platform charge (${momoPercent}%): ${momoFee.toFixed(2)}`}
-                                                fontSize={12}
-                                                color={colors.textTertiary}
-                                                style={{ marginTop: 4 }}
-                                            />
-                                        ) : null}
+                    <ScrollView
+                        keyboardShouldPersistTaps="handled"
+                        bounces={false}
+                        style={{ maxHeight: height * 0.72 }}
+                        contentContainerStyle={styles.paymentModalContent}
+                    >
+                        <View style={styles.methodSeg}>
+                            {[
+                                { id: 'cash', label: 'Cash' },
+                                { id: 'momo', label: 'Mobile money' },
+                            ].map((opt) => {
+                                const active = selectedPaymentOption.method === opt.id;
+                                return (
+                                    <TouchableOpacity
+                                        key={opt.id}
+                                        activeOpacity={0.75}
+                                        onPress={() => {
+                                            momoPollGenRef.current += 1;
+                                            setSelectedPaymentOption((p) => ({
+                                                ...p,
+                                                method: opt.id,
+                                                ...(opt.id === 'cash'
+                                                    ? { transactionRef: null, paid: false }
+                                                    : {}),
+                                            }));
+                                            if (opt.id === 'cash') {
+                                                setMomoStatusText('');
+                                                setMomoNeedsOtp(false);
+                                                setMomoOtp('');
+                                            }
+                                        }}
+                                        style={[
+                                            styles.methodSegBtn,
+                                            {
+                                                backgroundColor: active ? config.THEME_COLOR : colors.surfaceSecondary,
+                                                borderColor: active ? config.THEME_COLOR : colors.border,
+                                            },
+                                        ]}
+                                    >
                                         <AppText
-                                            label={`Amount to pay: ${momoChargeTotal.toFixed(2)}`}
-                                            variant={1}
-                                            color={colors.text}
-                                            style={{ marginTop: 6 }}
+                                            label={opt.label}
+                                            variant={active ? 1 : 2}
+                                            fontSize={14}
+                                            color={active ? colors.textInverse : colors.text}
                                         />
-                                    </View>
-                                ) : (
-                                    <View style={{ marginBottom: 12 }}>
-                                        <AppText label={`Sale ${momoFace.toFixed(2)}`} color={colors.text} />
-                                        <AppText
-                                            label={`Change: ${cashChangeAmount.toFixed(2)}`}
-                                            fontSize={12}
-                                            color={colors.textTertiary}
-                                            style={{ marginTop: 4 }}
-                                        />
-                                    </View>
-                                )}
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+
+                        <View style={styles.paymentSummaryRow}>
+                            <AppText label={`Sale ${momoFace.toFixed(2)}`} color={colors.text} />
+                            {selectedPaymentOption.method === 'momo' ? (
                                 <AppText
                                     label={
-                                        selectedPaymentOption.method === 'cash'
-                                            ? 'Amount tendered (GHS)'
-                                            : 'Mobile money number'
+                                        momoFee > 0
+                                            ? `Pay ${momoChargeTotal.toFixed(2)} (+${momoFee.toFixed(2)})`
+                                            : `Pay ${momoChargeTotal.toFixed(2)}`
                                     }
-                                    style={{ marginBottom: 10 }}
+                                    variant={1}
                                     color={colors.text}
                                 />
-                                <TextInput
-                                    placeholder={
-                                        selectedPaymentOption.method === 'cash'
-                                            ? momoFace.toFixed(2)
-                                            : '0XX XXX XXXX'
-                                    }
-                                    placeholderTextColor={colors.placeholder}
-                                    keyboardType={selectedPaymentOption.method === 'cash' ? 'decimal-pad' : 'phone-pad'}
-                                    value={
-                                        selectedPaymentOption.method === 'cash'
-                                            ? selectedPaymentOption.amountTendered
-                                            : selectedPaymentOption.momoNumber
-                                    }
-                                    onChangeText={(val) =>
-                                        setSelectedPaymentOption((p) =>
-                                            p.method === 'cash'
-                                                ? { ...p, amountTendered: val }
-                                                : {
-                                                      ...p,
-                                                      momoNumber: val.replace(/\D/g, '').slice(0, 10),
-                                                      paid: false,
-                                                      transactionRef: null,
-                                                  }
-                                        )
-                                    }
-                                    style={[styles.paymentInput, { borderColor: colors.inputBorder, color: colors.text }]}
+                            ) : (
+                                <AppText
+                                    label={`Change ${cashChangeAmount.toFixed(2)}`}
+                                    fontSize={13}
+                                    color={colors.textTertiary}
                                 />
-                                {selectedPaymentOption.method === 'cash' && !cashTenderOk ? (
-                                    <AppText
-                                        label={`Must be at least ${momoFace.toFixed(2)}`}
-                                        fontSize={12}
-                                        color={colors.error}
-                                        style={{ marginTop: 6 }}
-                                    />
-                                ) : null}
-                                {selectedPaymentOption.method === 'momo' ? (
-                                    <View style={{ marginTop: 10, marginBottom: 8 }}>
-                                        <AppText label="Network" style={{ marginBottom: 8 }} color={colors.text} />
-                                        <View style={styles.networkRow}>
-                                            {MOMO_NETWORK_OPTIONS.map((network) => {
-                                                const active =
-                                                    selectedPaymentOption.provider === network.provider;
-                                                return (
-                                                    <TouchableOpacity
-                                                        key={network.id}
-                                                        activeOpacity={0.7}
-                                                        onPress={() =>
-                                                            setSelectedPaymentOption((p) => ({
-                                                                ...p,
-                                                                provider: network.provider,
-                                                                paid: false,
-                                                                transactionRef: null,
-                                                            }))
-                                                        }
-                                                        style={[
-                                                            styles.networkChip,
-                                                            {
-                                                                backgroundColor: active
-                                                                    ? `${network.color}22`
-                                                                    : colors.surfaceSecondary,
-                                                                borderColor: active
-                                                                    ? network.color
-                                                                    : colors.border,
-                                                            },
-                                                        ]}
-                                                    >
-                                                        <View style={styles.networkChipInner}>
-                                                            <Image
-                                                                source={getMomoNetworkIcon(network.id)}
-                                                                style={styles.networkLogo}
-                                                                resizeMode="contain"
-                                                            />
-                                                            <AppText
-                                                                label={network.label}
-                                                                fontSize={13}
-                                                                variant={active ? 1 : 2}
-                                                                color={colors.text}
-                                                            />
-                                                        </View>
-                                                    </TouchableOpacity>
-                                                );
-                                            })}
-                                        </View>
-                                        {!selectedPaymentOption.paid && !selectedPaymentOption.transactionRef ? (
+                            )}
+                        </View>
+
+                        <AppText
+                            label={
+                                selectedPaymentOption.method === 'cash'
+                                    ? 'Amount tendered (GHS)'
+                                    : 'Mobile money number'
+                            }
+                            style={{ marginBottom: 8 }}
+                            color={colors.text}
+                        />
+                        <TextInput
+                            placeholder={
+                                selectedPaymentOption.method === 'cash'
+                                    ? momoFace.toFixed(2)
+                                    : '0XX XXX XXXX'
+                            }
+                            placeholderTextColor={colors.placeholder}
+                            keyboardType={selectedPaymentOption.method === 'cash' ? 'decimal-pad' : 'phone-pad'}
+                            value={
+                                selectedPaymentOption.method === 'cash'
+                                    ? selectedPaymentOption.amountTendered
+                                    : selectedPaymentOption.momoNumber
+                            }
+                            onChangeText={(val) => {
+                                if (selectedPaymentOption.method === 'momo') {
+                                    momoPollGenRef.current += 1;
+                                }
+                                setSelectedPaymentOption((p) =>
+                                    p.method === 'cash'
+                                        ? { ...p, amountTendered: val }
+                                        : {
+                                              ...p,
+                                              momoNumber: val.replace(/\D/g, '').slice(0, 10),
+                                              paid: false,
+                                              transactionRef: null,
+                                          }
+                                );
+                                if (selectedPaymentOption.method === 'momo') {
+                                    setMomoNeedsOtp(false);
+                                    setMomoOtp('');
+                                    setMomoStatusText('');
+                                }
+                            }}
+                            style={[styles.paymentInput, { borderColor: colors.inputBorder, color: colors.text }]}
+                        />
+                        {selectedPaymentOption.method === 'cash' && !cashTenderOk ? (
+                            <AppText
+                                label={`Must be at least ${momoFace.toFixed(2)}`}
+                                fontSize={12}
+                                color={colors.error}
+                                style={{ marginTop: 6 }}
+                            />
+                        ) : null}
+
+                        {selectedPaymentOption.method === 'momo' ? (
+                            <View style={{ marginTop: 12 }}>
+                                <AppText label="Network" style={{ marginBottom: 8 }} color={colors.text} />
+                                <View style={styles.networkRow}>
+                                    {MOMO_NETWORK_OPTIONS.map((network) => {
+                                        const active =
+                                            selectedPaymentOption.provider === network.provider;
+                                        return (
+                                            <TouchableOpacity
+                                                key={network.id}
+                                                activeOpacity={0.7}
+                                                onPress={() => {
+                                                    momoPollGenRef.current += 1;
+                                                    setSelectedPaymentOption((p) => ({
+                                                        ...p,
+                                                        provider: network.provider,
+                                                        paid: false,
+                                                        transactionRef: null,
+                                                    }));
+                                                    setMomoNeedsOtp(false);
+                                                    setMomoOtp('');
+                                                    setMomoStatusText('');
+                                                }}
+                                                style={[
+                                                    styles.networkChip,
+                                                    {
+                                                        backgroundColor: active
+                                                            ? `${network.color}22`
+                                                            : colors.surfaceSecondary,
+                                                        borderColor: active
+                                                            ? network.color
+                                                            : colors.border,
+                                                    },
+                                                ]}
+                                            >
+                                                <View style={styles.networkChipInner}>
+                                                    <Image
+                                                        source={getMomoNetworkIcon(network.id)}
+                                                        style={styles.networkLogo}
+                                                        resizeMode="contain"
+                                                    />
+                                                    <AppText
+                                                        label={network.label}
+                                                        fontSize={12}
+                                                        variant={active ? 1 : 2}
+                                                        color={colors.text}
+                                                    />
+                                                </View>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </View>
+
+                                {isTelecelMomoProvider(selectedPaymentOption.provider) ? (
+                                    <View style={{ marginTop: 12 }}>
+                                        <AppText label="Telecel voucher" style={{ marginBottom: 6 }} color={colors.text} />
+                                        <AppText
+                                            label="Dial *110# on the customer’s Telecel line to generate a voucher, then enter it here."
+                                            fontSize={12}
+                                            color={colors.textTertiary}
+                                            style={{ marginBottom: 8 }}
+                                        />
+                                        <TextInput
+                                            placeholder="Voucher code"
+                                            placeholderTextColor={colors.placeholder}
+                                            value={momoOtp}
+                                            onChangeText={setMomoOtp}
+                                            keyboardType="number-pad"
+                                            style={[
+                                                styles.paymentInput,
+                                                { borderColor: colors.inputBorder, color: colors.text },
+                                            ]}
+                                        />
+                                        {selectedPaymentOption.transactionRef && !selectedPaymentOption.paid ? (
                                             <TouchableOpacity
                                                 activeOpacity={0.8}
-                                                style={[styles.savePrintBtn, { marginTop: 12 }]}
-                                                disabled={momoSending}
-                                                onPress={() => handleSendMomo()}
+                                                style={[styles.continuePaymentBtn, { marginTop: 8 }]}
+                                                disabled={momoSending || !String(momoOtp || '').trim()}
+                                                onPress={handleSubmitMomoOtp}
                                             >
                                                 <AppText
-                                                    label={momoSending ? 'Sending…' : 'Send MoMo'}
+                                                    label={momoSending ? 'Submitting…' : 'Submit voucher'}
                                                     color={colors.textInverse}
                                                     variant={1}
                                                 />
                                             </TouchableOpacity>
                                         ) : null}
-                                        {selectedPaymentOption.transactionRef && !selectedPaymentOption.paid ? (
-                                            <View style={{ marginTop: 10 }}>
+                                    </View>
+                                ) : null}
+
+                                {!selectedPaymentOption.transactionRef ? (
+                                    <TouchableOpacity
+                                        activeOpacity={0.8}
+                                        style={[styles.savePrintBtn, { marginTop: 14 }]}
+                                        disabled={momoSending}
+                                        onPress={() => handleSendMomo()}
+                                    >
+                                        <AppText
+                                            label={momoSending ? 'Sending…' : 'Send MoMo'}
+                                            color={colors.textInverse}
+                                            variant={1}
+                                        />
+                                    </TouchableOpacity>
+                                ) : null}
+
+                                {selectedPaymentOption.transactionRef && !selectedPaymentOption.paid ? (
+                                    <View style={{ marginTop: 12 }}>
+                                        {momoStatusText ? (
+                                            <AppText
+                                                label={momoStatusText}
+                                                fontSize={12}
+                                                color={colors.textTertiary}
+                                                style={{ marginBottom: 10 }}
+                                            />
+                                        ) : null}
+
+                                        {momoNeedsOtp && !isTelecelMomoProvider(selectedPaymentOption.provider) ? (
+                                            <View style={{ marginBottom: 10 }}>
                                                 <TextInput
-                                                    placeholder="OTP if required"
+                                                    placeholder="Enter OTP"
                                                     placeholderTextColor={colors.placeholder}
                                                     value={momoOtp}
                                                     onChangeText={setMomoOtp}
+                                                    keyboardType="number-pad"
                                                     style={[
                                                         styles.paymentInput,
                                                         { borderColor: colors.inputBorder, color: colors.text },
@@ -1777,100 +1917,103 @@ const NewSale = ({ navigation, route }) => {
                                                 <TouchableOpacity
                                                     activeOpacity={0.8}
                                                     style={[styles.continuePaymentBtn, { marginTop: 8 }]}
-                                                    disabled={momoSending}
+                                                    disabled={momoSending || !momoOtp}
                                                     onPress={handleSubmitMomoOtp}
                                                 >
-                                                    <AppText label="Submit OTP" color={colors.textInverse} variant={1} />
-                                                </TouchableOpacity>
-                                                <TouchableOpacity
-                                                    activeOpacity={0.7}
-                                                    style={[styles.reselectBtn, { marginTop: 8 }]}
-                                                    disabled={momoSending}
-                                                    onPress={handleCheckMomoStatus}
-                                                >
-                                                    <AppText label="Check status" color={colors.primary} />
-                                                </TouchableOpacity>
-                                                <TouchableOpacity
-                                                    activeOpacity={0.7}
-                                                    style={[styles.reselectBtn, { marginTop: 8 }]}
-                                                    disabled={momoSending}
-                                                    onPress={handleParkMomoAndServeNext}
-                                                >
-                                                    <AppText label="Park & serve next" color={colors.primary} />
-                                                </TouchableOpacity>
-                                                <TouchableOpacity
-                                                    activeOpacity={0.7}
-                                                    style={[styles.reselectBtn, { marginTop: 8 }]}
-                                                    disabled={momoSending}
-                                                    onPress={handleCancelMomoAndSendAgain}
-                                                >
-                                                    <AppText label="Cancel & send again" color={colors.textSecondary} />
+                                                    <AppText
+                                                        label={momoSending ? 'Submitting…' : 'Submit OTP'}
+                                                        color={colors.textInverse}
+                                                        variant={1}
+                                                    />
                                                 </TouchableOpacity>
                                             </View>
                                         ) : null}
-                                        {selectedPaymentOption.transactionRef && selectedPaymentOption.paid ? (
+
+                                        <View style={styles.momoActionRow}>
                                             <TouchableOpacity
                                                 activeOpacity={0.7}
-                                                style={[styles.reselectBtn, { marginTop: 10 }]}
+                                                style={[styles.momoActionChip, { borderColor: colors.border }]}
+                                                disabled={momoSending}
+                                                onPress={handleCheckMomoStatus}
+                                            >
+                                                <AppText label="Check status" color={colors.primary} fontSize={13} variant={1} />
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                activeOpacity={0.7}
+                                                style={[styles.momoActionChip, { borderColor: colors.border }]}
                                                 disabled={momoSending}
                                                 onPress={handleParkMomoAndServeNext}
                                             >
-                                                <AppText label="Park & serve next" color={colors.primary} />
+                                                <AppText label="Park" color={colors.primary} fontSize={13} variant={1} />
                                             </TouchableOpacity>
-                                        ) : null}
-                                        {momoStatusText ? (
-                                            <AppText
-                                                label={momoStatusText}
-                                                fontSize={12}
-                                                color={colors.textTertiary}
-                                                style={{ marginTop: 8 }}
-                                            />
-                                        ) : null}
+                                            <TouchableOpacity
+                                                activeOpacity={0.7}
+                                                style={[styles.momoActionChip, { borderColor: colors.border }]}
+                                                disabled={momoSending}
+                                                onPress={handleCancelMomoAndSendAgain}
+                                            >
+                                                <AppText label="Send again" color={colors.textSecondary} fontSize={13} />
+                                            </TouchableOpacity>
+                                        </View>
                                     </View>
                                 ) : null}
-                                <TouchableOpacity
-                                    activeOpacity={0.8}
-                                    disabled={
+
+                                {selectedPaymentOption.transactionRef && selectedPaymentOption.paid && momoStatusText ? (
+                                    <AppText
+                                        label={momoStatusText}
+                                        fontSize={12}
+                                        color={colors.textTertiary}
+                                        style={{ marginTop: 10 }}
+                                    />
+                                ) : null}
+                            </View>
+                        ) : null}
+
+                        <TouchableOpacity
+                            activeOpacity={0.8}
+                            disabled={
+                                momoSending ||
+                                (selectedPaymentOption.method === 'cash' && !cashTenderOk) ||
+                                (selectedPaymentOption.method === 'momo' &&
+                                    !(selectedPaymentOption.paid && selectedPaymentOption.transactionRef))
+                            }
+                            style={[
+                                styles.savePrintBtn,
+                                {
+                                    marginTop: 16,
+                                    opacity:
                                         momoSending ||
                                         (selectedPaymentOption.method === 'cash' && !cashTenderOk) ||
                                         (selectedPaymentOption.method === 'momo' &&
-                                            !(selectedPaymentOption.paid && selectedPaymentOption.transactionRef))
-                                    }
-                                    style={[
-                                        styles.savePrintBtn,
-                                        (momoSending ||
-                                            (selectedPaymentOption.method === 'cash' && !cashTenderOk) ||
-                                            (selectedPaymentOption.method === 'momo' &&
-                                                !(
-                                                    selectedPaymentOption.paid &&
-                                                    selectedPaymentOption.transactionRef
-                                                ))) && { opacity: 0.45 },
-                                    ]}
-                                    onPress={handleSavePrint}
-                                >
-                                    <AppText
-                                        label={
-                                            selectedPaymentOption.method === 'momo' &&
-                                            !(selectedPaymentOption.paid && selectedPaymentOption.transactionRef)
-                                                ? completeAfterMomoLabel
-                                                : completeLabel
-                                        }
-                                        color={colors.textInverse}
-                                        variant={1}
-                                    />
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    activeOpacity={0.7}
-                                    onPress={() => paymentOptionsScrollRef.current?.scrollTo({ x: 0, y: 0, animated: true })}
-                                    style={styles.reselectBtn}>
-                                    <AppText label="Back" color={colors.textSecondary} />
-                                </TouchableOpacity>
-                            </View>
-                        </ScrollView>
-                        <TouchableOpacity activeOpacity={0.7} onPress={handlePaymentOptionsClose} style={styles.cancelPaymentBtn}>
+                                            !(
+                                                selectedPaymentOption.paid &&
+                                                selectedPaymentOption.transactionRef
+                                            ))
+                                            ? 0.45
+                                            : 1,
+                                },
+                            ]}
+                            onPress={handleSavePrint}
+                        >
+                            <AppText
+                                label={
+                                    selectedPaymentOption.method === 'momo' &&
+                                    !(selectedPaymentOption.paid && selectedPaymentOption.transactionRef)
+                                        ? completeAfterMomoLabel
+                                        : completeLabel
+                                }
+                                color={colors.textInverse}
+                                variant={1}
+                            />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            activeOpacity={0.7}
+                            onPress={handlePaymentOptionsClose}
+                            style={styles.cancelPaymentBtn}
+                        >
                             <AppText label="Cancel" color={colors.textSecondary} />
                         </TouchableOpacity>
-                    </View>
+                    </ScrollView>
                 </AppModal>
 
                 <InvoiceShareSheet
@@ -1936,23 +2079,32 @@ const styles = StyleSheet.create({
     menuOption: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14 },
     heldRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1 },
     heldThumb: { width: 44, height: 44, borderRadius: 8 },
-    paymentModalContent: { paddingVertical: 14 },
-    paymentSlide: { paddingHorizontal: 14 },
-    paymentOptionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14 },
-    paymentOptionRowBorder: { borderTopWidth: 1 },
-    radioOuter: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, justifyContent: 'center', alignItems: 'center' },
-    radioOuterActive: { borderColor: config.THEME_COLOR },
-    radioInner: { width: 12, height: 12, borderRadius: 6, backgroundColor: config.THEME_COLOR },
-    continuePaymentBtn: { height: 50, backgroundColor: config.THEME_COLOR, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginTop: 20 },
-    paymentInput: { height: 50, borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, fontFamily: 'FiraSans-Regular', fontSize: 16 },
+    paymentModalContent: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 8 },
+    methodSeg: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+    methodSegBtn: {
+        flex: 1,
+        height: 40,
+        borderRadius: 10,
+        borderWidth: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    paymentSummaryRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    paymentInput: { height: 46, borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, fontFamily: 'FiraSans-Regular', fontSize: 16 },
+    continuePaymentBtn: { height: 46, backgroundColor: config.THEME_COLOR, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
     networkRow: {
         flexDirection: 'row',
         gap: 8,
     },
     networkChip: {
         flex: 1,
-        paddingVertical: 10,
-        paddingHorizontal: 8,
+        paddingVertical: 8,
+        paddingHorizontal: 6,
         borderRadius: 8,
         borderWidth: 1,
         alignItems: 'center',
@@ -1960,16 +2112,28 @@ const styles = StyleSheet.create({
     networkChipInner: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
+        gap: 5,
     },
     networkLogo: {
-        width: 22,
-        height: 22,
+        width: 20,
+        height: 20,
         borderRadius: 4,
     },
+    momoActionRow: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    momoActionChip: {
+        flex: 1,
+        minHeight: 40,
+        borderRadius: 8,
+        borderWidth: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 4,
+    },
     savePrintBtn: { height: 50, backgroundColor: config.THEME_COLOR, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginTop: 20 },
-    reselectBtn: { alignItems: 'center', paddingVertical: 14, marginTop: 8 },
-    cancelPaymentBtn: { alignItems: 'center', paddingVertical: 14, marginHorizontal: 14 },
+    cancelPaymentBtn: { alignItems: 'center', paddingVertical: 12 },
 });
 
 export default NewSale;

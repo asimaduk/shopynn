@@ -280,6 +280,20 @@ export const initiatePayment = async (req, res, next) => {
             });
         }
     } catch (error) {
+        const msg = error?.message || "Could not start payment.";
+        const status = Number(error?.status) || 0;
+        if (status >= 400 && status < 500) {
+            return handleResponse(res, status, msg, {
+                code: error?.code || "PAYMENT_INIT_FAILED",
+            });
+        }
+        // Gateway / validation failures often arrive as plain Error — surface the real reason.
+        if (
+            error?.code === "MOMO_CHARGE_FAILED" ||
+            /mobile money|paystack|charge|phone|provider|momo|invalid/i.test(msg)
+        ) {
+            return handleResponse(res, 400, msg, { code: error?.code || "MOMO_CHARGE_FAILED" });
+        }
         next(error);
     }
 };
