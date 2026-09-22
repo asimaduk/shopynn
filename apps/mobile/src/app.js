@@ -15,15 +15,27 @@ import { Alert, LogBox, Platform } from 'react-native';
 import { getDeviceSecurityState } from './utils/deviceSecurity';
 import SplashScreen from 'react-native-splash-screen';
 import {
+	registerPushAfterLogin,
 	subscribeFcmTokenRefresh,
-	syncFcmTokenToServer,
 	userCanUsePushNotifications,
 } from './utils/pushNotifications';
+import { handleIncomingRemoteMessageData } from './utils/notificationNavigation';
 import NotificationPermissionHost from './components/NotificationPermissionHost';
 // LogBox.ignoreLogs(['Reanimated 2']);
 LogBox.ignoreAllLogs();
 
 const { store, persistor } = str();
+
+function isFirebaseReady() {
+	try {
+		// Lazy require so missing native init does not crash module load.
+		// eslint-disable-next-line global-require
+		const firebaseApp = require('@react-native-firebase/app').default;
+		return Boolean(firebaseApp?.apps?.length);
+	} catch (_) {
+		return false;
+	}
+}
 
 function showForegroundPush(remoteMessage) {
 	const title =
@@ -55,17 +67,30 @@ function PushLifecycle() {
 	const canUsePush = userCanUsePushNotifications(user);
 
 	useEffect(() => {
-		if (Platform.OS !== 'android') return undefined;
+		if (!isFirebaseReady()) {
+			return undefined;
+		}
 
-		const unsubscribeMessage = messaging().onMessage(async (remoteMessage) => {
-			try {
-				showForegroundPush(remoteMessage);
-			} catch (err) {
-				if (__DEV__) {
-					console.warn('FCM foreground display failed', err?.message || err);
+		let unsubscribeMessage = () => {};
+		try {
+			unsubscribeMessage = messaging().onMessage(async (remoteMessage) => {
+				try {
+					handleIncomingRemoteMessageData(remoteMessage);
+					if (Platform.OS === 'android') {
+						showForegroundPush(remoteMessage);
+					}
+				} catch (err) {
+					if (__DEV__) {
+						console.warn('FCM foreground display failed', err?.message || err);
+					}
 				}
+			});
+		} catch (err) {
+			if (__DEV__) {
+				console.warn('FCM onMessage unavailable', err?.message || err);
 			}
-		});
+		}
+
 		const unsubscribeRefresh = canUsePush ? subscribeFcmTokenRefresh() : () => {};
 
 		return () => {
@@ -75,9 +100,13 @@ function PushLifecycle() {
 	}, [canUsePush]);
 
 	useEffect(() => {
-		if (Platform.OS !== 'android' || !isLoggedIn || !canUsePush) return undefined;
-		syncFcmTokenToServer();
+		if (!isLoggedIn || !canUsePush || !isFirebaseReady()) {
+			return undefined;
+		}
+		// Soft custom sheet once; system dialog only after Enable. Never prompts if deferred.
+		registerPushAfterLogin({ user }).catch(() => {});
 		return undefined;
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run on login/plan gate
 	}, [isLoggedIn, canUsePush]);
 
 	return null;

@@ -15,6 +15,7 @@ import config from '../config';
 import useTheme from '../hooks/useTheme';
 
 const BENEFITS = [
+	{ icon: 'smartphone', label: 'MoMo payment updates' },
 	{ icon: 'package-search', label: 'Low stock alerts' },
 	{ icon: 'package', label: 'New online orders' },
 	{ icon: 'chart-column', label: 'Daily sales summary' },

@@ -1,47 +1,82 @@
 import React from 'react';
-import { View, TouchableOpacity } from 'react-native';
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import { useSelector } from 'react-redux';
-import styles from './styles';
 import AppText from '../../components/text';
 import useTheme from '../../hooks/useTheme';
+import config from '../../config';
 import { canManageCustomerSignupCodes } from '../../utils/permissions';
 
-const WarehouseItem = ({ item, index, navigation }) => {
+const WarehouseItem = ({ item, navigation }) => {
     const { colors } = useTheme();
     const currentUser = useSelector(({ user }) => user?.data);
     const subscriptionFeatures = useSelector(({ appSettings }) => appSettings?.subscriptionFeatures || []);
     const canCustomerSignupCodes = canManageCustomerSignupCodes(currentUser, subscriptionFeatures);
-    const handlePress = () => {
-        if (navigation) {
-            navigation.navigate('EditWarehouse', { warehouse: item });
-        }
-    };
+    const location = item.location || item.address || '';
+    const manager = item.manager || '';
 
     return (
         <TouchableOpacity
-            activeOpacity={0.7}
-            style={[styles.itemContainer, { backgroundColor: colors.surface, marginHorizontal: 10 }]}
-            onPress={handlePress}
+            activeOpacity={0.75}
+            onPress={() => navigation?.navigate('EditWarehouse', { warehouse: item })}
+            style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
         >
-            <AppText label={`${index + 1}`} style={[styles.itemIndex, { color: colors.textTertiary }]} fontSize={14} />
-            <View style={styles.itemContent}>
-                <AppText label={item.name} style={[styles.itemName, { color: colors.text }]} numberOfLines={1} />
-                <AppText label={item.location || 'Location not set'} style={[styles.itemDetail, { color: colors.textSecondary }]} numberOfLines={1} />
-                {canCustomerSignupCodes && item.reference_code ? (
-                    <AppText
-                        label={`Signup code: ${item.reference_code}`}
-                        style={[styles.itemDetail, { color: colors.textTertiary }]}
-                        numberOfLines={1}
-                    />
-                ) : null}
-                <AppText label={`Manager: ${item.manager || 'Not set'}`} style={[styles.itemDetail, { color: colors.textSecondary }]} numberOfLines={1} />
-            </View>
-            <View style={styles.itemArrow}>
-                <Lucide name="chevron-right" color={colors.textTertiary} size={20} />
+            <View style={styles.topRow}>
+                <View style={[styles.iconWrap, { backgroundColor: colors.surfaceSecondary || `${config.THEME_COLOR}12` }]}>
+                    <Lucide name="store" size={18} color={config.THEME_COLOR} />
+                </View>
+                <View style={styles.main}>
+                    <AppText label={item.name || 'Unnamed store'} variant={1} fontSize={15} color={colors.text} numberOfLines={1} />
+                    {location ? (
+                        <View style={styles.metaRow}>
+                            <Lucide name="map-pin" size={12} color={colors.textTertiary} />
+                            <AppText label={location} fontSize={12} color={colors.textSecondary} numberOfLines={1} style={styles.metaText} />
+                        </View>
+                    ) : null}
+                    {manager ? (
+                        <View style={styles.metaRow}>
+                            <Lucide name="user" size={12} color={colors.textTertiary} />
+                            <AppText label={manager} fontSize={12} color={colors.textSecondary} numberOfLines={1} style={styles.metaText} />
+                        </View>
+                    ) : null}
+                    {canCustomerSignupCodes && item.reference_code ? (
+                        <View style={styles.metaRow}>
+                            <Lucide name="hash" size={12} color={colors.textTertiary} />
+                            <AppText
+                                label={`Signup code: ${item.reference_code}`}
+                                fontSize={12}
+                                color={colors.textTertiary}
+                                numberOfLines={1}
+                                style={styles.metaText}
+                            />
+                        </View>
+                    ) : null}
+                </View>
+                <Lucide name="chevron-right" color={colors.border} size={18} style={{ marginLeft: 4 }} />
             </View>
         </TouchableOpacity>
     );
 };
+
+const styles = StyleSheet.create({
+    card: {
+        borderRadius: 12,
+        borderWidth: StyleSheet.hairlineWidth,
+        padding: 14,
+        marginBottom: 10,
+    },
+    topRow: { flexDirection: 'row', alignItems: 'flex-start' },
+    iconWrap: {
+        width: 42,
+        height: 42,
+        borderRadius: 21,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 12,
+    },
+    main: { flex: 1, minWidth: 0 },
+    metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+    metaText: { marginLeft: 6, flex: 1 },
+});
 
 export default WarehouseItem;

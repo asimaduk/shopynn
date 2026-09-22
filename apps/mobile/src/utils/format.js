@@ -1,8 +1,10 @@
 export const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'GHS',
-    }).format(amount).replace('GH₵', 'GHS ').trim();
+    const n = Number(amount) || 0;
+    const formatted = n.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
+    return `₵ ${formatted}`;
 };
 
 /** Drop trailing zeros from decimal quantities (e.g. 100.000 → 100). */

@@ -67,11 +67,11 @@ const PRODUCTS_CACHE_META_KEY = 'SHOPYNN_PRODUCTS_CACHE_META_V1';
 const formatCurrency = (value) => {
   const amount = Number(value) || 0;
   if (amount >= 1000000) {
-      return `GHS ${(amount / 1000000).toFixed(1)}M`;
+      return `₵ ${(amount / 1000000).toFixed(1)}M`;
   } else if (amount >= 1000) {
-      return `GHS ${(amount / 1000).toFixed(1)}K`;
+      return `₵ ${(amount / 1000).toFixed(1)}K`;
   }
-  return `GHS ${amount.toFixed(2)}`;
+  return `₵ ${amount.toFixed(2)}`;
 }
 
 // Animated Product Item Component

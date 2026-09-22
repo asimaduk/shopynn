@@ -50,7 +50,7 @@ const NewAdjustments = ({ navigation, route }) => {
         (s) => !storeSearch.trim() || (s.name && s.name.toLowerCase().includes(storeSearch.toLowerCase()))
     );
 
-    // Load stores (warehouses) from API when screen is focused
+    // Load stores once on focus
     useFocusEffect(
         React.useCallback(() => {
             let active = true;
@@ -58,12 +58,9 @@ const NewAdjustments = ({ navigation, route }) => {
                 try {
                     const rawStores = await warehousesApi.list();
                     const list = normalizeList(rawStores) || [];
-                    if (active) {
-                        setStores(list);
-                        if (!selectedStore && list.length > 0) {
-                            setSelectedStore(list[0]);
-                        }
-                    }
+                    if (!active) return;
+                    setStores(list);
+                    setSelectedStore((prev) => prev || list[0] || null);
                 } catch (_) {
                     if (active) setStores([]);
                 }
@@ -72,8 +69,21 @@ const NewAdjustments = ({ navigation, route }) => {
             return () => {
                 active = false;
             };
-        }, [selectedStore])
+        }, [])
     );
+
+    const openProductSearch = () => {
+        if (!selectedStore?.id) {
+            Alert.alert('Select store', 'Choose a store before adding products.');
+            return;
+        }
+        navigation.navigate('Search', {
+            source_nav: 'inventory',
+            searchOnly: true,
+            onSelect: (record) => handleSingleSelect(record),
+            onMultiSelect: (records) => handleMultiSelect(records),
+        });
+    };
 
     const handleSingleSelect = (product) => {
         const fnd = orders.find((o) => o.id === product.id || o.name === product.name);
@@ -204,15 +214,9 @@ const NewAdjustments = ({ navigation, route }) => {
                     <View style={styles.headerActions}>
                         <TouchableOpacity
                             activeOpacity={0.7}
-                            onPress={() =>
-                                navigation.navigate('Search', {
-                                    source_nav: 'inventory',
-                                    searchOnly: true,
-                                    onSelect: (record) => handleSingleSelect(record),
-                                    onMultiSelect: (records) => handleMultiSelect(records),
-                                })
-                            }
-                            style={styles.headerBtn}>
+                            onPress={openProductSearch}
+                            style={[styles.headerBtn, { backgroundColor: colors.surface }]}
+                        >
                             <Lucide name="plus" color={config.THEME_COLOR} size={22} />
                         </TouchableOpacity>
                     </View>
@@ -223,22 +227,45 @@ const NewAdjustments = ({ navigation, route }) => {
                     contentContainerStyle={styles.content}
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}>
-                    {/* Store selection */}
+                    {/* 1. Store */}
                     <TouchableOpacity
                         activeOpacity={0.7}
-                        onPress={() => setShowStorePicker(true)}
-                        style={[styles.storeCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                        onPress={() => {
+                            if (orders.length > 0) {
+                                Alert.alert(
+                                    'Store locked',
+                                    'Remove all items before changing the store for this adjustment.',
+                                );
+                                return;
+                            }
+                            setShowStorePicker(true);
+                        }}
+                        style={[
+                            styles.storeCard,
+                            {
+                                backgroundColor: colors.surface,
+                                borderColor: colors.border,
+                                opacity: orders.length > 0 ? 0.7 : 1,
+                            },
+                        ]}
+                    >
                         <View style={styles.storeIconWrap}>
                             <Lucide name="store" size={18} color={config.THEME_COLOR} />
                         </View>
                         <View style={{ flex: 1, marginLeft: 10 }}>
                             <AppText label="Store" fontSize={11} color={colors.textTertiary} />
-                            <AppText label={selectedStore?.name || 'Select store'} variant={1} fontSize={14} numberOfLines={1} color={colors.text} />
+                            <AppText
+                                label={selectedStore?.name || 'Select store'}
+                                variant={1}
+                                fontSize={14}
+                                numberOfLines={1}
+                                color={colors.text}
+                            />
                         </View>
                         <Lucide name="chevron-down" size={18} color={colors.textTertiary} />
                     </TouchableOpacity>
 
-                    {/* Items section */}
+                    {/* 2. Items */}
                     <View style={styles.itemsHeader}>
                         <AppText label="Items" variant={1} fontSize={15} color={colors.text} />
                         <AppText label={`${orders.length} product(s)`} fontSize={13} color={colors.textSecondary} />
@@ -247,25 +274,30 @@ const NewAdjustments = ({ navigation, route }) => {
                     {orders.length === 0 ? (
                         <TouchableOpacity
                             activeOpacity={0.7}
-                            onPress={() =>
-                                navigation.navigate('Search', {
-                                    source_nav: 'inventory',
-                                    searchOnly: true,
-                                    onMultiSelect: handleMultiSelect,
-                                })
-                            }
-                            style={[styles.emptyState, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                            onPress={openProductSearch}
+                            style={[
+                                styles.emptyState,
+                                { backgroundColor: colors.surface, borderColor: colors.border },
+                            ]}
+                        >
                             <View style={[styles.emptyIconWrap, { backgroundColor: colors.inputBackground }]}>
-                                <Lucide name="package-plus" size={40} color={colors.border} />
+                                <Lucide name="package-plus" size={40} color={colors.textTertiary} />
                             </View>
                             <AppText label="No items added" variant={1} fontSize={16} color={colors.textSecondary} />
-                            <AppText label="Tap to add products" fontSize={14} color={colors.textTertiary} style={{ marginTop: 4 }} />
+                            <AppText
+                                label="Tap to add products, then choose add or remove stock"
+                                fontSize={14}
+                                color={colors.textTertiary}
+                                style={{ marginTop: 4, textAlign: 'center' }}
+                            />
                         </TouchableOpacity>
                     ) : (
                         <View style={[styles.listCard, { backgroundColor: colors.surface }]}>
                             {orders.map((item) => {
                                 const isAddition = item.adjustment_type === 'addition';
-                                const typeColor = isAddition ? (config.GREEN_COLOR || colors.success) : colors.error;
+                                const typeColor = isAddition
+                                    ? config.GREEN_COLOR || colors.success
+                                    : colors.error;
                                 const typeBg = isAddition ? colors.successLight : colors.errorLight;
                                 return (
                                     <TouchableOpacity
@@ -275,13 +307,23 @@ const NewAdjustments = ({ navigation, route }) => {
                                             setSelectedProduct(item);
                                             setShowMenu(true);
                                         }}
-                                        style={[styles.listRow, { borderBottomColor: colors.border }]}>
+                                        style={[styles.listRow, { borderBottomColor: colors.border }]}
+                                    >
                                         <View style={styles.listRowLeft}>
                                             <View style={[styles.typeBadge, { backgroundColor: typeBg }]}>
-                                                <Lucide name={isAddition ? 'plus' : 'minus'} size={14} color={typeColor} />
+                                                <Lucide
+                                                    name={isAddition ? 'plus' : 'minus'}
+                                                    size={14}
+                                                    color={typeColor}
+                                                />
                                             </View>
                                             <View style={styles.listRowInfo}>
-                                                <AppText label={item.name} numberOfLines={2} style={{ flex: 1 }} color={colors.text} />
+                                                <AppText
+                                                    label={item.name}
+                                                    numberOfLines={2}
+                                                    style={{ flex: 1 }}
+                                                    color={colors.text}
+                                                />
                                                 <AppText
                                                     label={isAddition ? 'Stock added' : 'Stock removed'}
                                                     fontSize={11}
@@ -290,7 +332,12 @@ const NewAdjustments = ({ navigation, route }) => {
                                             </View>
                                         </View>
                                         <View style={styles.qtyWrap}>
-                                            <AppText label={`×${item.order_quantity}`} variant={1} fontSize={16} color={typeColor} />
+                                            <AppText
+                                                label={`×${item.order_quantity}`}
+                                                variant={1}
+                                                fontSize={16}
+                                                color={typeColor}
+                                            />
                                         </View>
                                     </TouchableOpacity>
                                 );
@@ -298,71 +345,137 @@ const NewAdjustments = ({ navigation, route }) => {
                         </View>
                     )}
 
-                    {/* Summary & Reason */}
-                    {orders.length > 0 && (
+                    {/* 3. Summary + reason (only after items) */}
+                    {orders.length > 0 ? (
                         <>
                             <View style={[styles.summaryCard, { backgroundColor: colors.surface }]}>
                                 <View style={styles.summaryRow}>
-                                    <AppText label="Total items" color={colors.textSecondary} />
-                                    <AppText label={totalItems} color={colors.text} />
+                                    <AppText label="Total units" color={colors.textSecondary} />
+                                    <AppText label={String(totalItems)} color={colors.text} />
                                 </View>
                                 <View style={styles.summaryRow}>
                                     <View style={styles.summaryLabelWrap}>
-                                        <Lucide name="plus" size={14} color={config.GREEN_COLOR || colors.success} />
-                                        <AppText label="Additions" color={colors.textSecondary} style={{ marginLeft: 6 }} />
+                                        <Lucide
+                                            name="plus"
+                                            size={14}
+                                            color={config.GREEN_COLOR || colors.success}
+                                        />
+                                        <AppText
+                                            label="Additions"
+                                            color={colors.textSecondary}
+                                            style={{ marginLeft: 6 }}
+                                        />
                                     </View>
-                                    <AppText label={additions} color={config.GREEN_COLOR || colors.success} />
+                                    <AppText
+                                        label={String(additions)}
+                                        color={config.GREEN_COLOR || colors.success}
+                                    />
                                 </View>
                                 <View style={styles.summaryRow}>
                                     <View style={styles.summaryLabelWrap}>
                                         <Lucide name="minus" size={14} color={colors.error} />
-                                        <AppText label="Subtractions" color={colors.textSecondary} style={{ marginLeft: 6 }} />
+                                        <AppText
+                                            label="Subtractions"
+                                            color={colors.textSecondary}
+                                            style={{ marginLeft: 6 }}
+                                        />
                                     </View>
-                                    <AppText label={subtractions} color={colors.error} />
+                                    <AppText label={String(subtractions)} color={colors.error} />
                                 </View>
                             </View>
 
-                            <View style={[styles.referenceWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                            <View
+                                style={[
+                                    styles.referenceWrap,
+                                    { backgroundColor: colors.surface, borderColor: colors.border },
+                                ]}
+                            >
                                 <View style={styles.reasonHeader}>
                                     <Lucide name="hash" size={18} color={colors.textTertiary} />
-                                    <AppText label="Reference number" variant={1} fontSize={14} color={colors.text} style={{ marginLeft: 8 }} />
+                                    <AppText
+                                        label="Reference (optional)"
+                                        variant={1}
+                                        fontSize={14}
+                                        color={colors.text}
+                                        style={{ marginLeft: 8 }}
+                                    />
                                 </View>
                                 <TextInput
-                                    placeholder="e.g., ADJ-001, Ref #12345"
+                                    placeholder="e.g. ADJ-001"
                                     placeholderTextColor={colors.placeholder}
                                     value={referenceNumber}
                                     onChangeText={setReferenceNumber}
-                                    style={[styles.referenceInput, { color: colors.text, borderColor: colors.border }]}
+                                    style={[
+                                        styles.referenceInput,
+                                        {
+                                            color: colors.text,
+                                            borderColor: colors.border,
+                                            backgroundColor: colors.inputBackground,
+                                        },
+                                    ]}
                                 />
                             </View>
 
-                            <View style={[styles.reasonWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                            <View
+                                style={[
+                                    styles.reasonWrap,
+                                    { backgroundColor: colors.surface, borderColor: colors.border },
+                                ]}
+                            >
                                 <View style={styles.reasonHeader}>
                                     <Lucide name="message-square" size={18} color={colors.textTertiary} />
-                                    <AppText label="Reason for adjustment" variant={1} fontSize={14} color={colors.text} style={{ marginLeft: 8 }} />
+                                    <AppText
+                                        label="Reason"
+                                        variant={1}
+                                        fontSize={14}
+                                        color={colors.text}
+                                        style={{ marginLeft: 8 }}
+                                    />
                                     <AppText label=" *" color={colors.error} />
                                 </View>
                                 <TextInput
-                                    placeholder="e.g., Damaged goods, Inventory count correction, Returned items..."
+                                    placeholder="e.g. Damaged goods, count correction…"
                                     placeholderTextColor={colors.placeholder}
                                     value={reason}
                                     onChangeText={setReason}
-                                    style={[styles.reasonInput, { color: colors.text }]}
+                                    style={[
+                                        styles.reasonInput,
+                                        {
+                                            color: colors.text,
+                                            backgroundColor: colors.inputBackground,
+                                            borderColor: colors.border,
+                                        },
+                                    ]}
                                     multiline
                                 />
                             </View>
-                        </>
-                    )}
 
-                    {/* Proceed */}
-                    <TouchableOpacity
-                        activeOpacity={0.8}
-                        onPress={handleSaveAdjustment}
-                        disabled={orders.length === 0 || !reason.trim()}
-                        style={[styles.proceedBtn, (orders.length === 0 || !reason.trim()) && styles.proceedBtnDisabled]}>
-                        <Lucide name="save" color={colors.textInverse} size={20} />
-                        <AppText label="Save adjustment" color={colors.textInverse} variant={1} fontSize={16} style={{ marginLeft: 10 }} />
-                    </TouchableOpacity>
+                            <TouchableOpacity
+                                activeOpacity={0.8}
+                                onPress={handleSaveAdjustment}
+                                disabled={saving || !reason.trim()}
+                                style={[
+                                    styles.proceedBtn,
+                                    (saving || !reason.trim()) && styles.proceedBtnDisabled,
+                                ]}
+                            >
+                                {saving ? (
+                                    <AppText label="Saving…" color="#fff" variant={1} fontSize={16} />
+                                ) : (
+                                    <>
+                                        <Lucide name="save" color="#fff" size={20} />
+                                        <AppText
+                                            label="Save adjustment"
+                                            color="#fff"
+                                            variant={1}
+                                            fontSize={16}
+                                            style={{ marginLeft: 10 }}
+                                        />
+                                    </>
+                                )}
+                            </TouchableOpacity>
+                        </>
+                    ) : null}
                 </ScrollView>
 
                 {/* Store picker */}
@@ -490,7 +603,7 @@ const NewAdjustments = ({ navigation, route }) => {
                                 styles.modalSubmitBtn,
                                 (!quantity || Number(quantity) <= 0) && styles.modalSubmitBtnDisabled,
                             ]}>
-                            <AppText label="Add" color={colors.textInverse} variant={1} />
+                            <AppText label="Add" color="#fff" variant={1} />
                         </TouchableOpacity>
                     </View>
                 </AppModal>
@@ -527,7 +640,7 @@ const NewAdjustments = ({ navigation, route }) => {
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
-    safeArea: { flex: 1, backgroundColor: '#f8fafc' },
+    safeArea: { flex: 1 },
     scrollView: { flex: 1 },
     content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 24 },
     headerActions: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
@@ -537,8 +650,8 @@ const styles = StyleSheet.create({
         borderRadius: 22,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#fff',
         marginLeft: 10,
+        marginRight: 8,
     },
     storeCard: {
         flexDirection: 'row',
@@ -563,35 +676,26 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     emptyState: {
-        backgroundColor: '#fff',
         borderRadius: 16,
         padding: 40,
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 2,
         borderStyle: 'dashed',
-        borderColor: '#e2e8f0',
-        marginBottom: 20
+        marginBottom: 20,
     },
     emptyIconWrap: {
         width: 72,
         height: 72,
         borderRadius: 36,
-        backgroundColor: '#f1f5f9',
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 16,
     },
     listCard: {
-        backgroundColor: '#fff',
         borderRadius: 16,
         overflow: 'hidden',
         marginBottom: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-        elevation: 3,
     },
     listRow: {
         flexDirection: 'row',
@@ -599,8 +703,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: 14,
         paddingHorizontal: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: '#f1f5f9',
+        borderBottomWidth: StyleSheet.hairlineWidth,
     },
     listRowLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
     typeBadge: {
@@ -614,15 +717,9 @@ const styles = StyleSheet.create({
     listRowInfo: { flex: 1 },
     qtyWrap: { alignItems: 'flex-end' },
     summaryCard: {
-        backgroundColor: '#fff',
         borderRadius: 16,
         padding: 16,
         marginBottom: 12,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-        elevation: 3,
     },
     summaryRow: {
         flexDirection: 'row',
@@ -636,13 +733,8 @@ const styles = StyleSheet.create({
     referenceWrap: {
         borderRadius: 16,
         padding: 16,
-        marginBottom: 16,
+        marginBottom: 12,
         borderWidth: 1,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-        elevation: 3,
     },
     referenceInput: {
         height: 48,
@@ -653,15 +745,10 @@ const styles = StyleSheet.create({
         borderWidth: 1,
     },
     reasonWrap: {
-        backgroundColor: '#fff',
         borderRadius: 16,
         padding: 16,
         marginBottom: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-        elevation: 3,
+        borderWidth: 1,
     },
     reasonHeader: {
         flexDirection: 'row',
@@ -672,13 +759,10 @@ const styles = StyleSheet.create({
         flex: 1,
         fontFamily: 'FiraSans-Regular',
         fontSize: 15,
-        color: '#1e293b',
         padding: 12,
         minHeight: 100,
-        backgroundColor: '#f8fafc',
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#e2e8f0',
         textAlignVertical: 'top',
     },
     proceedBtn: {
@@ -688,8 +772,9 @@ const styles = StyleSheet.create({
         height: 54,
         backgroundColor: config.THEME_COLOR,
         borderRadius: 14,
+        marginBottom: 8,
     },
-    proceedBtnDisabled: { opacity: 0.5 },
+    proceedBtnDisabled: { opacity: 0.45 },
     modalContent: { padding: 16, paddingBottom: 24 },
     modalSearch: {
         height: 48,

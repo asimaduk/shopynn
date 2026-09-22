@@ -8,7 +8,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Lucide from '@react-native-vector-icons/lucide';
 import { useSelector, useDispatch } from 'react-redux';
 import { SET_USER } from '../store/actions/user';
-import useInactivityTimer from '../hooks/useInactivityTimer';
 import { canAccessScreen, hasPermission } from '../utils/permissions';
 import {
     flushPendingNotificationNavigation,
@@ -380,13 +379,9 @@ function HomeStackScreen() {
     );
 }
 
-function MainNavigator({ user }) {
-    const isLoggedIn = useSelector(({ user: sUser }) => sUser?.isLoggedIn);
+function MainNavigator({ user, onNavigationStateChange }) {
     const postLoginScreen = useSelector(({ user: sUser }) => sUser?.postLoginScreen);
     const dispatch = useDispatch();
-
-    // Initialize inactivity timer - tracks navigation events and app state changes
-    const { onNavigationStateChange } = useInactivityTimer(isLoggedIn);
 
     useEffect(() => {
         if (postLoginScreen !== 'ClientsTab') return undefined;

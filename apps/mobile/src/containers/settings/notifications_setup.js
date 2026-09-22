@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, Switch, View, ScrollView, ActivityIndicator, Alert, Platform, TouchableOpacity, Linking } from 'react-native';
+import { StyleSheet, Switch, View, ScrollView, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AppText from '../../components/text';
 import config from '../../config';
@@ -8,9 +8,10 @@ import { Lucide } from '@react-native-vector-icons/lucide';
 import useTheme from '../../hooks/useTheme';
 import { users as usersApi } from '../../services/api';
 import {
-    hasAndroidNotificationPermission,
+    hasNotificationPermission,
     promptForNotificationPermission,
     syncFcmTokenToServer,
+    openNotificationSettings,
 } from '../../utils/pushNotifications';
 
 const DEFAULT_SETTINGS = {
@@ -89,17 +90,13 @@ const NotificationsSetup = ({ navigation, route }) => {
     }, []);
 
     const checkNotificationPermission = useCallback(() => {
-        if (Platform.OS !== 'android') {
-            setPushAllowed(true);
-            return;
-        }
         setCheckingPermission(true);
-        hasAndroidNotificationPermission()
+        hasNotificationPermission()
             .then((granted) => {
                 setPushAllowed(!!granted);
             })
             .catch(() => {
-                setPushAllowed(true);
+                setPushAllowed(false);
             })
             .finally(() => setCheckingPermission(false));
     }, []);
@@ -109,15 +106,12 @@ const NotificationsSetup = ({ navigation, route }) => {
     }, [checkNotificationPermission]);
 
     const requestNotificationPermission = useCallback(async () => {
-        if (Platform.OS !== 'android') {
-            return;
-        }
         setCheckingPermission(true);
         try {
             const granted = await promptForNotificationPermission({
                 title: 'Enable push notifications',
                 message:
-                    'Allow Shopynn to send alerts for low stock, online orders, and your daily sales summary. You can turn individual alerts on or off below.',
+                    'Allow Shopynn to send alerts for MoMo payments, low stock, online orders, and your daily sales summary. You can turn individual alerts on or off below.',
                 confirmLabel: 'Allow',
                 cancelLabel: 'Not now',
             });
@@ -150,7 +144,7 @@ const NotificationsSetup = ({ navigation, route }) => {
 
     const toggleSetting = async (key) => {
         const turningOn = !settings[key];
-        if (turningOn && Platform.OS === 'android' && !pushAllowed) {
+        if (turningOn && !pushAllowed) {
             const granted = await promptForNotificationPermission({
                 title: 'Notifications are off',
                 message:
@@ -240,7 +234,7 @@ const NotificationsSetup = ({ navigation, route }) => {
                                     />
                                 </TouchableOpacity>
                                 <TouchableOpacity
-                                    onPress={() => Linking.openSettings().catch(() => {})}
+                                    onPress={() => openNotificationSettings()}
                                     style={{
                                         alignSelf: 'flex-start',
                                         paddingHorizontal: 12,

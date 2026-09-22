@@ -325,7 +325,7 @@ const Sales = ({ navigation }) => {
                 <View style={[styles.headerContainer, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
                     <View style={styles.summaryRow}>
                         <View>
-                            <AppText label={'Sales History'} fontSize={18} variant={1} color={colors.text} />
+                            <AppText label={'Sales'} fontSize={18} variant={1} color={colors.text} />
                             {selectedDateRange !== 'all_time' && (
                                 <TouchableOpacity
                                     activeOpacity={0.7}

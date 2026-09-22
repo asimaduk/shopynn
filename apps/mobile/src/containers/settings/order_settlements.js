@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
-    Dimensions,
     FlatList,
     Image,
     Modal,
@@ -339,65 +338,76 @@ const OrderSettlements = ({ navigation }) => {
         ]);
     };
 
-    const cardStyle = {
-        borderRadius: 12,
-        backgroundColor: colors.surface,
-        borderWidth: 1,
-        borderColor: colors.border,
-    };
-
-    const statsGap = 10;
-    const statsPad = 16;
-    const tileWidth = (Dimensions.get('window').width - statsPad * 2 - statsGap) / 2;
-
     const localStyles = StyleSheet.create({
-        statsGrid: {
-            flexDirection: 'row',
-            flexWrap: 'wrap',
-            gap: statsGap,
-            paddingHorizontal: statsPad,
-            marginTop: 12,
-            marginBottom: 12,
-        },
-        statTile: {
-            width: tileWidth,
-            padding: 14,
-            borderRadius: 14,
-            borderWidth: 1,
-        },
-        statIcon: {
-            width: 36,
-            height: 36,
-            borderRadius: 10,
+        headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+        headerBtn: {
+            height: 34,
+            width: 34,
+            borderRadius: 17,
             alignItems: 'center',
             justifyContent: 'center',
-            marginBottom: 10,
+        },
+        summaryRow: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 8,
+            paddingHorizontal: 15,
+            marginTop: 10,
+            marginBottom: 12,
+        },
+        summaryChip: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            borderRadius: 999,
+            borderWidth: StyleSheet.hairlineWidth,
+            maxWidth: '100%',
         },
         section: {
             marginHorizontal: 16,
             marginBottom: 12,
             padding: 14,
             borderRadius: 12,
-            borderWidth: 1,
+            borderWidth: StyleSheet.hairlineWidth,
             borderColor: colors.border,
             backgroundColor: colors.surface,
         },
-        rowItem: {
-            paddingHorizontal: 16,
-            paddingVertical: 14,
-            borderBottomWidth: StyleSheet.hairlineWidth,
+        historyCard: {
+            marginHorizontal: 16,
+            marginBottom: 10,
+            padding: 14,
+            borderRadius: 12,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: colors.border,
+            backgroundColor: colors.surface,
+        },
+        emptyWrap: {
+            marginHorizontal: 16,
+            paddingVertical: 36,
+            alignItems: 'center',
+            borderRadius: 12,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: colors.border,
+            backgroundColor: colors.surface,
+        },
+        emptyIcon: {
+            width: 56,
+            height: 56,
+            borderRadius: 28,
+            alignItems: 'center',
+            justifyContent: 'center',
         },
     });
 
     const statTiles = [
         {
             key: 'digital',
-            label: 'Digital collected',
+            label: 'Collected',
             value: formatAmount(summary?.digital_collected),
             valueColor: colors.text,
             icon: 'wallet',
             iconColor: config.THEME_COLOR,
-            iconBg: colors.primaryShade,
         },
         {
             key: 'paid',
@@ -406,25 +416,22 @@ const OrderSettlements = ({ navigation }) => {
             valueColor: '#16a34a',
             icon: 'circle-check',
             iconColor: '#16a34a',
-            iconBg: '#dcfce7',
         },
         {
             key: 'pending',
-            label: 'Pending payout',
+            label: 'Pending',
             value: formatAmount(summary?.pending_settlements),
             valueColor: '#d97706',
             icon: 'clock',
             iconColor: '#d97706',
-            iconBg: '#fef3c7',
         },
         {
             key: 'available',
-            label: 'Available balance',
+            label: 'Available',
             value: formatAmount(summary?.available_balance),
             valueColor: '#2563eb',
             icon: 'landmark',
             iconColor: '#2563eb',
-            iconBg: '#dbeafe',
         },
     ];
 
@@ -442,22 +449,22 @@ const OrderSettlements = ({ navigation }) => {
     return (
         <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader onPress={() => navigation.goBack()} label="Order settlements">
-                <View style={styles.headerActions}>
+                <View style={localStyles.headerActions}>
                     <TouchableOpacity
-                        activeOpacity={0.6}
+                        activeOpacity={0.7}
                         onPress={() => navigation.navigate('OrderPayments')}
-                        style={[styles.actionButton, { backgroundColor: colors.surface }]}>
-                        <Lucide name="banknote" color={config.THEME_COLOR} size={20} />
+                        style={[localStyles.headerBtn, { backgroundColor: colors.surface }]}>
+                        <Lucide name="banknote" color={config.THEME_COLOR} size={18} />
                     </TouchableOpacity>
                     <TouchableOpacity
-                        activeOpacity={0.6}
+                        activeOpacity={0.7}
                         onPress={onRefresh}
                         disabled={refreshing}
-                        style={[styles.actionButton, { backgroundColor: colors.surface }, refreshing && { opacity: 0.5 }]}>
+                        style={[localStyles.headerBtn, { backgroundColor: colors.surface }, refreshing && { opacity: 0.5 }]}>
                         {refreshing ? (
                             <ActivityIndicator size="small" color={config.THEME_COLOR} />
                         ) : (
-                            <Lucide name="refresh-cw" color={config.THEME_COLOR} size={20} />
+                            <Lucide name="refresh-cw" color={config.THEME_COLOR} size={18} />
                         )}
                     </TouchableOpacity>
                 </View>
@@ -467,29 +474,21 @@ const OrderSettlements = ({ navigation }) => {
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[config.THEME_COLOR]} tintColor={config.THEME_COLOR} />
                 }
-                contentContainerStyle={{ paddingBottom: 24 }}>
-                <View style={localStyles.statsGrid}>
+                contentContainerStyle={{ paddingBottom: 28 }}>
+                <View style={localStyles.summaryRow}>
                     {statTiles.map((tile) => (
                         <View
                             key={tile.key}
-                            style={[
-                                localStyles.statTile,
-                                {
-                                    backgroundColor: colors.surface,
-                                    borderColor: colors.border,
-                                },
-                            ]}>
-                            <View style={[localStyles.statIcon, { backgroundColor: tile.iconBg }]}>
-                                <Lucide name={tile.icon} size={16} color={tile.iconColor} />
-                            </View>
-                            <AppText label={tile.label} fontSize={11} color={colors.textTertiary} numberOfLines={1} />
+                            style={[localStyles.summaryChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                            <Lucide name={tile.icon} size={14} color={tile.iconColor} />
+                            <AppText label={tile.label} fontSize={12} color={colors.textTertiary} style={{ marginLeft: 6 }} />
                             <AppText
                                 label={tile.value}
                                 variant={1}
-                                fontSize={16}
+                                fontSize={13}
                                 color={tile.valueColor}
+                                style={{ marginLeft: 6 }}
                                 numberOfLines={1}
-                                style={{ marginTop: 4 }}
                             />
                         </View>
                     ))}
@@ -769,65 +768,75 @@ const OrderSettlements = ({ navigation }) => {
                     <AppText label={`${rows.length}`} fontSize={12} color={colors.textTertiary} />
                 </View>
 
-                <View style={[cardStyle, { marginHorizontal: 16, overflow: 'hidden' }]}>
-                    {rows.length === 0 ? (
-                        <View style={{ alignItems: 'center', paddingVertical: 32 }}>
-                            <Lucide name="landmark" size={36} color={colors.border} />
-                            <AppText label="No withdrawals yet" fontSize={14} color={colors.textTertiary} style={{ marginTop: 10 }} />
+                {rows.length === 0 ? (
+                    <View style={localStyles.emptyWrap}>
+                        <View style={[localStyles.emptyIcon, { backgroundColor: colors.surfaceSecondary || colors.background }]}>
+                            <Lucide name="landmark" size={28} color={colors.textTertiary} />
                         </View>
-                    ) : (
-                        rows.map((row, idx) => {
-                            const badge = statusMeta(row.status);
-                            return (
-                                <View
-                                    key={row.id}
-                                    style={[
-                                        localStyles.rowItem,
-                                        {
-                                            borderBottomColor: colors.border,
-                                            borderBottomWidth: idx < rows.length - 1 ? StyleSheet.hairlineWidth : 0,
-                                        },
-                                    ]}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-                                        <View style={{ flex: 1, minWidth: 0 }}>
-                                            <AppText label={formatAmount(row.amount)} variant={1} fontSize={16} color={colors.text} />
-                                            <AppText label={fmtDateTime(row.created_at)} fontSize={12} color={colors.textSecondary} style={{ marginTop: 4 }} />
-                                            {row.payout_snapshot ? (
-                                                <AppText label={`To: ${formatPayoutSnapshot(row.payout_snapshot)}`} fontSize={11} color={colors.textTertiary} style={{ marginTop: 2 }} numberOfLines={2} />
-                                            ) : null}
-                                            {row.rejection_reason ? (
-                                                <AppText label={row.rejection_reason} fontSize={11} color="#dc2626" style={{ marginTop: 2 }} />
-                                            ) : null}
-                                            {row.paystack_transfer_reference ? (
-                                                <AppText label={`Ref: ${row.paystack_transfer_reference}`} fontSize={11} color={colors.textTertiary} style={{ marginTop: 2 }} numberOfLines={1} />
-                                            ) : null}
+                        <AppText label="No withdrawals yet" variant={1} fontSize={15} color={colors.text} style={{ marginTop: 12 }} />
+                        <AppText
+                            label="Requested payouts will show up here"
+                            fontSize={13}
+                            color={colors.textTertiary}
+                            style={{ marginTop: 4, textAlign: 'center' }}
+                        />
+                    </View>
+                ) : (
+                    rows.map((row) => {
+                        const badge = statusMeta(row.status);
+                        return (
+                            <View key={row.id} style={localStyles.historyCard}>
+                                <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                                    <View style={{ flex: 1, minWidth: 0 }}>
+                                        <AppText label={formatAmount(row.amount)} variant={1} fontSize={16} color={colors.text} />
+                                        <AppText label={fmtDateTime(row.created_at)} fontSize={12} color={colors.textSecondary} style={{ marginTop: 4 }} />
+                                        {row.payout_snapshot ? (
+                                            <AppText
+                                                label={`To: ${formatPayoutSnapshot(row.payout_snapshot)}`}
+                                                fontSize={11}
+                                                color={colors.textTertiary}
+                                                style={{ marginTop: 2 }}
+                                                numberOfLines={2}
+                                            />
+                                        ) : null}
+                                        {row.rejection_reason ? (
+                                            <AppText label={row.rejection_reason} fontSize={11} color="#dc2626" style={{ marginTop: 2 }} />
+                                        ) : null}
+                                        {row.paystack_transfer_reference ? (
+                                            <AppText
+                                                label={`Ref: ${row.paystack_transfer_reference}`}
+                                                fontSize={11}
+                                                color={colors.textTertiary}
+                                                style={{ marginTop: 2 }}
+                                                numberOfLines={1}
+                                            />
+                                        ) : null}
+                                    </View>
+                                    <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                                        <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: badge.bg }}>
+                                            <AppText label={badge.label} fontSize={11} color={badge.color} fontFamily="FiraSans-SemiBold" />
                                         </View>
-                                        <View style={{ alignItems: 'flex-end', gap: 6 }}>
-                                            <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, backgroundColor: badge.bg }}>
-                                                <AppText label={badge.label} fontSize={11} color={badge.color} fontFamily="FiraSans-SemiBold" />
-                                            </View>
-                                            {String(row.status || '').toLowerCase() === 'failed' && row.source === 'merchant' ? (
-                                                <TouchableOpacity
-                                                    activeOpacity={0.7}
-                                                    disabled={busy}
-                                                    onPress={() => onRetryWithdrawal(row)}
-                                                    style={{
-                                                        borderWidth: 1,
-                                                        borderColor: colors.border,
-                                                        borderRadius: 8,
-                                                        paddingHorizontal: 10,
-                                                        paddingVertical: 6,
-                                                    }}>
-                                                    <AppText label="Retry" fontSize={11} color={colors.text} />
-                                                </TouchableOpacity>
-                                            ) : null}
-                                        </View>
+                                        {String(row.status || '').toLowerCase() === 'failed' && row.source === 'merchant' ? (
+                                            <TouchableOpacity
+                                                activeOpacity={0.7}
+                                                disabled={busy}
+                                                onPress={() => onRetryWithdrawal(row)}
+                                                style={{
+                                                    borderWidth: StyleSheet.hairlineWidth,
+                                                    borderColor: colors.border,
+                                                    borderRadius: 8,
+                                                    paddingHorizontal: 10,
+                                                    paddingVertical: 6,
+                                                }}>
+                                                <AppText label="Retry" fontSize={11} color={colors.text} />
+                                            </TouchableOpacity>
+                                        ) : null}
                                     </View>
                                 </View>
-                            );
-                        })
-                    )}
-                </View>
+                            </View>
+                        );
+                    })
+                )}
             </ScrollView>
 
             <Modal visible={showBankPicker} animationType="slide" onRequestClose={() => setShowBankPicker(false)}>

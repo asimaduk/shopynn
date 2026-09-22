@@ -54,8 +54,8 @@ const SETTINGS_ITEMS = [
     { section: 'Data Management', title: 'Expenditures', subtitle: 'Track business expenses', screen: 'Expenditures', icon: 'wallet', iconColor: '#ef4444' },
     { section: 'Reports & Analytics', title: 'Reports', subtitle: 'View business reports and analytics', screen: 'Reports', icon: 'activity', iconColor: config.THEME_COLOR },
     { section: 'Reports & Analytics', title: 'Transactions', subtitle: 'View all product transactions', screen: 'ProductTransactions', icon: 'database', iconColor: '#6b7280' },
-    { section: 'App Settings', title: 'Invoice & Receipt', subtitle: 'Invoice number, receipt template, currency and valuation', screen: 'InvoiceReceiptSettings', icon: 'file-text', iconColor: config.THEME_COLOR },
-    { section: 'App Settings', title: 'Print agent', subtitle: 'LAN IP of the PC with Shopynn Print (thermal)', screen: 'PrintAgentSettings', icon: 'printer', iconColor: '#64748b' },
+    { section: 'App Settings', title: 'Invoice & Receipt', subtitle: 'Invoice/receipt details and thermal print agent', screen: 'InvoiceReceiptSettings', icon: 'file-text', iconColor: config.THEME_COLOR },
+    { section: 'App Settings', title: 'Print agent', subtitle: 'LAN IP of the PC with Shopynn Print (thermal)', screen: 'InvoiceReceiptSettings', icon: 'printer', iconColor: '#64748b' },
     { section: 'App Settings', title: 'Notifications', subtitle: 'Configure notification preferences', screen: 'NotificationsSetup', icon: 'bell', iconColor: '#f59e0b' },
     { section: 'App Settings', title: 'Clients', subtitle: 'Partner merchants, onboarding & commissions', screen: 'MerchantPortal', icon: 'handshake', iconColor: '#6366f1' },
     { section: 'App Settings', title: 'Tenant directory', subtitle: 'All businesses, subscriptions, and payments (admin)', screen: 'TenantsDirectory', icon: 'building-2', iconColor: '#0ea5e9' },
@@ -146,6 +146,10 @@ const Settings = ({ navigation, route }) => {
     const canExpenditures = canAccessScreen(user, 'Expenditures', subscriptionFeatures);
     const reportsAccess = getScreenPlanAccess(user, 'Reports', subscriptionFeatures, subscriptionPlan);
     const canTransactions = canAccessScreen(user, 'ProductTransactions', subscriptionFeatures);
+    const invoiceReceiptAccess = getScreenPlanAccess(user, 'InvoiceReceiptSettings', subscriptionFeatures, subscriptionPlan);
+    const dataExportAccess = getScreenPlanAccess(user, 'DataExportBackup', subscriptionFeatures, subscriptionPlan);
+    const canInvoiceReceipt = invoiceReceiptAccess.show;
+    const canDataExport = dataExportAccess.show;
     const notificationsSetupAccess = getScreenPlanAccess(user, 'NotificationsSetup', subscriptionFeatures, subscriptionPlan);
     /** Customer ordering: list + control order-related push without staff notification settings. */
     const canCustomerOrderNotifications =
@@ -769,41 +773,61 @@ const Settings = ({ navigation, route }) => {
                 )}
 
                 {/* Invoice & Data */}
+                {(canInvoiceReceipt || canDataExport) && (
                 <View style={styles.section}>
                     <AppText label={'Invoice & Data'} variant={1} fontSize={14} color={colors.textTertiary} style={styles.sectionTitle} />
                     <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                        {/* <TouchableOpacity activeOpacity={.6} onPress={() => navigation.navigate("InvoiceReceiptSettings")} style={styles.menuItem}>
-                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}><Lucide name="receipt" color={config.THEME_COLOR} size={20} /></View>
-                            <View style={styles.menuContent}>
-                                <AppText label={'Invoice & Receipt'} variant={2} color={colors.text} fontSize={15} />
-                                <AppText label={'Invoice number, receipt template, currency'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
-                            </View>
-                            <Lucide name="chevron-right" color={colors.border} size={18} />
-                        </TouchableOpacity>
-                        <View style={[styles.divider, { backgroundColor: colors.divider }]} /> */}
-                        <TouchableOpacity activeOpacity={.6} onPress={() => navigation.navigate("PrintAgentSettings")} style={styles.menuItem}>
-                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}><Lucide name="printer" color="#64748b" size={20} /></View>
-                            <View style={styles.menuContent}>
-                                <AppText label={'Print agent'} variant={2} color={colors.text} fontSize={15} />
-                                <AppText label={'LAN IP of the PC with Shopynn Print'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
-                            </View>
-                            <Lucide name="chevron-right" color={colors.border} size={18} />
-                        </TouchableOpacity>
-                        <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-                        <TouchableOpacity
-                            activeOpacity={.6}
-                            onPress={() => navigateToScreenOrUpgrade(navigation, user, 'DataExportBackup', subscriptionFeatures, undefined, subscriptionPlan)}
-                            style={styles.menuItem}
-                        >
-                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}><Lucide name="database" color="#10b981" size={20} /></View>
-                            <View style={styles.menuContent}>
-                                <AppText label={'Export & Backup'} variant={2} color={colors.text} fontSize={15} />
-                                <AppText label={'Export products CSV and app preferences'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
-                            </View>
-                            {renderPlanGateTrailing(getScreenPlanAccess(user, 'DataExportBackup', subscriptionFeatures, subscriptionPlan))}
-                        </TouchableOpacity>
+                        {canInvoiceReceipt && (
+                            <TouchableOpacity
+                                activeOpacity={0.6}
+                                onPress={() =>
+                                    navigateToScreenOrUpgrade(
+                                        navigation,
+                                        user,
+                                        'InvoiceReceiptSettings',
+                                        subscriptionFeatures,
+                                        undefined,
+                                        subscriptionPlan,
+                                    )
+                                }
+                                style={styles.menuItem}
+                            >
+                                <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                    <Lucide name="file-text" color={config.THEME_COLOR} size={20} />
+                                </View>
+                                <View style={styles.menuContent}>
+                                    <AppText label={'Invoice & Receipt'} variant={2} color={colors.text} fontSize={15} />
+                                    <AppText
+                                        label={'Invoice/receipt details and thermal print agent'}
+                                        variant={2}
+                                        color={colors.textTertiary}
+                                        fontSize={12}
+                                        style={{ marginTop: 2 }}
+                                    />
+                                </View>
+                                {renderPlanGateTrailing(invoiceReceiptAccess)}
+                            </TouchableOpacity>
+                        )}
+                        {canInvoiceReceipt && canDataExport && (
+                            <View style={[styles.divider, { backgroundColor: colors.divider }]} />
+                        )}
+                        {canDataExport && (
+                            <TouchableOpacity
+                                activeOpacity={.6}
+                                onPress={() => navigateToScreenOrUpgrade(navigation, user, 'DataExportBackup', subscriptionFeatures, undefined, subscriptionPlan)}
+                                style={styles.menuItem}
+                            >
+                                <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}><Lucide name="database" color="#10b981" size={20} /></View>
+                                <View style={styles.menuContent}>
+                                    <AppText label={'Export & Backup'} variant={2} color={colors.text} fontSize={15} />
+                                    <AppText label={'Export products CSV and app preferences'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
+                                </View>
+                                {renderPlanGateTrailing(dataExportAccess)}
+                            </TouchableOpacity>
+                        )}
                     </View>
                 </View>
+                )}
 
                 {/* Data Management Section */}
                 {(canCustomers || canSuppliers || canCategories || canExpenditures) && (

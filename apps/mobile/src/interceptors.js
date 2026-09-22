@@ -224,7 +224,14 @@ axios.interceptors.response.use(
         }
         else {
             const isLoginEndpoint = url.indexOf('/login') !== -1;
-            if (!isLoginEndpoint) {
+            // New Sale MoMo flow shows its own alerts — avoid double dialogs.
+            const isHandledMomoEndpoint =
+                url.indexOf('/payments/initiate') !== -1 ||
+                url.indexOf('/payments/submit-otp') !== -1 ||
+                url.indexOf('/payments/verify') !== -1 ||
+                url.indexOf('/payments/pos-') !== -1 ||
+                url.indexOf('/payments/pos/') !== -1;
+            if (!isLoginEndpoint && !isHandledMomoEndpoint) {
                 Alert.alert('Error', extractServerErrorMessage(error));
             }
         }

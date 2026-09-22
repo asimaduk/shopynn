@@ -16,6 +16,8 @@ import MainNavigator from './main';
 import SubscriptionNavigator from './subscription';
 import { SET_USER, SET_LOGGED_IN } from '../store/actions/user';
 import { products as productsApi } from '../services/api';
+import useInactivityTimer from '../hooks/useInactivityTimer';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const ApplicationNavigator = () => {
     const [isBlocked, setIsBlocked] = useState(false);
@@ -182,6 +184,15 @@ const ApplicationNavigator = () => {
     }
 
     const isLoggedIn = user?.isLoggedIn;
+    const {
+        onNavigationStateChange,
+        warningVisible,
+        expiredVisible,
+        stayLoggedIn,
+        dismissWarning,
+        dismissExpired,
+    } = useInactivityTimer(!!isLoggedIn);
+
     const statusBarBackgroundColor =
         Platform.OS === 'android' && !isLoggedIn ? config.THEME_COLOR : colors.background;
     const statusBarStyle = !isLoggedIn ? 'light-content' : (isDark ? 'light-content' : 'dark-content');
@@ -264,10 +275,32 @@ const ApplicationNavigator = () => {
                             />
                         )
                         :
-                        <MainNavigator user={user} />
+                        <MainNavigator user={user} onNavigationStateChange={onNavigationStateChange} />
                 :
                 <AuthNavigator />
             }
+
+            <ConfirmDialog
+                visible={warningVisible && !!isLoggedIn}
+                icon="clock"
+                title="Session Timeout Warning"
+                message="You have been inactive for a while. You will be logged out soon if no activity is detected."
+                cancelLabel="OK"
+                confirmLabel="Stay Logged In"
+                onCancel={dismissWarning}
+                onConfirm={stayLoggedIn}
+            />
+
+            <ConfirmDialog
+                visible={expiredVisible}
+                icon="log-out"
+                title="Session Expired"
+                message="You have been inactive too long and were logged out for security reasons."
+                confirmLabel="OK"
+                hideCancel
+                onCancel={dismissExpired}
+                onConfirm={dismissExpired}
+            />
         </SafeAreaView>
     )
 }

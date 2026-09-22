@@ -21,14 +21,7 @@ import {
     shareReportExcelFromServer,
     shareReportPdfFromServer,
 } from '../../utils/reportExport';
-
-const currencyFormatter = new Intl.NumberFormat('en-GH', {
-    style: 'currency',
-    currency: 'GHS',
-});
-
-const formatCurrency = (value) =>
-    currencyFormatter.format(Number(value) || 0).replace('GH₵', 'GHS ').trim();
+import { formatCurrency } from '../../utils/format';
 
 const dateRanges = [
     { id: '1', label: 'Today', value: 'today' },
@@ -57,7 +50,6 @@ const Expenditures = ({ navigation }) => {
     const [showEndPicker, setShowEndPicker] = useState(false);
     const [exporting, setExporting] = useState(false);
     const [showExportFormatModal, setShowExportFormatModal] = useState(false);
-    const [showSearch, setShowSearch] = useState(false);
     const [loading, setLoading] = useState(true);
 
     const getDateRangeBounds = () => {
@@ -274,6 +266,8 @@ const Expenditures = ({ navigation }) => {
         setShowExportFormatModal(true);
     };
 
+    const filtering = searchText.trim().length > 0 || selectedDateRange !== 'all_time';
+
     const backPress = () => {
         navigation.goBack();
     };
@@ -281,126 +275,97 @@ const Expenditures = ({ navigation }) => {
     return (
         <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={backPress} label={'Expenditures'}>
-                <View style={styles.headerActions}>
+                <View style={localStyles.headerActions}>
                     <TouchableOpacity
-                        activeOpacity={0.6}
-                        onPress={() => {
-                            setShowSearch((prev) => {
-                                const next = !prev;
-                                if (!next) handleSearch('');
-                                return next;
-                            });
-                        }}
-                        style={[styles.actionButton, { backgroundColor: colors.surface }]}>
-                        <Lucide name={showSearch ? 'x' : 'search'} color={colors.text} size={20} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        activeOpacity={0.6}
+                        activeOpacity={0.7}
                         onPress={() => navigation.navigate('CreateExpenditure')}
-                        style={[styles.actionButton, { backgroundColor: colors.surface }]}>
-                        <Lucide name="plus" color={config.THEME_COLOR} size={20} />
+                        style={[localStyles.headerBtn, { backgroundColor: colors.surface }]}
+                    >
+                        <Lucide name="plus" color={config.THEME_COLOR} size={18} />
                     </TouchableOpacity>
                     <TouchableOpacity
-                        activeOpacity={0.6}
+                        activeOpacity={0.7}
                         onPress={handleExport}
                         disabled={exporting || filteredData.length === 0}
-                        style={[styles.actionButton, { backgroundColor: colors.surface }, (exporting || filteredData.length === 0) && { opacity: 0.5 }]}>
+                        style={[
+                            localStyles.headerBtn,
+                            { backgroundColor: colors.surface },
+                            (exporting || filteredData.length === 0) && { opacity: 0.5 },
+                        ]}
+                    >
                         {exporting ? (
                             <ActivityIndicator size="small" color={config.THEME_COLOR} />
                         ) : (
-                            <Lucide name="download" color={config.THEME_COLOR} size={20} />
+                            <Lucide name="download" color={config.THEME_COLOR} size={18} />
                         )}
                     </TouchableOpacity>
                 </View>
             </ScreenHeader>
 
-            {/* Date range chip and count */}
-            <View style={localStyles.headerRow}>
+            <View style={localStyles.summaryRow}>
+                <View style={[localStyles.summaryChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <Lucide name="badge-cent" size={14} color={config.THEME_COLOR} />
+                    <AppText
+                        label={`${filteredData.length} expense${filteredData.length === 1 ? '' : 's'}`}
+                        fontSize={13}
+                        variant={1}
+                        color={colors.text}
+                        style={{ marginLeft: 6 }}
+                    />
+                </View>
+                <View style={[localStyles.summaryChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <Lucide name="wallet" size={14} color={colors.error || '#ef4444'} />
+                    <AppText
+                        label={formatCurrency(totalFilteredAmount)}
+                        fontSize={13}
+                        variant={1}
+                        color={colors.error || '#ef4444'}
+                        style={{ marginLeft: 6 }}
+                    />
+                </View>
                 <TouchableOpacity
-                    activeOpacity={0.8}
+                    activeOpacity={0.75}
                     onPress={() => setShowDateFilter(true)}
                     style={[
-                        localStyles.dateRangeButton,
+                        localStyles.summaryChip,
                         {
-                            backgroundColor: colors.surface,
-                            borderColor: colors.border,
+                            backgroundColor:
+                                selectedDateRange !== 'all_time' ? `${config.THEME_COLOR}14` : colors.surface,
+                            borderColor:
+                                selectedDateRange !== 'all_time' ? `${config.THEME_COLOR}55` : colors.border,
                         },
-                    ]}>
-                    <View style={[localStyles.leadingIconWrap, { backgroundColor: colors.primaryShade }]}>
-                        <Lucide name="calendar-fold" color={config.THEME_COLOR} size={15} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                        <AppText label="Date Range" fontSize={11} color={colors.textTertiary} />
-                        <AppText label={getDateRangeLabel()} fontSize={13} variant={1} color={colors.text} style={{ marginTop: 2 }} />
-                    </View>
-                    <Lucide name="chevron-right" color={colors.textTertiary} size={18} />
+                    ]}
+                >
+                    <Lucide name="calendar" size={14} color={config.THEME_COLOR} />
+                    <AppText
+                        label={getDateRangeLabel()}
+                        fontSize={13}
+                        color={colors.text}
+                        style={{ marginLeft: 6, maxWidth: 120 }}
+                        numberOfLines={1}
+                    />
+                    <Lucide name="chevron-down" size={14} color={colors.textTertiary} style={{ marginLeft: 4 }} />
                 </TouchableOpacity>
-
-                <View style={localStyles.statsRow}>
-                    <View style={[localStyles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                        <View style={localStyles.statContent}>
-                            <View style={{ flex: 1 }}>
-                                <AppText label="Expenditures" fontSize={11} color={colors.textSecondary} style={localStyles.statLabel} />
-                                <AppText
-                                    label={`${filteredData.length}`}
-                                    fontSize={17}
-                                    variant={1}
-                                    color={colors.text}
-                                    style={localStyles.statValue}
-                                />
-                            </View>
-                            <View style={[localStyles.statRightIconWrap, { backgroundColor: colors.primaryShade }]}>
-                                <Lucide name="list" color={config.THEME_COLOR} size={15} />
-                            </View>
-                        </View>
-                    </View>
-
-                    <View style={[localStyles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                        <View style={localStyles.statContent}>
-                            <View style={{ flex: 1 }}>
-                                <AppText label="Total Amount" fontSize={11} color={colors.textSecondary} style={localStyles.statLabel} />
-                                <AppText
-                                    label={formatCurrency(totalFilteredAmount)}
-                                    fontSize={15}
-                                    variant={1}
-                                    color={colors.text}
-                                    style={localStyles.statValue}
-                                />
-                            </View>
-                            <View style={[localStyles.statRightIconWrap, { backgroundColor: colors.primaryShade }]}>
-                                <Lucide name="wallet-cards" color={config.THEME_COLOR} size={15} />
-                            </View>
-                        </View>
-                    </View>
-                </View>
             </View>
 
-            {showSearch ? (
-                <View style={[styles.searchContainer, { backgroundColor: colors.surface }]}>
-                    <Lucide name="search" color={colors.textTertiary} size={18} />
-                    <TextInput
-                        style={[styles.searchInput, { color: colors.text }]}
-                        placeholder="Search expenditures..."
-                        placeholderTextColor={colors.placeholder}
-                        value={searchText}
-                        onChangeText={handleSearch}
-                        autoCorrect={false}
-                        autoCapitalize="none"
-                        returnKeyType="search"
-                    />
-                    {searchText.length > 0 ? (
-                        <TouchableOpacity onPress={() => handleSearch('')}>
-                            <Lucide name="x" color={colors.textTertiary} size={18} />
-                        </TouchableOpacity>
-                    ) : null}
-                </View>
-            ) : null}
-
-            {/* List header with count */}
-            {/* <View style={[localStyles.listHeader, { backgroundColor: colors.surface }]}>
-                <Lucide name="receipt" color={config.THEME_COLOR} size={20} />
-                <AppText label={`${filteredData.length} Expenditure${filteredData.length !== 1 ? 's' : ''} Found`} fontSize={16} variant={1} color={colors.text} style={{ marginLeft: 10 }} />
-            </View> */}
+            <View style={[localStyles.searchWrap, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+                <Lucide name="search" size={16} color={colors.textTertiary} />
+                <TextInput
+                    style={[localStyles.searchInput, { color: colors.text }]}
+                    placeholder="Search description, category, or note"
+                    placeholderTextColor={colors.placeholder}
+                    value={searchText}
+                    onChangeText={handleSearch}
+                    autoCorrect={false}
+                    autoCapitalize="none"
+                    returnKeyType="search"
+                />
+                {searchText.length > 0 ? (
+                    <TouchableOpacity onPress={() => handleSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Lucide name="x" size={16} color={colors.textTertiary} />
+                    </TouchableOpacity>
+                ) : null}
+            </View>
 
             {loading ? (
                 <View style={localStyles.loadingContainer}>
@@ -408,32 +373,58 @@ const Expenditures = ({ navigation }) => {
                     <AppText label="Loading expenditures..." color={colors.textTertiary} style={{ marginTop: 10 }} />
                 </View>
             ) : (
-            <FlashList
-                contentContainerStyle={styles.listContent}
-                data={filteredData}
-                estimatedItemSize={80}
-                showsVerticalScrollIndicator={false}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item, index }) => (
-                    <ExpenditureItem
-                        item={item}
-                        index={index}
-                        onPress={() => navigation.navigate('ExpenditureDetails', { item })}
-                    />
-                )}
-                ListEmptyComponent={() => (
-                    <View style={{ alignItems: 'center', marginTop: 50 }}>
-                        <Lucide name="receipt-text" color={colors.textTertiary} size={48} />
-                        <AppText label="No expenditures found" color={colors.textSecondary} style={{ marginTop: 12 }} />
-                        {selectedDateRange !== 'all_time' && (
-                            <AppText label="Try adjusting your date filter" fontSize={12} color={colors.placeholder} style={{ marginTop: 4 }} />
+                <View style={localStyles.listWrap}>
+                    <FlashList
+                        style={localStyles.list}
+                        contentContainerStyle={localStyles.listContent}
+                        data={filteredData}
+                        estimatedItemSize={100}
+                        showsVerticalScrollIndicator={false}
+                        keyExtractor={(item, index) => String(item.id ?? `expense-${index}`)}
+                        renderItem={({ item }) => (
+                            <ExpenditureItem
+                                item={item}
+                                onPress={() => navigation.navigate('ExpenditureDetails', { item })}
+                            />
                         )}
-                    </View>
-                )}
-            />
+                        ListEmptyComponent={() => (
+                            <View style={localStyles.emptyWrap}>
+                                <View style={[localStyles.emptyIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                    <Lucide name="receipt-text" color={colors.textTertiary} size={28} />
+                                </View>
+                                <AppText
+                                    label={filtering ? 'No expenditures match' : 'No expenditures yet'}
+                                    variant={1}
+                                    fontSize={16}
+                                    color={colors.text}
+                                    style={{ marginTop: 12 }}
+                                />
+                                <AppText
+                                    label={
+                                        filtering
+                                            ? 'Try another search or date range'
+                                            : 'Record an expense to get started'
+                                    }
+                                    fontSize={13}
+                                    color={colors.textTertiary}
+                                    style={{ marginTop: 4, textAlign: 'center' }}
+                                />
+                                {!filtering ? (
+                                    <TouchableOpacity
+                                        activeOpacity={0.8}
+                                        onPress={() => navigation.navigate('CreateExpenditure')}
+                                        style={[localStyles.emptyCta, { backgroundColor: config.THEME_COLOR }]}
+                                    >
+                                        <Lucide name="plus" size={16} color="#fff" />
+                                        <AppText label="Add expense" color="#fff" variant={1} fontSize={14} style={{ marginLeft: 6 }} />
+                                    </TouchableOpacity>
+                                ) : null}
+                            </View>
+                        )}
+                    />
+                </View>
             )}
 
-            {/* Date Filter Modal */}
             <AppModal
                 visible={showDateFilter}
                 handleClose={() => setShowDateFilter(false)}
@@ -759,6 +750,18 @@ const Expenditures = ({ navigation }) => {
 };
 
 const localStyles = StyleSheet.create({
+    headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    headerBtn: { height: 34, width: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+    summaryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginHorizontal: 15, marginTop: 10, marginBottom: 10 },
+    summaryChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth },
+    searchWrap: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 15, marginBottom: 12, borderWidth: 1, borderRadius: 999, paddingHorizontal: 14, height: 46 },
+    searchInput: { flex: 1, marginLeft: 8, fontFamily: 'FiraSans-Regular', fontSize: 14 },
+    listWrap: { flex: 1, minHeight: 0 },
+    list: { flex: 1 },
+    listContent: { paddingHorizontal: 15, paddingBottom: 28 },
+    emptyWrap: { paddingTop: 48, paddingHorizontal: 24, alignItems: 'center' },
+    emptyIcon: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
+    emptyCta: { flexDirection: 'row', alignItems: 'center', marginTop: 18, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10 },
     loadingContainer: {
         flex: 1,
         alignItems: 'center',

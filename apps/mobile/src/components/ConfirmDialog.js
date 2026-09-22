@@ -25,6 +25,7 @@ const ConfirmDialog = ({
 	confirmLabel = 'Confirm',
 	destructive = false,
 	loading = false,
+	hideCancel = false,
 	onCancel,
 	onConfirm,
 }) => {
@@ -103,22 +104,24 @@ const ConfirmDialog = ({
 					)}
 
 					<View style={styles.actions}>
-						<TouchableOpacity
-							activeOpacity={0.7}
-							disabled={loading}
-							onPress={onCancel}
-							style={[
-								styles.btn,
-								styles.btnSecondary,
-								{
-									backgroundColor: colors.surfaceSecondary || colors.background,
-									borderColor: colors.border,
-									opacity: loading ? 0.6 : 1,
-								},
-							]}
-						>
-							<AppText label={cancelLabel} variant={1} fontSize={15} color={colors.text} />
-						</TouchableOpacity>
+						{!hideCancel ? (
+							<TouchableOpacity
+								activeOpacity={0.7}
+								disabled={loading}
+								onPress={onCancel}
+								style={[
+									styles.btn,
+									styles.btnSecondary,
+									{
+										backgroundColor: colors.surfaceSecondary || colors.background,
+										borderColor: colors.border,
+										opacity: loading ? 0.6 : 1,
+									},
+								]}
+							>
+								<AppText label={cancelLabel} variant={1} fontSize={15} color={colors.text} />
+							</TouchableOpacity>
+						) : null}
 
 						<TouchableOpacity
 							activeOpacity={0.7}
@@ -128,6 +131,7 @@ const ConfirmDialog = ({
 								styles.btn,
 								styles.btnPrimary,
 								{ backgroundColor: accent, opacity: loading ? 0.85 : 1 },
+								hideCancel && styles.btnFull,
 							]}
 						>
 							{loading ? (
@@ -203,6 +207,7 @@ const styles = StyleSheet.create({
 		borderWidth: StyleSheet.hairlineWidth,
 	},
 	btnPrimary: {},
+	btnFull: { flex: 1 },
 });
 
 export default ConfirmDialog;

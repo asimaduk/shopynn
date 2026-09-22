@@ -4,6 +4,7 @@ import React_RCTAppDelegate
 import ReactAppDependencyProvider
 import FBSDKCoreKit
 import AppTrackingTransparency
+import FirebaseCore
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -16,6 +17,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
+    // Required for @react-native-firebase — plist alone does not create the DEFAULT app.
+    if FirebaseApp.app() == nil {
+      FirebaseApp.configure()
+    }
+
     ApplicationDelegate.shared.application(
       application,
       didFinishLaunchingWithOptions: launchOptions

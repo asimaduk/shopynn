@@ -543,13 +543,16 @@ const NewPurchase = ({ navigation, route }) => {
                                             style={[
                                                 styles.chip,
                                                 { borderColor: colors.border },
-                                                paymentType === opt.id && { backgroundColor: colors.text, borderColor: colors.text },
+                                                paymentType === opt.id && {
+                                                    backgroundColor: config.THEME_COLOR,
+                                                    borderColor: config.THEME_COLOR,
+                                                },
                                             ]}
                                         >
                                             <AppText
                                                 label={opt.label}
                                                 fontSize={12}
-                                                color={paymentType === opt.id ? colors.textInverse : colors.textSecondary}
+                                                color={paymentType === opt.id ? '#fff' : colors.textSecondary}
                                             />
                                         </TouchableOpacity>
                                     ))}
@@ -747,7 +750,7 @@ const NewPurchase = ({ navigation, route }) => {
                                 <AppText label={`GH₵ ${selectedProduct.unit_price} each`} fontSize={13} color={colors.textSecondary} style={{ marginBottom: 12 }} />
                                 <TextInput value={quantity} placeholder="Quantity" placeholderTextColor={colors.placeholder} keyboardType="number-pad" onChangeText={setQuantity} style={[styles.quantityInput, { borderColor: colors.inputBorder, color: colors.text }]} />
                                 <TouchableOpacity activeOpacity={0.8} disabled={!quantity || Number(quantity) < 1} onPress={handleAddProduct} style={[styles.addQtyBtn, (!quantity || Number(quantity) < 1) && [styles.addQtyBtnDisabled, { backgroundColor: colors.surfaceTertiary }]]}>
-                                    <AppText label={orders.find((o) => o.id === selectedProduct.id || o.name === selectedProduct.name) ? "Update quantity" : "Add to purchase"} color={colors.textInverse} variant={1} />
+                                    <AppText label={orders.find((o) => o.id === selectedProduct.id || o.name === selectedProduct.name) ? "Set quantity" : "Add to purchase"} color={colors.textInverse} variant={1} />
                                 </TouchableOpacity>
                             </>
                         )}

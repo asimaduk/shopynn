@@ -153,6 +153,8 @@ export const initiatePayment = async (req, res, next) => {
         const payment_source = source ? String(source).trim().toLowerCase() : null;
         const shouldApplyPlatformFee =
             apply_platform_fee === true || payment_source === "pos_sale";
+        const forceNewCharge =
+            force_new === true || force_new === 1 || String(force_new).toLowerCase() === "true";
 
         if (payment_method_type === "mobile_money") {
             if (!phone || !provider) {
@@ -201,7 +203,7 @@ export const initiatePayment = async (req, res, next) => {
                 });
             }
 
-            if (open?.reuse_mode === "pending" && !force_new) {
+            if (open?.reuse_mode === "pending" && !forceNewCharge) {
                 return handleResponse(res, 200, "Resuming open MoMo payment.", {
                     transaction_ref: open.transaction_ref,
                     payment_id: open.id,
@@ -217,7 +219,7 @@ export const initiatePayment = async (req, res, next) => {
                 });
             }
 
-            if (open?.reuse_mode === "pending" && force_new) {
+            if (open?.reuse_mode === "pending" && forceNewCharge) {
                 await abandonPosMomoPaymentService({
                     tenant_id,
                     transaction_ref: open.transaction_ref,
@@ -336,7 +338,9 @@ export const abandonPosMomoPayment = async (req, res, next) => {
         handleResponse(res, 200, "Payment abandoned.", result);
     } catch (error) {
         if (error?.status) {
-            return handleResponse(res, error.status, error.message);
+            return handleResponse(res, error.status, error.message, {
+                code: error.code || undefined,
+            });
         }
         next(error);
     }

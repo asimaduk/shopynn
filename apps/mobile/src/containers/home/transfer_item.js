@@ -1,54 +1,106 @@
 import React from 'react';
-import { View, TouchableOpacity } from 'react-native';
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Lucide } from '@react-native-vector-icons/lucide';
-import styles from './styles';
 import AppText from '../../components/text';
 import config from '../../config';
 import useTheme from '../../hooks/useTheme';
 
-const TransferItem = ({ item, index, onPress }) => {
+const TransferItem = ({ item, onPress }) => {
     const { colors } = useTheme();
-    item.status = item.status ?? 'Completed';
-    const statusColor = item.status === 'Completed' ? (config.GREEN_COLOR || colors.success) : item.status === 'Pending' ? colors.warning : colors.textSecondary;
-    
-    const formatDateAndTime = (date) => {
-        return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) + ' ' + new Date(date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    };
-    
+    const status = item.status ?? 'Completed';
+    const statusColor =
+        status === 'Completed'
+            ? config.GREEN_COLOR || colors.success
+            : status === 'Pending'
+              ? colors.warning || '#f59e0b'
+              : colors.textSecondary;
+    const itemCount = Number(item.number_of_items || 0);
+    const dateLabel = item.created_at
+        ? new Date(item.created_at).toLocaleString('en-US', {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+          })
+        : '—';
+
     return (
         <TouchableOpacity
-            activeOpacity={0.7}
-            style={[styles.itemContainer, { backgroundColor: colors.surface }]}
+            activeOpacity={0.75}
             onPress={onPress}
+            style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
         >
-            <AppText label={`${index + 1}.`} style={[styles.itemIndex, { color: colors.textSecondary }]} fontSize={14} />
-            <View style={styles.itemContent}>
-
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                    <AppText label={item.source_warehouse_name} style={{ fontFamily: 'FiraSans-SemiBold', fontSize: 13 }} color={colors.text} />
-                    <Lucide name="arrow-right" color={colors.textSecondary} size={14} style={{ marginHorizontal: 5 }} />
-                    <AppText label={item.destination_warehouse_name} style={{ fontFamily: 'FiraSans-SemiBold', fontSize: 13 }} color={colors.text} />
+            <View style={styles.topRow}>
+                <View style={[styles.iconWrap, { backgroundColor: `${config.THEME_COLOR}18` }]}>
+                    <Lucide name="arrow-right-left" size={18} color={config.THEME_COLOR} />
                 </View>
-
-                <AppText label={item.number_of_items > 1 ? `${item.number_of_items} items` : '1 item'} style={[styles.itemDetail, { color: colors.textSecondary }]} numberOfLines={1} />
-
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
-                    <AppText label={formatDateAndTime(item.created_at)} style={[styles.itemDetail, { marginBottom: 0, color: colors.textSecondary }]} />
-                    <View style={{ width: 1, height: 10, backgroundColor: colors.border, marginHorizontal: 5 }} />
-                    <AppText
-                        label={item.status}
-                        style={[
-                            styles.itemDetail,
-                            { marginBottom: 0, color: statusColor, fontWeight: 'bold' }
-                        ]}
-                    />
+                <View style={styles.main}>
+                    <View style={styles.routeRow}>
+                        <AppText
+                            label={item.source_warehouse_name || 'Source'}
+                            variant={1}
+                            fontSize={14}
+                            color={colors.text}
+                            numberOfLines={1}
+                            style={{ flexShrink: 1 }}
+                        />
+                        <Lucide name="arrow-right" color={colors.textTertiary} size={14} style={{ marginHorizontal: 6 }} />
+                        <AppText
+                            label={item.destination_warehouse_name || 'Destination'}
+                            variant={1}
+                            fontSize={14}
+                            color={colors.text}
+                            numberOfLines={1}
+                            style={{ flexShrink: 1 }}
+                        />
+                    </View>
+                    <View style={styles.metaRow}>
+                        <Lucide name="package" size={12} color={colors.textTertiary} />
+                        <AppText
+                            label={`${itemCount} item${itemCount === 1 ? '' : 's'}`}
+                            fontSize={12}
+                            color={colors.textSecondary}
+                            style={{ marginLeft: 6 }}
+                        />
+                    </View>
+                    <View style={styles.metaRow}>
+                        <Lucide name="calendar" size={12} color={colors.textTertiary} />
+                        <AppText label={dateLabel} fontSize={12} color={colors.textTertiary} style={{ marginLeft: 6 }} numberOfLines={1} />
+                    </View>
                 </View>
-            </View>
-            <View style={{ justifyContent: 'center', alignItems: 'center', marginLeft: 10 }}>
-                <Lucide name="chevron-right" color={colors.border} size={20} />
+                <View style={styles.trailing}>
+                    <View style={[styles.statusPill, { backgroundColor: `${statusColor}18` }]}>
+                        <AppText label={status} fontSize={11} color={statusColor} variant={1} />
+                    </View>
+                    <Lucide name="chevron-right" color={colors.border} size={18} style={{ marginTop: 8 }} />
+                </View>
             </View>
         </TouchableOpacity>
     );
 };
+
+const styles = StyleSheet.create({
+    card: {
+        borderRadius: 12,
+        borderWidth: StyleSheet.hairlineWidth,
+        padding: 14,
+        marginBottom: 10,
+    },
+    topRow: { flexDirection: 'row', alignItems: 'flex-start' },
+    iconWrap: {
+        width: 42,
+        height: 42,
+        borderRadius: 21,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 12,
+    },
+    main: { flex: 1, minWidth: 0, marginRight: 8 },
+    routeRow: { flexDirection: 'row', alignItems: 'center' },
+    metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+    trailing: { alignItems: 'flex-end' },
+    statusPill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
+});
 
 export default TransferItem;

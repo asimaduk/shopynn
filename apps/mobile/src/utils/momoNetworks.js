@@ -42,14 +42,15 @@ export const validateMomoNumberForProvider = (raw, provider) => {
     if (!/^0\d{9}$/.test(digits)) {
         return { ok: false, digits, message: 'Enter a full 10-digit MoMo number.' };
     }
-    const network = MOMO_NETWORK_OPTIONS.find((n) => n.provider === provider) || MOMO_NETWORK_OPTIONS[0];
-    const prefix = digits.slice(0, 3);
-    if (network?.prefixes?.length && !network.prefixes.includes(prefix)) {
-        return {
-            ok: false,
-            digits,
-            message: `${network.label} numbers start with ${network.prefixes.join(', ')}. Check the number or network.`,
-        };
-    }
+    // Prefix ↔ network check paused — MTN (and others) have overlapping / new prefixes (e.g. 025).
+    // const network = MOMO_NETWORK_OPTIONS.find((n) => n.provider === provider) || MOMO_NETWORK_OPTIONS[0];
+    // const prefix = digits.slice(0, 3);
+    // if (network?.prefixes?.length && !network.prefixes.includes(prefix)) {
+    //     return {
+    //         ok: false,
+    //         digits,
+    //         message: `${network.label} numbers start with ${network.prefixes.join(', ')}. Check the number or network.`,
+    //     };
+    // }
     return { ok: true, digits };
 };

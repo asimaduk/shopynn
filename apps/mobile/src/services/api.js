@@ -263,9 +263,13 @@ export const sales = {
     cogs: (params) => axios.get('/sales/cogs', { params }).then((res) => getData(res)),
     get: (id) => axios.get(`/sales/${id}`).then((res) => getData(res)),
     create: (body) => axios.post('/sales', body).then((res) => getData(res)),
-    sendInvoice: (id, body = {}) => axios.post(`/sales/${id}/send-invoice`, body).then((res) => getData(res)),
+    sendInvoice: (id, body = {}) =>
+        axios.post(`/sales/${id}/send-invoice`, body, { timeout: 90000 }).then((res) => getData(res)),
     downloadInvoicePdf: async (id) => {
-        const res = await axios.get(`/sales/${id}/invoice.pdf`, { responseType: 'arraybuffer' });
+        const res = await axios.get(`/sales/${id}/invoice.pdf`, {
+            responseType: 'arraybuffer',
+            timeout: 90000,
+        });
         return res.data;
     },
     dailySales: (params) => axios.get('/sales/daily-summary', { params }).then((res) => getData(res)),

@@ -488,17 +488,19 @@ const ProductForm = ({ navigation, route }) => {
             style={{flex:1}}>
             <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
                 <ScreenHeader onPress={backPress} label={'Product form'}>
-                    <View style={{flexDirection:'row',marginVertical:5}}>
-                        {/* <TouchableOpacity
-                            activeOpacity={.6}
-                            style={{width:40,height:40,borderRadius:20,justifyContent:'center',alignItems:'center',backgroundColor:'#eee'}}>
-                            <Lucide name="redo-dot" color="#4c4c4c" size={20} />
-                        </TouchableOpacity> */}
+                    <View style={{ flexDirection: 'row', marginVertical: 5, marginRight: 8 }}>
                         <TouchableOpacity
-                            activeOpacity={.6}
+                            activeOpacity={0.6}
                             onPress={() => navigation.navigate('ProductImport')}
-                            style={{width:40,height:40,borderRadius:20,justifyContent:'center',alignItems:'center',backgroundColor:'#eee',marginHorizontal:10}}>
-                            <Lucide name="book-up-2" color="#4c4c4c" size={20} />
+                            style={{
+                                width: 40,
+                                height: 40,
+                                borderRadius: 20,
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                            }}
+                        >
+                            <Lucide name="book-up-2" color={config.THEME_COLOR} size={22} />
                         </TouchableOpacity>
                     </View>
                 </ScreenHeader>
@@ -615,7 +617,15 @@ const ProductForm = ({ navigation, route }) => {
                                         <AppText label={'Retail Price'} style={{ marginBottom: 0 }} color={colors.text} />
                                         <AppText label={' *'} color={colors.error} />
                                     </View>
-                                    <View style={styles.priceInputContainer}>
+                                    <View
+                                        style={[
+                                            styles.priceInputContainer,
+                                            {
+                                                backgroundColor: colors.inputBackground,
+                                                borderColor: colors.inputBorder,
+                                            },
+                                        ]}
+                                    >
                                         <AppText label={'GHS'} color={colors.textTertiary} fontSize={14} style={{ marginRight: 5 }} />
                                         <TextInput
                                             placeholder='0.00'
@@ -623,14 +633,22 @@ const ProductForm = ({ navigation, route }) => {
                                             value={formData.unit_price}
                                             onChangeText={(text) => updateFormData('unit_price', text.replace(/[^0-9.]/g, ''))}
                                             keyboardType="decimal-pad"
-                                            style={[styles.textInput, styles.priceInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }, errors.unit_price && [styles.inputError, { borderColor: colors.error, backgroundColor: colors.errorLight }]]}
+                                            style={[styles.textInput, styles.priceInput, { backgroundColor: 'transparent', borderColor: 'transparent', color: colors.text }, errors.unit_price && [styles.inputError, { borderColor: colors.error, backgroundColor: colors.errorLight }]]}
                                         />
                                     </View>
                                     {errors.unit_price && <AppText label={errors.unit_price} color={colors.error} fontSize={12} style={{ marginTop: 4 }} />}
                                 </View>
                                 <View style={[styles.viewContainer, { flex: .5, marginLeft: 5, backgroundColor: colors.surface }]}>
                                     <AppText label={'Wholesale Price'} style={{ marginBottom: 5 }} color={colors.text} />
-                                    <View style={styles.priceInputContainer}>
+                                    <View
+                                        style={[
+                                            styles.priceInputContainer,
+                                            {
+                                                backgroundColor: colors.inputBackground,
+                                                borderColor: colors.inputBorder,
+                                            },
+                                        ]}
+                                    >
                                         <AppText label={'GHS'} color={colors.textTertiary} fontSize={14} style={{ marginRight: 5 }} />
                                         <TextInput
                                             placeholder='0.00'
@@ -638,7 +656,7 @@ const ProductForm = ({ navigation, route }) => {
                                             value={formData.alt_price}
                                             onChangeText={(text) => updateFormData('alt_price', text.replace(/[^0-9.]/g, ''))}
                                             keyboardType="decimal-pad"
-                                            style={[styles.textInput, styles.priceInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }, errors.alt_price && [styles.inputError, { borderColor: colors.error, backgroundColor: colors.errorLight }]]}
+                                            style={[styles.textInput, styles.priceInput, { backgroundColor: 'transparent', borderColor: 'transparent', color: colors.text }, errors.alt_price && [styles.inputError, { borderColor: colors.error, backgroundColor: colors.errorLight }]]}
                                         />
                                     </View>
                                     {errors.alt_price && <AppText label={errors.alt_price} color={colors.error} fontSize={12} style={{ marginTop: 4 }} />}
@@ -649,7 +667,15 @@ const ProductForm = ({ navigation, route }) => {
                         <View style={[styles.viewContainer, { marginTop: 10, backgroundColor: colors.surface }]}>
                                 <AppText label={'Actual cost (per unit)'} style={{ marginBottom: 5 }} color={colors.text} />
                                 <AppText label={'Used for profit & COGS when purchase history is missing'} fontSize={11} color={colors.textTertiary} style={{ marginBottom: 8 }} />
-                                <View style={styles.priceInputContainer}>
+                                <View
+                                    style={[
+                                        styles.priceInputContainer,
+                                        {
+                                            backgroundColor: colors.inputBackground,
+                                            borderColor: colors.inputBorder,
+                                        },
+                                    ]}
+                                >
                                     <AppText label={'GHS'} color={colors.textTertiary} fontSize={14} style={{ marginRight: 5 }} />
                                     <TextInput
                                         placeholder="0.00"
@@ -657,7 +683,7 @@ const ProductForm = ({ navigation, route }) => {
                                         value={formData.actual_cost}
                                         onChangeText={(text) => updateFormData('actual_cost', text.replace(/[^0-9.]/g, ''))}
                                         keyboardType="decimal-pad"
-                                        style={[styles.textInput, styles.priceInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }, errors.actual_cost && [styles.inputError, { borderColor: colors.error, backgroundColor: colors.errorLight }]]}
+                                        style={[styles.textInput, styles.priceInput, { backgroundColor: 'transparent', borderColor: 'transparent', color: colors.text }, errors.actual_cost && [styles.inputError, { borderColor: colors.error, backgroundColor: colors.errorLight }]]}
                                     />
                                 </View>
                                 {errors.actual_cost && <AppText label={errors.actual_cost} color={colors.error} fontSize={12} style={{ marginTop: 4 }} />}
@@ -972,11 +998,11 @@ const ProductForm = ({ navigation, route }) => {
                         disabled={isLoading}
                         style={[styles.saveButton, { backgroundColor: config.THEME_COLOR }, isLoading && styles.saveButtonDisabled]}>
                         {isLoading ? (
-                            <ActivityIndicator color={colors.textInverse} />
+                            <ActivityIndicator color="#fff" />
                         ) : (
                             <>
-                                <AppText label={'Save Product'} variant={1} color={colors.textInverse} fontSize={16} />
-                                <Lucide name="check" color={colors.textInverse} size={18} style={{ marginLeft: 8 }} />
+                                <AppText label={'Save Product'} variant={1} color="#fff" fontSize={16} />
+                                <Lucide name="check" color="#fff" size={18} style={{ marginLeft: 8 }} />
                             </>
                         )}
                     </TouchableOpacity>
@@ -1249,7 +1275,7 @@ const styles = StyleSheet.create({
         width:36,
         height:36,
         borderRadius:18,
-        backgroundColor:'#f0f7ff',
+        backgroundColor: config.THEME_COLOR + '18',
         justifyContent:'center',
         alignItems:'center',
         borderWidth:1,
@@ -1261,10 +1287,8 @@ const styles = StyleSheet.create({
         justifyContent:'center',
         alignItems:'center',
         borderRadius:8,
-        backgroundColor:'#f8f8f8',
         borderWidth:2,
         borderStyle:'dashed',
-        borderColor:'#ddd'
     },
     imageThumbnail: {
         width:100,

@@ -76,7 +76,6 @@ const OrderPayments = ({ navigation }) => {
     const [refreshing, setRefreshing] = useState(false);
     const [rows, setRows] = useState([]);
     const [search, setSearch] = useState('');
-    const [showSearch, setShowSearch] = useState(false);
     const [statusFilter, setStatusFilter] = useState('all');
 
     const load = useCallback(async () => {
@@ -132,6 +131,8 @@ const OrderPayments = ({ navigation }) => {
         return { count: rows.length, paid, pending, totalAmount };
     }, [rows]);
 
+    const filtering = search.trim().length > 0 || statusFilter !== 'all';
+
     const renderPaymentItem = ({ item }) => {
         const badge = statusBadgeStyle(item?.status);
         const method = methodMeta(item?.payment_method_type);
@@ -139,12 +140,12 @@ const OrderPayments = ({ navigation }) => {
 
         return (
             <TouchableOpacity
-                activeOpacity={0.85}
+                activeOpacity={0.75}
                 style={[localStyles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
                 onPress={() => item?.id && navigation.navigate('OrderPaymentDetails', { paymentId: item.id })}
             >
                 <View style={[localStyles.methodIcon, { backgroundColor: `${method.tint}18` }]}>
-                    <Lucide name={method.icon} size={20} color={method.tint} />
+                    <Lucide name={method.icon} size={18} color={method.tint} />
                 </View>
                 <View style={localStyles.cardBody}>
                     <View style={localStyles.cardTop}>
@@ -193,86 +194,101 @@ const OrderPayments = ({ navigation }) => {
     return (
         <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={() => navigation.goBack()} label="Order Payments">
-                <View style={styles.headerActions}>
+                <View style={localStyles.headerActions}>
                     <TouchableOpacity
-                        activeOpacity={0.6}
+                        activeOpacity={0.7}
                         onPress={() => navigation.navigate('OrderSettlements')}
-                        style={[styles.actionButton, { backgroundColor: colors.surface }]}>
-                        <Lucide name="landmark" color={config.THEME_COLOR} size={20} />
+                        style={[localStyles.headerBtn, { backgroundColor: colors.surface }]}
+                    >
+                        <Lucide name="landmark" color={config.THEME_COLOR} size={18} />
                     </TouchableOpacity>
                     <TouchableOpacity
-                        activeOpacity={0.6}
-                        onPress={() => {
-                            setShowSearch((prev) => {
-                                const next = !prev;
-                                if (!next) setSearch('');
-                                return next;
-                            });
-                        }}
-                        style={[styles.actionButton, { backgroundColor: colors.surface }]}>
-                        <Lucide name={showSearch ? 'x' : 'search'} color={colors.text} size={20} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        activeOpacity={0.6}
+                        activeOpacity={0.7}
                         onPress={onRefresh}
                         disabled={refreshing}
-                        style={[styles.actionButton, { backgroundColor: colors.surface }, refreshing && { opacity: 0.5 }]}>
+                        style={[
+                            localStyles.headerBtn,
+                            { backgroundColor: colors.surface },
+                            refreshing && { opacity: 0.5 },
+                        ]}
+                    >
                         {refreshing ? (
                             <ActivityIndicator size="small" color={config.THEME_COLOR} />
                         ) : (
-                            <Lucide name="refresh-cw" color={config.THEME_COLOR} size={20} />
+                            <Lucide name="refresh-cw" color={config.THEME_COLOR} size={18} />
                         )}
                     </TouchableOpacity>
                 </View>
             </ScreenHeader>
 
             <View style={localStyles.summaryRow}>
-                <View style={[localStyles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <View style={[localStyles.statIcon, { backgroundColor: colors.primaryShade }]}>
-                        <Lucide name="receipt" size={16} color={config.THEME_COLOR} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                        <AppText label="Records" fontSize={11} color={colors.textTertiary} />
-                        <AppText label={String(summary.count)} variant={1} fontSize={17} color={colors.text} style={{ marginTop: 2 }} />
-                    </View>
+                <View style={[localStyles.summaryChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <Lucide name="receipt" size={14} color={config.THEME_COLOR} />
+                    <AppText
+                        label={`${summary.count} record${summary.count === 1 ? '' : 's'}`}
+                        fontSize={13}
+                        variant={1}
+                        color={colors.text}
+                        style={{ marginLeft: 6 }}
+                    />
                 </View>
-                <View style={[localStyles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <View style={[localStyles.statIcon, { backgroundColor: '#dcfce7' }]}>
-                        <Lucide name="circle-check" size={16} color="#16a34a" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                        <AppText label="Paid" fontSize={11} color={colors.textTertiary} />
-                        <AppText label={String(summary.paid)} variant={1} fontSize={17} color="#16a34a" style={{ marginTop: 2 }} />
-                    </View>
+                <View style={[localStyles.summaryChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <View style={[localStyles.statusDot, { backgroundColor: '#16a34a' }]} />
+                    <AppText
+                        label={`${summary.paid} paid`}
+                        fontSize={13}
+                        variant={1}
+                        color={colors.text}
+                        style={{ marginLeft: 6 }}
+                    />
+                </View>
+                <View style={[localStyles.summaryChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <View style={[localStyles.statusDot, { backgroundColor: '#d97706' }]} />
+                    <AppText
+                        label={`${summary.pending} pending`}
+                        fontSize={13}
+                        variant={1}
+                        color={colors.text}
+                        style={{ marginLeft: 6 }}
+                    />
+                </View>
+                <View style={[localStyles.summaryChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <Lucide name="wallet" size={14} color={config.THEME_COLOR} />
+                    <AppText
+                        label={formatAmount(summary.totalAmount)}
+                        fontSize={13}
+                        variant={1}
+                        color={colors.text}
+                        style={{ marginLeft: 6 }}
+                    />
                 </View>
             </View>
 
-            <View style={[localStyles.summaryRow, { marginTop: 0 }]}>
-                <View style={[localStyles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <View style={[localStyles.statIcon, { backgroundColor: '#fef3c7' }]}>
-                        <Lucide name="clock" size={16} color="#d97706" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                        <AppText label="Pending" fontSize={11} color={colors.textTertiary} />
-                        <AppText label={String(summary.pending)} variant={1} fontSize={17} color="#d97706" style={{ marginTop: 2 }} />
-                    </View>
-                </View>
-                <View style={[localStyles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <View style={[localStyles.statIcon, { backgroundColor: colors.primaryShade }]}>
-                        <Lucide name="wallet" size={16} color={config.THEME_COLOR} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                        <AppText label="Total" fontSize={11} color={colors.textTertiary} />
-                        <AppText label={formatAmount(summary.totalAmount)} variant={1} fontSize={14} color={colors.text} style={{ marginTop: 2 }} numberOfLines={1} />
-                    </View>
-                </View>
+            <View style={[localStyles.searchWrap, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+                <Lucide name="search" size={16} color={colors.textTertiary} />
+                <TextInput
+                    style={[localStyles.searchInput, { color: colors.text }]}
+                    placeholder="Order no., reference, store..."
+                    placeholderTextColor={colors.placeholder}
+                    value={search}
+                    onChangeText={setSearch}
+                    autoCorrect={false}
+                    autoCapitalize="none"
+                    returnKeyType="search"
+                />
+                {search.length > 0 ? (
+                    <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Lucide name="x" size={16} color={colors.textTertiary} />
+                    </TouchableOpacity>
+                ) : null}
             </View>
 
             <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={localStyles.statusTabs}
-                style={{ flexGrow: 0, marginBottom: 4 }}>
+                style={localStyles.statusScroll}
+            >
                 {STATUS_TABS.map((tab) => {
                     const active = statusFilter === tab.id;
                     return (
@@ -286,33 +302,13 @@ const OrderPayments = ({ navigation }) => {
                                     backgroundColor: active ? config.THEME_COLOR : colors.surface,
                                     borderColor: active ? config.THEME_COLOR : colors.border,
                                 },
-                            ]}>
+                            ]}
+                        >
                             <AppText label={tab.label} fontSize={12} color={active ? '#fff' : colors.text} variant={active ? 1 : 0} />
                         </TouchableOpacity>
                     );
                 })}
             </ScrollView>
-
-            {showSearch ? (
-                <View style={[styles.searchContainer, { backgroundColor: colors.surface, marginTop: 8 }]}>
-                    <Lucide name="search" color={colors.textTertiary} size={18} />
-                    <TextInput
-                        value={search}
-                        onChangeText={setSearch}
-                        placeholder="Order no., reference, store..."
-                        placeholderTextColor={colors.placeholder}
-                        style={[styles.searchInput, { color: colors.text }]}
-                        autoCorrect={false}
-                        autoCapitalize="none"
-                        returnKeyType="search"
-                    />
-                    {search.length > 0 ? (
-                        <TouchableOpacity onPress={() => setSearch('')}>
-                            <Lucide name="x" color={colors.textTertiary} size={18} />
-                        </TouchableOpacity>
-                    ) : null}
-                </View>
-            ) : null}
 
             {loading && !refreshing ? (
                 <View style={localStyles.center}>
@@ -320,119 +316,126 @@ const OrderPayments = ({ navigation }) => {
                     <AppText label="Loading payments..." fontSize={14} color={colors.textSecondary} style={{ marginTop: 12 }} />
                 </View>
             ) : (
-                <FlashList
-                    data={filtered}
-                    estimatedItemSize={120}
-                    contentContainerStyle={styles.listContent}
-                    refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[config.THEME_COLOR]} tintColor={config.THEME_COLOR} />
-                    }
-                    keyExtractor={(item) => String(item.id)}
-                    renderItem={renderPaymentItem}
-                    ListHeaderComponent={
-                        filtered.length > 0 ? (
-                            <View style={[localStyles.listHeader, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                                <Lucide name="banknote" size={18} color={config.THEME_COLOR} />
+                <View style={localStyles.listWrap}>
+                    <FlashList
+                        style={localStyles.list}
+                        data={filtered}
+                        estimatedItemSize={120}
+                        contentContainerStyle={localStyles.listContent}
+                        showsVerticalScrollIndicator={false}
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={refreshing}
+                                onRefresh={onRefresh}
+                                colors={[config.THEME_COLOR]}
+                                tintColor={config.THEME_COLOR}
+                            />
+                        }
+                        keyExtractor={(item) => String(item.id)}
+                        renderItem={renderPaymentItem}
+                        ListEmptyComponent={
+                            <View style={localStyles.emptyWrap}>
+                                <View style={[localStyles.emptyIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                    <Lucide name="banknote" size={28} color={colors.textTertiary} />
+                                </View>
                                 <AppText
-                                    label={`${filtered.length} payment${filtered.length === 1 ? '' : 's'}`}
-                                    fontSize={14}
+                                    label={filtering ? 'No payments match' : 'No order payments yet'}
                                     variant={1}
+                                    fontSize={16}
                                     color={colors.text}
-                                    style={{ marginLeft: 8 }}
+                                    style={{ marginTop: 12 }}
+                                />
+                                <AppText
+                                    label={
+                                        filtering
+                                            ? 'Try another status or search term'
+                                            : 'Payments from customer orders will appear here'
+                                    }
+                                    fontSize={13}
+                                    color={colors.textTertiary}
+                                    style={{ marginTop: 4, textAlign: 'center' }}
                                 />
                             </View>
-                        ) : null
-                    }
-                    ListEmptyComponent={
-                        <View style={localStyles.empty}>
-                            <View style={[localStyles.emptyIcon, { backgroundColor: colors.primaryShade }]}>
-                                <Lucide name="banknote" size={40} color={config.THEME_COLOR} />
-                            </View>
-                            <AppText
-                                label={search || statusFilter !== 'all' ? 'No payments match your filters' : 'No order payments yet'}
-                                variant={1}
-                                fontSize={16}
-                                color={colors.textSecondary}
-                                style={{ marginTop: 14 }}
-                            />
-                            <AppText
-                                label={
-                                    search || statusFilter !== 'all'
-                                        ? 'Try another status or search term.'
-                                        : 'Payments from customer orders will appear here.'
-                                }
-                                fontSize={13}
-                                color={colors.textTertiary}
-                                style={{ marginTop: 6, textAlign: 'center', paddingHorizontal: 24 }}
-                            />
-                        </View>
-                    }
-                />
+                        }
+                    />
+                </View>
             )}
         </SafeAreaView>
     );
 };
 
 const localStyles = StyleSheet.create({
-    summaryRow: {
-        flexDirection: 'row',
-        paddingHorizontal: 12,
-        marginTop: 10,
-        marginBottom: 8,
-        gap: 8,
-    },
-    statCard: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 12,
-        borderRadius: 12,
-        borderWidth: 1,
-        gap: 10,
-    },
-    statIcon: {
-        width: 36,
-        height: 36,
-        borderRadius: 10,
+    headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginRight: 8 },
+    headerBtn: {
+        height: 34,
+        width: 34,
+        borderRadius: 17,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    statusTabs: {
-        paddingHorizontal: 12,
+    summaryRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
         gap: 8,
-        paddingVertical: 4,
+        marginHorizontal: 15,
+        marginTop: 10,
+        marginBottom: 10,
+    },
+    summaryChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 999,
+        borderWidth: StyleSheet.hairlineWidth,
+    },
+    statusDot: { width: 8, height: 8, borderRadius: 4 },
+    searchWrap: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginHorizontal: 15,
+        marginBottom: 10,
+        borderWidth: 1,
+        borderRadius: 999,
+        paddingHorizontal: 14,
+        height: 46,
+    },
+    searchInput: {
+        flex: 1,
+        marginLeft: 8,
+        fontFamily: 'FiraSans-Regular',
+        fontSize: 14,
+    },
+    statusScroll: { flexGrow: 0, marginBottom: 8 },
+    statusTabs: {
+        paddingHorizontal: 15,
+        gap: 8,
+        paddingVertical: 2,
     },
     statusPill: {
         paddingHorizontal: 14,
         paddingVertical: 8,
-        borderRadius: 20,
-        borderWidth: 1,
+        borderRadius: 999,
+        borderWidth: StyleSheet.hairlineWidth,
     },
-    listHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginHorizontal: 10,
-        marginBottom: 10,
-        padding: 12,
-        borderRadius: 10,
-        borderWidth: 1,
-    },
+    listWrap: { flex: 1, minHeight: 0 },
+    list: { flex: 1 },
+    listContent: { paddingHorizontal: 15, paddingBottom: 28 },
     card: {
         flexDirection: 'row',
         alignItems: 'center',
-        borderWidth: 1,
+        borderWidth: StyleSheet.hairlineWidth,
         borderRadius: 12,
-        padding: 12,
-        marginHorizontal: 10,
+        padding: 14,
         marginBottom: 10,
     },
     methodIcon: {
-        width: 44,
-        height: 44,
-        borderRadius: 12,
+        width: 42,
+        height: 42,
+        borderRadius: 21,
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: 10,
+        marginRight: 12,
     },
     cardBody: {
         flex: 1,
@@ -458,15 +461,15 @@ const localStyles = StyleSheet.create({
         justifyContent: 'center',
         paddingVertical: 48,
     },
-    empty: {
+    emptyWrap: {
+        paddingTop: 48,
+        paddingHorizontal: 24,
         alignItems: 'center',
-        paddingVertical: 48,
-        paddingHorizontal: 20,
     },
     emptyIcon: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
+        width: 56,
+        height: 56,
+        borderRadius: 28,
         alignItems: 'center',
         justifyContent: 'center',
     },

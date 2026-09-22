@@ -447,7 +447,6 @@ const PurchaseDetails = ({ navigation, route }) => {
                                 key={opt.id}
                                 label={opt.label}
                                 active={paymentType === opt.id}
-                                activeBg={colors.text}
                                 onPress={() => setPaymentType(opt.id)}
                             />
                         ))}

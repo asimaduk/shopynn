@@ -530,10 +530,16 @@ export const parkPosMomoPaymentService = async ({
     return upd.rows[0];
 };
 
-/** Unlinked POS MoMo payments (pending or success) for the pending-payments screen. */
+/** Unlinked POS MoMo payments for the pending-payments screen (open or abandoned history). */
 export const listUnlinkedPosMomoPaymentsService = async (user, requestQuery = {}) => {
     const tenant_id = user?.tenant_id;
     if (!tenant_id) return [];
+
+    const status = requestQuery.status;
+    const st =
+        status !== undefined && status !== null && String(status).trim() !== ""
+            ? String(status).trim().toLowerCase()
+            : "";
 
     const conditions = [
         "p.tenant_id = $1",
@@ -541,23 +547,26 @@ export const listUnlinkedPosMomoPaymentsService = async (user, requestQuery = {}
         "coalesce(p.payment_method_type, '') = 'mobile_money'",
         "p.sale_id IS NULL",
         "p.order_id IS NULL",
-        "p.pos_cart_snapshot IS NOT NULL",
-        "p.created_at > now() - interval '48 hours'",
-        "lower(coalesce(p.status, '')) NOT IN ('abandoned', 'failed', 'reversed', 'cancelled')",
     ];
     const params = [tenant_id];
     let paramIndex = 2;
 
-    const status = requestQuery.status;
-    if (status !== undefined && status !== null && String(status).trim() !== "") {
-        const st = String(status).trim().toLowerCase();
+    if (st === "abandoned") {
+        conditions.push("lower(coalesce(p.status, '')) = 'abandoned'");
+        conditions.push("p.updated_at > now() - interval '30 days'");
+    } else {
+        conditions.push("p.pos_cart_snapshot IS NOT NULL");
+        conditions.push("p.created_at > now() - interval '48 hours'");
+        conditions.push(
+            "lower(coalesce(p.status, '')) NOT IN ('abandoned', 'failed', 'reversed', 'cancelled')"
+        );
         if (st === "pending") {
             conditions.push(
                 `lower(coalesce(p.status, '')) IN ('pending', 'otp', 'ongoing', 'send_otp')`
             );
         } else if (st === "success" || st === "paid") {
             conditions.push(`lower(coalesce(p.status, '')) IN ('success', 'paid', 'completed')`);
-        } else {
+        } else if (st) {
             conditions.push(`lower(coalesce(p.status, '')) = $${paramIndex}`);
             params.push(st);
             paramIndex += 1;
@@ -568,19 +577,86 @@ export const listUnlinkedPosMomoPaymentsService = async (user, requestQuery = {}
     const result = await pool.query(
         `SELECT p.id, p.amount, p.face_amount, p.fee_amount, p.payment_number, p.transaction_ref,
                 p.status, p.created_at, p.updated_at, p.pos_cart_snapshot, p.creator_id,
-                u.first_name AS creator_first_name, u.last_name AS creator_last_name
+                u.first_name AS creator_first_name, u.last_name AS creator_last_name,
+                aband.actor_user_id AS abandoned_by_user_id,
+                aband.created_at AS abandoned_at,
+                aband.first_name AS abandoned_by_first_name,
+                aband.last_name AS abandoned_by_last_name
          FROM payments p
          LEFT JOIN users u ON p.creator_id = u.id
+         LEFT JOIN LATERAL (
+            SELECT pe.actor_user_id, pe.created_at, au.first_name, au.last_name
+            FROM payment_events pe
+            LEFT JOIN users au ON pe.actor_user_id = au.id
+            WHERE pe.payment_id = p.id AND pe.event_type = 'payment_abandoned'
+            ORDER BY pe.created_at DESC
+            LIMIT 1
+         ) aband ON true
          WHERE ${where}
-         ORDER BY p.created_at DESC
+         ORDER BY COALESCE(p.updated_at, p.created_at) DESC
          LIMIT 200`,
         params
     );
     return result.rows;
 };
 
-/** Mark a pending POS MoMo payment abandoned so a new charge can be started. Refuses success. */
+/** Mark a pending POS MoMo payment abandoned so a new charge can be started.
+ * Verifies with the payment gateway first — refuses if the customer already paid.
+ */
 export const abandonPosMomoPaymentService = async ({ tenant_id, transaction_ref, actor_user_id }) => {
+    const pre = await pool.query(
+        `SELECT id, status, sale_id
+         FROM payments
+         WHERE transaction_ref = $1 AND tenant_id = $2
+         LIMIT 1`,
+        [transaction_ref, tenant_id]
+    );
+    const existing = pre.rows[0];
+    if (!existing) {
+        const err = new Error("Payment not found.");
+        err.status = 404;
+        throw err;
+    }
+    if (existing.sale_id) {
+        const err = new Error("Payment is already linked to a sale.");
+        err.status = 400;
+        err.code = "PAYMENT_ALREADY_LINKED";
+        throw err;
+    }
+    const localSt = String(existing.status || "").toLowerCase();
+    if (localSt === "success" || localSt === "paid" || localSt === "completed") {
+        const err = new Error(
+            "This MoMo payment already succeeded. Complete the sale with this reference — do not abandon."
+        );
+        err.status = 400;
+        err.code = "PAYMENT_ALREADY_SUCCESS";
+        throw err;
+    }
+
+    // Live check with Paystack so we do not abandon after the customer already paid.
+    let gatewayStatus = null;
+    try {
+        const { verifyTransaction } = await import("../services/paymentGateway.js");
+        const gateway = await verifyTransaction(transaction_ref);
+        gatewayStatus = String(gateway?.status || "").toLowerCase();
+    } catch {
+        const err = new Error(
+            "Could not confirm MoMo status with the network. Tap Check status, then try Abandon again."
+        );
+        err.status = 409;
+        err.code = "GATEWAY_VERIFY_FAILED";
+        throw err;
+    }
+    if (["success", "paid", "completed"].includes(gatewayStatus)) {
+        await updatePaymentStatusByTransactionRefService(transaction_ref, "success");
+        const err = new Error(
+            "This MoMo payment already succeeded on the network. Complete the sale — do not abandon."
+        );
+        err.status = 400;
+        err.code = "PAYMENT_ALREADY_SUCCESS";
+        throw err;
+    }
+
     const client = await pool.connect();
     try {
         await client.query("BEGIN");
@@ -606,7 +682,7 @@ export const abandonPosMomoPaymentService = async ({ tenant_id, transaction_ref,
         const st = String(payment.status || "").toLowerCase();
         if (st === "success" || st === "paid" || st === "completed") {
             const err = new Error(
-                "This MoMo payment already succeeded. Complete the sale with this reference — do not send another charge."
+                "This MoMo payment already succeeded. Complete the sale with this reference — do not abandon."
             );
             err.status = 400;
             err.code = "PAYMENT_ALREADY_SUCCESS";
@@ -623,10 +699,10 @@ export const abandonPosMomoPaymentService = async ({ tenant_id, transaction_ref,
             tenant_id,
             actor_user_id: actor_user_id || null,
             event_type: "payment_abandoned",
-            note: "POS MoMo payment abandoned so a new prompt can be sent.",
-            metadata: { transaction_ref },
+            note: "POS MoMo payment abandoned after gateway status check (not paid).",
+            metadata: { transaction_ref, gateway_status: gatewayStatus },
         });
-        return { transaction_ref, status: "abandoned" };
+        return { transaction_ref, status: "abandoned", gateway_status: gatewayStatus };
     } catch (error) {
         try {
             await client.query("ROLLBACK");
@@ -972,7 +1048,11 @@ export const syncOrderPaymentAfterFailure = async (transaction_ref) => {
 /** Update payment status by transaction reference (for webhook and after verify). */
 export const updatePaymentStatusByTransactionRefService = async (transaction_ref, status) => {
     const result = await pool.query(
-        "UPDATE payments SET status = $1, updated_at = $2 WHERE transaction_ref = $3 RETURNING id, order_id, tenant_id, creator_id",
+        `UPDATE payments
+         SET status = $1, updated_at = $2
+         WHERE transaction_ref = $3
+         RETURNING id, order_id, tenant_id, creator_id, payment_source, payment_method_type,
+                   face_amount, amount, payment_number`,
         [status, new Date(), transaction_ref]
     );
     const row = result.rowCount > 0 ? result.rows[0] : null;
@@ -986,9 +1066,64 @@ export const updatePaymentStatusByTransactionRefService = async (transaction_ref
             note: `Payment status changed to ${status}.`,
             metadata: { transaction_ref, status },
         });
+        await notifyPosMomoCreatorPush(row, status, transaction_ref).catch(() => null);
     }
     return row;
 };
+
+/**
+ * Push MoMo terminal status to the cashier who initiated the POS charge.
+ */
+async function notifyPosMomoCreatorPush(payment, status, transaction_ref) {
+    if (!payment?.creator_id) return;
+    if (String(payment.payment_source || "").toLowerCase() !== "pos_sale") return;
+    if (String(payment.payment_method_type || "").toLowerCase() !== "mobile_money") return;
+
+    const st = String(status || "").toLowerCase();
+    const paid = ["success", "paid", "completed"].includes(st);
+    const failed = ["failed", "abandoned", "reversed", "cancelled"].includes(st);
+    if (!paid && !failed) return;
+
+    const userRes = await pool.query(
+        `SELECT fcm_token FROM users WHERE id = $1 LIMIT 1`,
+        [payment.creator_id]
+    );
+    const token = String(userRes.rows[0]?.fcm_token || "").trim();
+    if (!token) return;
+
+    const { sendToTokens } = await import("../services/firebaseMessaging.js");
+    const amount =
+        payment.face_amount != null && Number.isFinite(Number(payment.face_amount))
+            ? Number(payment.face_amount).toFixed(2)
+            : Number(payment.amount || 0).toFixed(2);
+
+    await sendToTokens(token, {
+        notification: {
+            title: paid ? "MoMo paid" : "MoMo failed",
+            body: paid
+                ? `Customer paid GHS ${amount}. Complete the sale.`
+                : `MoMo payment failed (GHS ${amount}). Try again or use another method.`,
+        },
+        data: {
+            type: "pos_momo_status",
+            transaction_ref: String(transaction_ref || ""),
+            status: st,
+            payment_id: String(payment.id || ""),
+            amount: String(amount),
+        },
+        android: {
+            priority: "high",
+        },
+        apns: {
+            payload: {
+                aps: {
+                    sound: "default",
+                    "content-available": 1,
+                },
+            },
+        },
+    });
+}
 
 export const reverseCashOrderPaymentService = async (user, paymentId, reason = "") => {
     const payment = await getPaymentByIdService(paymentId, user.tenant_id);

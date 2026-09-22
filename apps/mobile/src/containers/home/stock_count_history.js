@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { StyleSheet, TouchableOpacity, View, TextInput, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
@@ -9,8 +9,8 @@ import { FlashList } from '@shopify/flash-list';
 import config from '../../config';
 import useTheme from '../../hooks/useTheme';
 import { stockCounts as stockCountsApi, normalizeList } from '../../services/api';
-import homeStyles from './styles';
 import { hasPermission } from '../../utils/permissions';
+import { useFocusEffect } from '@react-navigation/native';
 
 const StockCountHistory = ({ navigation }) => {
     const { colors } = useTheme();
@@ -18,21 +18,15 @@ const StockCountHistory = ({ navigation }) => {
     const canCreateStockCount = hasPermission(user, ['stock_counts.create']);
     const [data, setData] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [showSearch, setShowSearch] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
-
-    useEffect(() => {
-        loadHistory();
-    }, []);
 
     const loadHistory = useCallback(async () => {
         setIsLoading(true);
         try {
             const raw = await stockCountsApi.list();
             const list = normalizeList(raw);
-            // console.log('stock count history list', list);
-            setData(Array.isArray(list) && list.length > 0 ? list : []);
+            setData(Array.isArray(list) ? list : []);
         } catch (_) {
             setData([]);
         } finally {
@@ -40,69 +34,80 @@ const StockCountHistory = ({ navigation }) => {
         }
     }, []);
 
+    useFocusEffect(
+        useCallback(() => {
+            loadHistory();
+        }, [loadHistory]),
+    );
+
     const onRefresh = async () => {
         setRefreshing(true);
         await loadHistory();
         setRefreshing(false);
     };
 
-    const filteredData = data.filter(item => {
-        if (!searchQuery.trim()) return true;
-        const q = searchQuery.toLowerCase();
-        return item.id.toLowerCase().includes(q) ||
-               item.warehouse.toLowerCase().includes(q) ||
-               item.user.toLowerCase().includes(q);
-    });
+    const filteredData = useMemo(() => {
+        const q = searchQuery.trim().toLowerCase();
+        if (!q) return data;
+        return data.filter((item) => {
+            const creator = `${item.creator_first_name || ''} ${item.creator_last_name || ''}`.toLowerCase();
+            return (
+                String(item.reference_number || '').toLowerCase().includes(q) ||
+                String(item.warehouse_name || '').toLowerCase().includes(q) ||
+                String(item.status || '').toLowerCase().includes(q) ||
+                creator.includes(q) ||
+                String(item.id || '').toLowerCase().includes(q)
+            );
+        });
+    }, [data, searchQuery]);
+
+    const filtering = searchQuery.trim().length > 0;
 
     return (
-        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.safe, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={() => navigation.goBack()} label="Stock count history">
-                <View style={homeStyles.headerActions}>
+                {canCreateStockCount ? (
                     <TouchableOpacity
-                        activeOpacity={0.6}
-                        onPress={() => {
-                            setShowSearch((prev) => {
-                                const next = !prev;
-                                if (!next) setSearchQuery('');
-                                return next;
-                            });
-                        }}
-                        style={[homeStyles.actionButton, { backgroundColor: colors.surface }]}
+                        activeOpacity={0.7}
+                        onPress={() => navigation.navigate('StockCount')}
+                        style={[styles.headerBtn, { backgroundColor: colors.surface }]}
                     >
-                        <Lucide name={showSearch ? 'x' : 'search'} color={colors.text} size={20} />
+                        <Lucide name="plus" color={config.THEME_COLOR} size={18} />
                     </TouchableOpacity>
-                    {canCreateStockCount && (
-                        <TouchableOpacity
-                            activeOpacity={0.6}
-                            onPress={() => navigation.navigate('StockCount')}
-                            style={[homeStyles.actionButton, { backgroundColor: colors.surface }]}
-                        >
-                            <Lucide name="plus" color={config.THEME_COLOR} size={20} />
-                        </TouchableOpacity>
-                    )}
-                </View>
+                ) : null}
             </ScreenHeader>
 
-            {showSearch ? (
-                <View style={[styles.searchContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <Lucide name="search" color={colors.textTertiary} size={18} style={{ marginLeft: 12 }} />
-                    <TextInput
-                        style={[styles.searchInput, { color: colors.text }]}
-                        placeholder="Search by ID, warehouse or user..."
-                        placeholderTextColor={colors.placeholder}
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                        autoCorrect={false}
-                        autoCapitalize="none"
-                        returnKeyType="search"
+            <View style={styles.summaryRow}>
+                <View style={[styles.summaryChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <Lucide name="clipboard-check" size={14} color={config.THEME_COLOR} />
+                    <AppText
+                        label={`${filteredData.length} count${filteredData.length === 1 ? '' : 's'}`}
+                        fontSize={13}
+                        variant={1}
+                        color={colors.text}
+                        style={{ marginLeft: 6 }}
                     />
-                    {searchQuery.length > 0 ? (
-                        <TouchableOpacity onPress={() => setSearchQuery('')} style={{ padding: 8, marginRight: 8 }}>
-                            <Lucide name="x" color={colors.textTertiary} size={16} />
-                        </TouchableOpacity>
-                    ) : null}
                 </View>
-            ) : null}
+            </View>
+
+            <View style={[styles.searchWrap, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+                <Lucide name="search" size={16} color={colors.textTertiary} />
+                <TextInput
+                    style={[styles.searchInput, { color: colors.text }]}
+                    placeholder="Search reference, warehouse, or user"
+                    placeholderTextColor={colors.placeholder}
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    autoCorrect={false}
+                    autoCapitalize="none"
+                    returnKeyType="search"
+                />
+                {searchQuery.length > 0 ? (
+                    <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Lucide name="x" size={16} color={colors.textTertiary} />
+                    </TouchableOpacity>
+                ) : null}
+            </View>
 
             {isLoading && !refreshing ? (
                 <View style={styles.loadingContainer}>
@@ -110,154 +115,197 @@ const StockCountHistory = ({ navigation }) => {
                     <AppText label="Loading..." color={colors.textTertiary} style={{ marginTop: 10 }} />
                 </View>
             ) : (
-                <FlashList
-                    data={filteredData}
-                    estimatedItemSize={100}
-                    keyExtractor={(item) => item.id}
-                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={config.THEME_COLOR} />}
-                    ListEmptyComponent={() => (
-                        <View style={styles.emptyContainer}>
-                            <Lucide name="clipboard-check" size={48} color={colors.border} />
-                            <AppText label={searchQuery ? 'No stock counts found' : 'No stock counts yet'} variant={1} fontSize={16} color={colors.textTertiary} style={{ marginTop: 12 }} />
-                            {canCreateStockCount && (
+                <View style={styles.listWrap}>
+                    <FlashList
+                        style={styles.list}
+                        data={filteredData}
+                        estimatedItemSize={120}
+                        keyExtractor={(item, index) => String(item.id ?? `sc-${index}`)}
+                        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={config.THEME_COLOR} />}
+                        contentContainerStyle={styles.listContent}
+                        showsVerticalScrollIndicator={false}
+                        ListEmptyComponent={() => (
+                            <View style={styles.emptyWrap}>
+                                <View style={[styles.emptyIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                    <Lucide name="clipboard-check" size={28} color={colors.textTertiary} />
+                                </View>
+                                <AppText
+                                    label={filtering ? 'No stock counts match' : 'No stock counts yet'}
+                                    variant={1}
+                                    fontSize={16}
+                                    color={colors.text}
+                                    style={{ marginTop: 12 }}
+                                />
+                                <AppText
+                                    label={filtering ? 'Try another search' : 'Create a stock count to get started'}
+                                    fontSize={13}
+                                    color={colors.textTertiary}
+                                    style={{ marginTop: 4, textAlign: 'center' }}
+                                />
+                                {!filtering && canCreateStockCount ? (
+                                    <TouchableOpacity
+                                        activeOpacity={0.8}
+                                        onPress={() => navigation.navigate('StockCount')}
+                                        style={[styles.emptyCta, { backgroundColor: config.THEME_COLOR }]}
+                                    >
+                                        <Lucide name="plus" size={16} color="#fff" />
+                                        <AppText label="Create stock count" fontSize={14} color="#fff" variant={1} style={{ marginLeft: 6 }} />
+                                    </TouchableOpacity>
+                                ) : null}
+                            </View>
+                        )}
+                        renderItem={({ item }) => {
+                            const creator = `${item.creator_first_name || ''} ${item.creator_last_name || ''}`.trim();
+                            const productCount = Number(item.number_of_items || 0);
+                            return (
                                 <TouchableOpacity
-                                    activeOpacity={0.8}
-                                    onPress={() => navigation.navigate('StockCount')}
-                                    style={[styles.emptyBtn, { backgroundColor: config.THEME_COLOR }]}
+                                    activeOpacity={0.75}
+                                    onPress={() => navigation.navigate('StockCountDetails', { stockCount: item })}
+                                    style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
                                 >
-                                    <Lucide name="plus" size={18} color="#fff" />
-                                    <AppText label="Create first stock count" fontSize={14} color="#fff" style={{ marginLeft: 8 }} />
-                                </TouchableOpacity>
-                            )}
-                        </View>
-                    )}
-                    renderItem={({ item }) => (
-                        <TouchableOpacity
-                            activeOpacity={0.7}
-                            onPress={() => navigation.navigate('StockCountDetails', { stockCount: item })}
-                            style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                        >
-                            <View style={styles.cardTop}>
-                                <View style={[styles.iconWrap, { backgroundColor: config.THEME_COLOR + '18' }]}>
-                                    <Lucide name="clipboard-check" size={20} color={config.THEME_COLOR} />
-                                </View>
-                                <View style={{ flex: 1, marginLeft: 12 }}>
-                                    <AppText label={item.reference_number} variant={1} fontSize={16} color={colors.text} />
-                                    <AppText label={item.warehouse_name} fontSize={13} color={colors.textSecondary} style={{ marginTop: 2 }} />
-                                </View>
-                                <View style={[styles.statusBadge, { backgroundColor: config.GREEN_COLOR + '18' }]}>
-                                    <AppText label={item.status} fontSize={11} color={colors.successLight} />
-                                </View>
-                            </View>
-                            <View style={styles.cardRow}>
-                                <View style={styles.cardInfo}>
-                                    <Lucide name="package" size={14} color={colors.textTertiary} />
-                                    <AppText
-                                        label={`${item.number_of_items || 0} unique product${(item.number_of_items || 0) === 1 ? '' : 's'}`}
-                                        fontSize={12}
-                                        color={colors.textTertiary}
-                                        style={{ marginLeft: 6 }}
-                                    />
-                                </View>
-                                {item.varianceCount > 0 && (
-                                    <View style={styles.cardInfo}>
-                                        <Lucide name="circle-alert" size={14} color="#f59e0b" />
-                                        <AppText label={`${item.varianceCount} variances`} fontSize={12} color="#f59e0b" style={{ marginLeft: 6 }} />
+                                    <View style={styles.cardTop}>
+                                        <View style={[styles.iconWrap, { backgroundColor: `${config.THEME_COLOR}18` }]}>
+                                            <Lucide name="clipboard-check" size={18} color={config.THEME_COLOR} />
+                                        </View>
+                                        <View style={styles.main}>
+                                            <AppText
+                                                label={item.reference_number || 'Stock count'}
+                                                variant={1}
+                                                fontSize={15}
+                                                color={colors.text}
+                                                numberOfLines={1}
+                                            />
+                                            <AppText
+                                                label={item.warehouse_name || '—'}
+                                                fontSize={12}
+                                                color={colors.textSecondary}
+                                                style={{ marginTop: 3 }}
+                                                numberOfLines={1}
+                                            />
+                                        </View>
+                                        {item.status ? (
+                                            <View style={[styles.statusBadge, { backgroundColor: `${config.GREEN_COLOR || '#16a34a'}18` }]}>
+                                                <AppText label={item.status} fontSize={11} color={config.GREEN_COLOR || '#16a34a'} variant={1} />
+                                            </View>
+                                        ) : null}
                                     </View>
-                                )}
-                                <AppText label={item.date} fontSize={12} color={colors.textTertiary} style={{ marginLeft: 'auto' }} />
-                            </View>
-                            <View style={[styles.cardFooter, { borderTopColor: colors.border }]}>
-                                <Lucide name="user" size={14} color={colors.textTertiary} />
-                                <AppText label={item.creator_first_name + ' ' + item.creator_last_name} fontSize={12} color={colors.textSecondary} style={{ marginLeft: 6 }} />
-                            </View>
-                        </TouchableOpacity>
-                    )}
-                    contentContainerStyle={{ paddingBottom: 24 }}
-                />
+                                    <View style={styles.cardRow}>
+                                        <View style={styles.cardInfo}>
+                                            <Lucide name="package" size={12} color={colors.textTertiary} />
+                                            <AppText
+                                                label={`${productCount} product${productCount === 1 ? '' : 's'}`}
+                                                fontSize={12}
+                                                color={colors.textTertiary}
+                                                style={{ marginLeft: 6 }}
+                                            />
+                                        </View>
+                                        {Number(item.varianceCount) > 0 ? (
+                                            <View style={styles.cardInfo}>
+                                                <Lucide name="circle-alert" size={12} color="#f59e0b" />
+                                                <AppText
+                                                    label={`${item.varianceCount} variances`}
+                                                    fontSize={12}
+                                                    color="#f59e0b"
+                                                    style={{ marginLeft: 6 }}
+                                                />
+                                            </View>
+                                        ) : null}
+                                        {item.date ? (
+                                            <AppText label={item.date} fontSize={12} color={colors.textTertiary} style={{ marginLeft: 'auto' }} />
+                                        ) : null}
+                                    </View>
+                                    {creator ? (
+                                        <View style={[styles.cardFooter, { borderTopColor: colors.border }]}>
+                                            <Lucide name="user" size={12} color={colors.textTertiary} />
+                                            <AppText label={creator} fontSize={12} color={colors.textSecondary} style={{ marginLeft: 6 }} />
+                                        </View>
+                                    ) : null}
+                                </TouchableOpacity>
+                            );
+                        }}
+                    />
+                </View>
             )}
         </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
-    searchContainer: {
-        flexDirection: 'row',
+    safe: { flex: 1 },
+    headerBtn: {
+        height: 34,
+        width: 34,
+        borderRadius: 17,
         alignItems: 'center',
-        marginHorizontal: 12,
-        marginTop: 8,
-        marginBottom: 8,
-        borderRadius: 30,
-        borderWidth: 1,
-    },
-    searchInput: {
-        flex: 1,
-        height: 44,
-        marginLeft: 8,
+        justifyContent: 'center',
         marginRight: 8,
-        fontSize: 15,
-        paddingRight: 8,
     },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingVertical: 40,
+    summaryRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginHorizontal: 15,
+        marginTop: 10,
+        marginBottom: 10,
     },
-    emptyContainer: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 60,
-        paddingHorizontal: 24,
-    },
-    emptyBtn: {
+    summaryChip: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 16,
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 999,
+        borderWidth: StyleSheet.hairlineWidth,
+    },
+    searchWrap: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginHorizontal: 15,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderRadius: 999,
+        paddingHorizontal: 14,
+        height: 46,
+    },
+    searchInput: { flex: 1, marginLeft: 8, fontFamily: 'FiraSans-Regular', fontSize: 14 },
+    listWrap: { flex: 1, minHeight: 0 },
+    list: { flex: 1 },
+    listContent: { paddingHorizontal: 15, paddingBottom: 28 },
+    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    emptyWrap: { paddingTop: 48, paddingHorizontal: 24, alignItems: 'center' },
+    emptyIcon: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
+    emptyCta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 18,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderRadius: 10,
     },
     card: {
-        marginHorizontal: 12,
-        marginBottom: 10,
+        borderRadius: 12,
+        borderWidth: StyleSheet.hairlineWidth,
         padding: 14,
-        borderRadius: 10,
-        borderWidth: 1,
-    },
-    cardTop: {
-        flexDirection: 'row',
-        alignItems: 'center',
         marginBottom: 10,
     },
+    cardTop: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 },
     iconWrap: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+        width: 42,
+        height: 42,
+        borderRadius: 21,
         justifyContent: 'center',
         alignItems: 'center',
+        marginRight: 12,
     },
-    statusBadge: {
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 6,
-    },
-    cardRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 8,
-    },
-    cardInfo: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginRight: 16,
-    },
+    main: { flex: 1, minWidth: 0, marginRight: 8 },
+    statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
+    cardRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+    cardInfo: { flexDirection: 'row', alignItems: 'center', marginRight: 14 },
     cardFooter: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingTop: 8,
-        borderTopWidth: 1,
+        paddingTop: 10,
+        marginTop: 6,
+        borderTopWidth: StyleSheet.hairlineWidth,
     },
 });
 

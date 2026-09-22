@@ -119,7 +119,7 @@ const ProductDetails = ({ navigation, route }) => {
 
     const HeaderActions = () => (
         <View style={styles.headerActions}>
-            {adjustAccess.show && (
+            {/* {adjustAccess.show && (
                 <TouchableOpacity
                     activeOpacity={0.7}
                     onPress={() =>
@@ -139,20 +139,20 @@ const ProductDetails = ({ navigation, route }) => {
                         size={20}
                     />
                 </TouchableOpacity>
-            )}
+            )} */}
             <TouchableOpacity
                 activeOpacity={0.7}
                 onPress={() => navigation.navigate('ProductTransactions', { product })}
-                style={[styles.headerBtn, { backgroundColor: colors.surfaceSecondary }]}
+                style={styles.headerBtn}
             >
-                <Lucide name="list-ordered" color={config.THEME_COLOR} size={20} />
+                <Lucide name="list-ordered" color={config.THEME_COLOR} size={22} />
             </TouchableOpacity>
             <TouchableOpacity
                 activeOpacity={0.7}
                 onPress={() => navigation.navigate('ProductForm', { product })}
-                style={[styles.headerBtn, { backgroundColor: colors.surfaceSecondary }]}
+                style={styles.headerBtn}
             >
-                <Lucide name="pencil" color={config.THEME_COLOR} size={20} />
+                <Lucide name="pencil" color={config.THEME_COLOR} size={22} />
             </TouchableOpacity>
         </View>
     );

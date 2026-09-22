@@ -113,7 +113,6 @@ const Suppliers = ({ navigation }) => {
     const [showEndPicker, setShowEndPicker] = useState(false);
     const [exporting, setExporting] = useState(false);
     const [showExportFormatModal, setShowExportFormatModal] = useState(false);
-    const [showSearch, setShowSearch] = useState(false);
     const rowsRef = useRef([]);
     const loadingMoreRef = useRef(false);
     const hasMoreRef = useRef(false);
@@ -472,6 +471,8 @@ const Suppliers = ({ navigation }) => {
         setShowExportFormatModal(true);
     };
 
+    const filtering = debouncedSearch.length > 0 || selectedDateRange !== 'all_time';
+
     const backPress = () => {
         navigation.goBack();
     };
@@ -479,109 +480,96 @@ const Suppliers = ({ navigation }) => {
     return (
         <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={backPress} label={'Suppliers'}>
-                <View style={styles.headerActions}>
+                <View style={localStyles.headerActions}>
                     <TouchableOpacity
-                        activeOpacity={0.6}
-                        onPress={() => {
-                            setShowSearch((prev) => {
-                                const next = !prev;
-                                if (!next) handleSearch('');
-                                return next;
-                            });
-                        }}
-                        style={[styles.actionButton, { backgroundColor: colors.surface }]}>
-                        <Lucide name={showSearch ? 'x' : 'search'} color={colors.text} size={20} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        activeOpacity={0.6}
+                        activeOpacity={0.7}
                         onPress={() => navigation.navigate('SupplierForm')}
-                        style={[styles.actionButton, { backgroundColor: colors.surface }]}>
-                        <Lucide name="plus" color={config.THEME_COLOR} size={20} />
+                        style={[localStyles.headerBtn, { backgroundColor: colors.surface }]}
+                    >
+                        <Lucide name="plus" color={config.THEME_COLOR} size={18} />
                     </TouchableOpacity>
                     <TouchableOpacity
-                        activeOpacity={0.6}
+                        activeOpacity={0.7}
                         onPress={handleExport}
                         disabled={exporting || filteredData.length === 0}
-                        style={[styles.actionButton, { backgroundColor: colors.surface }, (exporting || filteredData.length === 0) && { opacity: 0.5 }]}>
+                        style={[
+                            localStyles.headerBtn,
+                            { backgroundColor: colors.surface },
+                            (exporting || filteredData.length === 0) && { opacity: 0.5 },
+                        ]}
+                    >
                         {exporting ? (
                             <ActivityIndicator size="small" color={config.THEME_COLOR} />
                         ) : (
-                            <Lucide name="download" color={config.THEME_COLOR} size={20} />
+                            <Lucide name="download" color={config.THEME_COLOR} size={18} />
                         )}
                     </TouchableOpacity>
                 </View>
             </ScreenHeader>
 
-            {/* Date range chip and count */}
-            <View style={localStyles.headerRow}>
-                <TouchableOpacity
-                    activeOpacity={0.8}
-                    onPress={() => setShowDateFilter(true)}
-                    style={[localStyles.dateRangeButton, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <View style={[localStyles.leadingIconWrap, { backgroundColor: colors.primaryShade }]}>
-                        <Lucide name="calendar-fold" color={config.THEME_COLOR} size={15} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                        <AppText label="Date Range" fontSize={11} color={colors.textTertiary} />
-                        <AppText label={getDateRangeLabel()} fontSize={13} variant={1} color={colors.text} style={{ marginTop: 2 }} />
-                    </View>
-                    <Lucide name="chevron-right" color={colors.textTertiary} size={18} />
-                </TouchableOpacity>
-
-                <View style={localStyles.statsRow}>
-                    <View style={[localStyles.statCard, localStyles.statCardCompact, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                        <View style={localStyles.statContent}>
-                            <View style={{ flex: 1 }}>
-                                <AppText label="Suppliers" fontSize={11} color={colors.textSecondary} style={localStyles.statLabel} />
-                                <AppText
-                                    label={`${displayCount}`}
-                                    fontSize={17}
-                                    variant={1}
-                                    color={colors.text}
-                                    style={localStyles.statValue}
-                                />
-                            </View>
-                            <View style={[localStyles.statRightIconWrap, { backgroundColor: colors.primaryShade }]}>
-                                <Lucide name="list" color={config.THEME_COLOR} size={15} />
-                            </View>
-                        </View>
-                    </View>
+            <View style={localStyles.summaryRow}>
+                <View style={[localStyles.summaryChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <Lucide name="truck" size={14} color={config.THEME_COLOR} />
+                    <AppText
+                        label={`${displayCount} supplier${displayCount === 1 ? '' : 's'}`}
+                        fontSize={13}
+                        variant={1}
+                        color={colors.text}
+                        style={{ marginLeft: 6 }}
+                    />
                 </View>
+                <TouchableOpacity
+                    activeOpacity={0.75}
+                    onPress={() => setShowDateFilter(true)}
+                    style={[
+                        localStyles.summaryChip,
+                        {
+                            backgroundColor:
+                                selectedDateRange !== 'all_time' ? `${config.THEME_COLOR}14` : colors.surface,
+                            borderColor:
+                                selectedDateRange !== 'all_time' ? `${config.THEME_COLOR}55` : colors.border,
+                        },
+                    ]}
+                >
+                    <Lucide name="calendar" size={14} color={config.THEME_COLOR} />
+                    <AppText
+                        label={getDateRangeLabel()}
+                        fontSize={13}
+                        color={colors.text}
+                        style={{ marginLeft: 6, maxWidth: 140 }}
+                        numberOfLines={1}
+                    />
+                    <Lucide name="chevron-down" size={14} color={colors.textTertiary} style={{ marginLeft: 4 }} />
+                </TouchableOpacity>
             </View>
 
-            {showSearch ? (
-                <View style={[styles.searchContainer, { backgroundColor: colors.surface }]}>
-                    <Lucide name="search" color={colors.textTertiary} size={18} />
-                    <TextInput
-                        style={[styles.searchInput, { color: colors.text }]}
-                        placeholder="Search suppliers..."
-                        placeholderTextColor={colors.placeholder}
-                        value={searchText}
-                        onChangeText={handleSearch}
-                        autoCorrect={false}
-                        autoCapitalize="none"
-                        returnKeyType="search"
-                    />
-                    {searchText.length > 0 ? (
-                        <TouchableOpacity onPress={() => handleSearch('')}>
-                            <Lucide name="x" color={colors.textTertiary} size={18} />
-                        </TouchableOpacity>
-                    ) : null}
-                </View>
-            ) : null}
+            <View style={[localStyles.searchWrap, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+                <Lucide name="search" size={16} color={colors.textTertiary} />
+                <TextInput
+                    style={[localStyles.searchInput, { color: colors.text }]}
+                    placeholder="Search name, phone, or location"
+                    placeholderTextColor={colors.placeholder}
+                    value={searchText}
+                    onChangeText={handleSearch}
+                    autoCorrect={false}
+                    autoCapitalize="none"
+                    returnKeyType="search"
+                />
+                {searchText.length > 0 ? (
+                    <TouchableOpacity onPress={() => handleSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Lucide name="x" size={16} color={colors.textTertiary} />
+                    </TouchableOpacity>
+                ) : null}
+            </View>
 
-            {/* List header with count */}
-            {/* <View style={[localStyles.listHeader, { backgroundColor: colors.surface }]}>
-                <Lucide name="truck" color={config.THEME_COLOR} size={20} />
-                <AppText label={`${filteredData.length} Supplier${filteredData.length !== 1 ? 's' : ''} Found`} fontSize={16} variant={1} color={colors.text} style={{ marginLeft: 10 }} />
-            </View> */}
-
+            <View style={localStyles.listWrap}>
             <FlashList
-                contentContainerStyle={styles.listContent}
+                style={localStyles.list}
+                contentContainerStyle={localStyles.listContent}
                 data={filteredData}
-                estimatedItemSize={80}
+                estimatedItemSize={100}
                 showsVerticalScrollIndicator={false}
-                keyExtractor={(item) => item.id}
+                keyExtractor={(item) => String(item.id)}
                 onEndReached={onEndReached}
                 onEndReachedThreshold={0.4}
                 refreshControl={
@@ -594,29 +582,54 @@ const Suppliers = ({ navigation }) => {
                         </View>
                     ) : null
                 }
-                renderItem={({ item, index }) => (
+                renderItem={({ item }) => (
                     <SupplierItem
                         item={item}
-                        index={index}
                         onPress={() => navigation.navigate('SupplierDetails', { item })}
                     />
                 )}
                 ListEmptyComponent={() => (
-                    <View style={{ alignItems: 'center', marginTop: 50 }}>
+                    <View style={localStyles.emptyWrap}>
                         {loading ? (
                             <ActivityIndicator color={config.THEME_COLOR} />
                         ) : (
                             <>
-                                <Lucide name="truck" color={colors.border} size={48} />
-                                <AppText label="No suppliers found" color={colors.textTertiary} style={{ marginTop: 12 }} />
-                                {selectedDateRange !== 'all_time' && (
-                                    <AppText label="Try adjusting your date filter" fontSize={12} color={colors.placeholder} style={{ marginTop: 4 }} />
-                                )}
+                                <View style={[localStyles.emptyIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                    <Lucide name="truck" color={colors.textTertiary} size={28} />
+                                </View>
+                                <AppText
+                                    label={filtering ? 'No suppliers match' : 'No suppliers yet'}
+                                    variant={1}
+                                    fontSize={16}
+                                    color={colors.text}
+                                    style={{ marginTop: 12 }}
+                                />
+                                <AppText
+                                    label={
+                                        filtering
+                                            ? 'Try another search or date range'
+                                            : 'Add a supplier to get started'
+                                    }
+                                    fontSize={13}
+                                    color={colors.textTertiary}
+                                    style={{ marginTop: 4, textAlign: 'center' }}
+                                />
+                                {!filtering ? (
+                                    <TouchableOpacity
+                                        activeOpacity={0.8}
+                                        onPress={() => navigation.navigate('SupplierForm')}
+                                        style={[localStyles.emptyCta, { backgroundColor: config.THEME_COLOR }]}
+                                    >
+                                        <Lucide name="plus" size={16} color="#fff" />
+                                        <AppText label="Add supplier" color="#fff" variant={1} fontSize={14} style={{ marginLeft: 6 }} />
+                                    </TouchableOpacity>
+                                ) : null}
                             </>
                         )}
                     </View>
                 )}
             />
+            </View>
 
             {/* Date Filter Modal */}
             <AppModal
@@ -915,6 +928,18 @@ const Suppliers = ({ navigation }) => {
 };
 
 const localStyles = StyleSheet.create({
+    headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    headerBtn: { height: 34, width: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+    summaryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginHorizontal: 15, marginTop: 10, marginBottom: 10 },
+    summaryChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth },
+    searchWrap: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 15, marginBottom: 12, borderWidth: 1, borderRadius: 999, paddingHorizontal: 14, height: 46 },
+    searchInput: { flex: 1, marginLeft: 8, fontFamily: 'FiraSans-Regular', fontSize: 14 },
+    listWrap: { flex: 1, minHeight: 0 },
+    list: { flex: 1 },
+    listContent: { paddingHorizontal: 15, paddingBottom: 28 },
+    emptyWrap: { paddingTop: 48, paddingHorizontal: 24, alignItems: 'center' },
+    emptyIcon: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
+    emptyCta: { flexDirection: 'row', alignItems: 'center', marginTop: 18, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10 },
     headerRow: {
         flexDirection: 'row',
         alignItems: 'center',

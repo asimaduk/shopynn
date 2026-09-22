@@ -66,7 +66,7 @@ export default function PosMomoPaymentsPage() {
 	const router = useRouter();
 	const dispatch = useAppDispatch();
 	const { data: user } = useUser();
-	const [statusTab, setStatusTab] = useState<'all' | 'pending' | 'success'>('all');
+	const [statusTab, setStatusTab] = useState<'all' | 'pending' | 'success' | 'abandoned'>('all');
 	const [busyRef, setBusyRef] = useState<string | null>(null);
 
 	const statusQuery = statusTab === 'all' ? undefined : statusTab;
@@ -78,6 +78,7 @@ export default function PosMomoPaymentsPage() {
 	const [createSale] = useCreateSaleMutation();
 
 	const rows = useMemo(() => (Array.isArray(data) ? data : []), [data]);
+	const isAbandonedTab = statusTab === 'abandoned';
 
 	const summary = useMemo(() => {
 		const pending = rows.filter((r) => isPendingStatus(r?.status)).length;
@@ -205,7 +206,7 @@ export default function PosMomoPaymentsPage() {
 		const ref = row?.transaction_ref;
 		if (!ref || isSuccessStatus(row?.status)) return;
 		const ok = window.confirm(
-			'Abandon this pending MoMo prompt? Only do this if the customer will not pay on this request.'
+			'Abandon this MoMo prompt? We will check the network first. If the customer already paid, abandon will be blocked.'
 		);
 		if (!ok) return;
 		setBusyRef(ref);
@@ -214,7 +215,17 @@ export default function PosMomoPaymentsPage() {
 			dispatch(showMessage({ message: 'Payment abandoned.' }));
 			refetch();
 		} catch (err: any) {
-			dispatch(showMessage({ message: err?.data?.message || 'Could not abandon payment' }));
+			const msg = err?.data?.message || err?.data?.data?.message || 'Could not abandon payment';
+			const code = err?.data?.code || err?.data?.data?.code;
+			dispatch(
+				showMessage({
+					message:
+						code === 'PAYMENT_ALREADY_SUCCESS' || /already succeeded/i.test(String(msg))
+							? msg
+							: msg
+				})
+			);
+			refetch();
 		} finally {
 			setBusyRef(null);
 		}
@@ -317,16 +328,21 @@ export default function PosMomoPaymentsPage() {
 					onChange={(_, v) => setStatusTab(v)}
 					sx={{ px: 1, borderBottom: `1px solid ${theme.palette.divider}` }}
 				>
-					<Tab value="all" label="All" sx={{ textTransform: 'none' }} />
+					<Tab value="all" label="Open" sx={{ textTransform: 'none' }} />
 					<Tab value="pending" label="Waiting" sx={{ textTransform: 'none' }} />
 					<Tab value="success" label="Paid" sx={{ textTransform: 'none' }} />
+					<Tab value="abandoned" label="Abandoned" sx={{ textTransform: 'none' }} />
 				</Tabs>
 
 				{rows.length === 0 ? (
 					<Box sx={{ py: 8, textAlign: 'center' }}>
-						<Typography color="text.secondary">No pending MoMo payments.</Typography>
+						<Typography color="text.secondary">
+							{isAbandonedTab ? 'No abandoned MoMo payments.' : 'No pending MoMo payments.'}
+						</Typography>
 						<Typography variant="body2" color="text.secondary" className="mt-1">
-							From New Sale, after Send, tap Park &amp; serve next to park a payment here.
+							{isAbandonedTab
+								? 'Abandoned charges from the last 30 days appear here.'
+								: 'From New Sale, after Send, tap Park & serve next to park a payment here.'}
 						</Typography>
 					</Box>
 				) : (
@@ -335,8 +351,15 @@ export default function PosMomoPaymentsPage() {
 							const ref = row.transaction_ref;
 							const busy = busyRef === ref;
 							const paid = isSuccessStatus(row.status);
+							const abandoned = String(row.status || '').toLowerCase() === 'abandoned';
 							const lines = productLines(row.pos_cart_snapshot);
 							const itemCount = lines.length;
+							const creator = [
+								row.abandoned_by_first_name || row.creator_first_name,
+								row.abandoned_by_last_name || row.creator_last_name
+							]
+								.filter(Boolean)
+								.join(' ');
 							return (
 								<Box
 									key={row.id || ref}
@@ -355,8 +378,10 @@ export default function PosMomoPaymentsPage() {
 											<Typography fontWeight={700}>{formatGhs(row.face_amount ?? row.amount)}</Typography>
 											<Chip
 												size="small"
-												label={paid ? 'Paid' : String(row.status || 'pending')}
-												color={paid ? 'success' : 'warning'}
+												label={
+													paid ? 'Paid' : abandoned ? 'Abandoned' : String(row.status || 'pending')
+												}
+												color={paid ? 'success' : abandoned ? 'default' : 'warning'}
 												variant="outlined"
 											/>
 											{itemCount > 0 ? (
@@ -366,61 +391,60 @@ export default function PosMomoPaymentsPage() {
 											)}
 										</div>
 										<Typography variant="body2" color="text.secondary">
-											{row.payment_number || '—'} · {formatWhen(row.created_at)}
+											{row.payment_number || '—'} ·{' '}
+											{formatWhen(abandoned ? row.updated_at || row.created_at : row.created_at)}
 										</Typography>
 										<Typography variant="caption" color="text.secondary" display="block">
 											Ref {ref}
 											{row.pos_cart_snapshot?.customer_name
 												? ` · ${row.pos_cart_snapshot.customer_name}`
 												: ''}
+											{creator ? ` · by ${creator}` : ''}
 										</Typography>
 									</Box>
-									<Box className="flex flex-wrap gap-1">
-										{!paid && (
-											<Button
-												size="small"
-												variant="outlined"
-												disabled={busy}
-												onClick={() => handleCheckStatus(row)}
-												sx={{ textTransform: 'none' }}
-											>
-												Check status
-											</Button>
-										)}
-										{paid && itemCount > 0 && (
-											<Button
-												size="small"
-												variant="contained"
-												color="secondary"
-												disabled={busy}
-												onClick={() => handleComplete(row)}
-												sx={{ textTransform: 'none' }}
-											>
-												Complete sale
-											</Button>
-										)}
-										<Button
-											size="small"
-											variant="text"
-											disabled={busy}
-											onClick={() => handleResume(row)}
-											sx={{ textTransform: 'none' }}
-										>
-											{paid ? 'Open on New Sale' : 'Resume'}
-										</Button>
-										{!paid && (
-											<Button
-												size="small"
-												variant="text"
-												color="inherit"
-												disabled={busy}
-												onClick={() => handleAbandon(row)}
-												sx={{ textTransform: 'none' }}
-											>
-												Abandon
-											</Button>
-										)}
-									</Box>
+									{!abandoned ? (
+										<Box className="flex flex-wrap gap-1">
+											{!paid && (
+												<Button
+													size="small"
+													variant="outlined"
+													disabled={busy}
+													onClick={() => handleCheckStatus(row)}
+													sx={{ textTransform: 'none' }}
+												>
+													Check status
+												</Button>
+											)}
+											{paid && itemCount > 0 && (
+												<Button
+													size="small"
+													variant="contained"
+													color="secondary"
+													disabled={busy}
+													onClick={() => handleComplete(row)}
+													sx={{ textTransform: 'none' }}
+												>
+													Complete sale
+												</Button>
+											)}
+											{!paid && (
+												<Button
+													size="small"
+													variant="text"
+													color="inherit"
+													disabled={busy}
+													onClick={() => handleAbandon(row)}
+													sx={{ textTransform: 'none' }}
+												>
+													Abandon
+												</Button>
+											)}
+										</Box>
+									) : (
+										<Typography variant="caption" color="text.secondary">
+											History — open on mobile for full activity timeline.
+										</Typography>
+									)}
 								</Box>
 							);
 						})}

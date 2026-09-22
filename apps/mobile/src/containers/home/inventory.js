@@ -104,10 +104,49 @@ const isProductLowStock = (item) => {
 const stockStatusForItem = (item) => {
     const stock = productListedQuantity(item);
     const reorder = Number(item?.reorder_quantity ?? 0);
-    if (stock === 0) return { label: 'Out of Stock', color: '#ef4444', bg: '#fef2f2' };
+    if (stock === 0) {
+        return {
+            label: 'Out of Stock',
+            tone: 'out',
+            color: '#ef4444',
+            bg: 'rgba(239,68,68,0.18)',
+            icon: 'package-x',
+        };
+    }
     const isLow = reorder > 0 ? stock <= reorder : stock < 50;
-    if (isLow) return { label: 'Low Stock', color: '#f59e0b', bg: '#fffbeb' };
-    return { label: 'In Stock', color: '#10b981', bg: '#f0fdf4' };
+    if (isLow) {
+        return {
+            label: 'Low Stock',
+            tone: 'low',
+            color: '#f59e0b',
+            bg: 'rgba(245,158,11,0.18)',
+            icon: 'triangle-alert',
+        };
+    }
+    return {
+        label: 'In Stock',
+        tone: 'ok',
+        color: '#10b981',
+        bg: 'rgba(16,185,129,0.14)',
+        icon: 'circle-check',
+    };
+};
+
+const productInitials = (name) => {
+    const parts = String(name || '')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+    if (!parts.length) return '?';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return `${parts[0][0] || ''}${parts[parts.length - 1][0] || ''}`.toUpperCase();
+};
+
+const shortSku = (sku, max = 14) => {
+    const s = String(sku || '').trim();
+    if (!s) return '';
+    if (s.length <= max) return s;
+    return `${s.slice(0, max - 1)}…`;
 };
 
 const Inventory = ({ navigation, route }) => {
@@ -325,6 +364,8 @@ const Inventory = ({ navigation, route }) => {
                     renderItem={({ item }) => {
                         const stockStatus = stockStatusForItem(item);
                         const qtyDisplay = productListedQuantity(item);
+                        const isProblem = stockStatus.tone !== 'ok';
+                        const skuLabel = shortSku(item.sku);
                         return (
                             <TouchableOpacity
                                 activeOpacity={.7}
@@ -341,50 +382,83 @@ const Inventory = ({ navigation, route }) => {
                                             resizeMode="cover"
                                         />
                                     ) : (
-                                        <View style={[styles.productImageFallback, { backgroundColor: `${config.THEME_COLOR}18` }]}>
-                                            <Lucide name="image" size={22} color={colors.textTertiary} />
+                                        <View style={[styles.productImageFallback, { backgroundColor: `${config.THEME_COLOR}22` }]}>
+                                            <AppText
+                                                label={productInitials(item.name)}
+                                                variant={1}
+                                                fontSize={15}
+                                                color={config.THEME_COLOR}
+                                            />
                                         </View>
                                     )}
                                 </View>
                                 <View style={styles.productInfo}>
-                                    <View style={styles.productHeader}>
-                                        <AppText label={item.name} variant={1} fontSize={15} color={colors.text} numberOfLines={1} />
-                                    </View>
+                                    <AppText
+                                        label={item.name}
+                                        variant={1}
+                                        fontSize={15}
+                                        color={colors.text}
+                                        numberOfLines={1}
+                                    />
                                     <AppText
                                         label={
                                             Array.isArray(item.category_names) && item.category_names.length > 0
                                                 ? item.category_names.filter(Boolean).join(', ')
-                                                : 'No category'
+                                                : 'Uncategorized'
                                         }
                                         variant={2}
                                         fontSize={12}
                                         color={colors.textTertiary}
+                                        numberOfLines={1}
                                         style={{ marginTop: 2 }}
                                     />
                                     <View style={styles.productMeta}>
                                         <View style={styles.metaItem}>
-                                            <Lucide name="hash" color={colors.textTertiary} size={12} />
-                                            <AppText label={item.sku} fontSize={11} color={colors.textSecondary} style={{marginLeft:4}} />
+                                            <Lucide
+                                                name="package"
+                                                color={isProblem ? stockStatus.color : colors.textTertiary}
+                                                size={12}
+                                            />
+                                            <AppText
+                                                label={`${formatQuantity(qtyDisplay)} units`}
+                                                fontSize={11}
+                                                variant={isProblem ? 1 : 2}
+                                                color={isProblem ? stockStatus.color : colors.textSecondary}
+                                                style={{ marginLeft: 4 }}
+                                            />
                                         </View>
-                                        <View style={styles.metaItem}>
-                                            <Lucide name="package" color={colors.textTertiary} size={12} />
-                                            <AppText label={`${formatQuantity(qtyDisplay)} units`} fontSize={11} color={colors.textSecondary} style={{marginLeft:4}} />
-                                        </View>
-                                        <View style={[styles.stockBadge, {backgroundColor: stockStatus.bg}]}>
-                                            <View style={[styles.stockDot, {backgroundColor: stockStatus.color}]} />
-                                            <AppText label={stockStatus.label} fontSize={10} color={stockStatus.color} style={{marginLeft:4}} />
-                                        </View>
+                                        {skuLabel ? (
+                                            <View style={[styles.metaItem, { flexShrink: 1 }]}>
+                                                <Lucide name="hash" color={colors.textTertiary} size={11} />
+                                                <AppText
+                                                    label={skuLabel}
+                                                    fontSize={11}
+                                                    color={colors.textTertiary}
+                                                    numberOfLines={1}
+                                                    style={{ marginLeft: 3, flexShrink: 1 }}
+                                                />
+                                            </View>
+                                        ) : null}
                                     </View>
                                 </View>
-                                <View style={styles.productPrice}>
+                                <View style={styles.trailingBlock}>
                                     <AppText
                                         label={formatCurrency(Number(String(item.unit_price ?? 0).replace(/,/g, '')) || 0)}
                                         variant={1}
-                                        fontSize={16}
+                                        fontSize={15}
                                         color={colors.text}
                                         style={{ fontVariant: ['tabular-nums'] }}
                                     />
-                                    <Lucide name="chevron-right" color={colors.border} size={18} style={{marginTop:2}} />
+                                    <View style={styles.trailingBottom}>
+                                        {isProblem ? (
+                                            <View style={[styles.stockIconWrap, { backgroundColor: stockStatus.bg }]}>
+                                                <Lucide name={stockStatus.icon} size={13} color={stockStatus.color} />
+                                            </View>
+                                        ) : (
+                                            <View style={styles.stockIconSpacer} />
+                                        )}
+                                        <Lucide name="chevron-right" color={colors.border} size={18} />
+                                    </View>
                                 </View>
                             </TouchableOpacity>
                         );
@@ -606,7 +680,7 @@ const Inventory = ({ navigation, route }) => {
                             />
                         </View>
                         <View style={[styles.priceInputRow, { borderColor: colors.border, backgroundColor: colors.inputBackground }]}>
-                            <AppText label={'GHS'} fontSize={12} color={colors.textSecondary} />
+                            <AppText label={'₵'} fontSize={14} color={colors.textSecondary} />
                             <TextInput
                                 keyboardType="decimal-pad"
                                 value={priceForm.retailPrice}
@@ -620,7 +694,7 @@ const Inventory = ({ navigation, route }) => {
                     <View style={{ marginBottom: 4 }}>
                         <AppText label={'Wholesale price (optional)'} fontSize={13} color={colors.text} />
                         <View style={[styles.priceInputRow, { borderColor: colors.border, backgroundColor: colors.inputBackground }]}>
-                            <AppText label={'GHS'} fontSize={12} color={colors.textSecondary} />
+                            <AppText label={'₵'} fontSize={14} color={colors.textSecondary} />
                             <TextInput
                                 keyboardType="decimal-pad"
                                 value={priceForm.wholesalePrice}
@@ -787,9 +861,9 @@ const styles = StyleSheet.create({
         elevation:2
     },
     productImageContainer: {
-        width:60,
-        height:60,
-        borderRadius:8,
+        width:48,
+        height:48,
+        borderRadius:10,
         overflow:'hidden',
     },
     productImage: {
@@ -805,7 +879,9 @@ const styles = StyleSheet.create({
     productInfo: {
         flex:1,
         marginLeft:12,
-        justifyContent:'center'
+        marginRight: 8,
+        justifyContent:'center',
+        minWidth: 0,
     },
     productHeader: {
         flexDirection:'row',
@@ -816,10 +892,22 @@ const styles = StyleSheet.create({
     stockBadge: {
         flexDirection:'row',
         alignItems:'center',
+        alignSelf:'flex-end',
         paddingHorizontal:6,
         paddingVertical:2,
         borderRadius:10,
-        marginLeft:8
+        marginTop:6,
+    },
+    stockIconWrap: {
+        width: 22,
+        height: 22,
+        borderRadius: 11,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    stockIconSpacer: {
+        width: 22,
+        height: 22,
     },
     stockDot: {
         width:6,
@@ -828,18 +916,39 @@ const styles = StyleSheet.create({
     },
     productMeta: {
         flexDirection:'row',
+        alignItems: 'center',
         marginTop:6,
-        gap:12
+        gap:10,
+        minWidth: 0,
     },
     metaItem: {
         flexDirection:'row',
-        alignItems:'center'
+        alignItems:'center',
+        maxWidth: '100%',
+    },
+    trailingBlock: {
+        alignItems: 'flex-end',
+        justifyContent: 'center',
+        minWidth: 72,
+    },
+    trailingBottom: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 6,
+        gap: 2,
     },
     productPrice: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        marginLeft: 8,
+    },
+    trailingCol: {
+        width: 18,
+        alignItems: 'center',
+    },
+    priceRow: {
         flexDirection:'row',
         alignItems:'center',
-        justifyContent:'center',
-        marginLeft:8
     },
     // Add button
     addButton: {

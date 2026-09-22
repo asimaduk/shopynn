@@ -1,13 +1,10 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Lucide } from '@react-native-vector-icons/lucide';
-import styles from './styles';
 import AppText from '../../components/text';
 import config from '../../config';
 import useTheme from '../../hooks/useTheme';
 import { ROLES } from '../../utils/permissions';
-
-const roleBadge = StyleSheet.create({ roleBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 } }).roleBadge;
 
 const normalizeRoleKey = (value) => String(value ?? '').trim().toLowerCase();
 
@@ -28,108 +25,148 @@ const getRoleBadgeColor = (primaryRoleLabel, colors) => {
     return colors.info;
 };
 
-const UserItem = ({ item, index, onPress }) => {
+const UserItem = ({ item, onPress }) => {
     const { colors } = useTheme();
     const primaryRole =
         Array.isArray(item.roles) && item.roles.length
-            ? (item.roles[0].name || item.roles[0].code || item.roles[0].id)
+            ? item.roles[0].name || item.roles[0].code || item.roles[0].id
             : item.role || 'No role';
+    const extraRoles = Array.isArray(item.roles) && item.roles.length > 1 ? item.roles.length - 1 : 0;
     const roleColor = getRoleBadgeColor(primaryRole, colors);
-
+    const name = `${item.first_name || ''} ${item.last_name || ''}`.trim() || item.name || 'Unnamed user';
     const initials = `${item.first_name?.[0] || ''}${item.last_name?.[0] || ''}`.toUpperCase() || 'U';
+    const isActive = !item.deleted && item.is_active !== false;
+    const statusLabel = item.deleted ? 'Deleted' : isActive ? 'Active' : 'Disabled';
+    const statusColor = item.deleted || !isActive ? colors.error : config.GREEN_COLOR || '#16a34a';
 
     return (
         <TouchableOpacity
-            activeOpacity={0.7}
+            activeOpacity={0.75}
+            onPress={onPress}
             style={[
-                styles.itemContainer,
+                styles.card,
                 {
                     backgroundColor: colors.surface,
-                    borderRadius: 12,
-                    paddingVertical: 8,
-                    paddingHorizontal: 10,
-                    marginHorizontal: 10,
-                    marginBottom: 6,
-                    elevation: 0.5,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 1 },
-                    shadowOpacity: 0.03,
-                    shadowRadius: 1.5,
-                    opacity: item.deleted ? 0.5 : 1,
+                    borderColor: colors.border,
+                    opacity: item.deleted ? 0.55 : 1,
                 },
             ]}
-            onPress={onPress}
         >
-            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                <View
-                    style={{
-                        width: 34,
-                        height: 34,
-                        borderRadius: 17,
-                        backgroundColor: colors.surfaceSecondary,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        marginRight: 10,
-                    }}
-                >
-                    <AppText label={initials} fontSize={14} color={colors.text} />
+            <View style={styles.topRow}>
+                <View style={[styles.avatar, { backgroundColor: `${config.THEME_COLOR}18` }]}>
+                    <AppText label={initials} variant={1} fontSize={14} color={config.THEME_COLOR} />
                 </View>
+                <View style={styles.main}>
+                    <View style={styles.nameRow}>
+                        <AppText label={name} variant={1} fontSize={15} color={colors.text} numberOfLines={1} style={{ flex: 1 }} />
+                        <View style={styles.statusWrap}>
+                            <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+                            <AppText label={statusLabel} fontSize={11} color={statusColor} />
+                        </View>
+                    </View>
 
-                <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <AppText
-                            label={`${item.first_name || ''} ${item.last_name || ''}`.trim() || item.name || 'Unnamed user'}
-                            style={[styles.itemName, { color: colors.text }]}
-                            numberOfLines={1}
-                        />
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 6 }}>
-                            <View
-                                style={{
-                                    width: 8,
-                                    height: 8,
-                                    borderRadius: 4,
-                                    backgroundColor: item.is_active !== false ? config.GREEN_COLOR : colors.error,
-                                    marginRight: 4,
-                                }}
-                            />
+                    {item.email ? (
+                        <View style={styles.metaRow}>
+                            <Lucide name="mail" size={12} color={colors.textTertiary} />
                             <AppText
-                                label={item.deleted ? 'Deleted' : item.is_active !== false ? 'Active' : 'Disabled'}
-                                fontSize={10}
-                                color={item.deleted ? colors.error : item.is_active !== false ? config.GREEN_COLOR : colors.error}
+                                label={item.email}
+                                fontSize={12}
+                                color={colors.textSecondary}
+                                numberOfLines={1}
+                                style={styles.metaText}
                             />
                         </View>
-                    </View>
-
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
-                        <Lucide name="mail" size={12} color={colors.textSecondary} style={{ marginRight: 4 }} />
-                        <AppText
-                            label={item.email || 'No email'}
-                            style={[styles.itemDetail, { color: colors.textSecondary }]}
-                            numberOfLines={1}
-                        />
-                    </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 1 }}>
-                        <Lucide name="phone" size={12} color={colors.textSecondary} style={{ marginRight: 4 }} />
-                        <AppText
-                            label={item.phone || 'No phone'}
-                            style={[styles.itemDetail, { color: colors.textSecondary }]}
-                            numberOfLines={1}
-                        />
-                    </View>
-
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, justifyContent: 'space-between' }}>
-                        <View style={[roleBadge, { backgroundColor: roleColor + '20' }]}>
-                            <AppText label={primaryRole} fontSize={10} color={roleColor} />
+                    ) : null}
+                    {item.phone ? (
+                        <View style={styles.metaRow}>
+                            <Lucide name="phone" size={12} color={colors.textTertiary} />
+                            <AppText
+                                label={item.phone}
+                                fontSize={12}
+                                color={colors.textSecondary}
+                                numberOfLines={1}
+                                style={styles.metaText}
+                            />
                         </View>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <AppText label={`#${index + 1}`} fontSize={10} color={colors.textTertiary} style={{ marginRight: 4 }} />
-                            <Lucide name="chevron-right" color={colors.textTertiary} size={16} />
-                        </View>
-                    </View>
+                    ) : null}
                 </View>
+                <Lucide name="chevron-right" color={colors.border} size={18} style={{ marginLeft: 4 }} />
+            </View>
+
+            <View style={styles.badgeRow}>
+                <View style={[styles.roleBadge, { backgroundColor: `${roleColor}18` }]}>
+                    <AppText label={primaryRole} fontSize={11} color={roleColor} variant={1} />
+                </View>
+                {extraRoles > 0 ? (
+                    <View style={[styles.roleBadge, { backgroundColor: colors.surfaceSecondary || colors.background }]}>
+                        <AppText label={`+${extraRoles} more`} fontSize={11} color={colors.textSecondary} />
+                    </View>
+                ) : null}
             </View>
         </TouchableOpacity>
     );
 };
+
+const styles = StyleSheet.create({
+    card: {
+        borderRadius: 12,
+        borderWidth: StyleSheet.hairlineWidth,
+        padding: 14,
+        marginBottom: 10,
+    },
+    topRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+    },
+    avatar: {
+        width: 42,
+        height: 42,
+        borderRadius: 21,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 12
+    },
+    main: {
+        flex: 1,
+        minWidth: 0,
+    },
+    nameRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    statusWrap: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flexShrink: 0,
+    },
+    statusDot: {
+        width: 7,
+        height: 7,
+        borderRadius: 4,
+        marginRight: 5,
+    },
+    metaRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 4,
+    },
+    metaText: {
+        marginLeft: 6,
+        flex: 1,
+    },
+    badgeRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 6,
+        marginTop: 12,
+        marginLeft: 54,
+    },
+    roleBadge: {
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 999,
+    },
+});
 
 export default UserItem;

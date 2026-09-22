@@ -1,117 +1,170 @@
 import React from 'react';
-import { View, TouchableOpacity, Image } from 'react-native';
+import { View, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { Lucide } from '@react-native-vector-icons/lucide';
-import styles from './styles';
 import AppText from '../../components/text';
 import config from '../../config';
 import useTheme from '../../hooks/useTheme';
 
-const CustomerItem = ({ item, index, onPress, onEdit }) => {
+const sourceMeta = (source, colors) => {
+    if (source === 'account') {
+        return { label: 'App signup', color: config.THEME_COLOR, bg: `${config.THEME_COLOR}18` };
+    }
+    if (source === 'pos') {
+        return { label: 'POS / admin', color: colors.textSecondary, bg: colors.surfaceSecondary || colors.background };
+    }
+    return null;
+};
+
+const CustomerItem = ({ item, onPress, onEdit }) => {
     const { colors } = useTheme();
+    const parts = String(item.name || '')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
     const initials =
-        `${item.name?.split(' ')[0]?.[0] || ''}${item.name?.split(' ')[1]?.[0] || ''}`.toUpperCase() || 'C';
+        parts.length >= 2
+            ? `${parts[0][0] || ''}${parts[parts.length - 1][0] || ''}`.toUpperCase()
+            : (parts[0] || 'C').slice(0, 2).toUpperCase();
+    const source = sourceMeta(item.source, colors);
+    const phone = item.phone || item.contact || '';
+    const location = item.address || item.location || '';
 
     return (
         <TouchableOpacity
-            activeOpacity={0.7}
+            activeOpacity={0.75}
             onPress={onPress}
-            style={[
-                styles.itemContainer,
-                {
-                    backgroundColor: colors.surface,
-                    borderRadius: 10,
-                    paddingVertical: 8,
-                    paddingHorizontal: 10,
-                    marginHorizontal: 10,
-                    marginBottom: 6
-                },
-            ]}
+            style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
         >
-            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                <View
-                    style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: 16,
-                        backgroundColor: colors.surfaceSecondary,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        marginRight: 10,
-                    }}
-                >
+            <View style={styles.topRow}>
+                <View style={[styles.avatar, { backgroundColor: `${config.THEME_COLOR}18` }]}>
                     {item.image ? (
-                        <Image source={{ uri: item.image }} style={{ width: 32, height: 32, borderRadius: 16 }} />
+                        <Image source={{ uri: item.image }} style={styles.avatarImage} />
                     ) : (
-                        <AppText label={initials} fontSize={13} color={colors.text} />
+                        <AppText label={initials} variant={1} fontSize={14} color={config.THEME_COLOR} />
                     )}
                 </View>
 
-                    <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <AppText
-                            label={item.name || 'Unnamed customer'}
-                            style={[styles.itemName, { color: colors.text }]}
-                            numberOfLines={1}
-                        />
-                        <AppText
-                            label={`#${index + 1}`}
-                            fontSize={10}
-                            color={colors.textTertiary}
-                            style={{ marginLeft: 6 }}
-                        />
-                    </View>
-                    {item.source === 'account' ? (
-                        <AppText
-                            label="App signup"
-                            fontSize={10}
-                            color={config.THEME_COLOR}
-                            style={{ marginTop: 2 }}
-                            fontFamily="FiraSans-Medium"
-                        />
-                    ) : item.source === 'pos' ? (
-                        <AppText
-                            label="POS / admin"
-                            fontSize={10}
-                            color={colors.textTertiary}
-                            style={{ marginTop: 2 }}
-                            fontFamily="FiraSans-Medium"
-                        />
-                    ) : null}
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
-                        <Lucide name="phone" size={11} color={colors.textSecondary} style={{ marginRight: 4 }} />
-                        <AppText
-                            label={item.phone || 'No phone'}
-                            style={[styles.itemDetail, { color: colors.textSecondary }]}
-                            numberOfLines={1}
-                        />
-                    </View>
-                    {item.address ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 1 }}>
-                            <Lucide name="map-pin" size={11} color={colors.textSecondary} style={{ marginRight: 4 }} />
+                <View style={styles.main}>
+                    <AppText
+                        label={item.name || 'Unnamed customer'}
+                        variant={1}
+                        fontSize={15}
+                        color={colors.text}
+                        numberOfLines={1}
+                    />
+
+                    {phone ? (
+                        <View style={styles.metaRow}>
+                            <Lucide name="phone" size={12} color={colors.textTertiary} />
                             <AppText
-                                label={item.address}
-                                style={[styles.itemDetail, { color: colors.textSecondary }]}
+                                label={phone}
+                                fontSize={12}
+                                color={colors.textSecondary}
                                 numberOfLines={1}
+                                style={styles.metaText}
+                            />
+                        </View>
+                    ) : null}
+
+                    {location ? (
+                        <View style={styles.metaRow}>
+                            <Lucide name="map-pin" size={12} color={colors.textTertiary} />
+                            <AppText
+                                label={location}
+                                fontSize={12}
+                                color={colors.textSecondary}
+                                numberOfLines={1}
+                                style={styles.metaText}
                             />
                         </View>
                     ) : null}
                 </View>
 
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 8 }}>
-                    {onEdit && (
+                <View style={styles.trailing}>
+                    {onEdit ? (
                         <TouchableOpacity
                             onPress={onEdit}
                             activeOpacity={0.6}
-                            style={{ paddingHorizontal: 6, paddingVertical: 4, marginRight: 4 }}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            style={styles.editBtn}
                         >
-                            <Lucide name="pencil" color={colors.textTertiary} size={16} />
+                            <Lucide name="pencil" color={config.THEME_COLOR} size={16} />
                         </TouchableOpacity>
-                    )}
-                    <Lucide name="chevron-right" color={colors.textTertiary} size={16} />
+                    ) : null}
+                    <Lucide name="chevron-right" color={colors.border} size={18} />
                 </View>
             </View>
+
+            {source ? (
+                <View style={styles.badgeRow}>
+                    <View style={[styles.sourceBadge, { backgroundColor: source.bg }]}>
+                        <AppText label={source.label} fontSize={11} color={source.color} variant={1} />
+                    </View>
+                </View>
+            ) : null}
         </TouchableOpacity>
     );
 };
+
+const styles = StyleSheet.create({
+    card: {
+        borderRadius: 12,
+        borderWidth: StyleSheet.hairlineWidth,
+        padding: 14,
+        marginBottom: 10,
+    },
+    topRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+    },
+    avatar: {
+        width: 42,
+        height: 42,
+        borderRadius: 21,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 12,
+        overflow: 'hidden',
+    },
+    avatarImage: {
+        width: 42,
+        height: 42,
+        borderRadius: 21,
+    },
+    main: {
+        flex: 1,
+        minWidth: 0,
+    },
+    metaRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 4,
+    },
+    metaText: {
+        marginLeft: 6,
+        flex: 1,
+    },
+    trailing: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginLeft: 6,
+        gap: 2,
+    },
+    editBtn: {
+        padding: 6,
+    },
+    badgeRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 6,
+        marginTop: 12,
+        marginLeft: 54,
+    },
+    sourceBadge: {
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 999,
+    },
+});
 
 export default CustomerItem;

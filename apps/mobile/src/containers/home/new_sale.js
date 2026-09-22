@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { Dimensions, StyleSheet, TouchableOpacity, ScrollView, View, TextInput, KeyboardAvoidingView, Platform, Image, Alert, Share } from 'react-native';
+import { ActivityIndicator, Dimensions, StyleSheet, TouchableOpacity, ScrollView, View, TextInput, KeyboardAvoidingView, Platform, Image, Alert, Share, DeviceEventEmitter } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -27,6 +27,7 @@ import {
 } from '../../utils/secureOfflineStorage';
 import { normalizeWarehousePrinterType } from '../../utils/warehousePrinter';
 import { buildInvoiceNumberFromSettings } from '../../utils/invoiceNumbering';
+import { POS_MOMO_STATUS_EVENT } from '../../utils/notificationNavigation';
 import {
     getBulkDiscountFromCompany,
     resolveSaleUnitPrice,
@@ -149,6 +150,10 @@ const NewSale = ({ navigation, route }) => {
     const [orders, setOrders] = useState([]);
     const ordersRef = useRef(orders);
     ordersRef.current = orders;
+    const selectedCustomerRef = useRef(selectedCustomer);
+    selectedCustomerRef.current = selectedCustomer;
+    const selectedStoreRef = useRef(selectedStore);
+    selectedStoreRef.current = selectedStore;
 
     const [showMenu,setShowMenu] = useState(false);
     const [showHeldItems, setShowHeldItems] = useState(false)
@@ -166,9 +171,11 @@ const NewSale = ({ navigation, route }) => {
         provider: 'mtn',
         transactionRef: null,
         paid: false,
+        chargedFaceAmount: null,
     });
     const [momoCharge, setMomoCharge] = useState({ enabled: true, percent: 2 });
     const [momoSending, setMomoSending] = useState(false);
+    const [momoChecking, setMomoChecking] = useState(false);
     const [momoStatusText, setMomoStatusText] = useState('');
     const [momoOtp, setMomoOtp] = useState('');
     const [momoNeedsOtp, setMomoNeedsOtp] = useState(false);
@@ -277,6 +284,20 @@ const NewSale = ({ navigation, route }) => {
         // Clear param so it doesn't re-trigger on focus/back.
         navigation.setParams({ selectedProduct: undefined });
 
+        if (
+            selectedPaymentOption.method === 'momo' &&
+            selectedPaymentOption.transactionRef &&
+            (ordersRef.current?.length > 0)
+        ) {
+            Alert.alert(
+                'Cart locked',
+                selectedPaymentOption.paid
+                    ? 'MoMo already paid for this cart amount. Complete the sale — do not change items.'
+                    : 'A MoMo charge is already open for this cart amount. Finish or abandon that prompt before editing items.',
+            );
+            return;
+        }
+
         if (!selectedStore?.id) {
             Alert.alert('Select store', 'Please select a store to check stock availability.');
             return;
@@ -309,6 +330,19 @@ const NewSale = ({ navigation, route }) => {
         const scanned = route.params?.scannedBarcode;
         if (!scanned) return;
         navigation.setParams({ scannedBarcode: undefined });
+        if (
+            selectedPaymentOption.method === 'momo' &&
+            selectedPaymentOption.transactionRef &&
+            (ordersRef.current?.length > 0)
+        ) {
+            Alert.alert(
+                'Cart locked',
+                selectedPaymentOption.paid
+                    ? 'MoMo already paid for this cart amount. Complete the sale — do not change items.'
+                    : 'A MoMo charge is already open for this cart amount. Finish or abandon that prompt before editing items.',
+            );
+            return;
+        }
         navigation.navigate('Search', { source_nav: 'inventory', searchOnly: true, onMultiSelect: handleMultiSelect, barcodeFilter: scanned });
         // Intentionally only react to barcode param — avoid re-firing when callback identity changes.
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -333,6 +367,7 @@ const NewSale = ({ navigation, route }) => {
                 provider: po.provider || 'mtn',
                 transactionRef: po.transactionRef || null,
                 paid: Boolean(po.paid),
+                chargedFaceAmount: po.chargedFaceAmount ?? null,
             });
         }
 
@@ -382,6 +417,14 @@ const NewSale = ({ navigation, route }) => {
         }
 
         const paid = ['success', 'paid', 'completed'].includes(String(parked.status || '').toLowerCase());
+        const chargedFace =
+            Number(parked.face_amount) > 0
+                ? Math.round(Number(parked.face_amount) * 100) / 100
+                : lines.reduce((sum, line) => {
+                      const qty = Number(line.order_quantity ?? line.quantity) || 1;
+                      const price = Number(line.unit_price) || 0;
+                      return sum + qty * price;
+                  }, 0);
         setSelectedPaymentOption({
             method: 'momo',
             amountTendered: '',
@@ -389,11 +432,12 @@ const NewSale = ({ navigation, route }) => {
             provider: snap.provider || 'mtn',
             transactionRef: parked.transaction_ref,
             paid,
+            chargedFaceAmount: chargedFace > 0 ? chargedFace : null,
         });
         setMomoStatusText(
             paid
-                ? `Parked MoMo confirmed. ${completeLabel} to finish.`
-                : 'Resumed parked MoMo. Check status when the customer confirms.'
+                ? `Parked MoMo confirmed. Cart is locked — ${completeLabel} to finish.`
+                : 'Resumed parked MoMo. Cart is locked to the charged amount — check status when the customer confirms.',
         );
         setMomoNeedsOtp(false);
         setMomoOtp('');
@@ -522,6 +566,10 @@ const NewSale = ({ navigation, route }) => {
     };
 
     const handleMultiSelect = (records) => {
+        if (momoCartLocked) {
+            alertMomoCartLocked();
+            return;
+        }
         const next = [...orders];
         let blockedZeroStock = false;
         records.forEach((rec) => {
@@ -569,9 +617,26 @@ const NewSale = ({ navigation, route }) => {
     const userWarehouseId = currentUser?.warehouse_id;
     const resolvedWarehouseId = canMultiStores ? selectedStore?.id : (userWarehouseId || selectedStore?.id);
     const storeLocked = orders.length > 0;
+    const momoCartLocked =
+        selectedPaymentOption.method === 'momo' &&
+        Boolean(selectedPaymentOption.transactionRef) &&
+        orders.length > 0;
+
+    const alertMomoCartLocked = useCallback(() => {
+        Alert.alert(
+            'Cart locked',
+            selectedPaymentOption.paid
+                ? 'MoMo already paid for this cart amount. Complete the sale — do not change items.'
+                : 'A MoMo charge is already open for this cart amount. Finish or abandon that prompt before editing items.',
+        );
+    }, [selectedPaymentOption.paid]);
 
     const handleVoiceCartApply = useCallback(
         (selections) => {
+            if (momoCartLocked) {
+                alertMomoCartLocked();
+                return false;
+            }
             if (!selectedStore?.id) {
                 Alert.alert('Select store', 'Please select a store to check stock availability.');
                 return false;
@@ -585,7 +650,7 @@ const NewSale = ({ navigation, route }) => {
             setOrders(r.next);
             return true;
         },
-        [selectedStore?.id, resolvedWarehouseId],
+        [momoCartLocked, alertMomoCartLocked, selectedStore?.id, resolvedWarehouseId],
     );
 
     // Load stores (warehouses) and customers from API when screen is focused
@@ -593,16 +658,22 @@ const NewSale = ({ navigation, route }) => {
         React.useCallback(() => {
             let active = true;
 
-            // Clear customer when opening a fresh sale (from dashboard/sales),
-            // but keep it when returning from Search / barcode with an in-progress draft.
+            // Clear customer only for a truly fresh sale — not when returning from
+            // Search / scanner / customer form, and never if a draft already has a customer or lines.
             const routes = navigation.getState()?.routes || [];
             const prevRouteName = routes[routes.length - 2]?.name;
-            const returningFromProductPicker =
-                prevRouteName === 'Search' || prevRouteName === 'BarcodeScanner';
+            const returningFromDraftFlow =
+                prevRouteName === 'Search' ||
+                prevRouteName === 'BarcodeScanner' ||
+                prevRouteName === 'CustomerForm';
+            const hasDraft =
+                Boolean(selectedCustomerRef.current) ||
+                (ordersRef.current?.length > 0);
             if (
-                !returningFromProductPicker &&
+                !returningFromDraftFlow &&
+                !hasDraft &&
                 !route.params?.restorePendingSale &&
-                !(ordersRef.current?.length > 0)
+                !route.params?.restoreParkedMomo
             ) {
                 setSelectedCustomer(null);
             }
@@ -614,14 +685,15 @@ const NewSale = ({ navigation, route }) => {
                     if (active) {
                         setStores(list);
                         if (list.length > 0) {
+                            const currentStore = selectedStoreRef.current;
                             // If user can't switch stores, default to their assigned warehouse.
                             if (!canMultiStores && userWarehouseId) {
                                 const match = list.find((s) => String(s?.id) === String(userWarehouseId));
                                 const desiredStore = match || { id: userWarehouseId, name: 'Default store' };
-                                if (!selectedStore || String(selectedStore?.id) !== String(desiredStore?.id)) {
+                                if (!currentStore || String(currentStore?.id) !== String(desiredStore?.id)) {
                                     setSelectedStore(desiredStore);
                                 }
-                            } else if (!selectedStore) {
+                            } else if (!currentStore) {
                                 setSelectedStore(list[0]);
                             }
                         }
@@ -645,7 +717,7 @@ const NewSale = ({ navigation, route }) => {
             return () => {
                 active = false;
             };
-        }, [selectedStore, loadHeldSales, canMultiStores, userWarehouseId, navigation, route.params?.restorePendingSale])
+        }, [loadHeldSales, canMultiStores, userWarehouseId, navigation, route.params?.restorePendingSale, route.params?.restoreParkedMomo])
     );
 
     useEffect(() => {
@@ -662,6 +734,34 @@ const NewSale = ({ navigation, route }) => {
         };
     }, [showPaymentOptions]);
 
+    // MoMo status via FCM push (webhook) — no auto-polling; Check status still verifies on demand.
+    useEffect(() => {
+        if (!showPaymentOptions) return undefined;
+        const sub = DeviceEventEmitter.addListener(POS_MOMO_STATUS_EVENT, (payload) => {
+            const ref = String(payload?.transaction_ref || '');
+            const currentRef = String(selectedPaymentOption.transactionRef || '');
+            if (!ref || !currentRef || ref !== currentRef) return;
+            const st = String(payload?.status || '').toLowerCase();
+            if (['success', 'paid', 'completed'].includes(st)) {
+                setSelectedPaymentOption((p) => ({ ...p, paid: true, transactionRef: currentRef }));
+                setMomoNeedsOtp(false);
+                setMomoStatusText('Payment confirmed.');
+                Toast.show({
+                    type: 'success',
+                    text1: 'MoMo paid',
+                    text2: 'You can complete the sale now.',
+                });
+                return;
+            }
+            if (['failed', 'abandoned', 'reversed', 'cancelled'].includes(st)) {
+                setMomoStatusText(
+                    payload?.body || 'MoMo payment failed. Tap Send again or use Cash.',
+                );
+            }
+        });
+        return () => sub.remove();
+    }, [showPaymentOptions, selectedPaymentOption.transactionRef]);
+
     const momoFace = Number(totalAmount) || 0;
     const momoPercent = momoCharge?.enabled ? Number(momoCharge.percent) || 0 : 0;
     const momoFee = momoCharge?.enabled
@@ -675,9 +775,6 @@ const NewSale = ({ navigation, route }) => {
     const paymentPrinterType = normalizeWarehousePrinterType(warehouseForPaymentLabel?.printer_type);
     const willAutoPrint = paymentPrinterType === 'thermal' || paymentPrinterType === 'a4';
     const completeLabel = willAutoPrint ? 'Complete & print' : 'Complete sale';
-    const completeAfterMomoLabel = willAutoPrint
-        ? 'Complete & print (after MoMo paid)'
-        : 'Complete sale (after MoMo paid)';
     const cashTenderedParsed =
         String(selectedPaymentOption.amountTendered || '').trim() === ''
             ? null
@@ -730,7 +827,6 @@ const NewSale = ({ navigation, route }) => {
             return;
         }
         momoPollGenRef.current += 1;
-        const pollGen = momoPollGenRef.current;
         setMomoSending(true);
         setMomoNeedsOtp(false);
         setMomoOtp('');
@@ -751,10 +847,20 @@ const NewSale = ({ navigation, route }) => {
                 setMomoStatusText('');
                 return;
             }
-            setSelectedPaymentOption((p) => ({ ...p, transactionRef: ref, momoNumber: digits }));
+            setSelectedPaymentOption((p) => ({
+                ...p,
+                transactionRef: ref,
+                momoNumber: digits,
+                chargedFaceAmount: momoFace,
+            }));
 
             if (res?.reused || String(res?.status || '').toLowerCase() === 'success') {
-                setSelectedPaymentOption((p) => ({ ...p, paid: true, transactionRef: ref }));
+                setSelectedPaymentOption((p) => ({
+                    ...p,
+                    paid: true,
+                    transactionRef: ref,
+                    chargedFaceAmount: momoFace,
+                }));
                 setMomoNeedsOtp(false);
                 setMomoStatusText(
                     res?.display_text || `Previous MoMo payment already confirmed. ${completeLabel}.`,
@@ -766,7 +872,11 @@ const NewSale = ({ navigation, route }) => {
                 setMomoNeedsOtp(true);
             }
 
-            if (res?.resume) {
+            if (res?.resume && forceNew) {
+                setMomoStatusText(
+                    'Could not replace the open prompt. Use Check status, or wait and try Send again.',
+                );
+            } else if (res?.resume) {
                 setMomoStatusText(
                     res?.display_text ||
                         'A MoMo prompt is already open. Ask the customer to approve it.',
@@ -776,35 +886,16 @@ const NewSale = ({ navigation, route }) => {
                     res?.display_text ||
                         'Dial *110# on the Telecel line, then enter the voucher below.',
                 );
+            } else if (forceNew) {
+                setMomoStatusText(
+                    res?.display_text ||
+                        'New MoMo prompt sent. We’ll notify you when it’s paid — or tap Check status.',
+                );
             } else {
-                setMomoStatusText(res?.display_text || 'Approve the MoMo prompt on the phone.');
-            }
-
-            // Unlock actions immediately — do not hold the spinner across polling.
-            setMomoSending(false);
-
-            for (let i = 0; i < 12; i += 1) {
-                await new Promise((r) => setTimeout(r, 2500));
-                if (pollGen !== momoPollGenRef.current) return;
-                try {
-                    const v = await paymentsApi.verify(ref);
-                    if (pollGen !== momoPollGenRef.current) return;
-                    const st = String(v?.status || '').toLowerCase();
-                    if (momoStatusNeedsOtp(st, v?.display_text)) {
-                        setMomoNeedsOtp(true);
-                    }
-                    if (st === 'success' || st === 'paid' || st === 'completed') {
-                        setSelectedPaymentOption((p) => ({ ...p, paid: true, transactionRef: ref }));
-                        setMomoNeedsOtp(false);
-                        setMomoStatusText('Payment confirmed.');
-                        break;
-                    }
-                    setMomoStatusText(
-                        v?.display_text || `Waiting for approval… (${st || 'pending'})`,
-                    );
-                } catch (_) {
-                    /* continue */
-                }
+                setMomoStatusText(
+                    res?.display_text ||
+                        'Approve the MoMo prompt on the phone. We’ll notify you when it’s paid — or tap Check status.',
+                );
             }
         } catch (e) {
             Alert.alert('MoMo', extractMomoError(e));
@@ -822,7 +913,7 @@ const NewSale = ({ navigation, route }) => {
         }
         Alert.alert(
             'New MoMo prompt?',
-            'The customer may still approve the previous prompt. Continue only if it failed or timed out.',
+            'This abandons the open prompt and sends a new one. Continue only if the previous prompt failed or timed out.',
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
@@ -834,22 +925,25 @@ const NewSale = ({ navigation, route }) => {
                             try {
                                 await paymentsApi.posAbandon({ reference: ref });
                             } catch (e) {
-                                const msg = e?.response?.data?.message || e?.message || '';
+                                const msg = e?.response?.data?.message || e?.response?.data?.error || e?.message || '';
                                 if (/already succeeded/i.test(String(msg))) {
                                     setSelectedPaymentOption((p) => ({ ...p, paid: true }));
                                     setMomoStatusText(`MoMo already confirmed. ${completeLabel}.`);
                                     return;
                                 }
+                                // Continue with force_new on initiate — server will abandon if needed.
                             }
                         }
+                        momoPollGenRef.current += 1;
                         setSelectedPaymentOption((p) => ({
                             ...p,
                             transactionRef: null,
                             paid: false,
+                            chargedFaceAmount: null,
                         }));
                         setMomoOtp('');
                         setMomoNeedsOtp(false);
-                        setMomoStatusText('');
+                        setMomoStatusText('Starting a new MoMo prompt…');
                         await handleSendMomo({ forceNew: true });
                     },
                 },
@@ -893,8 +987,8 @@ const NewSale = ({ navigation, route }) => {
 
     const handleCheckMomoStatus = async () => {
         const ref = selectedPaymentOption.transactionRef;
-        if (!ref) return;
-        setMomoSending(true);
+        if (!ref || momoChecking) return;
+        setMomoChecking(true);
         try {
             const v = await paymentsApi.verify(ref);
             const st = String(v?.status || '').toLowerCase();
@@ -911,7 +1005,7 @@ const NewSale = ({ navigation, route }) => {
         } catch (e) {
             Alert.alert('MoMo', e?.response?.data?.message || e?.message || 'Could not verify');
         } finally {
-            setMomoSending(false);
+            setMomoChecking(false);
         }
     };
 
@@ -951,6 +1045,7 @@ const NewSale = ({ navigation, route }) => {
                 provider: 'mtn',
                 transactionRef: null,
                 paid: false,
+                chargedFaceAmount: null,
             });
             setMomoStatusText('');
             setMomoOtp('');
@@ -981,6 +1076,14 @@ const NewSale = ({ navigation, route }) => {
             }
             if (!selectedPaymentOption.paid || !selectedPaymentOption.transactionRef) {
                 Alert.alert('MoMo', `Tap Send and confirm payment before ${completeLabel}.`);
+                return;
+            }
+            const charged = Number(selectedPaymentOption.chargedFaceAmount);
+            if (Number.isFinite(charged) && charged > 0 && Math.abs(Number(totalAmount) - charged) > 0.02) {
+                Alert.alert(
+                    'Amount mismatch',
+                    `Cart total (${Number(totalAmount).toFixed(2)}) does not match the MoMo charge (${charged.toFixed(2)}). Finish this payment without changing items.`,
+                );
                 return;
             }
         }
@@ -1261,20 +1364,73 @@ const NewSale = ({ navigation, route }) => {
                                 <Lucide name="pause" color={config.THEME_COLOR} size={22} />
                             </TouchableOpacity>
                         ) : null}
-                        <TouchableOpacity activeOpacity={0.7} onPress={() => navigation.navigate('BarcodeScanner', { returnScreen: 'NewSale' })} style={[styles.headerBtn, { backgroundColor: colors.surface }]}>
+                        <TouchableOpacity
+                            activeOpacity={0.7}
+                            onPress={() => {
+                                if (momoCartLocked) {
+                                    alertMomoCartLocked();
+                                    return;
+                                }
+                                navigation.navigate('BarcodeScanner', { returnScreen: 'NewSale' });
+                            }}
+                            style={[styles.headerBtn, { backgroundColor: colors.surface, opacity: momoCartLocked ? 0.4 : 1 }]}
+                        >
                             <Lucide name="barcode" color={config.THEME_COLOR} size={22} />
                         </TouchableOpacity>
                         <TouchableOpacity
                             activeOpacity={0.7}
-                            onPress={() => setShowVoiceAdd(true)}
-                            style={[styles.headerBtn, { backgroundColor: colors.surface, marginRight: 10 }]}>
+                            onPress={() => {
+                                if (momoCartLocked) {
+                                    alertMomoCartLocked();
+                                    return;
+                                }
+                                setShowVoiceAdd(true);
+                            }}
+                            style={[styles.headerBtn, { backgroundColor: colors.surface, opacity: momoCartLocked ? 0.4 : 1 }]}
+                        >
                             <Lucide name="mic" color={config.THEME_COLOR} size={22} />
                         </TouchableOpacity>
-                        <TouchableOpacity activeOpacity={0.7} onPress={() => navigation.navigate('Search', { source_nav: 'inventory', searchOnly: true, onMultiSelect: handleMultiSelect })} style={[styles.headerBtn, { backgroundColor: colors.surface, marginRight: 10 }]}>
+                        <TouchableOpacity
+                            activeOpacity={0.7}
+                            onPress={() => {
+                                if (momoCartLocked) {
+                                    alertMomoCartLocked();
+                                    return;
+                                }
+                                navigation.navigate('Search', { source_nav: 'inventory', searchOnly: true, onMultiSelect: handleMultiSelect });
+                            }}
+                            style={[styles.headerBtn, { backgroundColor: colors.surface, marginRight: 10, opacity: momoCartLocked ? 0.4 : 1 }]}
+                        >
                             <Lucide name="plus" color={config.THEME_COLOR} size={22} />
                         </TouchableOpacity>
                     </View>
                 </ScreenHeader>
+
+                {momoCartLocked ? (
+                    <View
+                        style={{
+                            marginHorizontal: 16,
+                            marginTop: 10,
+                            marginBottom: 4,
+                            paddingHorizontal: 12,
+                            paddingVertical: 10,
+                            borderRadius: 10,
+                            backgroundColor: selectedPaymentOption.paid ? '#dcfce7' : '#fff7ed',
+                            borderWidth: 1,
+                            borderColor: selectedPaymentOption.paid ? '#86efac' : '#fed7aa',
+                        }}
+                    >
+                        <AppText
+                            label={
+                                selectedPaymentOption.paid
+                                    ? `MoMo paid for ₵ ${Number(selectedPaymentOption.chargedFaceAmount || totalAmount).toFixed(2)}. Cart locked — complete the sale.`
+                                    : `MoMo charge open for ₵ ${Number(selectedPaymentOption.chargedFaceAmount || totalAmount).toFixed(2)}. Cart locked until paid or abandoned.`
+                            }
+                            fontSize={12}
+                            color={selectedPaymentOption.paid ? '#166534' : '#9a3412'}
+                        />
+                    </View>
+                ) : null}
 
                 <View style={styles.section}>
                     {canMultiStores ? (
@@ -1309,7 +1465,13 @@ const NewSale = ({ navigation, route }) => {
                             </View>
                         </View>
                     )}
-                    <TouchableOpacity activeOpacity={0.7} onPress={() => setShowCustomers(true)} style={[styles.customerCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <TouchableOpacity activeOpacity={0.7} onPress={() => {
+                        if (momoCartLocked) {
+                            alertMomoCartLocked();
+                            return;
+                        }
+                        setShowCustomers(true);
+                    }} style={[styles.customerCard, { backgroundColor: colors.surface, borderColor: colors.border, opacity: momoCartLocked ? 0.55 : 1 }]}>
                         <View style={styles.customerIconWrap}>
                             <Lucide name="user" size={18} color={config.THEME_COLOR} />
                         </View>
@@ -1329,7 +1491,13 @@ const NewSale = ({ navigation, route }) => {
                 {orders.length === 0 ? (
                     <TouchableOpacity
                         activeOpacity={0.7}
-                        onPress={() => navigation.navigate('Search', { source_nav: 'inventory', searchOnly: true, onMultiSelect: handleMultiSelect })}
+                        onPress={() => {
+                            if (momoCartLocked) {
+                                alertMomoCartLocked();
+                                return;
+                            }
+                            navigation.navigate('Search', { source_nav: 'inventory', searchOnly: true, onMultiSelect: handleMultiSelect });
+                        }}
                         style={[styles.emptyState, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                         <Lucide name="shopping-cart" size={48} color={colors.border} />
                         <AppText label="No items yet" variant={1} fontSize={16} color={colors.textSecondary} style={{ marginTop: 12 }} />
@@ -1346,17 +1514,28 @@ const NewSale = ({ navigation, route }) => {
                             <View style={[styles.orderRow, { backgroundColor: colors.surface, borderBottomColor: colors.borderLight }]}>
                                 <TouchableOpacity
                                     activeOpacity={0.7}
-                                    onPress={() => { setSelectedProduct(item); setShowMenu(true); }}
+                                    onPress={() => {
+                                        if (momoCartLocked) {
+                                            alertMomoCartLocked();
+                                            return;
+                                        }
+                                        setSelectedProduct(item);
+                                        setShowMenu(true);
+                                    }}
                                     style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
                                     <TouchableOpacity
                                         activeOpacity={0.7}
                                         onPress={(e) => {
                                             e.stopPropagation();
+                                            if (momoCartLocked) {
+                                                alertMomoCartLocked();
+                                                return;
+                                            }
                                             setSelectedProduct(item);
                                             setQuantity(String(item.order_quantity));
                                             setShowSetQuantity(true);
                                         }}
-                                        style={styles.qtyBadge}>
+                                        style={[styles.qtyBadge, { opacity: momoCartLocked ? 0.55 : 1 }]}>
                                         <AppText label={`×${item.order_quantity}`} fontSize={13} color={config.THEME_COLOR} />
                                     </TouchableOpacity>
                                     <View style={{ flex: 1 }}>
@@ -1369,6 +1548,10 @@ const NewSale = ({ navigation, route }) => {
                                     <TouchableOpacity
                                         activeOpacity={0.7}
                                         onPress={() => {
+                                            if (momoCartLocked) {
+                                                alertMomoCartLocked();
+                                                return;
+                                            }
                                             Alert.alert('Remove item', `Remove "${item.name}" from this sale?`, [
                                                 { text: 'Cancel', style: 'cancel' },
                                                 { text: 'Remove', style: 'destructive', onPress: () => {
@@ -1376,7 +1559,7 @@ const NewSale = ({ navigation, route }) => {
                                                 }},
                                             ]);
                                         }}
-                                        style={[styles.deleteBtn, { backgroundColor: colors.errorLight }]}>
+                                        style={[styles.deleteBtn, { backgroundColor: colors.errorLight, opacity: momoCartLocked ? 0.4 : 1 }]}>
                                         <Lucide name="trash-2" size={18} color={colors.error} />
                                     </TouchableOpacity>
                                 </View>
@@ -1435,26 +1618,39 @@ const NewSale = ({ navigation, route }) => {
                     <TouchableOpacity
                         activeOpacity={0.7}
                         onPress={() => {
+                            if (momoCartLocked) {
+                                alertMomoCartLocked();
+                                return;
+                            }
                             if (!canCreateSale) {
                                 Alert.alert('Not allowed', 'You do not have permission to hold sales.');
                                 return;
                             }
                             saveHeldSale();
                         }}
-                        style={styles.footerBtn}>
+                        style={[styles.footerBtn, { opacity: momoCartLocked ? 0.4 : 1 }]}>
                         <Lucide name="pause" size={18} color={colors.textSecondary} />
                         <AppText label="Hold" fontSize={14} color={colors.textSecondary} style={{ marginLeft: 6 }} />
                     </TouchableOpacity>
                     <TouchableOpacity
                         activeOpacity={0.7}
                         onPress={() => {
+                            if (momoCartLocked) {
+                                Alert.alert(
+                                    'MoMo in progress',
+                                    selectedPaymentOption.paid
+                                        ? 'Complete the sale for this MoMo payment instead of cancelling the cart.'
+                                        : 'Abandon or finish the open MoMo prompt before cancelling this sale.',
+                                );
+                                return;
+                            }
                             if (orders.length === 0) { backPress(); return; }
                             Alert.alert('Cancel sale?', 'All items will be removed.', [
                                 { text: 'Keep editing', style: 'cancel' },
                                 { text: 'Cancel sale', style: 'destructive', onPress: () => { setOrders([]); setSelectedProduct(null); backPress(); } },
                             ]);
                         }}
-                        style={styles.footerBtn}>
+                        style={[styles.footerBtn, { opacity: momoCartLocked ? 0.4 : 1 }]}>
                         <Lucide name="x" size={18} color={colors.textSecondary} />
                         <AppText label="Cancel" fontSize={14} color={colors.textSecondary} style={{ marginLeft: 6 }} />
                     </TouchableOpacity>
@@ -1585,7 +1781,7 @@ const NewSale = ({ navigation, route }) => {
                                     disabled={!quantity || Number(quantity) < 1}
                                     onPress={handleAddProduct}
                                     style={[styles.addQtyBtn, (!quantity || Number(quantity) < 1) && [styles.addQtyBtnDisabled, { backgroundColor: colors.surfaceTertiary }]]}>
-                                    <AppText label={orders.find((o) => o.id === selectedProduct.id || o.name === selectedProduct.name) ? "Update quantity" : "Add to sale"} color={colors.textInverse} variant={1} />
+                                    <AppText label={orders.find((o) => o.id === selectedProduct.id || o.name === selectedProduct.name) ? "Set quantity" : "Add to sale"} color={colors.textInverse} variant={1} />
                                 </TouchableOpacity>
                             </>
                         )}
@@ -1670,20 +1866,26 @@ const NewSale = ({ navigation, route }) => {
                         <View style={styles.methodSeg}>
                             {[
                                 { id: 'cash', label: 'Cash' },
-                                { id: 'momo', label: 'Mobile money' },
+                                { id: 'momo', label: 'MoMo' },
                             ].map((opt) => {
                                 const active = selectedPaymentOption.method === opt.id;
+                                const momoLocked =
+                                    selectedPaymentOption.method === 'momo' &&
+                                    Boolean(selectedPaymentOption.transactionRef) &&
+                                    !selectedPaymentOption.paid;
                                 return (
                                     <TouchableOpacity
                                         key={opt.id}
                                         activeOpacity={0.75}
+                                        disabled={momoLocked && opt.id !== 'momo'}
                                         onPress={() => {
+                                            if (momoLocked && opt.id !== 'momo') return;
                                             momoPollGenRef.current += 1;
                                             setSelectedPaymentOption((p) => ({
                                                 ...p,
                                                 method: opt.id,
                                                 ...(opt.id === 'cash'
-                                                    ? { transactionRef: null, paid: false }
+                                                    ? { transactionRef: null, paid: false, chargedFaceAmount: null }
                                                     : {}),
                                             }));
                                             if (opt.id === 'cash') {
@@ -1697,6 +1899,7 @@ const NewSale = ({ navigation, route }) => {
                                             {
                                                 backgroundColor: active ? config.THEME_COLOR : colors.surfaceSecondary,
                                                 borderColor: active ? config.THEME_COLOR : colors.border,
+                                                opacity: momoLocked && opt.id !== 'momo' ? 0.45 : 1,
                                             },
                                         ]}
                                     >
@@ -1749,12 +1952,24 @@ const NewSale = ({ navigation, route }) => {
                             }
                             placeholderTextColor={colors.placeholder}
                             keyboardType={selectedPaymentOption.method === 'cash' ? 'decimal-pad' : 'phone-pad'}
+                            editable={
+                                selectedPaymentOption.method === 'cash' ||
+                                !selectedPaymentOption.transactionRef ||
+                                selectedPaymentOption.paid
+                            }
                             value={
                                 selectedPaymentOption.method === 'cash'
                                     ? selectedPaymentOption.amountTendered
                                     : selectedPaymentOption.momoNumber
                             }
                             onChangeText={(val) => {
+                                if (
+                                    selectedPaymentOption.method === 'momo' &&
+                                    selectedPaymentOption.transactionRef &&
+                                    !selectedPaymentOption.paid
+                                ) {
+                                    return;
+                                }
                                 if (selectedPaymentOption.method === 'momo') {
                                     momoPollGenRef.current += 1;
                                 }
@@ -1766,6 +1981,7 @@ const NewSale = ({ navigation, route }) => {
                                               momoNumber: val.replace(/\D/g, '').slice(0, 10),
                                               paid: false,
                                               transactionRef: null,
+                                              chargedFaceAmount: null,
                                           }
                                 );
                                 if (selectedPaymentOption.method === 'momo') {
@@ -1774,7 +1990,19 @@ const NewSale = ({ navigation, route }) => {
                                     setMomoStatusText('');
                                 }
                             }}
-                            style={[styles.paymentInput, { borderColor: colors.inputBorder, color: colors.text }]}
+                            style={[
+                                styles.paymentInput,
+                                {
+                                    borderColor: colors.inputBorder,
+                                    color: colors.text,
+                                    opacity:
+                                        selectedPaymentOption.method === 'momo' &&
+                                        selectedPaymentOption.transactionRef &&
+                                        !selectedPaymentOption.paid
+                                            ? 0.7
+                                            : 1,
+                                },
+                            ]}
                         />
                         {selectedPaymentOption.method === 'cash' && !cashTenderOk ? (
                             <AppText
@@ -1796,13 +2024,24 @@ const NewSale = ({ navigation, route }) => {
                                             <TouchableOpacity
                                                 key={network.id}
                                                 activeOpacity={0.7}
+                                                disabled={
+                                                    Boolean(selectedPaymentOption.transactionRef) &&
+                                                    !selectedPaymentOption.paid
+                                                }
                                                 onPress={() => {
+                                                    if (
+                                                        selectedPaymentOption.transactionRef &&
+                                                        !selectedPaymentOption.paid
+                                                    ) {
+                                                        return;
+                                                    }
                                                     momoPollGenRef.current += 1;
                                                     setSelectedPaymentOption((p) => ({
                                                         ...p,
                                                         provider: network.provider,
                                                         paid: false,
                                                         transactionRef: null,
+                                                        chargedFaceAmount: null,
                                                     }));
                                                     setMomoNeedsOtp(false);
                                                     setMomoOtp('');
@@ -1817,6 +2056,11 @@ const NewSale = ({ navigation, route }) => {
                                                         borderColor: active
                                                             ? network.color
                                                             : colors.border,
+                                                        opacity:
+                                                            selectedPaymentOption.transactionRef &&
+                                                            !selectedPaymentOption.paid
+                                                                ? 0.7
+                                                                : 1,
                                                     },
                                                 ]}
                                             >
@@ -1933,23 +2177,42 @@ const NewSale = ({ navigation, route }) => {
                                             <TouchableOpacity
                                                 activeOpacity={0.7}
                                                 style={[styles.momoActionChip, { borderColor: colors.border }]}
-                                                disabled={momoSending}
+                                                disabled={momoSending || momoChecking}
                                                 onPress={handleCheckMomoStatus}
                                             >
-                                                <AppText label="Check status" color={colors.primary} fontSize={13} variant={1} />
+                                                {momoChecking ? (
+                                                    <View style={styles.momoActionChipInner}>
+                                                        <ActivityIndicator size="small" color={colors.primary} />
+                                                        <AppText label="Checking…" color={colors.primary} fontSize={13} variant={1} />
+                                                    </View>
+                                                ) : (
+                                                    <AppText label="Check status" color={colors.primary} fontSize={13} variant={1} />
+                                                )}
                                             </TouchableOpacity>
                                             <TouchableOpacity
                                                 activeOpacity={0.7}
-                                                style={[styles.momoActionChip, { borderColor: colors.border }]}
-                                                disabled={momoSending}
+                                                style={[
+                                                    styles.momoActionChip,
+                                                    {
+                                                        borderColor: colors.border,
+                                                        opacity: momoChecking ? 0.35 : 1,
+                                                    },
+                                                ]}
+                                                disabled={momoSending || momoChecking}
                                                 onPress={handleParkMomoAndServeNext}
                                             >
                                                 <AppText label="Park" color={colors.primary} fontSize={13} variant={1} />
                                             </TouchableOpacity>
                                             <TouchableOpacity
                                                 activeOpacity={0.7}
-                                                style={[styles.momoActionChip, { borderColor: colors.border }]}
-                                                disabled={momoSending}
+                                                style={[
+                                                    styles.momoActionChip,
+                                                    {
+                                                        borderColor: colors.border,
+                                                        opacity: momoChecking ? 0.35 : 1,
+                                                    },
+                                                ]}
+                                                disabled={momoSending || momoChecking}
                                                 onPress={handleCancelMomoAndSendAgain}
                                             >
                                                 <AppText label="Send again" color={colors.textSecondary} fontSize={13} />
@@ -1969,47 +2232,37 @@ const NewSale = ({ navigation, route }) => {
                             </View>
                         ) : null}
 
-                        <TouchableOpacity
-                            activeOpacity={0.8}
-                            disabled={
-                                momoSending ||
-                                (selectedPaymentOption.method === 'cash' && !cashTenderOk) ||
-                                (selectedPaymentOption.method === 'momo' &&
-                                    !(selectedPaymentOption.paid && selectedPaymentOption.transactionRef))
-                            }
-                            style={[
-                                styles.savePrintBtn,
-                                {
-                                    marginTop: 16,
-                                    opacity:
-                                        momoSending ||
-                                        (selectedPaymentOption.method === 'cash' && !cashTenderOk) ||
-                                        (selectedPaymentOption.method === 'momo' &&
-                                            !(
-                                                selectedPaymentOption.paid &&
-                                                selectedPaymentOption.transactionRef
-                                            ))
-                                            ? 0.45
-                                            : 1,
-                                },
-                            ]}
-                            onPress={handleSavePrint}
-                        >
-                            <AppText
-                                label={
-                                    selectedPaymentOption.method === 'momo' &&
-                                    !(selectedPaymentOption.paid && selectedPaymentOption.transactionRef)
-                                        ? completeAfterMomoLabel
-                                        : completeLabel
+                        {(selectedPaymentOption.method === 'cash' ||
+                            (selectedPaymentOption.method === 'momo' &&
+                                selectedPaymentOption.paid &&
+                                selectedPaymentOption.transactionRef)) ? (
+                            <TouchableOpacity
+                                activeOpacity={0.8}
+                                disabled={
+                                    momoSending ||
+                                    (selectedPaymentOption.method === 'cash' && !cashTenderOk)
                                 }
-                                color={colors.textInverse}
-                                variant={1}
-                            />
-                        </TouchableOpacity>
+                                style={[
+                                    styles.savePrintBtn,
+                                    {
+                                        marginTop: 16,
+                                        opacity:
+                                            momoSending ||
+                                            (selectedPaymentOption.method === 'cash' && !cashTenderOk)
+                                                ? 0.45
+                                                : 1,
+                                    },
+                                ]}
+                                onPress={handleSavePrint}
+                            >
+                                <AppText label={completeLabel} color={colors.textInverse} variant={1} />
+                            </TouchableOpacity>
+                        ) : null}
                         <TouchableOpacity
                             activeOpacity={0.7}
+                            disabled={momoChecking}
                             onPress={handlePaymentOptionsClose}
-                            style={styles.cancelPaymentBtn}
+                            style={[styles.cancelPaymentBtn, { opacity: momoChecking ? 0.35 : 1 }]}
                         >
                             <AppText label="Cancel" color={colors.textSecondary} />
                         </TouchableOpacity>
@@ -2131,6 +2384,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         paddingHorizontal: 4,
+    },
+    momoActionChipInner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
     },
     savePrintBtn: { height: 50, backgroundColor: config.THEME_COLOR, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginTop: 20 },
     cancelPaymentBtn: { alignItems: 'center', paddingVertical: 12 },

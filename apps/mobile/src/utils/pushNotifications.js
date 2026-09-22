@@ -37,7 +37,25 @@ export async function hasAndroidNotificationPermission() {
 	}
 }
 
-async function requestSystemNotificationPermission() {
+async function hasIosNotificationPermission() {
+	try {
+		const status = await messaging().hasPermission();
+		return (
+			status === messaging.AuthorizationStatus.AUTHORIZED ||
+			status === messaging.AuthorizationStatus.PROVISIONAL
+		);
+	} catch {
+		return false;
+	}
+}
+
+/** Cross-platform: whether the OS currently allows notifications. */
+export async function hasNotificationPermission() {
+	if (Platform.OS === 'ios') return hasIosNotificationPermission();
+	return hasAndroidNotificationPermission();
+}
+
+async function requestAndroidSystemPermission() {
 	const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
 	if (result === PermissionsAndroid.RESULTS.GRANTED) return true;
 	if (result === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
@@ -61,28 +79,77 @@ async function requestSystemNotificationPermission() {
 	return false;
 }
 
+async function requestIosSystemPermission() {
+	try {
+		const current = await messaging().hasPermission();
+		if (
+			current === messaging.AuthorizationStatus.AUTHORIZED ||
+			current === messaging.AuthorizationStatus.PROVISIONAL
+		) {
+			await messaging().registerDeviceForRemoteMessages();
+			return true;
+		}
+
+		// iOS only shows the system dialog once. After Deny, send the user to Settings.
+		if (current === messaging.AuthorizationStatus.DENIED) {
+			await new Promise((resolve) => {
+				Alert.alert(
+					'Notifications blocked',
+					'Enable notifications for Shopynn in Settings → Notifications.',
+					[
+						{ text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+						{
+							text: 'Open settings',
+							onPress: () => {
+								Linking.openSettings().catch(() => {});
+								resolve(false);
+							},
+						},
+					],
+				);
+			});
+			return false;
+		}
+
+		const authStatus = await messaging().requestPermission();
+		const enabled =
+			authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+			authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+		if (!enabled) return false;
+		await messaging().registerDeviceForRemoteMessages();
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+async function requestSystemNotificationPermission() {
+	if (Platform.OS === 'ios') return requestIosSystemPermission();
+	if (Platform.OS === 'android' && Platform.Version >= 33) {
+		return requestAndroidSystemPermission();
+	}
+	return true;
+}
+
 /**
- * Soft in-app explanation (custom sheet when host is mounted), then the system dialog.
+ * Soft in-app explanation (custom sheet), then the system dialog only if user confirms.
  * Returns true when notifications are allowed afterward.
  */
 export function promptForNotificationPermission({
 	title = 'Stay up to date',
-	message = 'Get timely alerts for low stock, new orders, and your daily sales summary. You can change this anytime in Settings.',
+	message = 'Get timely alerts for MoMo payments, low stock, new orders, and your daily sales summary. You can change this anytime in Settings → Notifications.',
 	confirmLabel = 'Enable notifications',
 	cancelLabel = 'Not now',
 } = {}) {
 	return new Promise(async (resolve) => {
-		if (Platform.OS !== 'android') {
-			resolve(true);
-			return;
-		}
-		if (Platform.Version < 33) {
+		const already = await hasNotificationPermission();
+		if (already) {
 			resolve(true);
 			return;
 		}
 
-		const already = await hasAndroidNotificationPermission();
-		if (already) {
+		// Android < 13: no runtime permission dialog.
+		if (Platform.OS === 'android' && Platform.Version < 33) {
 			resolve(true);
 			return;
 		}
@@ -119,12 +186,21 @@ export function promptForNotificationPermission({
 	});
 }
 
-/** Upload current device FCM token for the signed-in user (best-effort). */
+/**
+ * Upload current FCM token when permission is already granted.
+ * Never shows a system permission dialog.
+ */
 export async function syncFcmTokenToServer() {
-	if (Platform.OS !== 'android') return null;
 	try {
-		const allowed = await hasAndroidNotificationPermission();
+		const allowed = await hasNotificationPermission();
 		if (!allowed) return null;
+		if (Platform.OS === 'ios') {
+			try {
+				await messaging().registerDeviceForRemoteMessages();
+			} catch (_) {
+				/* already registered */
+			}
+		}
 		const token = await messaging().getToken();
 		if (!token) return null;
 		await usersApi.updateMyFcmToken(token);
@@ -138,15 +214,14 @@ export async function syncFcmTokenToServer() {
 }
 
 /**
- * After login / session restore (Premium notifications feature only):
+ * After login / session restore:
  * - If already granted → sync token
- * - Else if never soft-prompted → show priming sheet once, then sync on grant
+ * - Else if never soft-prompted → show custom sheet once (Not now = skip native dialog)
  */
 export async function registerPushAfterLogin({ user, forcePrompt = false } = {}) {
-	if (Platform.OS !== 'android') return;
 	if (!userCanUsePushNotifications(user)) return;
 
-	const allowed = await hasAndroidNotificationPermission();
+	const allowed = await hasNotificationPermission();
 	if (allowed) {
 		await syncFcmTokenToServer();
 		return;
@@ -161,9 +236,17 @@ export async function registerPushAfterLogin({ user, forcePrompt = false } = {})
 	}
 }
 
+/** Open OS settings so the user can enable notifications after declining. */
+export function openNotificationSettings() {
+	return Linking.openSettings().catch(() => {});
+}
+
 export function subscribeFcmTokenRefresh() {
-	if (Platform.OS !== 'android') return () => {};
-	return messaging().onTokenRefresh(async () => {
-		await syncFcmTokenToServer();
-	});
+	try {
+		return messaging().onTokenRefresh(async () => {
+			await syncFcmTokenToServer();
+		});
+	} catch (_) {
+		return () => {};
+	}
 }

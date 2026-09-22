@@ -23,7 +23,6 @@ const Orders = ({ navigation }) => {
     const [queueType, setQueueType] = useState('all');
     const [selectedWarehouse] = useState('');
     const [query, setQuery] = useState('');
-    const [showSearch, setShowSearch] = useState(false);
 
     const canCreateOrder =
         hasPermission(user, 'orders.create') &&
@@ -110,316 +109,389 @@ const Orders = ({ navigation }) => {
         { total: 0, pending: 0, ready: 0, delivery: 0 }
     );
 
+    const filtering = normalizedQuery.length > 0 || !!statusFilter || queueType !== 'all';
+
     return (
-        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.safe, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={() => navigation.goBack()} label="Orders">
-                <TouchableOpacity
-                    activeOpacity={0.8}
-                    onPress={() => {
-                        setShowSearch((prev) => {
-                            const next = !prev;
-                            if (!next) setQuery('');
-                            return next;
-                        });
-                    }}
-                    style={[styles.iconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                >
-                    <Lucide name={showSearch ? 'x' : 'search'} size={18} color={colors.text} />
-                </TouchableOpacity>
-                {canCreateOrder && (
+                {canCreateOrder ? (
                     <TouchableOpacity
-                        activeOpacity={0.8}
+                        activeOpacity={0.7}
                         onPress={() => navigation.navigate('CreateOrder')}
-                        style={[styles.addBtn, { backgroundColor: config.THEME_COLOR }]}
+                        style={[styles.headerBtn, { backgroundColor: colors.surface }]}
                     >
-                        <Lucide name="plus" size={18} color="#fff" />
-                        <AppText label="New" color="#fff" fontSize={13} style={{ marginLeft: 6 }} />
+                        <Lucide name="plus" color={config.THEME_COLOR} size={18} />
                     </TouchableOpacity>
-                )}
+                ) : null}
             </ScreenHeader>
 
-            {showSearch && (
-                <View style={[styles.searchWrap, { paddingHorizontal: 12 }]}>
-                    <View style={[styles.searchInputWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                        <Lucide name="search" size={16} color={colors.textSecondary} />
-                        <TextInput
-                            value={query}
-                            onChangeText={setQuery}
-                            placeholder="Search by order no., store, customer..."
-                            placeholderTextColor={colors.textTertiary}
-                            style={[styles.searchInput, { color: colors.text }]}
-                            autoCorrect={false}
-                            autoCapitalize="none"
-                            returnKeyType="search"
-                        />
-                        {!!query && (
-                            <TouchableOpacity onPress={() => setQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                                <Lucide name="x" size={16} color={colors.textSecondary} />
-                            </TouchableOpacity>
-                        )}
-                    </View>
+            <View style={styles.summaryRow}>
+                <View style={[styles.summaryChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <Lucide name="clipboard-list" size={14} color={config.THEME_COLOR} />
+                    <AppText
+                        label={`${summary.total} order${summary.total === 1 ? '' : 's'}`}
+                        fontSize={13}
+                        variant={1}
+                        color={colors.text}
+                        style={{ marginLeft: 6 }}
+                    />
                 </View>
-            )}
+                <View style={[styles.summaryChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <View style={[styles.statusDot, { backgroundColor: '#d97706' }]} />
+                    <AppText
+                        label={`${summary.pending} pending`}
+                        fontSize={13}
+                        variant={1}
+                        color={colors.text}
+                        style={{ marginLeft: 6 }}
+                    />
+                </View>
+            </View>
 
-            <View style={{ paddingBottom: 8, marginTop: 10 }}>
-                <View style={[styles.queueTabBar, { borderBottomColor: colors.border }]}>
-                    <View style={[styles.queueTabRow, { paddingHorizontal: 12 }]}>
-                        {queueTabs.map((tab) => {
-                            const active = queueType === tab.id;
-                            return (
-                                <TouchableOpacity
-                                    key={tab.id}
-                                    onPress={() => setQueueType(tab.id)}
-                                    activeOpacity={0.7}
-                                    style={styles.queueTab}
-                                    accessibilityRole="tab"
-                                    accessibilityState={{ selected: active }}
-                                >
-                                    <View style={styles.queueTabContent}>
-                                        <Lucide
-                                            name={tab.icon}
-                                            size={16}
-                                            color={active ? config.THEME_COLOR : colors.textSecondary}
-                                        />
-                                        <AppText
-                                            label={tab.label}
-                                            color={active ? config.THEME_COLOR : colors.textSecondary}
-                                            fontSize={13}
-                                            variant={active ? 1 : 0}
-                                            style={{ marginLeft: 8 }}
-                                        />
-                                    </View>
-                                    <View
-                                        style={[
-                                            styles.queueTabUnderline,
-                                            { backgroundColor: active ? config.THEME_COLOR : 'transparent' },
-                                        ]}
-                                    />
-                                </TouchableOpacity>
-                            );
-                        })}
-                    </View>
-                </View>
-                <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ gap: 8, marginTop: 10, paddingHorizontal: 12 }}
-                >
-                    {statusTabs.map((status) => {
-                        const active = statusFilter === status;
+            <View style={[styles.searchWrap, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+                <Lucide name="search" size={16} color={colors.textTertiary} />
+                <TextInput
+                    style={[styles.searchInput, { color: colors.text }]}
+                    placeholder="Search order no., store, customer..."
+                    placeholderTextColor={colors.placeholder}
+                    value={query}
+                    onChangeText={setQuery}
+                    autoCorrect={false}
+                    autoCapitalize="none"
+                    returnKeyType="search"
+                />
+                {query.length > 0 ? (
+                    <TouchableOpacity onPress={() => setQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Lucide name="x" size={16} color={colors.textTertiary} />
+                    </TouchableOpacity>
+                ) : null}
+            </View>
+
+            <View style={[styles.queueTabBar, { borderBottomColor: colors.border }]}>
+                <View style={styles.queueTabRow}>
+                    {queueTabs.map((tab) => {
+                        const active = queueType === tab.id;
                         return (
                             <TouchableOpacity
-                                key={status || 'all'}
-                                onPress={() => setStatusFilter(status)}
-                                activeOpacity={0.85}
-                                style={[
-                                    styles.pill,
-                                    {
-                                        backgroundColor: active ? config.THEME_COLOR : colors.surface,
-                                        borderColor: active ? config.THEME_COLOR : colors.border,
-                                    },
-                                ]}
+                                key={tab.id}
+                                onPress={() => setQueueType(tab.id)}
+                                activeOpacity={0.7}
+                                style={styles.queueTab}
+                                accessibilityRole="tab"
+                                accessibilityState={{ selected: active }}
                             >
-                                <AppText
-                                    label={status ? formatStatusLabel(status) : 'All status'}
-                                    color={active ? '#fff' : colors.text}
-                                    fontSize={12}
-                                    variant={active ? 1 : 0}
+                                <View style={styles.queueTabContent}>
+                                    <Lucide
+                                        name={tab.icon}
+                                        size={15}
+                                        color={active ? config.THEME_COLOR : colors.textSecondary}
+                                    />
+                                    <AppText
+                                        label={tab.label}
+                                        color={active ? config.THEME_COLOR : colors.textSecondary}
+                                        fontSize={12}
+                                        variant={active ? 1 : 0}
+                                        style={{ marginLeft: 6 }}
+                                    />
+                                </View>
+                                <View
+                                    style={[
+                                        styles.queueTabUnderline,
+                                        { backgroundColor: active ? config.THEME_COLOR : 'transparent' },
+                                    ]}
                                 />
                             </TouchableOpacity>
                         );
                     })}
-                </ScrollView>
+                </View>
             </View>
 
-            {/* <View style={{ paddingHorizontal: 12, paddingBottom: 6 }}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                    <TouchableOpacity
-                        activeOpacity={0.85}
-                        onPress={() => setStatusFilter('')}
-                        style={[styles.summaryChip, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                    >
-                        <AppText label="Total" color={colors.textSecondary} fontSize={11} />
-                        <AppText label={String(summary.total)} color={colors.text} variant={1} fontSize={13} style={{ marginLeft: 6 }} />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        activeOpacity={0.85}
-                        onPress={() => setStatusFilter('pending')}
-                        style={[styles.summaryChip, { backgroundColor: '#fff7ed', borderColor: '#fed7aa' }]}
-                    >
-                        <AppText label="Pending" color="#9a3412" fontSize={11} />
-                        <AppText label={String(summary.pending)} color="#9a3412" variant={1} fontSize={13} style={{ marginLeft: 6 }} />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        activeOpacity={0.85}
-                        onPress={() => setStatusFilter('ready')}
-                        style={[styles.summaryChip, { backgroundColor: '#f5f3ff', borderColor: '#ddd6fe' }]}
-                    >
-                        <AppText label="Ready" color="#5b21b6" fontSize={11} />
-                        <AppText label={String(summary.ready)} color="#5b21b6" variant={1} fontSize={13} style={{ marginLeft: 6 }} />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        activeOpacity={0.85}
-                        onPress={() => setQueueType('delivery')}
-                        style={[styles.summaryChip, { backgroundColor: '#eff6ff', borderColor: '#bfdbfe' }]}
-                    >
-                        <AppText label="Delivery" color="#1d4ed8" fontSize={11} />
-                        <AppText label={String(summary.delivery)} color="#1d4ed8" variant={1} fontSize={13} style={{ marginLeft: 6 }} />
-                    </TouchableOpacity>
-                </ScrollView>
-            </View> */}
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.statusScroll}
+                contentContainerStyle={styles.statusTabs}
+            >
+                {statusTabs.map((status) => {
+                    const active = statusFilter === status;
+                    return (
+                        <TouchableOpacity
+                            key={status || 'all'}
+                            onPress={() => setStatusFilter(status)}
+                            activeOpacity={0.85}
+                            style={[
+                                styles.pill,
+                                {
+                                    backgroundColor: active ? config.THEME_COLOR : colors.surface,
+                                    borderColor: active ? config.THEME_COLOR : colors.border,
+                                },
+                            ]}
+                        >
+                            <AppText
+                                label={status ? formatStatusLabel(status) : 'All status'}
+                                color={active ? '#fff' : colors.text}
+                                fontSize={12}
+                                variant={active ? 1 : 0}
+                            />
+                        </TouchableOpacity>
+                    );
+                })}
+            </ScrollView>
 
             {loading && !refreshing ? (
                 <View style={styles.loader}>
                     <ActivityIndicator color={config.THEME_COLOR} size="large" />
+                    <AppText label="Loading orders..." color={colors.textTertiary} style={{ marginTop: 10 }} />
                 </View>
             ) : (
-                <FlashList
-                    data={filteredList}
-                    estimatedItemSize={108}
-                    keyExtractor={(item) => String(item.id)}
-                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-                    ListEmptyComponent={() => (
-                        <View style={styles.emptyWrap}>
-                            <Lucide name="shopping-basket" size={42} color={colors.border} />
-                            <AppText
-                                label={normalizedQuery ? 'No results found' : 'No orders yet'}
-                                fontSize={16}
-                                color={colors.textSecondary}
-                                style={{ marginTop: 10 }}
-                            />
-                            <AppText
-                                label={normalizedQuery ? 'Try a different search term.' : 'Orders will appear here once customers place them.'}
-                                fontSize={12}
-                                color={colors.textTertiary}
-                                style={{ marginTop: 4, textAlign: 'center', maxWidth: 280 }}
-                            />
-                        </View>
-                    )}
-                    renderItem={({ item }) => {
-                        const badge = statusColors(item.status);
-                        const payBadge = paymentColors(item.payment_status);
-                        return (
-                            <TouchableOpacity
-                                activeOpacity={0.8}
-                                onPress={() => navigation.navigate('OrderDetails', { orderId: item.id })}
-                                style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                            >
-                                <View style={styles.topRow}>
-                                    <View style={{ flex: 1, paddingRight: 10 }}>
-                                        <AppText label={item.order_number || 'Order'} variant={1} fontSize={15} color={colors.text} />
-                                        {!!String(item?.customer_name || '').trim() && (
+                <View style={styles.listWrap}>
+                    <FlashList
+                        style={styles.list}
+                        contentContainerStyle={styles.listContent}
+                        data={filteredList}
+                        estimatedItemSize={108}
+                        keyExtractor={(item) => String(item.id)}
+                        showsVerticalScrollIndicator={false}
+                        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+                        ListEmptyComponent={() => (
+                            <View style={styles.emptyWrap}>
+                                <View style={[styles.emptyIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                    <Lucide name="shopping-basket" size={28} color={colors.textTertiary} />
+                                </View>
+                                <AppText
+                                    label={filtering ? 'No orders match' : 'No orders yet'}
+                                    variant={1}
+                                    fontSize={16}
+                                    color={colors.text}
+                                    style={{ marginTop: 12 }}
+                                />
+                                <AppText
+                                    label={
+                                        filtering
+                                            ? 'Try another search or filter'
+                                            : 'Orders will appear here once customers place them'
+                                    }
+                                    fontSize={13}
+                                    color={colors.textTertiary}
+                                    style={{ marginTop: 4, textAlign: 'center' }}
+                                />
+                                {!filtering && canCreateOrder ? (
+                                    <TouchableOpacity
+                                        activeOpacity={0.8}
+                                        onPress={() => navigation.navigate('CreateOrder')}
+                                        style={[styles.emptyCta, { backgroundColor: config.THEME_COLOR }]}
+                                    >
+                                        <Lucide name="plus" size={16} color="#fff" />
+                                        <AppText
+                                            label="Create order"
+                                            color="#fff"
+                                            variant={1}
+                                            fontSize={14}
+                                            style={{ marginLeft: 6 }}
+                                        />
+                                    </TouchableOpacity>
+                                ) : null}
+                            </View>
+                        )}
+                        renderItem={({ item }) => {
+                            const badge = statusColors(item.status);
+                            const payBadge = paymentColors(item.payment_status);
+                            return (
+                                <TouchableOpacity
+                                    activeOpacity={0.75}
+                                    onPress={() => navigation.navigate('OrderDetails', { orderId: item.id })}
+                                    style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                                >
+                                    <View style={styles.topRow}>
+                                        <View style={{ flex: 1, paddingRight: 10, minWidth: 0 }}>
+                                            <AppText label={item.order_number || 'Order'} variant={1} fontSize={15} color={colors.text} />
+                                            {!!String(item?.customer_name || '').trim() && (
+                                                <View style={[styles.metaRow, { marginTop: 4 }]}>
+                                                    <Lucide name="user" size={13} color={colors.textSecondary} />
+                                                    <AppText
+                                                        label={String(item.customer_name).trim()}
+                                                        fontSize={12}
+                                                        color={colors.textSecondary}
+                                                        style={{ marginLeft: 6 }}
+                                                        numberOfLines={1}
+                                                    />
+                                                </View>
+                                            )}
                                             <View style={[styles.metaRow, { marginTop: 4 }]}>
-                                                <Lucide name="user" size={13} color={colors.textSecondary} />
+                                                <Lucide name="store" size={13} color={colors.textSecondary} />
                                                 <AppText
-                                                    label={String(item.customer_name).trim()}
+                                                    label={item.warehouse_name || 'Store'}
                                                     fontSize={12}
                                                     color={colors.textSecondary}
                                                     style={{ marginLeft: 6 }}
                                                     numberOfLines={1}
                                                 />
                                             </View>
-                                        )}
-                                        <View style={[styles.metaRow, { marginTop: 4 }]}>
-                                            <Lucide name="store" size={13} color={colors.textSecondary} />
-                                            <AppText
-                                                label={item.warehouse_name || 'Store'}
-                                                fontSize={12}
-                                                color={colors.textSecondary}
-                                                style={{ marginLeft: 6 }}
-                                                numberOfLines={1}
-                                            />
+                                        </View>
+
+                                        <View style={{ alignItems: 'flex-end' }}>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                                                <View style={[styles.badge, { backgroundColor: payBadge.bg }]}>
+                                                    <AppText label={formatStatusLabel(item.payment_status || 'unpaid')} fontSize={10} color={payBadge.color} />
+                                                </View>
+                                                <View style={[styles.badge, { backgroundColor: badge.bg, marginLeft: 6 }]}>
+                                                    <AppText label={formatStatusLabel(item.status || 'pending')} fontSize={10} color={badge.color} />
+                                                </View>
+                                            </View>
+                                            <View style={[styles.metaRow, { marginTop: 8, justifyContent: 'flex-end' }]}>
+                                                <Lucide name="wallet" size={13} color={config.THEME_COLOR} />
+                                                <AppText
+                                                    label={`GHS ${Number(item.total_amount || 0).toFixed(2)}`}
+                                                    fontSize={13}
+                                                    color={config.THEME_COLOR}
+                                                    style={{ marginLeft: 6 }}
+                                                    variant={1}
+                                                />
+                                            </View>
                                         </View>
                                     </View>
 
-                                    <View style={{ alignItems: 'flex-end' }}>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                                            <View style={[styles.badge, { backgroundColor: payBadge.bg }]}>
-                                                <AppText label={formatStatusLabel(item.payment_status || 'unpaid')} fontSize={10} color={payBadge.color} />
-                                            </View>
-                                            <View style={[styles.badge, { backgroundColor: badge.bg, marginLeft: 6 }]}>
-                                                <AppText label={formatStatusLabel(item.status || 'pending')} fontSize={10} color={badge.color} />
-                                            </View>
-                                        </View>
-                                        <View style={[styles.metaRow, { marginTop: 8, justifyContent: 'flex-end' }]}>
-                                            <Lucide name="wallet" size={13} color={config.THEME_COLOR} />
+                                    <View style={[styles.bottomRow, { marginTop: 10, borderTopColor: colors.border }]}>
+                                        <View style={styles.metaRow}>
+                                            <Lucide name="truck" size={12} color={colors.textTertiary} />
                                             <AppText
-                                                label={`GHS ${Number(item.total_amount || 0).toFixed(2)}`}
-                                                fontSize={13}
-                                                color={config.THEME_COLOR}
+                                                label={String(item.fulfillment_type || 'pickup').replace(/^./, (c) => c.toUpperCase())}
+                                                fontSize={11}
+                                                color={colors.textTertiary}
                                                 style={{ marginLeft: 6 }}
-                                                variant={1}
                                             />
                                         </View>
+                                        <View style={styles.metaRow}>
+                                            <Lucide name="calendar-days" size={12} color={colors.textTertiary} />
+                                            <AppText
+                                                label={
+                                                    item?.created_at
+                                                        ? `${new Date(item.created_at).toLocaleDateString()} • ${new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                                                        : '—'
+                                                }
+                                                fontSize={11}
+                                                color={colors.textTertiary}
+                                                style={{ marginLeft: 6 }}
+                                            />
+                                        </View>
+                                        <Lucide name="chevron-right" size={16} color={colors.textTertiary} />
                                     </View>
-                                </View>
-
-                                <View style={[styles.bottomRow, { marginTop: 10, borderTopColor: colors.border }]}>
-                                    <View style={styles.metaRow}>
-                                        <Lucide name="truck" size={12} color={colors.textTertiary} />
-                                        <AppText
-                                            label={String(item.fulfillment_type || 'pickup').replace(/^./, (c) => c.toUpperCase())}
-                                            fontSize={11}
-                                            color={colors.textTertiary}
-                                            style={{ marginLeft: 6 }}
-                                        />
-                                    </View>
-                                    <View style={styles.metaRow}>
-                                        <Lucide name="calendar-days" size={12} color={colors.textTertiary} />
-                                        <AppText
-                                            label={
-                                                item?.created_at
-                                                    ? `${new Date(item.created_at).toLocaleDateString()} • ${new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                                                    : '—'
-                                            }
-                                            fontSize={11}
-                                            color={colors.textTertiary}
-                                            style={{ marginLeft: 6 }}
-                                        />
-                                    </View>
-                                    <Lucide name="chevron-right" size={16} color={colors.textTertiary} />
-                                </View>
-                            </TouchableOpacity>
-                        );
-                    }}
-                />
+                                </TouchableOpacity>
+                            );
+                        }}
+                    />
+                </View>
             )}
         </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
-    addBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, marginRight: 10 },
-    iconBtn: { width: 36, height: 36, borderRadius: 99, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
-    loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    emptyWrap: { alignItems: 'center', marginTop: 70, paddingHorizontal: 16 },
-    card: { marginHorizontal: 12, marginBottom: 10, borderWidth: 1, borderRadius: 12, padding: 12 },
-    rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    metaRow: { flexDirection: 'row', alignItems: 'center' },
-    badge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
-    searchWrap: { paddingTop: 10 },
-    searchInputWrap: {
-        borderWidth: 1,
-        borderRadius: 99,
-        paddingHorizontal: 10,
-        paddingVertical: 10,
+    safe: { flex: 1 },
+    headerBtn: {
+        height: 34,
+        width: 34,
+        borderRadius: 17,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 8,
+    },
+    summaryRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginHorizontal: 15,
+        marginTop: 10,
+        marginBottom: 10,
+    },
+    summaryChip: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 999,
+        borderWidth: StyleSheet.hairlineWidth,
     },
-    searchInput: { flex: 1, fontSize: 13, paddingVertical: 0 },
-    pill: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, flexDirection: 'row', alignItems: 'center' },
-    queueTabBar: { borderBottomWidth: StyleSheet.hairlineWidth },
+    statusDot: { width: 8, height: 8, borderRadius: 4 },
+    searchWrap: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginHorizontal: 15,
+        marginBottom: 10,
+        borderWidth: 1,
+        borderRadius: 999,
+        paddingHorizontal: 14,
+        height: 46,
+    },
+    searchInput: {
+        flex: 1,
+        marginLeft: 8,
+        fontFamily: 'FiraSans-Regular',
+        fontSize: 14,
+    },
+    queueTabBar: {
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        marginHorizontal: 15,
+    },
     queueTabRow: { flexDirection: 'row' },
-    queueTab: { width: '33.33%', alignItems: 'center', paddingTop: 8, paddingBottom: 0 },
-    queueTabContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingBottom: 12 },
+    queueTab: { width: '33.33%', alignItems: 'center', paddingTop: 4, paddingBottom: 0 },
+    queueTabContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingBottom: 10,
+    },
     queueTabUnderline: { height: 2, alignSelf: 'stretch', borderRadius: 0 },
-    summaryChip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, flexDirection: 'row', alignItems: 'center' },
+    statusScroll: { flexGrow: 0, marginTop: 10, marginBottom: 8 },
+    statusTabs: { gap: 8, paddingHorizontal: 15 },
+    pill: {
+        borderWidth: StyleSheet.hairlineWidth,
+        borderRadius: 999,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    listWrap: { flex: 1, minHeight: 0 },
+    list: { flex: 1 },
+    listContent: { paddingHorizontal: 15, paddingBottom: 28 },
+    loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    emptyWrap: {
+        paddingTop: 48,
+        paddingHorizontal: 24,
+        alignItems: 'center',
+    },
+    emptyIcon: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    emptyCta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 18,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderRadius: 10,
+    },
+    card: {
+        borderRadius: 12,
+        borderWidth: StyleSheet.hairlineWidth,
+        padding: 14,
+        marginBottom: 10,
+    },
+    metaRow: { flexDirection: 'row', alignItems: 'center' },
+    badge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
     topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-    bottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10, borderTopWidth: 1 },
+    bottomRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingTop: 10,
+        borderTopWidth: StyleSheet.hairlineWidth,
+    },
 });
 
 export default Orders;

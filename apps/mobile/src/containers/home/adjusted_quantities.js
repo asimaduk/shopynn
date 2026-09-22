@@ -1,10 +1,10 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { TextInput, TouchableOpacity, View, ScrollView, Platform, StyleSheet, Share, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import ScreenHeader from '../../components/screen_header';
-import { canAdjustStock, canAccessScreen, hasFeature, hasPermission } from '../../utils/permissions';
+import { canAccessScreen, hasFeature, hasPermission } from '../../utils/permissions';
 import { FlashList } from '@shopify/flash-list';
 import styles from './styles';
 import AdjustmentItem from './adjustment_item';
@@ -37,7 +37,6 @@ const AdjustedQuantities = ({ navigation }) => {
     const { colors } = useTheme();
     const user = useSelector(({ user }) => user);
     const subscriptionFeatures = useSelector(({ appSettings }) => appSettings?.subscriptionFeatures || []);
-    const allowAdjust = canAdjustStock(user?.role);
     const canCreate = canAccessScreen(user, 'NewAdjustments', subscriptionFeatures);
     const canExport = hasPermission(user, ['reports.export']) && hasFeature(user, ['reports.export'], subscriptionFeatures);
     const [adjustments, setAdjustments] = useState([]);
@@ -52,7 +51,6 @@ const AdjustedQuantities = ({ navigation }) => {
     const [showEndPicker, setShowEndPicker] = useState(false);
     const [exporting, setExporting] = useState(false);
     const [showExportFormatModal, setShowExportFormatModal] = useState(false);
-    const [showSearch, setShowSearch] = useState(false);
 
     const getDateRangeBounds = () => {
         const now = new Date();
@@ -115,8 +113,11 @@ const AdjustedQuantities = ({ navigation }) => {
             const q = searchText.toLowerCase();
             result = result.filter((item) => {
                 if (item.reference_number?.toLowerCase().includes(q)) return true;
+                if (String(item.reference || '').toLowerCase().includes(q)) return true;
+                if (String(item.id || '').toLowerCase().includes(q)) return true;
                 if (item.warehouse_name?.toLowerCase().includes(q)) return true;
                 if (item.notes?.toLowerCase().includes(q)) return true;
+                if (item.status?.toLowerCase().includes(q)) return true;
                 const products = item.products || [];
                 if (products.some((p) => (p.product_name || '').toLowerCase().includes(q))) return true;
                 return false;
@@ -379,142 +380,154 @@ const AdjustedQuantities = ({ navigation }) => {
         setShowExportFormatModal(true);
     };
 
+    const filtering = searchText.trim().length > 0 || selectedDateRange !== 'all_time';
+
     return (
         <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={backPress} label={'Adjustments'}>
-                <View style={styles.headerActions}>
-                    <TouchableOpacity
-                        activeOpacity={0.6}
-                        onPress={() => {
-                            setShowSearch((prev) => {
-                                const next = !prev;
-                                if (!next) handleSearch('');
-                                return next;
-                            });
-                        }}
-                        style={[styles.actionButton, { backgroundColor: colors.surface }]}>
-                        <Lucide name={showSearch ? 'x' : 'search'} color={colors.text} size={20} />
-                    </TouchableOpacity>
+                <View style={localStyles.headerActions}>
                     {canCreate && (
-                        <TouchableOpacity activeOpacity={0.6} onPress={() => navigation.navigate("NewAdjustments")} style={[styles.actionButton, { backgroundColor: colors.surface }]}>
-                            <Lucide name="plus" color={config.THEME_COLOR} size={20} />
+                        <TouchableOpacity
+                            activeOpacity={0.7}
+                            onPress={() => navigation.navigate('NewAdjustments')}
+                            style={[localStyles.headerBtn, { backgroundColor: colors.surface }]}
+                        >
+                            <Lucide name="plus" color={config.THEME_COLOR} size={18} />
                         </TouchableOpacity>
                     )}
                     {canExport && (
                         <TouchableOpacity
-                            activeOpacity={0.6}
+                            activeOpacity={0.7}
                             onPress={handleExport}
                             disabled={exporting || filteredData.length === 0}
-                            style={[styles.actionButton, { backgroundColor: colors.surface }, (exporting || filteredData.length === 0) && { opacity: 0.5 }]}>
+                            style={[
+                                localStyles.headerBtn,
+                                { backgroundColor: colors.surface },
+                                (exporting || filteredData.length === 0) && { opacity: 0.5 },
+                            ]}
+                        >
                             {exporting ? (
                                 <ActivityIndicator size="small" color={config.THEME_COLOR} />
                             ) : (
-                                <Lucide name="download" color={config.THEME_COLOR} size={20} />
+                                <Lucide name="download" color={config.THEME_COLOR} size={18} />
                             )}
                         </TouchableOpacity>
                     )}
                 </View>
             </ScreenHeader>
 
-            {/* New adjustment button */}
-            {/* {allowAdjust && (
-                <TouchableOpacity
-                    activeOpacity={0.8}
-                    onPress={() => navigation.navigate('NewAdjustments')}
-                    style={[localStyles.newAdjustmentButton, { backgroundColor: config.THEME_COLOR }]}
-                >
-                    <Lucide name="plus-circle" size={20} color="#fff" />
-                    <AppText label="New adjustment" fontSize={15} variant={1} color="#fff" style={{ marginLeft: 10 }} />
-                </TouchableOpacity>
-            )} */}
-
-            {/* Date range chip and count */}
-            <View style={localStyles.headerRow}>
-                <TouchableOpacity
-                    activeOpacity={0.8}
-                    onPress={() => setShowDateFilter(true)}
-                    style={[localStyles.dateRangeButton, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <View style={[localStyles.leadingIconWrap, { backgroundColor: colors.primaryShade }]}>
-                        <Lucide name="calendar-fold" color={config.THEME_COLOR} size={15} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                        <AppText label="Date Range" fontSize={11} color={colors.textTertiary} />
-                        <AppText label={getDateRangeLabel()} fontSize={13} variant={1} color={colors.text} style={{ marginTop: 2 }} />
-                    </View>
-                    <Lucide name="chevron-right" color={colors.textTertiary} size={18} />
-                </TouchableOpacity>
-
-                <View style={localStyles.statsRow}>
-                    <View style={[localStyles.statCard, localStyles.statCardCompact, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                        <View style={localStyles.statContent}>
-                            <View style={{ flex: 1 }}>
-                                <AppText label="Adjustments" fontSize={11} color={colors.textSecondary} style={localStyles.statLabel} />
-                                <AppText
-                                    label={`${filteredData.length}`}
-                                    fontSize={17}
-                                    variant={1}
-                                    color={colors.text}
-                                    style={localStyles.statValue}
-                                />
-                            </View>
-                            <View style={[localStyles.statRightIconWrap, { backgroundColor: colors.primaryShade }]}>
-                                <Lucide name="list" color={config.THEME_COLOR} size={15} />
-                            </View>
-                        </View>
-                    </View>
+            <View style={localStyles.summaryRow}>
+                <View style={[localStyles.summaryChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <Lucide name="sliders-horizontal" size={14} color={config.THEME_COLOR} />
+                    <AppText
+                        label={`${filteredData.length} adjustment${filteredData.length === 1 ? '' : 's'}`}
+                        fontSize={13}
+                        variant={1}
+                        color={colors.text}
+                        style={{ marginLeft: 6 }}
+                    />
                 </View>
+                <TouchableOpacity
+                    activeOpacity={0.75}
+                    onPress={() => setShowDateFilter(true)}
+                    style={[
+                        localStyles.summaryChip,
+                        {
+                            backgroundColor:
+                                selectedDateRange !== 'all_time' ? `${config.THEME_COLOR}14` : colors.surface,
+                            borderColor:
+                                selectedDateRange !== 'all_time' ? `${config.THEME_COLOR}55` : colors.border,
+                        },
+                    ]}
+                >
+                    <Lucide name="calendar" size={14} color={config.THEME_COLOR} />
+                    <AppText
+                        label={getDateRangeLabel()}
+                        fontSize={13}
+                        color={colors.text}
+                        style={{ marginLeft: 6, maxWidth: 120 }}
+                        numberOfLines={1}
+                    />
+                    <Lucide name="chevron-down" size={14} color={colors.textTertiary} style={{ marginLeft: 4 }} />
+                </TouchableOpacity>
             </View>
 
-            {showSearch ? (
-                <View style={[localStyles.searchContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <Lucide name="search" color={colors.textTertiary} size={18} />
-                    <TextInput
-                        style={[localStyles.searchInput, { color: colors.text }]}
-                        placeholder="Search adjustments..."
-                        placeholderTextColor={colors.placeholder}
-                        value={searchText}
-                        onChangeText={handleSearch}
-                        autoCorrect={false}
-                        autoCapitalize="none"
-                        returnKeyType="search"
-                    />
-                    {searchText.length > 0 ? (
-                        <TouchableOpacity onPress={() => handleSearch('')}>
-                            <Lucide name="x" color={colors.textTertiary} size={18} />
-                        </TouchableOpacity>
-                    ) : null}
-                </View>
-            ) : null}
+            <View style={[localStyles.searchWrap, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+                <Lucide name="search" size={16} color={colors.textTertiary} />
+                <TextInput
+                    style={[localStyles.searchInput, { color: colors.text }]}
+                    placeholder="Search reference, warehouse, or product"
+                    placeholderTextColor={colors.placeholder}
+                    value={searchText}
+                    onChangeText={handleSearch}
+                    autoCorrect={false}
+                    autoCapitalize="none"
+                    returnKeyType="search"
+                />
+                {searchText.length > 0 ? (
+                    <TouchableOpacity onPress={() => handleSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Lucide name="x" size={16} color={colors.textTertiary} />
+                    </TouchableOpacity>
+                ) : null}
+            </View>
 
             {loading && adjustments.length === 0 ? (
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                <View style={localStyles.loadingContainer}>
                     <ActivityIndicator size="large" color={config.THEME_COLOR} />
-                    <AppText label="Loading adjustments..." color={colors.textSecondary} style={{ marginTop: 12 }} />
+                    <AppText label="Loading adjustments..." color={colors.textTertiary} style={{ marginTop: 10 }} />
                 </View>
             ) : (
-                <FlashList
-                    contentContainerStyle={styles.listContent}
-                    data={filteredData}
-                    estimatedItemSize={80}
-                    showsVerticalScrollIndicator={false}
-                    keyExtractor={(item) => item.id}
-                    renderItem={({ item, index }) => (
-                        <AdjustmentItem
-                            item={item}
-                            index={index}
-                            onPress={() => navigation.navigate('AdjustmentDetails', { item })}
-                        />
-                    )}
-                    ListEmptyComponent={() => (
-                        <View style={{ alignItems: 'center', marginTop: 50 }}>
-                            <Lucide name="package-x" color={colors.border} size={48} />
-                            <AppText label="No adjustments found" color={colors.textTertiary} style={{ marginTop: 12 }} />
-                            {selectedDateRange !== 'all_time' && (
-                                <AppText label="Try adjusting your date filter" fontSize={12} color={colors.placeholder} style={{ marginTop: 4 }} />
-                            )}
-                        </View>
-                    )}
-                />
+                <View style={localStyles.listWrap}>
+                    <FlashList
+                        style={localStyles.list}
+                        contentContainerStyle={localStyles.listContent}
+                        data={filteredData}
+                        estimatedItemSize={100}
+                        showsVerticalScrollIndicator={false}
+                        keyExtractor={(item, index) => String(item.id ?? `adjustment-${index}`)}
+                        renderItem={({ item, index }) => (
+                            <AdjustmentItem
+                                item={item}
+                                index={index}
+                                onPress={() => navigation.navigate('AdjustmentDetails', { item })}
+                            />
+                        )}
+                        ListEmptyComponent={() => (
+                            <View style={localStyles.emptyWrap}>
+                                <View style={[localStyles.emptyIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                    <Lucide name="sliders-horizontal" color={colors.textTertiary} size={28} />
+                                </View>
+                                <AppText
+                                    label={filtering ? 'No adjustments match' : 'No adjustments yet'}
+                                    variant={1}
+                                    fontSize={16}
+                                    color={colors.text}
+                                    style={{ marginTop: 12 }}
+                                />
+                                <AppText
+                                    label={
+                                        filtering
+                                            ? 'Try another search or date range'
+                                            : 'Create an adjustment to correct stock quantities'
+                                    }
+                                    fontSize={13}
+                                    color={colors.textTertiary}
+                                    style={{ marginTop: 4, textAlign: 'center' }}
+                                />
+                                {!filtering && canCreate ? (
+                                    <TouchableOpacity
+                                        activeOpacity={0.8}
+                                        onPress={() => navigation.navigate('NewAdjustments')}
+                                        style={[localStyles.emptyCta, { backgroundColor: config.THEME_COLOR }]}
+                                    >
+                                        <Lucide name="plus" size={16} color="#fff" />
+                                        <AppText label="New adjustment" color="#fff" variant={1} fontSize={14} style={{ marginLeft: 6 }} />
+                                    </TouchableOpacity>
+                                ) : null}
+                            </View>
+                        )}
+                    />
+                </View>
             )}
 
             {/* Date Filter Modal */}
@@ -812,6 +825,24 @@ const AdjustedQuantities = ({ navigation }) => {
 };
 
 const localStyles = StyleSheet.create({
+    headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    headerBtn: { height: 34, width: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+    summaryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginHorizontal: 15, marginTop: 10, marginBottom: 10 },
+    summaryChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth },
+    searchWrap: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 15, marginBottom: 12, borderWidth: 1, borderRadius: 999, paddingHorizontal: 14, height: 46 },
+    searchInput: { flex: 1, marginLeft: 8, fontFamily: 'FiraSans-Regular', fontSize: 14 },
+    listWrap: { flex: 1, minHeight: 0 },
+    list: { flex: 1 },
+    listContent: { paddingHorizontal: 15, paddingBottom: 28 },
+    emptyWrap: { paddingTop: 48, paddingHorizontal: 24, alignItems: 'center' },
+    emptyIcon: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
+    emptyCta: { flexDirection: 'row', alignItems: 'center', marginTop: 18, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10 },
+    loadingContainer: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingTop: 100,
+    },
     newAdjustmentButton: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -896,28 +927,6 @@ const localStyles = StyleSheet.create({
         paddingVertical: 8,
         borderRadius: 20,
         borderWidth: 1,
-    },
-    searchContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        borderRadius: 30,
-        // marginTop: 8,
-        paddingHorizontal: 10,
-        marginHorizontal: 15,
-        height: 45,
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-        borderWidth: 1,
-    },
-    searchInput: {
-        flex: 1,
-        height: '100%',
-        marginLeft: 10,
-        fontFamily: 'FiraSans-Regular',
-        fontSize: 16,
     },
     listHeader: {
         flexDirection: 'row',

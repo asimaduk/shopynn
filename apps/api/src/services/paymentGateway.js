@@ -107,7 +107,12 @@ export async function chargeMobileMoney(opts) {
             data.data?.message ||
             data.data?.gateway_response ||
             "Mobile money charge failed.";
-        const err = new Error(detail);
+        const normalized = String(detail).trim();
+        const friendly =
+            /invalid key/i.test(normalized)
+                ? "Paystack secret key is invalid. Check PAYSTACK_SECRET_KEY on the API (Railway)."
+                : normalized;
+        const err = new Error(friendly);
         err.status = 400;
         err.code = "MOMO_CHARGE_FAILED";
         throw err;

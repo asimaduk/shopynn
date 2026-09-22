@@ -85,10 +85,17 @@ const InvoiceShareSheet = ({ visible, sale, saleId, appSettings, onClose }) => {
             }
             onClose?.();
         } catch (err) {
-            const msg = err?.response?.data?.message || err?.message || '';
-            if (msg && !/cancel|dismiss/i.test(msg)) {
-                Alert.alert('Invoice', msg || 'Could not share the invoice. Please try again.');
-            }
+            const code = err?.code || err?.response?.status;
+            const raw = err?.response?.data?.message || err?.message || '';
+            if (/cancel|dismiss/i.test(String(raw))) return;
+            const timedOut =
+                code === 'ECONNABORTED' ||
+                /timeout/i.test(String(raw)) ||
+                /timeout of \d+ms exceeded/i.test(String(raw));
+            const msg = timedOut
+                ? 'The invoice PDF took too long to generate. Check your connection and try again.'
+                : raw || 'Could not share the invoice. Please try again.';
+            Alert.alert('Invoice', msg);
         } finally {
             setBusy(null);
         }
