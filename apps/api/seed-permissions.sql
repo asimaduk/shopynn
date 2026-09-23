@@ -256,7 +256,6 @@ JOIN (
             'stores.multi_access',
             'reports.view',
             'reports.export',
-            'sales.share_receipt',
             'inventory.reorder.view',
             'inventory.expiring.view',
             'transfers.view',
@@ -319,7 +318,7 @@ JOIN (
         )
     )
     OR
-    -- Standard: adds multi-store, receipt sharing, and purchase-order workflows
+    -- Standard: multi-store ops, POs, stock counts, notifications (Premium keeps orders/audit/export)
     (
         lower(t.code) = 'standard'
         AND p.feature_code NOT IN (
@@ -341,14 +340,6 @@ JOIN (
             'orders.automation.manage',
             'orders.multi_store.manage',
             'data_export.run',
-            'stock_counts.view',
-            'stock_counts.details.view',
-            'stock_counts.create',
-            'notifications.view',
-            'notifications.mark_read',
-            'notifications.settings.view',
-            'notifications.settings.update',
-            'notifications.push.send',
             'audit_logs.view',
             'audit_logs.details.view',
             'audit.view',

@@ -53,11 +53,11 @@ const FREE_TIER_FEATURES = new Set([
 ]);
 
 /** Not on Basic — requires Standard or Premium. */
+/** Not on Basic/Starter — requires Standard/Business or Premium/Scale. */
 const BASIC_EXCLUDED = new Set([
 	'stores.multi_access',
 	'reports.view',
 	'reports.export',
-	'sales.share_receipt',
 	'inventory.reorder.view',
 	'inventory.expiring.view',
 	'transfers.view',
@@ -117,7 +117,7 @@ const BASIC_EXCLUDED = new Set([
 	'payments.view'
 ]);
 
-/** Not on Standard — requires Premium. */
+/** Not on Standard/Business — requires Premium/Scale. */
 const STANDARD_EXCLUDED = new Set([
 	'reports.export',
 	'orders.view',
@@ -134,14 +134,6 @@ const STANDARD_EXCLUDED = new Set([
 	'orders.delivery.manage',
 	'data_export.run',
 	'data_export.view',
-	'stock_counts.view',
-	'stock_counts.details.view',
-	'stock_counts.create',
-	'notifications.view',
-	'notifications.mark_read',
-	'notifications.settings.view',
-	'notifications.settings.update',
-	'notifications.push.send',
 	'audit_logs.view',
 	'audit_logs.details.view',
 	'audit.view',

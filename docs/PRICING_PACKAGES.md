@@ -6,19 +6,19 @@ Budget-friendly monthly tiers (Ghana), hosting included, WhatsApp support.
 
 ### Basic — GHS 229 / month
 - Best for: single store getting started
-- Includes: core inventory, products, sales, purchases, customers & suppliers, payments & subscription viewing
+- Includes: core inventory, products, sales (incl. receipt sharing), purchases, customers & suppliers (create/edit), payments & subscription viewing
 - Limits: 1 branch, up to 3 users
 - Support: business-hours WhatsApp support
 
 ### Standard — GHS 429 / month
 - Best for: multi-branch operations needing controls
-- Includes: everything in Basic, plus multi-store access, transfers, adjustments, reorder/expiring insights, users/roles/permissions, locations, purchase orders workflow, reports (view)
+- Includes: everything in Basic, plus multi-store access, transfers, adjustments, **stock counts**, reorder/expiring insights, users/roles/permissions, locations, purchase orders workflow, reports (view), **notifications**
 - Limits: up to 5 branches, up to 12 users
 - Support: business-hours WhatsApp support
 
 ### Premium — GHS 799 / month
 - Best for: full platform + customer ordering
-- Includes: everything in Standard, plus Orders/customer ordering, exports & data export, stock counts, notifications, audit logs, advanced order analytics/automation
+- Includes: everything in Standard, plus Orders/customer ordering, exports & data export, audit logs, advanced order analytics/automation
 - Limits: up to 10 branches, up to 25 users (custom for larger teams)
 - Support: priority WhatsApp support
 

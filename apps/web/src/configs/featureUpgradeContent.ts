@@ -24,7 +24,7 @@ const FEATURE_PREFIX_COPY: Record<string, UpgradeCopy> = {
 	},
 	'stock_counts.': {
 		featureTitle: 'Stock count / audit',
-		description: 'Run physical counts and reconcile system stock.',
+		description: 'Run physical counts and reconcile system stock — included on Business and above.',
 		bullets: ['Count sessions', 'Variance reports', 'Adjustment workflow']
 	},
 	'inventory.reorder': {
@@ -69,8 +69,8 @@ const FEATURE_PREFIX_COPY: Record<string, UpgradeCopy> = {
 	},
 	'notifications.': {
 		featureTitle: 'Notifications',
-		description: 'In-app alerts and notification preferences.',
-		bullets: ['Order alerts', 'Low stock signals', 'Push settings']
+		description: 'In-app alerts and notification preferences — included on Business and above.',
+		bullets: ['Low stock signals', 'Order alerts', 'Push settings']
 	},
 	'purchase_orders.': {
 		featureTitle: 'Purchase orders',

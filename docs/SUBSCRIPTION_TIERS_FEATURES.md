@@ -4,33 +4,36 @@ This document summarizes what each subscription tier includes in the platform in
 
 It is based on backend feature-gating (see `apps/api/alt.sql`, `subscription_tiers` and `subscription_tier_features`).
 
-> Key rule: **Orders / customer ordering is a Premium-only module.**
+Marketing names: **Starter** (Basic), **Business** (Standard), **Scale** (Premium).
+
+> Key rule: **Orders / customer ordering is Scale/Premium-only.**
 
 ## At a glance
 
-### Basic
+### Starter (Basic)
 
 - Core single-store operations: **Inventory, Products, Sales, Purchases, Customers, Suppliers**
+- Receipt sharing, customer/supplier create & edit
 - Payments + subscription viewing
 - Best for: a single branch getting started with day-to-day operations
 
-### Standard
+### Business (Standard)
 
-- Everything in Basic, plus:
+- Everything in Starter, plus:
   - **Multi-store access**
-  - **Operational workflows** (Transfers, Adjustments)
+  - **Operational workflows** (Transfers, Adjustments, **Stock counts**)
   - **Admin tools** (Users, Roles & Permissions, Locations)
   - **Inventory insights** (Reorder + Expiring)
   - **Purchase order workflow**
-- Best for: businesses running multiple branches and needing tighter controls
+  - **Reports (view)**
+  - **Notifications** (inbox, preferences, push)
+- Best for: businesses running staff and/or multiple branches
 
-### Premium
+### Scale (Premium)
 
-- Everything in Standard, plus:
-  - **Orders / customer ordering** (Premium-only)
-  - **Exports & data export**
-  - **Stock counts**
-  - **Notifications**
+- Everything in Business, plus:
+  - **Orders / customer ordering** (Scale-only)
+  - **Exports & data export** (including reports export)
   - **Audit logs**
   - **Advanced order analytics/automation**
 - Best for: full platform usage and customer ordering workflows
@@ -39,88 +42,81 @@ It is based on backend feature-gating (see `apps/api/alt.sql`, `subscription_tie
 
 ### Inventory & products
 
-- **Basic**: Inventory view, Products view, Categories view
-- **Standard**: Adds Reorder view, Expiring stock view
-- **Premium**: Full access
+- **Starter**: Inventory view, Products view, Categories view
+- **Business**: Adds Reorder view, Expiring stock view, **Stock counts**
+- **Scale**: Full access
 
 ### Sales
 
-- **Basic**: View sales, Create sales
-- **Standard**: Adds receipt sharing
-- **Premium**: Full access
+- **Starter**: View sales, Create sales, **Share receipt**
+- **Business**: Full sales ops access
+- **Scale**: Full access
 
 ### Purchases & purchase orders
 
-- **Basic**: View purchases, Create purchases
-- **Standard**: Adds purchase order create + receive workflows
-- **Premium**: Full access
+- **Starter**: View purchases, Create purchases
+- **Business**: Adds purchase order create + receive workflows
+- **Scale**: Full access
 
 ### Customers & suppliers
 
-- **Basic**: View customers, View suppliers
-- **Standard**: Full access
-- **Premium**: Full access
+- **Starter**: View, **create, and update** customers & suppliers
+- **Business**: Full access
+- **Scale**: Full access
 
 ### Transfers & adjustments (operational controls)
 
-- **Basic**: Not included
-- **Standard**: Transfers (view/details/create) + Adjustments (view/details/create)
-- **Premium**: Full access
+- **Starter**: Not included
+- **Business**: Transfers (view/details/create) + Adjustments (view/details/create)
+- **Scale**: Full access
 
 ### Reporting
 
-- **Basic**: Reports not included
-- **Standard**: Reports view
-- **Premium**: Reports export + full reporting access
+- **Starter**: Reports not included
+- **Business**: Reports view
+- **Scale**: Reports export + full reporting access
 
 ### Admin (users, roles, permissions, locations)
 
-- **Basic**: Not included
-- **Standard**:
+- **Starter**: Basic user management (plan limits); custom roles not included
+- **Business**:
   - Users (view/details/create/update/delete/toggle active)
   - Roles (view/create/update/delete)
   - Permissions view + user role assignments view
   - Locations (view/create/update)
-- **Premium**: Full access
+- **Scale**: Full access
 
-### Orders / customer ordering (Premium-only)
+### Notifications
 
-- **Basic**: Not included
-- **Standard**: Not included
-- **Premium**:
+- **Starter**: Not included
+- **Business**: Inbox, mark read, settings, push
+- **Scale**: Full access
+
+### Orders / customer ordering (Scale-only)
+
+- **Starter**: Not included
+- **Business**: Not included
+- **Scale**:
   - Orders view + details
   - Create/update/cancel
   - Export
   - Store manage + multi-store manage
   - Analytics + automation tools
 
-### Stock counts
-
-- **Basic**: Not included
-- **Standard**: Not included
-- **Premium**: Included
-
-### Notifications
-
-- **Basic**: Not included
-- **Standard**: Not included
-- **Premium**: Included (view/mark read/settings/push)
-
 ### Audit logs (compliance)
 
-- **Basic**: Not included
-- **Standard**: Not included
-- **Premium**: Included
+- **Starter**: Not included
+- **Business**: Not included
+- **Scale**: Included
 
 ### Payments & subscription
 
-- **Basic**: Payments view/initiate/verify + subscription view
-- **Standard**: Full access
-- **Premium**: Full access
+- **Starter**: Payments initiate/verify + subscription view
+- **Business**: Full access as gated
+- **Scale**: Full access (incl. order payments view where applicable)
 
 ## Notes (implementation detail)
 
 - Tiers map to feature codes in `subscription_tier_features`.
 - Most feature codes align with permission codes (e.g., `inventory.view`, `sales.create`, `orders.view`).
-- If tier gating is changed in SQL, existing deployments may require re-seeding/updating `subscription_tier_features` for changes to take effect.
-
+- If tier gating is changed in SQL, existing deployments may require re-seeding/updating `subscription_tier_features` for changes to take effect (see migration `20260923_tier_features_business_ops_reshuffle.sql`).

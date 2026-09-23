@@ -245,7 +245,7 @@ See [PRICING_PACKAGES.md](./PRICING_PACKAGES.md) and `seed-permissions.sql` / `s
 | Owner has no menus | `seed-permissions.sql` not applied or incomplete Super Admin `role_permissions` |
 | Customer cannot place orders | Store tenant not **Premium**, or missing `orders.create` feature |
 | Merchant cannot onboard | User missing `merchants` row or `merchants.operate`; subscription inactive |
-| Super Admin sees “Premium required” on notifications | Expected on non-Premium; staff inbox needs `notifications.view` **feature** + `notifications.mark_read` or `notifications.settings.view` **permission** |
+| Super Admin sees upgrade required on notifications | Staff inbox needs `notifications.view` **feature** (Business/Standard+) + `notifications.mark_read` or `notifications.settings.view` **permission** |
 | Platform menus missing | Role lacks `tenants.directory.view` / `merchants.view` (not granted to business Super Admin by default) |
 
 ---
