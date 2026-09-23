@@ -219,7 +219,8 @@ export const createTenantPayLaterQuote = async (req, res, next) => {
             error.message?.includes("Onboarding") ||
             error.message?.includes("paid plan") ||
             error.message?.includes("owner_email") ||
-            error.message?.includes("Choose Basic")
+            error.message?.includes("Choose Basic") ||
+            error.message?.includes("Choose Starter")
         ) {
             return handleResponse(res, 400, error.message, null);
         }

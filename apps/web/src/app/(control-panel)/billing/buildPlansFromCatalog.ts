@@ -17,27 +17,27 @@ const PAID_FEATURES: Record<ChooseableSubscriptionType, ChooseablePlan['features
 		'1 branch · up to 3 users',
 		'Inventory, products & categories (create, import, export)',
 		'Sales & purchases with returns',
+		'Share or print sales receipts',
 		'Daily sales trends & sales-by-date history',
 		'Customers, suppliers & expenditures',
 		'Dashboard, company profile & receipt settings'
 	],
 	3: [
 		'Up to 5 branches · up to 12 users',
-		'Everything in Basic',
+		'Everything in Starter',
 		'Multi-store switching',
 		'Stock transfers & adjustments',
+		'Stock counts',
 		'Reorder list, expiring stock & low-stock alerts',
 		'Purchase orders (create & receive stock)',
-		'Share or print sales receipts',
 		'Reports (view) · users, roles & permissions',
-		'Locations within branches'
+		'Staff notifications · locations within branches'
 	],
 	4: [
 		'Up to 10 branches · up to 25 users',
-		'Everything in Standard',
+		'Everything in Business',
 		'Customer online orders (store queue, fulfilment & delivery)',
-		'Stock counts & audit logs',
-		'Staff notifications inbox',
+		'Audit logs',
 		'Order payment history · order & report export',
 		'Data export & backup',
 		'Order analytics & automation',
@@ -52,9 +52,9 @@ const PAID_DESCRIPTIONS: Record<ChooseableSubscriptionType, string> = {
 };
 
 const PAID_NAMES: Record<ChooseableSubscriptionType, ChooseablePlan['name']> = {
-	2: 'Basic',
-	3: 'Standard',
-	4: 'Premium'
+	2: 'Starter',
+	3: 'Business',
+	4: 'Scale'
 };
 
 const PAID_AMOUNTS: Record<ChooseableSubscriptionType, number> = {

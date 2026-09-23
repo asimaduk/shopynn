@@ -28,7 +28,7 @@ const Payment = ({ navigation, route }) => {
     const user = useSelector((state) => state.user);
     const {
         amount = 299.00,
-        planName = 'Premium',
+        planName = 'Scale',
         billingCycle = 'monthly',
         nextBillingDate = '',
         flowType = 'subscription',

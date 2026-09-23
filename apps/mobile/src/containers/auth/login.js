@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     View,
     TextInput,
@@ -13,6 +13,7 @@ import {
     Dimensions,
     StatusBar,
     Image,
+    Animated,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
@@ -80,6 +81,13 @@ const Login = ({ navigation, route }) => {
     const [loading, setLoading] = useState(false);
     const [loginError, setLoginError] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [authMode, setAuthMode] = useState('email'); // 'email' | 'phone'
+    const [phone, setPhone] = useState('');
+    const [phoneOtp, setPhoneOtp] = useState('');
+    const [phoneOtpSent, setPhoneOtpSent] = useState(false);
+    const [phoneDevCode, setPhoneDevCode] = useState(null);
+    const [tabWidth, setTabWidth] = useState(0);
+    const tabUnderlineX = useRef(new Animated.Value(0)).current;
     const [biometricAvailable, setBiometricAvailable] = useState(false);
     const [biometricEnabled, setBiometricEnabled] = useState(false);
     const [biometricLabel, setBiometricLabel] = useState('Biometrics');
@@ -103,8 +111,40 @@ const Login = ({ navigation, route }) => {
         const prefillEmail = route?.params?.prefillEmail;
         if (typeof prefillEmail === 'string' && prefillEmail.trim()) {
             setEmail(prefillEmail.trim().toLowerCase());
+            setAuthMode('email');
         }
-    }, [route?.params?.prefillEmail]);
+        const mode = route?.params?.authMode;
+        if (mode === 'phone' || mode === 'email') {
+            setAuthMode(mode);
+        }
+        const prefillPhone = route?.params?.prefillPhone;
+        if (typeof prefillPhone === 'string' && prefillPhone.trim()) {
+            let n = prefillPhone.replace(/\D/g, '');
+            if (n.startsWith('233') && n.length >= 12) n = `0${n.slice(3)}`;
+            setPhone(n.slice(0, 10));
+            setAuthMode('phone');
+        }
+    }, [route?.params?.prefillEmail, route?.params?.authMode, route?.params?.prefillPhone]);
+
+    useEffect(() => {
+        if (!tabWidth) return;
+        const index = authMode === 'phone' ? 1 : 0;
+        Animated.spring(tabUnderlineX, {
+            toValue: index * tabWidth,
+            useNativeDriver: true,
+            friction: 9,
+            tension: 120,
+        }).start();
+    }, [authMode, tabWidth, tabUnderlineX]);
+
+    const switchAuthMode = (mode) => {
+        if (mode === authMode) return;
+        setAuthMode(mode);
+        setLoginError('');
+        setPhoneOtpSent(false);
+        setPhoneOtp('');
+        setPhoneDevCode(null);
+    };
 
     useFocusEffect(
         useCallback(() => {
@@ -155,6 +195,10 @@ const Login = ({ navigation, route }) => {
             Alert.alert('Login failed', 'Invalid response from server.');
             return;
         }
+        await finishLoginWithToken(token, { email: e, password: p });
+    };
+
+    const finishLoginWithToken = async (token, { email: e = '', password: p = '', skipBio = false } = {}) => {
         await setTokens(token);
         let profile = { email: e, role: '' };
         try {
@@ -200,6 +244,7 @@ const Login = ({ navigation, route }) => {
                     id: resolvedUserId,
                     name: `${me.first_name} ${me.last_name}`,
                     email: me.email || e,
+                    phone: me.phone || phone || '',
                     roles: me.settings?.roles?.map((r) => r.name).join(', ') || '',
                     permissions: permissionCodes,
                     settings: {
@@ -252,7 +297,7 @@ const Login = ({ navigation, route }) => {
                 dispatch(setSubscriptionActive(active));
                 const plan = sub
                     ? {
-                          name: sub.name ?? sub.planName ?? sub.plan?.name ?? 'Premium',
+                          name: sub.name ?? sub.planName ?? sub.plan?.name ?? 'Scale',
                           id: sub.id ?? sub.plan_id ?? sub.plan?.id,
                           amount: sub.amount != null ? Number(sub.amount) : undefined,
                           billingInterval: sub.billing_interval ?? sub.billingCycle ?? sub.plan?.billing_interval,
@@ -288,7 +333,11 @@ const Login = ({ navigation, route }) => {
                 navigation.navigate('CompanyDetailsSetup');
                 return;
             }
-            processLogin(profile, e, p);
+            if (skipBio || !p) {
+                performLogin(profile);
+            } else {
+                processLogin(profile, e, p);
+            }
         } catch (_) {
             const status = _?.response?.status;
             const code = getResponseCode(_);
@@ -296,7 +345,11 @@ const Login = ({ navigation, route }) => {
                 dispatch(setSubscriptionActive(false));
                 dispatch(setSubscriptionPlan(null));
                 dispatch(setSubscriptionFeatures([]));
-                processLogin(profile, e, p);
+                if (skipBio || !p) {
+                    performLogin(profile);
+                } else {
+                    processLogin(profile, e, p);
+                }
                 return;
             }
             const msg =
@@ -353,6 +406,66 @@ const Login = ({ navigation, route }) => {
         }
     };
 
+
+
+    const sendPhoneOtp = async () => {
+        if (!phone.trim()) {
+            Alert.alert('Required', 'Enter the mobile number you used on the store link.');
+            return;
+        }
+        setLoading(true);
+        setLoginError('');
+        try {
+            await clearTokens();
+            const data = await usersApi.sendPhoneLoginOtp(phone.trim());
+            setPhoneOtpSent(true);
+            setPhoneDevCode(data?.dev_code || null);
+            if (data?.phone) {
+                let normalized = String(data.phone).replace(/\D/g, '');
+                if (normalized.startsWith('233') && normalized.length >= 12) {
+                    normalized = `0${normalized.slice(3)}`;
+                }
+                setPhone(normalized.slice(0, 10));
+            }
+            Alert.alert(
+                'Code sent',
+                data?.dev_code
+                    ? `Dev code: ${data.dev_code}`
+                    : 'Enter the SMS code we sent to your phone.'
+            );
+        } catch (err) {
+            const msg = err?.response?.data?.message || err?.message || 'Could not send code.';
+            setLoginError(msg);
+            Alert.alert('Could not send code', msg);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const verifyPhoneAndLogin = async () => {
+        if (!phone.trim() || String(phoneOtp).trim().length < 6) {
+            Alert.alert('Required', 'Enter your phone number and the 6-digit code.');
+            return;
+        }
+        setLoading(true);
+        setLoginError('');
+        try {
+            await clearTokens();
+            const data = await usersApi.verifyPhoneLoginOtp(phone.trim(), String(phoneOtp).trim());
+            const token = data?.token ?? data?.data?.token;
+            if (!token) {
+                Alert.alert('Login failed', 'Invalid response from server.');
+                return;
+            }
+            await finishLoginWithToken(token, { skipBio: true });
+        } catch (err) {
+            const msg = err?.response?.data?.message || err?.message || 'Invalid code.';
+            setLoginError(msg);
+            Alert.alert('Sign-in failed', msg);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleSocialLogin = async (provider) => {
         if (loading) return;
@@ -456,8 +569,67 @@ const Login = ({ navigation, route }) => {
                     {/* Form area — no card, full width */}
                     <View style={[styles.formSection, { backgroundColor: colors.background }]}>
                         <AppText label="Welcome back" variant={1} fontSize={20} color={colors.text} style={styles.formTitle} />
-                        <AppText label="Sign in with your account" fontSize={14} color={colors.textSecondary} style={styles.formSubtitle} />
+                        <AppText
+                            label="Choose how you signed up"
+                            fontSize={14}
+                            color={colors.textSecondary}
+                            style={styles.formSubtitle}
+                        />
 
+                        <View
+                            style={[styles.modeTabs, { borderBottomColor: colors.border }]}
+                            onLayout={(e) => {
+                                const w = e.nativeEvent.layout.width;
+                                if (w > 0) setTabWidth(w / 2);
+                            }}
+                        >
+                            {[
+                                { id: 'email', label: 'Email', hint: 'Staff & Owners' },
+                                { id: 'phone', label: 'Phone', hint: 'Customers' },
+                            ].map((m) => {
+                                const active = authMode === m.id;
+                                return (
+                                    <TouchableOpacity
+                                        key={m.id}
+                                        activeOpacity={0.7}
+                                        onPress={() => switchAuthMode(m.id)}
+                                        style={styles.modeTab}
+                                        accessibilityRole="tab"
+                                        accessibilityState={{ selected: active }}
+                                        accessibilityLabel={`${m.label}, ${m.hint}`}
+                                    >
+                                        <AppText
+                                            label={m.label}
+                                            variant={1}
+                                            fontSize={15}
+                                            color={active ? config.THEME_COLOR : colors.textTertiary}
+                                        />
+                                        <AppText
+                                            label={m.hint}
+                                            fontSize={11}
+                                            color={active ? config.THEME_COLOR : colors.textTertiary}
+                                            style={styles.modeTabHint}
+                                        />
+                                    </TouchableOpacity>
+                                );
+                            })}
+                            {tabWidth > 0 ? (
+                                <Animated.View
+                                    pointerEvents="none"
+                                    style={[
+                                        styles.modeUnderline,
+                                        {
+                                            width: tabWidth,
+                                            backgroundColor: config.THEME_COLOR,
+                                            transform: [{ translateX: tabUnderlineX }],
+                                        },
+                                    ]}
+                                />
+                            ) : null}
+                        </View>
+
+                        {authMode === 'email' ? (
+                            <>
                         <View style={styles.fieldGroup}>
                             <AppText label="Email" fontSize={12} color={colors.textTertiary} style={styles.fieldLabel} />
                             <View style={[styles.inputRow, { borderBottomColor: colors.border }]}>
@@ -534,6 +706,118 @@ const Login = ({ navigation, route }) => {
                                 <AppText label="Sign in" variant={1} fontSize={16} color="#fff" />
                             )}
                         </TouchableOpacity>
+                            </>
+                        ) : (
+                            <>
+                                <View style={styles.fieldGroup}>
+                                    <AppText label="Mobile number" fontSize={12} color={colors.textTertiary} style={styles.fieldLabel} />
+                                    <View style={[styles.inputRow, { borderBottomColor: colors.border }]}>
+                                        <Lucide name="smartphone" size={18} color={colors.placeholder} style={styles.inputIcon} />
+                                        <TextInput
+                                            style={[styles.input, { color: colors.text }]}
+                                            placeholder="024 XXX XXXX"
+                                            placeholderTextColor={colors.placeholder}
+                                            value={phone}
+                                            onChangeText={(value) => {
+                                                const digits = String(value || '').replace(/\D/g, '').slice(0, 10);
+                                                setPhone(digits);
+                                                setPhoneOtpSent(false);
+                                                if (loginError) setLoginError('');
+                                            }}
+                                            keyboardType="phone-pad"
+                                            autoComplete="tel"
+                                            textContentType="telephoneNumber"
+                                            maxLength={10}
+                                            editable={!loading}
+                                        />
+                                    </View>
+                                </View>
+                                {phoneOtpSent ? (
+                                    <View style={styles.fieldGroup}>
+                                        <AppText label="SMS code" fontSize={12} color={colors.textTertiary} style={styles.fieldLabel} />
+                                        <View style={[styles.inputRow, { borderBottomColor: colors.border }]}>
+                                            <Lucide name="shield-check" size={18} color={colors.placeholder} style={styles.inputIcon} />
+                                            <TextInput
+                                                style={[styles.input, { color: colors.text }]}
+                                                placeholder="6-digit code"
+                                                placeholderTextColor={colors.placeholder}
+                                                value={phoneOtp}
+                                                onChangeText={(value) =>
+                                                    setPhoneOtp(String(value || '').replace(/\D/g, '').slice(0, 6))
+                                                }
+                                                keyboardType="number-pad"
+                                                maxLength={6}
+                                                editable={!loading}
+                                            />
+                                        </View>
+                                        {phoneDevCode ? (
+                                            <AppText
+                                                label={`Dev code: ${phoneDevCode}`}
+                                                fontSize={12}
+                                                color={colors.textTertiary}
+                                                style={{ marginTop: 6 }}
+                                            />
+                                        ) : null}
+                                    </View>
+                                ) : null}
+                                {!!loginError && (
+                                    <Text style={[styles.errorText, { color: colors.error || '#D32F2F' }]}>
+                                        {loginError}
+                                    </Text>
+                                )}
+                                {!phoneOtpSent ? (
+                                    <TouchableOpacity
+                                        activeOpacity={0.8}
+                                        onPress={sendPhoneOtp}
+                                        disabled={loading || !phone.trim()}
+                                        style={[
+                                            styles.primaryBtn,
+                                            { backgroundColor: config.THEME_COLOR },
+                                            (loading || !phone.trim()) && styles.primaryBtnDisabled,
+                                        ]}
+                                    >
+                                        {loading ? (
+                                            <ActivityIndicator color="#fff" />
+                                        ) : (
+                                            <AppText label="Send code" variant={1} fontSize={16} color="#fff" />
+                                        )}
+                                    </TouchableOpacity>
+                                ) : (
+                                    <>
+                                        <TouchableOpacity
+                                            activeOpacity={0.8}
+                                            onPress={verifyPhoneAndLogin}
+                                            disabled={loading || String(phoneOtp).trim().length < 6}
+                                            style={[
+                                                styles.primaryBtn,
+                                                { backgroundColor: config.THEME_COLOR },
+                                                (loading || String(phoneOtp).trim().length < 6) && styles.primaryBtnDisabled,
+                                            ]}
+                                        >
+                                            {loading ? (
+                                                <ActivityIndicator color="#fff" />
+                                            ) : (
+                                                <AppText label="Verify & sign in" variant={1} fontSize={16} color="#fff" />
+                                            )}
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            activeOpacity={0.8}
+                                            onPress={sendPhoneOtp}
+                                            disabled={loading}
+                                            style={styles.forgotBtn}
+                                        >
+                                            <AppText label="Resend code" fontSize={13} color={config.THEME_COLOR} />
+                                        </TouchableOpacity>
+                                    </>
+                                )}
+                                {/* <AppText
+                                    label="Staff can keep using the Email tab."
+                                    fontSize={12}
+                                    color={colors.textTertiary}
+                                    style={{ marginTop: 10 }}
+                                /> */}
+                            </>
+                        )}
 
                         {biometricAvailable && biometricEnabled && (
                             <>
@@ -670,7 +954,31 @@ const styles = StyleSheet.create({
         paddingTop: 28,
     },
     formTitle: { marginBottom: 4 },
-    formSubtitle: { marginBottom: 24 },
+    formSubtitle: { marginBottom: 16 },
+    modeTabs: {
+        flexDirection: 'row',
+        position: 'relative',
+        marginBottom: 22,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+    },
+    modeTab: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingTop: 10,
+        paddingBottom: 12,
+    },
+    modeTabHint: {
+        marginTop: 2,
+        textAlign: 'center',
+    },
+    modeUnderline: {
+        position: 'absolute',
+        left: 0,
+        bottom: -StyleSheet.hairlineWidth,
+        height: 2.5,
+        borderRadius: 2,
+    },
     fieldGroup: { marginBottom: 20 },
     fieldLabel: { marginLeft: 2 },
     inputRow: {

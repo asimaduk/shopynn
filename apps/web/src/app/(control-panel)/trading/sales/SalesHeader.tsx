@@ -12,6 +12,7 @@ import { TextField } from '@mui/material';
 import useUser from '@auth/useUser';
 import { hasFeatureAndPermission } from '@auth/permissions';
 import { useMemo } from 'react';
+import Link from '@fuse/core/Link';
 import type { Sale } from '../TradingApi';
 import { formatGhsCurrency } from '../../dashboards/analytics/daily-sales/formatGhsCurrency';
 
@@ -111,6 +112,15 @@ function SalesHeader({
 			</motion.span>
 
 			<div className="flex flex-1 items-center justify-end space-x-2">
+				<Button
+					component={Link}
+					to="/trading/sales/outstanding"
+					variant="outlined"
+					color="inherit"
+					startIcon={<FuseSvgIcon size={18}>heroicons-outline:wallet</FuseSvgIcon>}
+				>
+					Balances owed
+				</Button>
 				{user.role==='admin' && (
 					<Autocomplete
 						disablePortal

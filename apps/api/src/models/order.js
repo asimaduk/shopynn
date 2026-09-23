@@ -10,8 +10,9 @@ import {
     getPaymentByTransactionRefService,
     updatePaymentStatusByTransactionRefService,
     syncOrderPaymentAfterSuccess,
+    syncOrderPaymentAfterFailure,
 } from "./payment.js";
-import { initiateCheckout, submitChargeOtp } from "../services/paymentGateway.js";
+import { initiateCheckout, submitChargeOtp, verifyTransaction } from "../services/paymentGateway.js";
 import { computeChargeForFaceAmountService } from "./platformSettings.js";
 import { sendToTokens } from "../services/firebaseMessaging.js";
 import {
@@ -29,6 +30,7 @@ import {
     validateInstallmentCart,
     validatePartialPaymentAmount,
 } from "./orderInstallment.js";
+import { applyStoreCreditEntry } from "./storeCredit.js";
 
 const ORDER_STATUS_TRANSITIONS = {
     pending: ["confirmed", "cancelled"],
@@ -292,21 +294,7 @@ const customerHasStoreAccess = async (customerProfileId, warehouseId, tenantId) 
     return result.rowCount > 0;
 };
 
-const validateOrderItemForWarehouse = async (tenantId, warehouseId, item) => {
-    const productId = item.product_id || item.productId;
-    if (!productId) throw new Error("Each order item must include product_id.");
-
-    const productResult = await pool.query(
-        `SELECT id, name, allows_fractional_qty, min_order_qty, qty_step
-         FROM products
-         WHERE id = $1 AND tenant_id = $2
-         LIMIT 1`,
-        [productId, tenantId]
-    );
-    const product = productResult.rows[0];
-    if (!product) throw new Error(`Product not found: ${productId}`);
-
-    const quantity = Number(item.quantity);
+const assertOrderItemQuantityRules = (product, quantity) => {
     if (!Number.isFinite(quantity) || quantity <= 0) {
         throw new Error("Each order item must have quantity > 0.");
     }
@@ -327,20 +315,84 @@ const validateOrderItemForWarehouse = async (tenantId, warehouseId, item) => {
             throw new Error(`Quantity for ${product.name} must follow step ${qtyStep}.`);
         }
     }
+};
 
-    const inventoryResult = await pool.query(
-        `SELECT coalesce(quantity_available, 0)::numeric AS quantity_available
+/**
+ * Validate stock + qty rules. When `db` is a transaction client, locks the inventory row (FOR UPDATE).
+ * Returns catalog `unit_price` so callers can ignore client-supplied prices.
+ */
+const validateOrderItemForWarehouse = async (tenantId, warehouseId, item, db = pool) => {
+    const productId = item.product_id || item.productId;
+    if (!productId) throw new Error("Each order item must include product_id.");
+
+    const productResult = await db.query(
+        `SELECT id, name, unit_price, allows_fractional_qty, min_order_qty, qty_step
+         FROM products
+         WHERE id = $1 AND tenant_id = $2
+         LIMIT 1`,
+        [productId, tenantId]
+    );
+    const product = productResult.rows[0];
+    if (!product) throw new Error(`Product not found: ${productId}`);
+
+    const quantity = Number(item.quantity);
+    assertOrderItemQuantityRules(product, quantity);
+
+    const inventoryResult = await db.query(
+        `SELECT id, coalesce(quantity_available, 0)::numeric AS quantity_available
          FROM inventories
          WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3
-         LIMIT 1`,
+         LIMIT 1
+         FOR UPDATE`,
         [tenantId, warehouseId, productId]
     );
+    if (!inventoryResult.rowCount) {
+        throw new Error(`Insufficient stock for ${product.name}. Available: 0.`);
+    }
     const available = Number(inventoryResult.rows[0]?.quantity_available ?? 0);
     if (available < quantity) {
         throw new Error(`Insufficient stock for ${product.name}. Available: ${available}.`);
     }
 
-    return { product, quantity };
+    return {
+        product,
+        quantity,
+        inventoryId: inventoryResult.rows[0].id,
+        unit_price: Number(product.unit_price) || 0,
+    };
+};
+
+const restockOrderItems = async (client, { tenantId, warehouseId, items, creatorId }) => {
+    for (const item of items) {
+        const productId = item.product_id;
+        const quantity = Number(item.quantity) || 0;
+        if (!productId || quantity <= 0) continue;
+        const inv = await client.query(
+            `SELECT id FROM inventories
+             WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3
+             ORDER BY created_at DESC LIMIT 1
+             FOR UPDATE`,
+            [tenantId, warehouseId, productId]
+        );
+        if (inv.rowCount) {
+            await client.query(
+                `UPDATE inventories SET quantity_available = quantity_available + $1, updated_at = $2 WHERE id = $3`,
+                [quantity, new Date(), inv.rows[0].id]
+            );
+        } else {
+            await client.query(
+                `INSERT INTO inventories (
+                    id, quantity_available, minimum_stock_level, product_id, warehouse_id,
+                    creator_id, tenant_id, created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)`,
+                [uuidv4(), quantity, 10, productId, warehouseId, creatorId || null, tenantId, new Date()]
+            );
+        }
+        await client.query(
+            `UPDATE products SET inventory = COALESCE(inventory, 0) + $1, updated_at = $2 WHERE id = $3 AND tenant_id = $4`,
+            [quantity, new Date(), productId, tenantId]
+        );
+    }
 };
 
 export const getOrdersService = async (user, requestQuery = {}) => {
@@ -567,8 +619,16 @@ export const getOrderByIdService = async (user, orderId) => {
 };
 
 export const createOrderService = async (user, payload = {}) => {
-    const { warehouse_id, fulfillment_type, notes, delivery_address, items, payment_mode, initial_payment_amount } =
-        payload;
+    const {
+        warehouse_id,
+        fulfillment_type,
+        notes,
+        delivery_address,
+        items,
+        payment_mode,
+        initial_payment_amount,
+        use_catalog_prices,
+    } = payload;
     if (!warehouse_id) throw new Error("warehouse_id is required.");
     if (!Array.isArray(items) || items.length === 0) throw new Error("Order must include at least one item.");
 
@@ -584,6 +644,8 @@ export const createOrderService = async (user, payload = {}) => {
         if (!canAccessStore) throw new Error("You are not linked to this store.");
     }
 
+    const forceCatalogPrices = use_catalog_prices === true || Boolean(customerProfile);
+
     const client = await pool.connect();
     try {
         await client.query("BEGIN");
@@ -591,10 +653,28 @@ export const createOrderService = async (user, payload = {}) => {
         let orderNumber = null;
         let subtotal = 0;
 
+        const pricedItems = [];
         for (const item of items) {
-            const { quantity } = await validateOrderItemForWarehouse(user.tenant_id, warehouse_id, item);
-            const unitPrice = Number(item.unit_price ?? item.unitPrice ?? 0);
+            const { product, quantity, inventoryId, unit_price: catalogPrice } = await validateOrderItemForWarehouse(
+                user.tenant_id,
+                warehouse_id,
+                item,
+                client
+            );
+            const unitPrice = forceCatalogPrices
+                ? catalogPrice
+                : Number(item.unit_price ?? item.unitPrice ?? catalogPrice ?? 0);
+            if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+                throw new Error(`Invalid price for ${product.name}.`);
+            }
             subtotal += quantity * unitPrice;
+            pricedItems.push({
+                product_id: product.id,
+                quantity,
+                unit_price: unitPrice,
+                inventory_id: inventoryId,
+                notes: item.notes || null,
+            });
         }
 
         const whMinRes = await client.query(
@@ -609,7 +689,7 @@ export const createOrderService = async (user, payload = {}) => {
             );
         }
 
-        const productIds = items.map((i) => i.product_id || i.productId).filter(Boolean);
+        const productIds = pricedItems.map((i) => i.product_id).filter(Boolean);
         const installmentProducts = await loadProductsForInstallmentCheck(
             user.tenant_id,
             warehouse_id,
@@ -689,10 +769,10 @@ export const createOrderService = async (user, payload = {}) => {
             throw new Error("Failed to generate a unique order number. Please retry.");
         }
 
-        for (const item of items) {
+        for (const item of pricedItems) {
             const itemId = uuidv4();
             const quantity = Number(item.quantity);
-            const unitPrice = Number(item.unit_price ?? item.unitPrice ?? 0);
+            const unitPrice = Number(item.unit_price);
             await client.query(
                 `INSERT INTO order_items (
                     id, order_id, product_id, tenant_id, warehouse_id, quantity,
@@ -704,7 +784,7 @@ export const createOrderService = async (user, payload = {}) => {
                 [
                     itemId,
                     orderId,
-                    item.product_id || item.productId,
+                    item.product_id,
                     user.tenant_id,
                     warehouse_id,
                     quantity,
@@ -712,6 +792,22 @@ export const createOrderService = async (user, payload = {}) => {
                     quantity * unitPrice,
                     item.notes || null,
                 ]
+            );
+
+            // Reserve stock at place-order so concurrent checkouts cannot oversell.
+            const dec = await client.query(
+                `UPDATE inventories
+                 SET quantity_available = quantity_available - $1, updated_at = $2
+                 WHERE id = $3 AND quantity_available >= $1
+                 RETURNING id`,
+                [quantity, new Date(), item.inventory_id]
+            );
+            if (!dec.rowCount) {
+                throw new Error("Insufficient stock. Please refresh and try again.");
+            }
+            await client.query(
+                `UPDATE products SET inventory = GREATEST(COALESCE(inventory, 0) - $1, 0), updated_at = $2 WHERE id = $3 AND tenant_id = $4`,
+                [quantity, new Date(), item.product_id, user.tenant_id]
             );
         }
 
@@ -820,80 +916,105 @@ export const updateOrderStatusService = async (user, orderId, toStatus, reason =
         throw new Error("Only delivery orders can be marked shipped or delivered.");
     }
 
-    const result = await pool.query(
-        `UPDATE orders
-         SET status = $1,
-             cancelled_at = CASE WHEN $5 THEN now() ELSE cancelled_at END,
-             cancelled_by = CASE WHEN $5 THEN $2 ELSE cancelled_by END,
-             updated_at = now()
-         WHERE id = $3 AND tenant_id = $4
-         RETURNING *`,
-        [normalized, user.id, orderId, user.tenant_id, normalized === "cancelled"]
-    );
+    const client = await pool.connect();
+    try {
+        await client.query("BEGIN");
 
-    await pool.query(
-        `INSERT INTO order_status_history (
-            id, order_id, tenant_id, from_status, to_status, reason, changed_by, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, now())`,
-        [uuidv4(), orderId, user.tenant_id, fromStatus, normalized, reason, user.id]
-    );
-
-    if (normalized === "shipped" || normalized === "delivered") {
-        const currentDelivery = await pool.query(
-            `SELECT id FROM order_deliveries WHERE order_id = $1 LIMIT 1`,
-            [orderId]
+        const result = await client.query(
+            `UPDATE orders
+             SET status = $1,
+                 cancelled_at = CASE WHEN $5 THEN now() ELSE cancelled_at END,
+                 cancelled_by = CASE WHEN $5 THEN $2 ELSE cancelled_by END,
+                 updated_at = now()
+             WHERE id = $3 AND tenant_id = $4
+             RETURNING *`,
+            [normalized, user.id, orderId, user.tenant_id, normalized === "cancelled"]
         );
-        if (currentDelivery.rowCount === 0) {
-            await pool.query(
-                `INSERT INTO order_deliveries (id, order_id, tenant_id, warehouse_id, created_at, updated_at)
-                 VALUES ($1, $2, $3, $4, now(), now())`,
-                [uuidv4(), orderId, user.tenant_id, order.warehouse_id]
+
+        await client.query(
+            `INSERT INTO order_status_history (
+                id, order_id, tenant_id, from_status, to_status, reason, changed_by, created_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, now())`,
+            [uuidv4(), orderId, user.tenant_id, fromStatus, normalized, reason, user.id]
+        );
+
+        if (normalized === "cancelled" && ["pending", "confirmed"].includes(fromStatus)) {
+            const itemsRes = await client.query(
+                `SELECT product_id, quantity FROM order_items WHERE order_id = $1 AND tenant_id = $2`,
+                [orderId, user.tenant_id]
             );
+            await restockOrderItems(client, {
+                tenantId: user.tenant_id,
+                warehouseId: order.warehouse_id,
+                items: itemsRes.rows,
+                creatorId: user.id,
+            });
         }
-        if (normalized === "shipped") {
-            await pool.query(
-                `UPDATE order_deliveries SET dispatched_at = coalesce(dispatched_at, now()), updated_at = now() WHERE order_id = $1`,
+
+        if (normalized === "shipped" || normalized === "delivered") {
+            const currentDelivery = await client.query(
+                `SELECT id FROM order_deliveries WHERE order_id = $1 LIMIT 1`,
                 [orderId]
             );
+            if (currentDelivery.rowCount === 0) {
+                await client.query(
+                    `INSERT INTO order_deliveries (id, order_id, tenant_id, warehouse_id, created_at, updated_at)
+                     VALUES ($1, $2, $3, $4, now(), now())`,
+                    [uuidv4(), orderId, user.tenant_id, order.warehouse_id]
+                );
+            }
+            if (normalized === "shipped") {
+                await client.query(
+                    `UPDATE order_deliveries SET dispatched_at = coalesce(dispatched_at, now()), updated_at = now() WHERE order_id = $1`,
+                    [orderId]
+                );
+            }
+            if (normalized === "delivered") {
+                await client.query(
+                    `UPDATE order_deliveries SET delivered_at = coalesce(delivered_at, now()), updated_at = now() WHERE order_id = $1`,
+                    [orderId]
+                );
+            }
         }
-        if (normalized === "delivered") {
-            await pool.query(
-                `UPDATE order_deliveries SET delivered_at = coalesce(delivered_at, now()), updated_at = now() WHERE order_id = $1`,
-                [orderId]
-            );
-        }
+
+        await client.query("COMMIT");
+
+        const customerResult = await pool.query(
+            `SELECT cp.user_id, o.order_number
+             FROM orders o
+             LEFT JOIN customer_profiles cp ON cp.id = o.customer_profile_id
+             WHERE o.id = $1 AND o.tenant_id = $2
+             LIMIT 1`,
+            [orderId, user.tenant_id]
+        );
+        const customerUserId = customerResult.rows[0]?.user_id ?? null;
+        const orderNumber = customerResult.rows[0]?.order_number ?? "Order";
+
+        await createNotificationService({
+            tenant_id: user.tenant_id,
+            user_id: customerUserId,
+            type: "order_status",
+            title: `Order ${orderNumber} updated`,
+            message: `Status changed to ${normalized}.`,
+            mobile_screen: "OrderDetails",
+            mobile_params: { order_id: orderId, status: normalized },
+        }).catch(() => null);
+
+        void sendCustomerOrderStatusFcm({
+            tenantId: user.tenant_id,
+            customerUserId,
+            orderId,
+            orderNumber,
+            status: normalized,
+        });
+
+        return result.rows[0] ?? null;
+    } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+    } finally {
+        client.release();
     }
-
-    const customerResult = await pool.query(
-        `SELECT cp.user_id, o.order_number
-         FROM orders o
-         LEFT JOIN customer_profiles cp ON cp.id = o.customer_profile_id
-         WHERE o.id = $1 AND o.tenant_id = $2
-         LIMIT 1`,
-        [orderId, user.tenant_id]
-    );
-    const customerUserId = customerResult.rows[0]?.user_id ?? null;
-    const orderNumber = customerResult.rows[0]?.order_number ?? "Order";
-
-    await createNotificationService({
-        tenant_id: user.tenant_id,
-        user_id: customerUserId,
-        type: "order_status",
-        title: `Order ${orderNumber} updated`,
-        message: `Status changed to ${normalized}.`,
-        mobile_screen: "OrderDetails",
-        mobile_params: { order_id: orderId, status: normalized },
-    }).catch(() => null);
-
-    void sendCustomerOrderStatusFcm({
-        tenantId: user.tenant_id,
-        customerUserId,
-        orderId,
-        orderNumber,
-        status: normalized,
-    });
-
-    return result.rows[0] ?? null;
 };
 
 export const getOrderStatusHistoryService = async (user, orderId) => {
@@ -991,8 +1112,9 @@ export const initiateOrderPaymentService = async (user, orderId, body = {}) => {
         throw new Error("Only the customer who placed this order can pay.");
     }
 
-    if (normalizeStatus(order.status) !== "confirmed") {
-        throw new Error("Payment is available after the store confirms your order.");
+    const orderStatus = normalizeStatus(order.status);
+    if (!["pending", "confirmed"].includes(orderStatus)) {
+        throw new Error("Payment is only available while the order is pending or confirmed.");
     }
 
     if (isInstallmentOrder(order)) {
@@ -1018,6 +1140,13 @@ export const initiateOrderPaymentService = async (user, orderId, body = {}) => {
             throw new Error("For mobile money, phone and provider (e.g. mtn, tgo, vod) are required.");
         }
     }
+
+    // Supersede prior open charges so retries do not leave multiple live Paystack refs.
+    await supersedeOpenOrderPayments({
+        tenantId: user.tenant_id,
+        orderId,
+        actorUserId: user.id,
+    });
 
     const chargeMeta = await computeChargeForFaceAmountService(amount);
     const { id: payment_id, transaction_ref } = await createPendingPaymentForCheckoutService({
@@ -1082,6 +1211,55 @@ export const initiateOrderPaymentService = async (user, orderId, body = {}) => {
     };
 };
 
+/**
+ * Before starting a new charge: verify any open order payments with Paystack.
+ * If already paid → settle and refuse a new initiate. Otherwise mark abandoned.
+ */
+async function supersedeOpenOrderPayments({ tenantId, orderId, actorUserId }) {
+    const open = await pool.query(
+        `SELECT id, transaction_ref, status
+         FROM payments
+         WHERE order_id = $1 AND tenant_id = $2
+           AND transaction_ref IS NOT NULL
+           AND lower(coalesce(status, '')) IN ('pending', 'otp', 'ongoing', 'send_otp')
+         ORDER BY created_at ASC`,
+        [orderId, tenantId]
+    );
+    for (const row of open.rows) {
+        const ref = String(row.transaction_ref || "").trim();
+        if (!ref) continue;
+
+        let gatewayStatus = null;
+        try {
+            const gateway = await verifyTransaction(ref);
+            gatewayStatus = String(gateway?.status || "").toLowerCase();
+        } catch {
+            // Cannot confirm with gateway — abandon locally so a fresh charge can proceed.
+            gatewayStatus = null;
+        }
+
+        if (["success", "paid", "completed"].includes(gatewayStatus)) {
+            await updatePaymentStatusByTransactionRefService(ref, "success");
+            await syncOrderPaymentAfterSuccess(ref, tenantId);
+            throw new Error("This order is already paid.");
+        }
+
+        await pool.query(
+            `UPDATE payments SET status = 'abandoned', updated_at = now() WHERE id = $1 AND tenant_id = $2`,
+            [row.id, tenantId]
+        );
+        await logPaymentEventService({
+            payment_id: row.id,
+            order_id: orderId,
+            tenant_id: tenantId,
+            actor_user_id: actorUserId || null,
+            event_type: "payment_abandoned",
+            note: "Prior order checkout charge superseded by a new initiate.",
+            metadata: { transaction_ref: ref, gateway_status: gatewayStatus },
+        }).catch(() => null);
+    }
+}
+
 export const submitOrderPaymentOtpService = async (user, orderId, reference, otp) => {
     if (!reference || !otp) throw new Error("reference and otp are required.");
 
@@ -1108,6 +1286,75 @@ export const submitOrderPaymentOtpService = async (user, orderId, reference, otp
         status: result.status,
         display_text: result.display_text ?? undefined,
     };
+};
+
+/**
+ * Verify Paystack charge and settle payment/order rows. Call only after order+tenant are authorized.
+ */
+export const settleOrderPaymentByReference = async ({ tenant_id, orderId, reference }) => {
+    const ref = String(reference || "").trim();
+    if (!ref) throw new Error("reference is required.");
+    if (!tenant_id || !orderId) throw new Error("Order context is required.");
+
+    const payment = await getPaymentByTransactionRefService(ref, tenant_id);
+    if (!payment || payment.order_id !== orderId) {
+        throw new Error("Invalid payment reference for this order.");
+    }
+
+    if (String(payment.status || "").toLowerCase() === "success") {
+        return {
+            transaction_ref: ref,
+            status: "success",
+            paid: true,
+        };
+    }
+
+    const result = await verifyTransaction(ref);
+    const status = String(result.status || "").toLowerCase();
+    if (status === "success") {
+        await updatePaymentStatusByTransactionRefService(ref, "success");
+        await syncOrderPaymentAfterSuccess(ref, tenant_id);
+        return {
+            transaction_ref: result.reference || ref,
+            status: "success",
+            paid: true,
+            amount: result.amount,
+            paid_at: result.paid_at ?? undefined,
+        };
+    }
+    if (status === "failed" || status === "abandoned") {
+        await updatePaymentStatusByTransactionRefService(ref, "failed");
+        await syncOrderPaymentAfterFailure(ref);
+    }
+    return {
+        transaction_ref: result.reference || ref,
+        status: status || "pending",
+        paid: false,
+        amount: result.amount,
+        paid_at: result.paid_at ?? undefined,
+    };
+};
+
+/**
+ * Verify Paystack charge for an order (card return / MoMo poll). Never trust client "paid" flags alone.
+ */
+export const verifyOrderPaymentService = async (user, orderId, reference) => {
+    const ref = String(reference || "").trim();
+    if (!ref) throw new Error("reference is required.");
+
+    const order = await getOrderByIdService(user, orderId);
+    if (!order) throw new Error("Order not found.");
+
+    const profile = await getCustomerProfileForUser(user);
+    if (!profile || order.customer_profile_id !== profile.id) {
+        throw new Error("Only the customer who placed this order can verify payment.");
+    }
+
+    return settleOrderPaymentByReference({
+        tenant_id: user.tenant_id,
+        orderId,
+        reference: ref,
+    });
 };
 
 export const markOrderPaidCashService = async (user, orderId, payload = {}) => {
@@ -1240,6 +1487,12 @@ export const initiatePartialOrderPaymentService = async (user, orderId, body = {
         }
     }
 
+    await supersedeOpenOrderPayments({
+        tenantId: user.tenant_id,
+        orderId,
+        actorUserId: user.id,
+    });
+
     const client = await pool.connect();
     try {
         await client.query("BEGIN");
@@ -1351,33 +1604,52 @@ export const recordPartialCashForOrderService = async (user, orderId, body = {})
     const minPartial = resolveMinPartialPayment(products);
     const payAmount = validatePartialPaymentAmount(body?.amount, order.balance_due, minPartial);
     const note = body?.note != null ? String(body.note).trim() : "";
+    const method = String(body?.payment_method || body?.method || "cash").trim().toLowerCase();
+    const useStoreCredit = method === "store_credit" || method === "credit";
+
+    if (useStoreCredit && !order.customer_id) {
+        throw new Error("A customer is required to apply store credit.");
+    }
 
     const client = await pool.connect();
     try {
         await client.query("BEGIN");
 
-        const payment = await createPaymentService({
-            amount: payAmount,
-            subscription_id: null,
-            customer_id: null,
-            order_id: orderId,
-            tenant_id: user.tenant_id,
-            creator_id: user.id,
-            payment_method_type: "cash",
-            transaction_ref: null,
-            payment_number: null,
-            status: "success",
-        });
+        let payment = null;
+        if (useStoreCredit) {
+            await applyStoreCreditEntry(client, {
+                tenantId: user.tenant_id,
+                customerId: order.customer_id,
+                amount: -payAmount,
+                entryType: "order_apply",
+                orderId,
+                note: note || "Applied on order balance",
+                recordedBy: user.id,
+            });
+        } else {
+            payment = await createPaymentService({
+                amount: payAmount,
+                subscription_id: null,
+                customer_id: null,
+                order_id: orderId,
+                tenant_id: user.tenant_id,
+                creator_id: user.id,
+                payment_method_type: "cash",
+                transaction_ref: null,
+                payment_number: null,
+                status: "success",
+            });
+        }
 
         await createInstallmentLedgerRow(client, {
             order_id: orderId,
             tenant_id: user.tenant_id,
             amount: payAmount,
-            payment_method: "cash",
+            payment_method: useStoreCredit ? "store_credit" : "cash",
             status: "completed",
-            payments_id: payment?.id,
+            payments_id: payment?.id || null,
             recorded_by: user.id,
-            note: note || "Cash partial payment",
+            note: note || (useStoreCredit ? "Store credit partial payment" : "Cash partial payment"),
         });
 
         const { order: updated, fullyPaid } = await applyOrderPartialPayment(
@@ -1394,8 +1666,8 @@ export const recordPartialCashForOrderService = async (user, orderId, body = {})
             order_id: orderId,
             tenant_id: user.tenant_id,
             actor_user_id: user.id,
-            event_type: "installment_cash_payment",
-            note: note || "Partial cash payment recorded.",
+            event_type: useStoreCredit ? "installment_store_credit_payment" : "installment_cash_payment",
+            note: note || (useStoreCredit ? "Partial store credit payment recorded." : "Partial cash payment recorded."),
             metadata: { amount: payAmount, fully_paid: fullyPaid },
         }).catch(() => null);
 

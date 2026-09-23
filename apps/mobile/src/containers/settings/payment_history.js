@@ -408,7 +408,7 @@ const PaymentHistory = ({ navigation }) => {
         return (
             <TouchableOpacity
                 activeOpacity={0.6}
-                onPress={() => navigation.navigate('PaymentInvoice', { payment: item, planName: 'Premium' })}
+                onPress={() => navigation.navigate('PaymentInvoice', { payment: item, planName: 'Scale' })}
                 style={[localStyles.paymentRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <View style={localStyles.paymentLeft}>
                     <View style={[localStyles.paymentIcon, { backgroundColor: colors.surfaceSecondary }]}>

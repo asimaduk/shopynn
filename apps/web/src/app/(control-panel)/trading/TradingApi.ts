@@ -53,6 +53,21 @@ const TradingApi = api
 				}),
 				// invalidatesTags: ['eCommerce_products', 'eCommerce_product']
 			}),
+			recordSalePayment: build.mutation<any, { saleId: string; body: Record<string, unknown> }>({
+				query: ({ saleId, body }) => ({
+					url: `/api/sales/${saleId}/payments`,
+					method: 'POST',
+					body
+				}),
+				invalidatesTags: ['eCommerce_orders']
+			}),
+			getOutstandingAr: build.query<any, Record<string, string | undefined> | void>({
+				query: (params) => ({
+					url: `/api/sales/outstanding`,
+					params: params || {}
+				}),
+				providesTags: ['eCommerce_orders']
+			}),
 			sendSaleInvoice: build.mutation<{ sent_to: string; invoice_number: string }, { saleId: string; email?: string }>({
 				query: ({ saleId, email }) => ({
 					url: `/api/sales/${saleId}/send-invoice`,
@@ -76,6 +91,30 @@ const TradingApi = api
 					url: `/api/sales/attendants`
 				}),
 				// providesTags: ['']
+			}),
+			getReturns: build.query<any, Record<string, string> | void>({
+				query: (params) => ({
+					url: `/api/returns`,
+					params: params || {}
+				}),
+				providesTags: ['eCommerce_orders']
+			}),
+			getReturn: build.query<any, string>({
+				query: (id) => ({ url: `/api/returns/${id}` })
+			}),
+			getSaleReturnable: build.query<any, string>({
+				query: (saleId) => ({ url: `/api/returns/sale/${saleId}/returnable` })
+			}),
+			getOrderReturnable: build.query<any, string>({
+				query: (orderId) => ({ url: `/api/returns/order/${orderId}/returnable` })
+			}),
+			createReturn: build.mutation<any, Record<string, unknown>>({
+				query: (body) => ({
+					url: `/api/returns`,
+					method: 'POST',
+					body
+				}),
+				invalidatesTags: ['eCommerce_orders', 'eCommerce_order']
 			}),
 
 			getProductPurchasesByDate: build.query<GetSalesApiResponse, GetSalesApiArg>({
@@ -376,6 +415,8 @@ export const {
 	useUpdatePurchasePaymentMutation,
 	useGetSalesQuery,
 	useCreateSaleMutation,
+	useRecordSalePaymentMutation,
+	useGetOutstandingArQuery,
 	useSendSaleInvoiceMutation,
 	useLazyGetSaleInvoicePdfQuery,
 	// useUploadProductImagesMutation,
@@ -389,6 +430,11 @@ export const {
 	useGetProductPurchasesByDateQuery,
 	useGetSaleQuery,
 	useGetAttendantsQuery,
+	useGetReturnsQuery,
+	useGetReturnQuery,
+	useLazyGetSaleReturnableQuery,
+	useLazyGetOrderReturnableQuery,
+	useCreateReturnMutation,
 	useGetStoreOrdersQuery,
 	useGetStoreOrderByIdQuery,
 	useGetStoreOrderHistoryQuery,

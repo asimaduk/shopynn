@@ -143,6 +143,36 @@ export const loginUser = async (req, res, next) => {
     }
 }
 
+export const sendPhoneLoginOtp = async (req, res, next) => {
+    try {
+        const { sendPhoneLoginOtpService } = await import("../models/phoneLogin.js");
+        const data = await sendPhoneLoginOtpService(req.body || {});
+        handleResponse(res, 200, "OTP sent.", data);
+    } catch (error) {
+        return handleResponse(
+            res,
+            error.status || 400,
+            error.message || "Failed.",
+            error?.code ? { code: error.code } : null
+        );
+    }
+};
+
+export const verifyPhoneLoginOtp = async (req, res, next) => {
+    try {
+        const { verifyPhoneLoginOtpService } = await import("../models/phoneLogin.js");
+        const data = await verifyPhoneLoginOtpService(req.body || {});
+        handleResponse(res, 200, "Login success.", data);
+    } catch (error) {
+        return handleResponse(
+            res,
+            error.status || 400,
+            error.message || "Failed.",
+            error?.code ? { code: error.code } : null
+        );
+    }
+};
+
 export const resetPassword = async (req, res, next) => {
     try {
         const updateResponse = await resetPasswordService(req.body.password, req.body.old_password, req.user.id);        

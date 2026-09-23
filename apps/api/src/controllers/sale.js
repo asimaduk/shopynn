@@ -1,5 +1,5 @@
 import { handleResponse } from "../util/handleresponse.js";
-import { createSaleService, getAllSalesService, getSalesByDateService, getAllSaleDetailsService, getCogsReportService, getRevenueReportService, getDailySalesSummaryService, getSalesByCustomerSummaryService, getSalesByCustomersReportService, getSalesByUserSummaryService, getSaleByIdService, getSaleAttendantsService, getSalesSummaryService, getTopSellingProductsService, getMyMtdSalesTotalService, buildSaleInvoicePackageService, sendSaleInvoiceEmailService } from "../models/sale.js";
+import { createSaleService, getAllSalesService, getSalesByDateService, getAllSaleDetailsService, getCogsReportService, getRevenueReportService, getDailySalesSummaryService, getSalesByCustomerSummaryService, getSalesByCustomersReportService, getSalesByUserSummaryService, getSaleByIdService, getSaleAttendantsService, getSalesSummaryService, getTopSellingProductsService, getMyMtdSalesTotalService, buildSaleInvoicePackageService, sendSaleInvoiceEmailService, recordSalePaymentService, getOutstandingArService } from "../models/sale.js";
 
 export const createSale = async (req, res, next) => {
     try {
@@ -20,7 +20,11 @@ export const createSale = async (req, res, next) => {
             error?.code === "PAYMENT_NOT_FOUND" ||
             error?.code === "PAYMENT_NOT_SUCCESS" ||
             error?.code === "PAYMENT_ALREADY_LINKED" ||
-            error?.code === "PAYMENT_FACE_MISMATCH"
+            error?.code === "PAYMENT_FACE_MISMATCH" ||
+            error?.code === "CUSTOMER_REQUIRED_FOR_CREDIT" ||
+            error?.code === "MOMO_PARTIAL_NOT_AT_CREATE" ||
+            error?.code === "INSUFFICIENT_TENDER" ||
+            error?.code === "INVALID_AMOUNT_TENDERED"
         ) {
             return handleResponse(res, 400, error.message, error?.code ? { code: error.code } : null);
         }
@@ -177,4 +181,28 @@ export const getSaleAttendants = async (req, res, next) => {
     } catch (error) {
         next(error);
     }
-}
+};
+
+export const recordSalePayment = async (req, res, next) => {
+    try {
+        const result = await recordSalePaymentService(req.user, req.params.id, req.body || {});
+        handleResponse(res, 200, "Payment recorded.", result);
+    } catch (error) {
+        if (error?.status === 404) {
+            return handleResponse(res, 404, error.message, error?.code ? { code: error.code } : null);
+        }
+        if (error?.status === 400 || error?.code) {
+            return handleResponse(res, 400, error.message, error?.code ? { code: error.code } : null);
+        }
+        next(error);
+    }
+};
+
+export const getOutstandingAr = async (req, res, next) => {
+    try {
+        const result = await getOutstandingArService(req.user, req.query);
+        handleResponse(res, 200, "Outstanding balances.", result);
+    } catch (error) {
+        next(error);
+    }
+};

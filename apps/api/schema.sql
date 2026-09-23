@@ -249,7 +249,8 @@ create table customers (
     deleted_at timestamp,
     deleted_by varchar(40) references users(id),
     deleted_reason varchar(255),
-    notes varchar(300)
+    notes varchar(300),
+    store_credit_balance decimal(12,2) not null default 0
 );
 
 create table warehouse_reference_codes (
@@ -396,6 +397,8 @@ create table sales (
     payment_reference varchar(50),
     amount_tendered decimal(10,2),
     change_amount decimal(10,2),
+    amount_paid decimal(12,2) not null default 0,
+    balance_due decimal(12,2) not null default 0,
     notes varchar(300),
     updated_by varchar(40) references users(id),
     creator_id varchar(40) references users(id),
@@ -417,6 +420,22 @@ create table saledetails (
     warehouse_id varchar(40) references warehouses(id),
     tenant_id varchar(40) references tenants(id),
     creator_id varchar(40) references users(id)
+);
+
+-- POS sale payment ledger (cash / MoMo collections against balance_due)
+create table sale_payments (
+    id varchar(40) primary key,
+    sale_id varchar(40) not null references sales(id) on delete cascade,
+    tenant_id varchar(40) not null references tenants(id) on delete cascade,
+    amount numeric(12,2) not null,
+    payment_method varchar(30) not null,
+    payment_type integer,
+    payment_number varchar(50),
+    payment_reference varchar(80),
+    payments_id varchar(40) references payments(id),
+    recorded_by varchar(40) references users(id),
+    note varchar(300),
+    created_at timestamp not null default now()
 );
 
 create table deliveries (
@@ -599,12 +618,19 @@ create table returns (
     id varchar(40) primary key,
     reference_number varchar(40),
     sale_id varchar(40) references sales(id),
+    order_id varchar(40) references orders(id),
     customer_id varchar(40) references customers(id),
     warehouse_id varchar(40) references warehouses(id),
     tenant_id varchar(40) references tenants(id),
     creator_id varchar(40) references users(id),
     status varchar(20),
     total_amount decimal(10,2),
+    refund_method varchar(20),
+    refund_amount decimal(12,2) not null default 0,
+    refund_status varchar(20) not null default 'pending',
+    payments_id varchar(40) references payments(id),
+    refund_reference varchar(80),
+    reason varchar(300),
     notes varchar(300),
     created_at timestamp,
     updated_at timestamp
@@ -616,10 +642,30 @@ create table return_details (
     product_id varchar(40) references products(id),
     quantity numeric(12,3),
     unit_price decimal(10,2),
+    line_total decimal(12,2),
     reason varchar(300),
     notes varchar(300),
+    sale_detail_id varchar(40) references saledetails(id),
+    order_item_id varchar(40) references order_items(id),
+    restock boolean not null default true,
+    write_off_reason varchar(300),
     created_at timestamp,
     updated_at timestamp
+);
+
+create table store_credit_ledger (
+    id varchar(40) primary key,
+    tenant_id varchar(40) not null references tenants(id) on delete cascade,
+    customer_id varchar(40) not null references customers(id) on delete cascade,
+    amount numeric(12,2) not null,
+    balance_after numeric(12,2) not null,
+    entry_type varchar(30) not null,
+    return_id varchar(40) references returns(id),
+    sale_id varchar(40) references sales(id),
+    order_id varchar(40) references orders(id),
+    note varchar(300),
+    recorded_by varchar(40) references users(id),
+    created_at timestamp not null default now()
 );
 
 create table notifications (

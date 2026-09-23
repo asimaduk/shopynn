@@ -766,6 +766,12 @@ export default function StoreOrderDetailsPage() {
 															<Button color="error" variant="outlined" onClick={onCancelOrder} disabled={cancelling}>
 																Cancel order
 															</Button>
+															<Button
+																variant="outlined"
+																href={`/trading/sales/returns/new?orderId=${encodeURIComponent(orderId)}`}
+															>
+																Return / refund
+															</Button>
 														</Box>
 													</CardContent>
 												</Card>

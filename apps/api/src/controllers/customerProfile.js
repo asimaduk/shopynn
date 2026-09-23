@@ -2,9 +2,13 @@ import {
     getCustomerStoresService,
     linkCustomerStoreService,
     resolveStoreReferencePublicService,
-    signupCustomerAccountService,
     signupCustomerProfileService,
 } from "../models/customerProfile.js";
+import {
+    completeCustomerSignupPhoneService,
+    sendCustomerSignupPhoneOtpService,
+    verifyCustomerSignupPhoneOtpService,
+} from "../models/customerSignupPhone.js";
 import { handleResponse } from "../util/handleresponse.js";
 
 export const signupCustomerProfile = async (req, res, next) => {
@@ -56,18 +60,44 @@ export const verifyStoreReferencePublic = async (req, res, next) => {
     }
 };
 
+export const sendCustomerSignupPhoneOtp = async (req, res, next) => {
+    try {
+        const data = await sendCustomerSignupPhoneOtpService(req.body || {});
+        handleResponse(res, 200, "OTP sent.", data);
+    } catch (error) {
+        return handleResponse(
+            res,
+            error.status || 400,
+            error.message || "Failed.",
+            error?.code ? { code: error.code } : null
+        );
+    }
+};
+
+export const verifyCustomerSignupPhoneOtp = async (req, res, next) => {
+    try {
+        const data = await verifyCustomerSignupPhoneOtpService(req.body || {});
+        handleResponse(res, 200, "Phone verified.", data);
+    } catch (error) {
+        return handleResponse(
+            res,
+            error.status || 400,
+            error.message || "Failed.",
+            error?.code ? { code: error.code } : null
+        );
+    }
+};
+
 export const signupCustomerAccount = async (req, res, next) => {
     try {
-        const data = await signupCustomerAccountService(req.body);
-        handleResponse(res, 201, "Customer account created.", data);
+        const data = await completeCustomerSignupPhoneService(req.body || {});
+        handleResponse(res, 201, "Customer account ready.", data);
     } catch (error) {
-        if (
-            error.message?.includes("required") ||
-            error.message?.includes("Invalid") ||
-            error.message?.includes("exists")
-        ) {
-            return handleResponse(res, 400, error.message);
-        }
-        next(error);
+        return handleResponse(
+            res,
+            error.status || 400,
+            error.message || "Failed.",
+            error?.code ? { code: error.code } : null
+        );
     }
 };

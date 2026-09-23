@@ -68,6 +68,16 @@ export function normalizeSalePaymentMethod(sale = {}) {
 export function formatSalePaymentLabel(sale = {}, { withSaleSuffix = false } = {}) {
     const method = normalizeSalePaymentMethod(sale);
     const phone = String(sale.payment_number || sale.paymentOption?.momoNumber || '').trim();
+    const payStatus = Number(sale.payment_status);
+    const balance = Number(sale.balance_due);
+    if ((payStatus === 0 || payStatus === 2 || (Number.isFinite(balance) && balance > 0.02)) && withSaleSuffix) {
+        if (payStatus === 0 || (Number.isFinite(balance) && balance > 0 && Number(sale.amount_paid) <= 0.001)) {
+            return 'On credit';
+        }
+        if (payStatus === 2 || (Number.isFinite(balance) && balance > 0.02)) {
+            return 'Partial payment';
+        }
+    }
 
     if (method === 'cash') return withSaleSuffix ? 'Cash Sale' : 'Cash';
     if (method === 'mobile_money') {

@@ -4,6 +4,8 @@ import {
     getReturnByIdService,
     getReturnDetailsService,
     createReturnService,
+    getSaleReturnableLinesService,
+    getOrderReturnableLinesService,
 } from "../models/return.js";
 
 export const getReturnsHistory = async (req, res, next) => {
@@ -27,6 +29,26 @@ export const getReturnById = async (req, res, next) => {
     }
 };
 
+export const getSaleReturnable = async (req, res, next) => {
+    try {
+        const data = await getSaleReturnableLinesService(req.user, req.params.saleId);
+        if (!data) return handleResponse(res, 404, "Sale not found.");
+        handleResponse(res, 200, "Returnable sale lines.", data);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getOrderReturnable = async (req, res, next) => {
+    try {
+        const data = await getOrderReturnableLinesService(req.user, req.params.orderId);
+        if (!data) return handleResponse(res, 404, "Order not found.");
+        handleResponse(res, 200, "Returnable order lines.", data);
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const createReturn = async (req, res, next) => {
     try {
         const payload = {
@@ -37,6 +59,12 @@ export const createReturn = async (req, res, next) => {
         const created = await createReturnService(payload);
         handleResponse(res, 201, "Return created.", created);
     } catch (error) {
+        if (error?.status === 404) {
+            return handleResponse(res, 404, error.message, error?.code ? { code: error.code } : null);
+        }
+        if (error?.status === 400 || error?.code) {
+            return handleResponse(res, 400, error.message, error?.code ? { code: error.code } : null);
+        }
         next(error);
     }
 };

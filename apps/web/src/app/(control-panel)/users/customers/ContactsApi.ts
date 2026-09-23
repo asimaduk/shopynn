@@ -160,6 +160,7 @@ export type Contact = {
 	/** `pos` = POS/admin customer record; `account` = self-registered app customer (user + profile). */
 	source?: 'pos' | 'account';
 	user_id?: string | null;
+	store_credit_balance?: number | string | null;
 };
 
 export type Tag = {

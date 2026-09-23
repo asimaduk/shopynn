@@ -15,7 +15,7 @@ const resolveReferenceStore = async (tenantId, referenceCode) => {
     const result = await pool.query(
         `SELECT id, warehouse_id
          FROM warehouse_reference_codes
-         WHERE tenant_id = $1 AND reference_code = $2 AND coalesce(is_active, true) = true
+         WHERE tenant_id = $1 AND lower(reference_code) = $2 AND coalesce(is_active, true) = true
          LIMIT 1`,
         [tenantId, code]
     );
@@ -44,7 +44,7 @@ export const resolveStoreReferencePublicService = async (referenceCode) => {
          FROM warehouse_reference_codes wrc
          LEFT JOIN warehouses w ON w.id = wrc.warehouse_id
          LEFT JOIN tenants t ON t.id = wrc.tenant_id
-         WHERE wrc.reference_code = $1
+         WHERE lower(wrc.reference_code) = $1
            AND coalesce(wrc.is_active, true) = true
          LIMIT 1`,
         [code]
@@ -56,7 +56,7 @@ export const resolveStoreReferencePublicService = async (referenceCode) => {
     return {
         tenant_id: row.tenant_id,
         warehouse_id: row.warehouse_id,
-        reference_code: row.reference_code,
+        reference_code: code,
         store: {
             id: row.warehouse_id,
             name: row.warehouse_name || null,
@@ -106,6 +106,10 @@ const ensureCustomerRoleWithPermissions = async (client, tenantId) => {
     return roleId;
 };
 
+/**
+ * @deprecated Prefer phone-OTP completeCustomerSignupPhoneService (customerSignupPhone.js).
+ * Kept unused for reference; email/password customer signup removed from product.
+ */
 export const signupCustomerAccountService = async (payload = {}) => {
     const firstName = String(payload.first_name || "").trim();
     const lastName = String(payload.last_name || "").trim();

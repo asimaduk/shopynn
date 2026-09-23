@@ -22,6 +22,18 @@ import useUser from '@auth/useUser';
 import { canManageCustomerSignupCodes, canManageSubscription } from '@auth/permissions';
 import Link from '@fuse/core/Link';
 
+const MARKETING_SITE_URL = (
+	process.env.NEXT_PUBLIC_MARKETING_SITE_URL || 'https://shopynn.vercel.app'
+).replace(/\/$/, '');
+
+function storefrontOrderUrl(code: string) {
+	const cleaned = String(code || '')
+		.trim()
+		.toLowerCase();
+	if (!cleaned) return '';
+	return `${MARKETING_SITE_URL}/s/${cleaned}`;
+}
+
 type SectionCardProps = {
 	title: string;
 	icon: string;
@@ -69,13 +81,13 @@ const REFERENCE_CODE_MAX_LENGTH = 80;
 function suggestReferenceCode(warehouseName: string) {
 	const base = warehouseName
 		.trim()
-		.toUpperCase()
-		.replace(/[^A-Z0-9]+/g, '-')
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '-')
 		.replace(/^-+|-+$/g, '')
 		.slice(0, 48);
-	let code = `${base || 'STORE'}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+	let code = `${base || 'store'}-${Math.random().toString(36).slice(2, 6).toLowerCase()}`;
 	while (code.length < REFERENCE_CODE_MIN_LENGTH) {
-		code += Math.random().toString(36).slice(2, 3).toUpperCase();
+		code += Math.random().toString(36).slice(2, 3).toLowerCase();
 	}
 	return code.slice(0, REFERENCE_CODE_MAX_LENGTH);
 }
@@ -274,17 +286,18 @@ function BasicInfoTab({ locations = [] }: BasicInfoTabProps) {
 							<TextField
 								{...field}
 								value={field.value ?? ''}
-								onChange={(e) => field.onChange(String(e.target.value).toUpperCase().replace(/[^A-Z0-9_-]/g, ''))}
+								onChange={(e) => field.onChange(String(e.target.value).toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
 								label="Customer signup code"
 								id="reference_code"
 								variant="outlined"
 								fullWidth
 								sx={textFieldSx}
-								placeholder="e.g. MAIN-STORE-A1B2"
+								placeholder="e.g. main-store-a1b2"
+								inputProps={{ style: { textTransform: 'lowercase' } }}
 								error={!!errors.reference_code}
 								helperText={
 									(errors?.reference_code?.message as string) ||
-									'Customers enter this when signing up as a Customer (6–80 characters). Leave blank to auto-generate on create.'
+									'Customers enter this when signing up (6–80 characters). Also used for your WhatsApp order link. Leave blank to auto-generate on create.'
 								}
 								InputProps={{
 									endAdornment: (
@@ -319,24 +332,64 @@ function BasicInfoTab({ locations = [] }: BasicInfoTabProps) {
 									)
 								}}
 							/>
+							{String(field.value ?? '').trim() ? (
+								<Box sx={{ mt: 1.5, display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
+									<Typography
+										variant="caption"
+										color="text.secondary"
+										sx={{ width: '100%', wordBreak: 'break-all' }}
+									>
+										{storefrontOrderUrl(String(field.value))}
+									</Typography>
+									<Button
+										size="small"
+										variant="contained"
+										color="success"
+										startIcon={<FuseSvgIcon size={16}>heroicons-outline:chat-bubble-left-right</FuseSvgIcon>}
+										onClick={() => {
+											const url = storefrontOrderUrl(String(field.value));
+											const name = String(warehouseName || 'our store').trim() || 'our store';
+											const text = `Order from ${name} on Shopynn:\n${url}`;
+											window.open(
+												`https://wa.me/?text=${encodeURIComponent(text)}`,
+												'_blank',
+												'noopener,noreferrer'
+											);
+										}}
+									>
+										Share on WhatsApp
+									</Button>
+									<Button
+										size="small"
+										variant="outlined"
+										startIcon={<FuseSvgIcon size={16}>heroicons-outline:link</FuseSvgIcon>}
+										onClick={() => {
+											const url = storefrontOrderUrl(String(field.value));
+											if (url) navigator.clipboard?.writeText(url);
+										}}
+									>
+										Copy order link
+									</Button>
+								</Box>
+							) : null}
 						</Box>
 					)}
 				/>
 			) : (
 				<Alert severity="info" variant="outlined">
 					<Typography variant="subtitle2" className="font-semibold">
-						Premium: Customer signup codes
+						Scale: Customer signup codes
 					</Typography>
 					<Typography variant="body2" color="text.secondary" className="mt-1">
-						Per-store signup codes for customer accounts are included on the Premium plan (customer online ordering).
+						Per-store signup codes for customer accounts are included on the Scale plan (customer online ordering).
 					</Typography>
 					{canUpgrade ? (
 						<Button component={Link} href="/apps/profile" variant="contained" color="primary" size="small" className="mt-3">
-							View Premium plan
+							View Scale plan
 						</Button>
 					) : (
 						<Typography variant="caption" color="text.secondary" className="mt-2 block">
-							Ask your account owner to upgrade to Premium.
+							Ask your account owner to upgrade to Scale.
 						</Typography>
 					)}
 				</Alert>

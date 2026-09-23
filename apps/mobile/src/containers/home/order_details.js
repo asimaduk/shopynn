@@ -669,6 +669,29 @@ const OrderDetails = ({ navigation, route }) => {
                                 </TouchableOpacity>
                             </View>
                         )}
+                        <TouchableOpacity
+                            activeOpacity={0.85}
+                            onPress={() =>
+                                navigation.navigate('NewOrderReturn', {
+                                    orderId: order?.id || route?.params?.orderId || route?.params?.id,
+                                    order,
+                                })
+                            }
+                            style={{
+                                marginTop: 12,
+                                paddingVertical: 12,
+                                borderRadius: 10,
+                                alignItems: 'center',
+                                flexDirection: 'row',
+                                justifyContent: 'center',
+                                backgroundColor: colors.surfaceSecondary,
+                                borderWidth: 1,
+                                borderColor: colors.border,
+                            }}
+                        >
+                            <Lucide name="undo-2" size={16} color={config.THEME_COLOR} />
+                            <AppText label="Return / refund" variant={1} color={config.THEME_COLOR} style={{ marginLeft: 8 }} />
+                        </TouchableOpacity>
                     </View>
                 )}
             </ScrollView>

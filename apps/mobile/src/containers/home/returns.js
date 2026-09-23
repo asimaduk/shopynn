@@ -124,9 +124,49 @@ const Returns = ({ navigation }) => {
         try {
             const raw = await returnsApi.list();
             const list = normalizeList(raw);
-            setReturnsList(Array.isArray(list) && list.length > 0 ? list : [...SAMPLE_SALES_RETURNS, ...SAMPLE_PURCHASE_RETURNS]);
+            if (!Array.isArray(list) || list.length === 0) {
+                setReturnsList([]);
+                return;
+            }
+            setReturnsList(
+                list.map((r) => {
+                    const created = r.created_at ? new Date(r.created_at) : null;
+                    const dateLabel = created
+                        ? created.toLocaleString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                              hour: 'numeric',
+                              minute: '2-digit',
+                          })
+                        : '';
+                    const statusRaw = String(r.status || '').toLowerCase();
+                    const status =
+                        statusRaw === 'completed'
+                            ? 'Approved'
+                            : statusRaw === 'draft'
+                              ? 'Pending'
+                              : statusRaw === 'cancelled'
+                                ? 'Rejected'
+                                : statusRaw
+                                  ? statusRaw.charAt(0).toUpperCase() + statusRaw.slice(1)
+                                  : 'Approved';
+                    return {
+                        id: r.id,
+                        type: r.type === 'order' ? 'sales' : r.type || 'sales',
+                        ref: r.sale_invoice_number || r.order_number || r.reference_number || r.id,
+                        customer: r.customer_name || '—',
+                        date: dateLabel,
+                        items: Number(r.items || r.items_count || 0),
+                        amount: Number(r.total_amount || r.refund_amount || 0).toFixed(2),
+                        reason: r.reason || r.notes || '—',
+                        status,
+                        _raw: r,
+                    };
+                }),
+            );
         } catch (_) {
-            setReturnsList([...SAMPLE_SALES_RETURNS, ...SAMPLE_PURCHASE_RETURNS]);
+            setReturnsList([]);
         }
     }, []);
 

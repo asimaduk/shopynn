@@ -15,7 +15,7 @@ const formatter = new Intl.NumberFormat('en-GH', {
 const PaymentInvoice = ({ navigation, route }) => {
     const { colors } = useTheme();
     const insets = useSafeAreaInsets();
-    const { payment, planName = 'Premium' } = route.params || {};
+    const { payment, planName = 'Scale' } = route.params || {};
 
     if (!payment) {
         return (

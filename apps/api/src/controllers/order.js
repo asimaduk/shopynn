@@ -6,6 +6,7 @@ import {
     initiateOrderPaymentService,
     initiatePartialOrderPaymentService,
     submitOrderPaymentOtpService,
+    verifyOrderPaymentService,
     updateOrderService,
     updateOrderStatusService,
 } from "../models/order.js";
@@ -195,6 +196,25 @@ export const submitOrderPaymentOtp = async (req, res, next) => {
         handleResponse(res, 200, "OTP submitted.", result);
     } catch (error) {
         if (error.message?.includes("reference and otp")) {
+            return handleResponse(res, 400, error.message);
+        }
+        if (error.message?.includes("Order not found")) {
+            return handleResponse(res, 404, error.message);
+        }
+        if (error.message?.includes("Only the customer") || error.message?.includes("Invalid payment reference")) {
+            return handleResponse(res, 403, error.message);
+        }
+        next(error);
+    }
+};
+
+export const verifyOrderPayment = async (req, res, next) => {
+    try {
+        const reference = req.query.reference || req.body?.reference || req.params.reference;
+        const result = await verifyOrderPaymentService(req.user, req.params.id, reference);
+        handleResponse(res, 200, "Payment verified.", result);
+    } catch (error) {
+        if (error.message?.includes("reference is required")) {
             return handleResponse(res, 400, error.message);
         }
         if (error.message?.includes("Order not found")) {

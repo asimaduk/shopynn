@@ -8,15 +8,15 @@ const faqs = [
   },
   {
     q: "How does customer ordering work?",
-    a: "Depending on your plan, customers can browse your catalogue and place orders through your storefront or mobile experience. New orders appear in your Shopynn dashboard so your team can fulfil them quickly.",
+    a: "Customer online ordering is included on Scale. Shoppers browse your catalogue and place orders; new orders appear in your Shopynn dashboard for fulfilment.",
   },
   {
     q: "Can I run more than one shop or warehouse?",
-    a: "Yes. Higher plans support multiple branches with stock transfers, role-based access for staff, and consolidated reporting across locations.",
+    a: "Yes. Business and Scale support multiple branches with stock transfers, role-based access for staff, and reporting across locations. Starter is single-branch.",
   },
   {
     q: "Does Shopynn work with Mobile Money?",
-    a: "Shopynn is built for Ghanaian retail workflows including GHS pricing and MoMo-friendly payment flows. Exact payment options depend on your plan and setup — start a trial or contact us to confirm what fits your store.",
+    a: "Shopynn is built for Ghanaian retail workflows including GHS pricing and MoMo-friendly payment flows. Exact payment options depend on your setup — start a trial or contact us to confirm what fits your store.",
   },
   {
     q: "Is there a free trial?",
@@ -32,7 +32,7 @@ const faqs = [
   },
   {
     q: "How do I get help?",
-    a: "Use Talk to us on this site, chat with us from the landing page, or email support. Paid plans include priority support. We typically reply within one business day.",
+    a: "Use Talk to us on this site, chat from the landing page, or WhatsApp/email support. Scale includes priority WhatsApp support. We typically reply within one business day.",
   },
 ];
 

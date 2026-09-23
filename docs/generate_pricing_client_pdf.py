@@ -150,9 +150,9 @@ def pricing_table(pdf: FPDF) -> None:
     pdf.ln(row_h_header)
 
     rows = [
-        ("Basic", "GHS 149", "1 branch, up to 3 users", "Single store core operations"),
-        ("Standard", "GHS 349", "Up to 5 branches, up to 12 users", "Multi-branch + controls/workflows"),
-        ("Premium", "GHS 649", "Up to 10 branches, up to 25 users", "Full platform + customer ordering"),
+        ("Starter", "GHS 149", "1 branch, up to 3 users", "Single store core operations"),
+        ("Business", "GHS 349", "Up to 5 branches, up to 12 users", "Multi-branch + controls/workflows"),
+        ("Scale", "GHS 649", "Up to 10 branches, up to 25 users", "Full platform + customer ordering"),
     ]
 
     def wrapped_lines(txt: str, col_w: float) -> list[str]:

@@ -9,6 +9,7 @@ import {
     initiateOrderPayment,
     initiatePartialOrderPayment,
     submitOrderPaymentOtp,
+    verifyOrderPayment,
     updateOrder,
     updateOrderStatus,
 } from "../controllers/order.js";
@@ -47,6 +48,12 @@ router.post(
     requireFeature("orders.details.view"),
     requireAnyPermission("orders.details.view", "orders.view"),
     submitOrderPaymentOtp
+);
+router.get(
+    "/:id/payments/verify",
+    requireFeature("orders.details.view"),
+    requireAnyPermission("orders.details.view", "orders.view"),
+    verifyOrderPayment
 );
 router.get(
     "/:id",

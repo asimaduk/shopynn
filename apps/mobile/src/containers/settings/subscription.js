@@ -14,7 +14,7 @@ import { buildPlansFromCatalog } from '../../utils/billingCatalog';
 import { setSubscriptionActive } from '../../store/actions/appSettings';
 import { canManageSubscription } from '../../utils/permissions';
 import { SUBSCRIPTION_INACTIVE_MESSAGE } from '../../utils/subscriptionAccess';
-import { CHOOSEABLE_SUBSCRIPTION_PLANS, PLAN_RANK_BY_NAME } from '../../constants/subscriptionPlans';
+import { CHOOSEABLE_SUBSCRIPTION_PLANS, PLAN_RANK_BY_NAME, displayPlanName } from '../../constants/subscriptionPlans';
 
 const formatter = new Intl.NumberFormat('en-GH', {
     style: 'currency',
@@ -43,7 +43,7 @@ const Subscription = ({ navigation, route }) => {
 
     const [loading, setLoading] = useState(true);
     const [subscriptionStatus, setSubscriptionStatus] = useState('expired'); // 'active', 'expired', 'trial'
-    const [planName, setPlanName] = useState('Premium');
+    const [planName, setPlanName] = useState('Scale');
     const [nextBillingDate, setNextBillingDate] = useState('');
     const [amount, setAmount] = useState(0);
     const [billingCycle, setBillingCycle] = useState('monthly'); // 'monthly', 'yearly'
@@ -79,7 +79,7 @@ const Subscription = ({ navigation, route }) => {
             const status = normalizeStatus(sub?.status ?? sub?.state);
             // console.log('x status', status);
             setSubscriptionStatus(status);
-            if (sub?.name) setPlanName(sub.name);
+            if (sub?.name) setPlanName(displayPlanName(sub.name));
             if (sub?.end_at) setNextBillingDate(sub.end_at);
             if (sub?.amount != null) setAmount(Number(sub.amount));
             if (sub?.billing_interval) setBillingCycle(sub.billing_interval);

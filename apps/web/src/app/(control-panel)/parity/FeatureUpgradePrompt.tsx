@@ -21,7 +21,7 @@ type Props = {
 
 export default function FeatureUpgradePrompt({
 	featureTitle = 'This feature',
-	requiredPlanName = 'Premium',
+	requiredPlanName = 'Scale',
 	description,
 	bullets = [],
 	currentPlanName,

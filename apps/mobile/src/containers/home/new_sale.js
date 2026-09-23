@@ -173,6 +173,7 @@ const NewSale = ({ navigation, route }) => {
         paid: false,
         chargedFaceAmount: null,
     });
+    const [storeCreditInput, setStoreCreditInput] = useState('');
     const [momoCharge, setMomoCharge] = useState({ enabled: true, percent: 2 });
     const [momoSending, setMomoSending] = useState(false);
     const [momoChecking, setMomoChecking] = useState(false);
@@ -762,7 +763,17 @@ const NewSale = ({ navigation, route }) => {
         return () => sub.remove();
     }, [showPaymentOptions, selectedPaymentOption.transactionRef]);
 
-    const momoFace = Number(totalAmount) || 0;
+    const momoFaceBase = Number(totalAmount) || 0;
+    const availableStoreCredit = Math.round((Number(selectedCustomer?.store_credit_balance) || 0) * 100) / 100;
+    const storeCreditApplied = (() => {
+        if (!selectedCustomer?.id || availableStoreCredit <= 0.001) return 0;
+        const raw = String(storeCreditInput || '').trim();
+        if (raw === '') return 0;
+        const n = Number(String(raw).replace(/,/g, ''));
+        if (!Number.isFinite(n) || n <= 0) return 0;
+        return Math.round(Math.min(n, availableStoreCredit, momoFaceBase) * 100) / 100;
+    })();
+    const momoFace = Math.round(Math.max(0, momoFaceBase - storeCreditApplied) * 100) / 100;
     const momoPercent = momoCharge?.enabled ? Number(momoCharge.percent) || 0 : 0;
     const momoFee = momoCharge?.enabled
         ? Math.round(((momoFace * momoPercent) / 100) * 100) / 100
@@ -783,11 +794,26 @@ const NewSale = ({ navigation, route }) => {
         cashTenderedParsed != null && Number.isFinite(cashTenderedParsed)
             ? Math.round(cashTenderedParsed * 100) / 100
             : null;
+    const hasCustomerForCredit = Boolean(selectedCustomer?.id);
+    const cashIsPartialOrCredit =
+        selectedPaymentOption.method === 'cash' &&
+        cashTenderedAmount != null &&
+        cashTenderedAmount + 0.001 < momoFace;
     const cashChangeAmount =
         cashTenderedAmount != null
             ? Math.round(Math.max(0, cashTenderedAmount - momoFace) * 100) / 100
             : 0;
-    const cashTenderOk = cashTenderedAmount == null || cashTenderedAmount + 0.001 >= momoFace;
+    // Full pay when blank or >= remaining after store credit; partial/credit allowed when a customer is selected
+    const cashTenderOk =
+        cashTenderedAmount == null ||
+        cashTenderedAmount + 0.001 >= momoFace ||
+        (cashTenderedAmount >= 0 && hasCustomerForCredit);
+    const cashAmountPaid =
+        selectedPaymentOption.method === 'cash'
+            ? cashTenderedAmount == null
+                ? momoFace
+                : Math.min(Math.max(0, cashTenderedAmount), momoFace)
+            : momoFace;
 
     const extractMomoError = (e) => {
         const data = e?.response?.data;
@@ -1069,28 +1095,44 @@ const NewSale = ({ navigation, route }) => {
             return;
         }
         if (selectedPaymentOption.method === 'momo') {
-            const digits = String(selectedPaymentOption.momoNumber || '').replace(/\D/g, '');
-            if (digits.length < 10) {
-                Alert.alert('MoMo', 'Enter a full MoMo number (10 digits).');
-                return;
-            }
-            if (!selectedPaymentOption.paid || !selectedPaymentOption.transactionRef) {
-                Alert.alert('MoMo', `Tap Send and confirm payment before ${completeLabel}.`);
-                return;
+            if (momoFace > 0.02) {
+                const digits = String(selectedPaymentOption.momoNumber || '').replace(/\D/g, '');
+                if (digits.length < 10) {
+                    Alert.alert('MoMo', 'Enter a full MoMo number (10 digits).');
+                    return;
+                }
+                if (!selectedPaymentOption.paid || !selectedPaymentOption.transactionRef) {
+                    Alert.alert('MoMo', `Tap Send and confirm payment before ${completeLabel}.`);
+                    return;
+                }
             }
             const charged = Number(selectedPaymentOption.chargedFaceAmount);
-            if (Number.isFinite(charged) && charged > 0 && Math.abs(Number(totalAmount) - charged) > 0.02) {
+            if (Number.isFinite(charged) && charged > 0 && Math.abs(Number(momoFace) - charged) > 0.02) {
                 Alert.alert(
                     'Amount mismatch',
-                    `Cart total (${Number(totalAmount).toFixed(2)}) does not match the MoMo charge (${charged.toFixed(2)}). Finish this payment without changing items.`,
+                    `Amount due after store credit (${Number(momoFace).toFixed(2)}) does not match the MoMo charge (${charged.toFixed(2)}). Finish this payment without changing items or credit.`,
                 );
                 return;
             }
         }
         if (selectedPaymentOption.method === 'cash' && !cashTenderOk) {
+            if (cashIsPartialOrCredit && !hasCustomerForCredit) {
+                Alert.alert(
+                    'Customer required',
+                    'Select a customer to sell on credit or accept a partial payment.',
+                );
+            } else {
+                Alert.alert(
+                    'Cash',
+                    `Amount tendered must be at least the amount due (${momoFace.toFixed(2)}), or select a customer for partial/credit.`,
+                );
+            }
+            return;
+        }
+        if (selectedPaymentOption.method === 'cash' && cashIsPartialOrCredit && !hasCustomerForCredit) {
             Alert.alert(
-                'Cash',
-                `Amount tendered must be at least the sale total (${momoFace.toFixed(2)}).`,
+                'Customer required',
+                'Select a customer to sell on credit or accept a partial payment.',
             );
             return;
         }
@@ -1100,14 +1142,29 @@ const NewSale = ({ navigation, route }) => {
             selectedPaymentOption.method === 'cash'
                 ? cashTenderedAmount != null
                     ? cashTenderedAmount
-                    : Math.round(saleTotal * 100) / 100
+                    : Math.round(momoFace * 100) / 100
                 : null;
         const resolvedChange =
             selectedPaymentOption.method === 'cash' && resolvedTendered != null
-                ? Math.round(Math.max(0, resolvedTendered - saleTotal) * 100) / 100
+                ? Math.round(Math.max(0, resolvedTendered - momoFace) * 100) / 100
                 : null;
+        const cashOrMomoPaid =
+            selectedPaymentOption.method === 'cash'
+                ? cashAmountPaid
+                : momoFace > 0.02
+                  ? momoFace
+                  : 0;
+        const amountPaidForSale = cashOrMomoPaid;
+        const balanceDueForSale =
+            Math.round(Math.max(0, saleTotal - amountPaidForSale - storeCreditApplied) * 100) / 100;
         let salePayloadForRetry = null;
         try {
+            const payNote =
+                balanceDueForSale > 0.02
+                    ? amountPaidForSale + storeCreditApplied <= 0.001
+                        ? 'On credit'
+                        : `Partial ${(amountPaidForSale + storeCreditApplied).toFixed(2)} (balance ${balanceDueForSale.toFixed(2)})`
+                    : `Paid with ${selectedPaymentOption?.method || 'cash'}`;
             const payload = {
                 customer_id: selectedCustomer?.id,
                 warehouse_id: resolvedWarehouseId,
@@ -1121,17 +1178,32 @@ const NewSale = ({ navigation, route }) => {
                         bulkDiscount,
                     ),
                 })),
-                payment_method: selectedPaymentOption?.method || 'cash',
+                payment_method:
+                    selectedPaymentOption?.method === 'momo' && momoFace > 0.02
+                        ? 'momo'
+                        : 'cash',
                 payment_number: selectedPaymentOption?.momoNumber || '',
-                payment_transaction_ref: selectedPaymentOption?.transactionRef || null,
-                payment_reference: selectedPaymentOption?.transactionRef || null,
-                payment_type: selectedPaymentOption?.method === 'momo' ? 2 : 1,
+                payment_transaction_ref:
+                    selectedPaymentOption?.method === 'momo' && momoFace > 0.02
+                        ? selectedPaymentOption?.transactionRef || null
+                        : null,
+                payment_reference:
+                    selectedPaymentOption?.method === 'momo' && momoFace > 0.02
+                        ? selectedPaymentOption?.transactionRef || null
+                        : null,
+                payment_type:
+                    selectedPaymentOption?.method === 'momo' && momoFace > 0.02 ? 2 : 1,
                 amount_tendered: resolvedTendered,
                 change_amount: resolvedChange,
+                amount_paid: amountPaidForSale,
+                store_credit_applied: storeCreditApplied > 0.001 ? storeCreditApplied : 0,
+                payment_status: balanceDueForSale <= 0.02 ? 1 : amountPaidForSale + storeCreditApplied <= 0.001 ? 0 : 2,
                 totalAmount: saleTotal,
                 invoice_number: invoiceNumber,
                 discount_amount: discountTotal,
-                notes: `Paid with ${selectedPaymentOption?.method || 'cash'}${
+                notes: `${payNote}${
+                    storeCreditApplied > 0.001 ? ` store credit ${storeCreditApplied.toFixed(2)}` : ''
+                }${
                     selectedPaymentOption?.method === 'momo' && selectedPaymentOption?.momoNumber
                         ? ` ${selectedPaymentOption.momoNumber}`
                         : ''
@@ -1478,6 +1550,14 @@ const NewSale = ({ navigation, route }) => {
                         <View style={{ flex: 1, marginLeft: 10 }}>
                             <AppText label="Customer" fontSize={11} color={colors.textTertiary} />
                             <AppText label={selectedCustomer?.name || 'Select customer'} variant={2} fontSize={14} numberOfLines={1} color={colors.text} />
+                            {selectedCustomer?.id && Number(selectedCustomer?.store_credit_balance) > 0.001 ? (
+                                <AppText
+                                    label={`Credit ${formatCurrency(Number(selectedCustomer.store_credit_balance))}`}
+                                    fontSize={11}
+                                    color={colors.textSecondary}
+                                    numberOfLines={1}
+                                />
+                            ) : null}
                         </View>
                         <Lucide name="chevron-down" size={18} color={colors.textTertiary} />
                     </TouchableOpacity>
@@ -1751,10 +1831,19 @@ const NewSale = ({ navigation, route }) => {
                                 renderItem={({ item }) => (
                                     <TouchableOpacity
                                         activeOpacity={0.7}
-                                        onPress={() => { setSelectedCustomer(item); setShowCustomers(false); setCustomerSearch(''); }}
+                                        onPress={() => { setSelectedCustomer(item); setStoreCreditInput(''); setShowCustomers(false); setCustomerSearch(''); }}
                                         style={[styles.modalRow, { borderBottomColor: colors.borderLight }]}>
                                         <Lucide name="user" size={18} color={colors.textTertiary} />
-                                        <AppText label={item.name} style={{ flex: 1, marginLeft: 12 }} color={colors.text} />
+                                        <View style={{ flex: 1, marginLeft: 12 }}>
+                                            <AppText label={item.name} color={colors.text} />
+                                            {Number(item.store_credit_balance) > 0.001 ? (
+                                                <AppText
+                                                    label={`Credit ${formatCurrency(Number(item.store_credit_balance))}`}
+                                                    fontSize={12}
+                                                    color={colors.textSecondary}
+                                                />
+                                            ) : null}
+                                        </View>
                                     </TouchableOpacity>
                                 )}
                             />
@@ -1915,7 +2004,7 @@ const NewSale = ({ navigation, route }) => {
                         </View>
 
                         <View style={styles.paymentSummaryRow}>
-                            <AppText label={`Sale ${momoFace.toFixed(2)}`} color={colors.text} />
+                            <AppText label={`Sale ${momoFaceBase.toFixed(2)}`} color={colors.text} />
                             {selectedPaymentOption.method === 'momo' ? (
                                 <AppText
                                     label={
@@ -1934,6 +2023,59 @@ const NewSale = ({ navigation, route }) => {
                                 />
                             )}
                         </View>
+
+                        {availableStoreCredit > 0.001 ? (
+                            <View style={{ marginBottom: 12 }}>
+                                <AppText
+                                    label={`Store credit available ${availableStoreCredit.toFixed(2)}`}
+                                    fontSize={13}
+                                    color={colors.textSecondary}
+                                    style={{ marginBottom: 6 }}
+                                />
+                                <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                                    <TextInput
+                                        placeholder="0.00"
+                                        placeholderTextColor={colors.placeholder}
+                                        keyboardType="decimal-pad"
+                                        value={storeCreditInput}
+                                        onChangeText={setStoreCreditInput}
+                                        style={[
+                                            styles.paymentInput,
+                                            {
+                                                flex: 1,
+                                                borderColor: colors.inputBorder,
+                                                color: colors.text,
+                                                marginBottom: 0,
+                                            },
+                                        ]}
+                                    />
+                                    <TouchableOpacity
+                                        activeOpacity={0.7}
+                                        onPress={() =>
+                                            setStoreCreditInput(
+                                                Math.min(availableStoreCredit, momoFaceBase).toFixed(2),
+                                            )
+                                        }
+                                        style={{
+                                            paddingHorizontal: 12,
+                                            paddingVertical: 10,
+                                            borderRadius: 8,
+                                            backgroundColor: colors.surfaceSecondary,
+                                        }}
+                                    >
+                                        <AppText label="Use max" fontSize={13} color={config.THEME_COLOR} />
+                                    </TouchableOpacity>
+                                </View>
+                                {storeCreditApplied > 0.001 ? (
+                                    <AppText
+                                        label={`Applying ${storeCreditApplied.toFixed(2)} · due ${momoFace.toFixed(2)}`}
+                                        fontSize={12}
+                                        color={colors.textSecondary}
+                                        style={{ marginTop: 6 }}
+                                    />
+                                ) : null}
+                            </View>
+                        ) : null}
 
                         <AppText
                             label={
@@ -2006,11 +2148,69 @@ const NewSale = ({ navigation, route }) => {
                         />
                         {selectedPaymentOption.method === 'cash' && !cashTenderOk ? (
                             <AppText
-                                label={`Must be at least ${momoFace.toFixed(2)}`}
+                                label={
+                                    cashIsPartialOrCredit && !hasCustomerForCredit
+                                        ? 'Select a customer for partial or credit'
+                                        : `Must be at least ${momoFace.toFixed(2)}, or select a customer for credit`
+                                }
                                 fontSize={12}
                                 color={colors.error}
                                 style={{ marginTop: 6 }}
                             />
+                        ) : null}
+                        {selectedPaymentOption.method === 'cash' && cashIsPartialOrCredit && hasCustomerForCredit ? (
+                            <AppText
+                                label={
+                                    cashAmountPaid <= 0.001
+                                        ? `On credit — balance ${momoFace.toFixed(2)}`
+                                        : `Partial — paid ${cashAmountPaid.toFixed(2)}, balance ${(momoFace - cashAmountPaid).toFixed(2)}`
+                                }
+                                fontSize={12}
+                                color={colors.warning || colors.textSecondary}
+                                style={{ marginTop: 6 }}
+                            />
+                        ) : null}
+                        {selectedPaymentOption.method === 'cash' ? (
+                            <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                                <TouchableOpacity
+                                    activeOpacity={0.7}
+                                    onPress={() =>
+                                        setSelectedPaymentOption((p) => ({
+                                            ...p,
+                                            amountTendered: momoFace.toFixed(2),
+                                        }))
+                                    }
+                                    style={[styles.momoActionChip, { borderColor: colors.border }]}
+                                >
+                                    <AppText label="Exact" color={colors.primary} fontSize={12} variant={1} />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    activeOpacity={0.7}
+                                    disabled={!hasCustomerForCredit}
+                                    onPress={() => {
+                                        if (!hasCustomerForCredit) {
+                                            Alert.alert(
+                                                'Customer required',
+                                                'Select a customer before putting a sale on credit.',
+                                            );
+                                            return;
+                                        }
+                                        setSelectedPaymentOption((p) => ({
+                                            ...p,
+                                            amountTendered: '0',
+                                        }));
+                                    }}
+                                    style={[
+                                        styles.momoActionChip,
+                                        {
+                                            borderColor: colors.border,
+                                            opacity: hasCustomerForCredit ? 1 : 0.45,
+                                        },
+                                    ]}
+                                >
+                                    <AppText label="On credit" color={colors.primary} fontSize={12} variant={1} />
+                                </TouchableOpacity>
+                            </View>
                         ) : null}
 
                         {selectedPaymentOption.method === 'momo' ? (

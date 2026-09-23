@@ -413,6 +413,42 @@ export function isPaystackConfigured() {
     return Boolean(PAYSTACK_SECRET);
 }
 
+/**
+ * Refund a successful Paystack charge (partial or full).
+ * @param {{ transaction_ref: string, amount?: number, currency?: string }} opts
+ *   amount in major units; omit for full refund.
+ */
+export async function refundTransaction(opts) {
+    const { transaction_ref, amount, currency = MOBILE_MONEY_CURRENCY } = opts;
+    const reference = String(transaction_ref || "").trim();
+    if (!reference) {
+        throw new Error("transaction_ref is required for refund.");
+    }
+
+    if (!PAYSTACK_SECRET) {
+        throw new Error(
+            "Paystack is not configured. Cannot process MoMo refunds in this environment."
+        );
+    }
+
+    const body = {
+        transaction: reference,
+        currency,
+    };
+    if (amount != null && Number.isFinite(Number(amount)) && Number(amount) > 0) {
+        body.amount = Math.round(Number(amount) * 100);
+    }
+
+    const data = await paystackRequest("/refund", { method: "POST", body });
+    return {
+        status: data?.status || "pending",
+        reference: data?.transaction?.reference || reference,
+        refund_id: data?.id,
+        message: data?.message,
+        raw: data,
+    };
+}
+
 export function getMinWithdrawalAmount() {
     const n = Number(process.env.PAYSTACK_MIN_WITHDRAWAL_GHS || 1);
     return Number.isFinite(n) && n > 0 ? n : 1;

@@ -20,9 +20,9 @@ You act as an **independent sales agent**. You introduce businesses you meet in 
 
 | Plan | Monthly subscription (GHS) | Typical use |
 |------|----------------------------|-------------|
-| Basic | 149 | Single store, getting started |
-| **Standard** | **349** | **Multi-branch, transfers, roles (expected most common)** |
-| Premium | 649 | Full platform + customer online ordering |
+| Starter | 149 | Single store, getting started |
+| **Business** | **349** | **Multi-branch, transfers, roles (expected most common)** |
+| Scale | 649 | Full platform + customer online ordering |
 
 **Optional assisted go-live (setup / training):** GHS 700 (Basic) · 1,300 (Standard) · 2,000 (Premium). Includes product import and opening stock. Self-serve shops pay **GHS 0** for setup. True extras (data migration from another system, extra training day) are sold separately.
 

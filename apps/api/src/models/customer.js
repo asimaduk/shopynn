@@ -72,6 +72,7 @@ export const getAllCustomersService = async (user, requestQuery = {}) => {
             c.created_at,
             c.is_active,
             c.customer_group,
+            COALESCE(c.store_credit_balance, 0)::numeric AS store_credit_balance,
             'pos'::text AS source,
             NULL::varchar AS user_id
         FROM customers c
@@ -88,6 +89,7 @@ export const getAllCustomersService = async (user, requestQuery = {}) => {
             cp.created_at,
             u.is_active,
             NULL::varchar AS customer_group,
+            0::numeric AS store_credit_balance,
             'account'::text AS source,
             u.id AS user_id
         FROM customer_profiles cp
@@ -118,6 +120,7 @@ export const getAllCustomersService = async (user, requestQuery = {}) => {
             cp.created_at,
             u.is_active,
             NULL::varchar AS customer_group,
+            0::numeric AS store_credit_balance,
             'account'::text AS source,
             u.id AS user_id
         FROM customer_profiles cp
@@ -152,12 +155,18 @@ export const getAllCustomersService = async (user, requestQuery = {}) => {
 export const getCustomerByIdService = async (tenantId, id) => {
 	const pos = await pool.query(
 		`SELECT id, name, email, address, notes, phone, customer_group, is_active, created_at,
+                COALESCE(store_credit_balance, 0)::numeric AS store_credit_balance,
                 'pos'::text AS source, NULL::varchar AS user_id
          FROM customers
          WHERE id = $1 AND tenant_id = $2`,
 		[id, tenantId]
 	);
-	if (pos.rows[0]) return pos.rows[0];
+	if (pos.rows[0]) {
+		return {
+			...pos.rows[0],
+			store_credit_balance: Number(pos.rows[0].store_credit_balance) || 0,
+		};
+	}
 
 	const acc = await pool.query(
 		`SELECT cp.id,

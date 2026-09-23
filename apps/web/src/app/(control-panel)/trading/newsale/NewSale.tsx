@@ -457,7 +457,7 @@ function NewSale() {
                 unit_price: resolveSaleUnitPrice(o.order_quantity, o.unit_price, o.alt_price, bulkDiscount),
                 name: o.name
             }}),
-            notes: `Paid with ${paymentData.paymentType}${paymentData.transNumber ? (' '+paymentData.transNumber):''}${paymentData.payment_transaction_ref ? ` ref ${paymentData.payment_transaction_ref}` : ''}${paymentData.fee_amount ? ` (fee ${paymentData.fee_amount})` : ''}`,
+            notes: `Paid with ${paymentData.paymentType}${paymentData.store_credit_applied ? ` store credit ${paymentData.store_credit_applied}` : ''}${paymentData.transNumber ? (' '+paymentData.transNumber):''}${paymentData.payment_transaction_ref ? ` ref ${paymentData.payment_transaction_ref}` : ''}${paymentData.fee_amount ? ` (fee ${paymentData.fee_amount})` : ''}`,
             cashier: user.displayName,
             created_at: new Date().toJSON(),
             warehouse_id: warehouse?.id,
@@ -468,6 +468,15 @@ function NewSale() {
             payment_type: String(paymentData.paymentType || '').toLowerCase() === 'momo' || paymentData.payment_method === 'momo' ? 2 : 1,
             amount_tendered: paymentData.amount_tendered ?? null,
             change_amount: paymentData.change_amount ?? null,
+            amount_paid:
+                paymentData.amount_paid != null
+                    ? paymentData.amount_paid
+                    : String(paymentData.paymentType || '').toLowerCase() === 'momo' ||
+                        paymentData.payment_method === 'momo'
+                      ? orderTotal
+                      : orderTotal,
+            store_credit_applied: paymentData.store_credit_applied ?? 0,
+            payment_status: paymentData.payment_status ?? 1,
             company: {
                 name: (user as any)?.company?.name || (user as any)?.companyName || 'Shopynn',
                 organization: (user as any)?.company?.organization || '',
@@ -1228,6 +1237,23 @@ function NewSale() {
                             (pr, c) => pr + calcLineTotal(c.order_quantity, c.unit_price, c.alt_price, bulkDiscount),
                             0
                         ) || 0
+                    }
+                    customerId={
+                        customer
+                            ? customers_data.find((c: { name?: string }) => c.name === customer)?.id || null
+                            : null
+                    }
+                    availableStoreCredit={
+                        customer
+                            ? Number(
+                                    (
+                                        customers_data.find(
+                                            (c: { name?: string; store_credit_balance?: number | string }) =>
+                                                c.name === customer
+                                        ) as { store_credit_balance?: number | string } | undefined
+                                    )?.store_credit_balance
+                                ) || 0
+                            : 0
                     }
                     printerType={(warehouseRecordForPrinting as { printer_type?: string } | null)?.printer_type}
                     resumeMomo={resumeMomo}

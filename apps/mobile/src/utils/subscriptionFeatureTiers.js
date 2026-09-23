@@ -2,7 +2,7 @@
 
 const TIER_RANK = { free: 1, basic: 2, standard: 3, premium: 4 };
 
-const TIER_DISPLAY = { free: 'Free', basic: 'Basic', standard: 'Standard', premium: 'Premium' };
+const TIER_DISPLAY = { free: 'Free', basic: 'Starter', standard: 'Business', premium: 'Scale' };
 
 const TIER_BADGE_LETTER = { free: 'F', basic: 'B', standard: 'S', premium: 'P' };
 
@@ -12,9 +12,9 @@ export function getTierBadgeLetter(tier) {
 
 export function getTierBadgeLetterForPlanName(planName) {
     const key = String(planName || '').trim().toLowerCase();
-    if (key.includes('premium')) return getTierBadgeLetter('premium');
-    if (key.includes('standard')) return getTierBadgeLetter('standard');
-    if (key.includes('basic')) return getTierBadgeLetter('basic');
+    if (key.includes('premium') || key.includes('scale')) return getTierBadgeLetter('premium');
+    if (key.includes('standard') || key.includes('business')) return getTierBadgeLetter('standard');
+    if (key.includes('basic') || key.includes('starter')) return getTierBadgeLetter('basic');
     return getTierBadgeLetter('free');
 }
 
@@ -68,15 +68,15 @@ export function getMinimumTierForFeatures(featureCodes) {
 }
 
 export function getMinimumTierDisplayForFeatures(featureCodes) {
-    return TIER_DISPLAY[getMinimumTierForFeatures(featureCodes)] || 'Standard';
+    return TIER_DISPLAY[getMinimumTierForFeatures(featureCodes)] || 'Business';
 }
 
 function normalizePlanTierCode(nameOrCode) {
     const key = String(nameOrCode || '').trim().toLowerCase();
     if (!key) return 'free';
-    if (key.includes('premium') || key === '4') return 'premium';
-    if (key.includes('standard') || key === '3') return 'standard';
-    if (key.includes('basic') || key === '2') return 'basic';
+    if (key.includes('premium') || key.includes('scale') || key === '4') return 'premium';
+    if (key.includes('standard') || key.includes('business') || key === '3') return 'standard';
+    if (key.includes('basic') || key.includes('starter') || key === '2') return 'basic';
     return 'free';
 }
 

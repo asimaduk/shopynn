@@ -5,9 +5,9 @@ import { resolveSubscriptionTypeConfigService } from "./billingCatalog.js";
 /** Tier metadata (duration); amounts come from billing_catalog_items. */
 const SUBSCRIPTION_TYPES = {
     1: { name: "Free", amount: 0, durationDays: 14 },
-    2: { name: "Basic", amount: 149, durationDays: 30 },
-    3: { name: "Standard", amount: 349, durationDays: 30 },
-    4: { name: "Premium", amount: 649, durationDays: 30 },
+    2: { name: "Starter", amount: 149, durationDays: 30 },
+    3: { name: "Business", amount: 349, durationDays: 30 },
+    4: { name: "Scale", amount: 649, durationDays: 30 },
 };
 
 const NAME_TO_DURATION_DAYS = { Free: 14, Basic: 30, Standard: 30, Premium: 30 };

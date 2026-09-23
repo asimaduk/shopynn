@@ -153,14 +153,15 @@ const navigationConfig: FuseNavItemType[] = [
 				requiredPermissions: ['sales.view'],
 				requiredFeatures: ['sales.view']
 			},
-			// {
-			// 	id: 'trading.sales-returns',
-			// 	title: 'Sales Returns',
-			// 	type: 'item',
-			// 	icon: 'heroicons-outline:arrow-uturn-left',
-			// 	url: '/trading/sales/returns',
-			// 	requiredPermissions: ['returns.view']
-			// },
+			{
+				id: 'trading.sales-returns',
+				title: 'Sales Returns',
+				type: 'item',
+				icon: 'heroicons-outline:arrow-uturn-left',
+				url: '/trading/sales/returns',
+				requiredPermissions: ['returns.view'],
+				requiredFeatures: ['returns.view']
+			},
 			{
 				id: 'trading.new-purchase',
 				title: 'New Purchase',

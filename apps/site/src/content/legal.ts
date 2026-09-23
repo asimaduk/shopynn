@@ -96,7 +96,7 @@ export const termsOfService = {
     {
       heading: "3. Subscriptions and trials",
       body: `• Free trial — The Free plan is active for 14 days with no payment required, subject to Free-tier limits.
-• Paid plans — Basic, Standard, and Premium require payment to activate. Until payment, the subscription may remain in a pending state and product access may be limited.
+• Paid plans — Starter, Business, and Scale require payment to activate. Until payment, the subscription may remain in a pending state and product access may be limited.
 • Fees — Published prices (e.g. in GHS) apply unless otherwise agreed in writing. Taxes may apply.
 • Renewal — Paid subscriptions renew according to the billing interval shown at checkout unless cancelled.
 • Cancellation — You may cancel according to in-app subscription settings; access continues until the end of the paid period unless otherwise stated.`,

@@ -43,7 +43,7 @@ const WarehouseItem = ({ item, navigation }) => {
                         <View style={styles.metaRow}>
                             <Lucide name="hash" size={12} color={colors.textTertiary} />
                             <AppText
-                                label={`Signup code: ${item.reference_code}`}
+                                label={`Code: ${item.reference_code}`}
                                 fontSize={12}
                                 color={colors.textTertiary}
                                 numberOfLines={1}

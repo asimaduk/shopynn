@@ -15,6 +15,11 @@ import { Route as SecurityRouteImport } from './routes/security'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as StartTrialRouteImport } from './routes/start-trial'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as SStoreCodeRouteImport } from './routes/s.$storeCode'
+import { Route as SStoreCodeIndexRouteImport } from './routes/s.$storeCode.index'
+import { Route as SStoreCodeCheckoutRouteImport } from './routes/s.$storeCode.checkout'
+import { Route as SStoreCodeOrderOrderIdRouteImport } from './routes/s.$storeCode.order.$orderId'
+import { Route as SStoreCodePProductSlugRouteImport } from './routes/s.$storeCode.p.$productSlug'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -46,6 +51,31 @@ const TermsRoute = TermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SStoreCodeRoute = SStoreCodeRouteImport.update({
+  id: '/s/$storeCode',
+  path: '/s/$storeCode',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SStoreCodeIndexRoute = SStoreCodeIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SStoreCodeRoute,
+} as any)
+const SStoreCodeCheckoutRoute = SStoreCodeCheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
+  getParentRoute: () => SStoreCodeRoute,
+} as any)
+const SStoreCodeOrderOrderIdRoute = SStoreCodeOrderOrderIdRouteImport.update({
+  id: '/order/$orderId',
+  path: '/order/$orderId',
+  getParentRoute: () => SStoreCodeRoute,
+} as any)
+const SStoreCodePProductSlugRoute = SStoreCodePProductSlugRouteImport.update({
+  id: '/p/$productSlug',
+  path: '/p/$productSlug',
+  getParentRoute: () => SStoreCodeRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -54,6 +84,11 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/start-trial': typeof StartTrialRoute
   '/terms': typeof TermsRoute
+  '/s/$storeCode': typeof SStoreCodeRouteWithChildren
+  '/s/$storeCode/checkout': typeof SStoreCodeCheckoutRoute
+  '/s/$storeCode/': typeof SStoreCodeIndexRoute
+  '/s/$storeCode/order/$orderId': typeof SStoreCodeOrderOrderIdRoute
+  '/s/$storeCode/p/$productSlug': typeof SStoreCodePProductSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +97,10 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/start-trial': typeof StartTrialRoute
   '/terms': typeof TermsRoute
+  '/s/$storeCode/checkout': typeof SStoreCodeCheckoutRoute
+  '/s/$storeCode': typeof SStoreCodeIndexRoute
+  '/s/$storeCode/order/$orderId': typeof SStoreCodeOrderOrderIdRoute
+  '/s/$storeCode/p/$productSlug': typeof SStoreCodePProductSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,14 +110,38 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/start-trial': typeof StartTrialRoute
   '/terms': typeof TermsRoute
+  '/s/$storeCode': typeof SStoreCodeRouteWithChildren
+  '/s/$storeCode/checkout': typeof SStoreCodeCheckoutRoute
+  '/s/$storeCode/': typeof SStoreCodeIndexRoute
+  '/s/$storeCode/order/$orderId': typeof SStoreCodeOrderOrderIdRoute
+  '/s/$storeCode/p/$productSlug': typeof SStoreCodePProductSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/privacy' | '/security' | '/sitemap.xml' | '/start-trial' | '/terms'
+    | '/'
+    | '/privacy'
+    | '/security'
+    | '/sitemap.xml'
+    | '/start-trial'
+    | '/terms'
+    | '/s/$storeCode'
+    | '/s/$storeCode/checkout'
+    | '/s/$storeCode/'
+    | '/s/$storeCode/order/$orderId'
+    | '/s/$storeCode/p/$productSlug'
   fileRoutesByTo: FileRoutesByTo
   to:
-    '/' | '/privacy' | '/security' | '/sitemap.xml' | '/start-trial' | '/terms'
+    | '/'
+    | '/privacy'
+    | '/security'
+    | '/sitemap.xml'
+    | '/start-trial'
+    | '/terms'
+    | '/s/$storeCode/checkout'
+    | '/s/$storeCode'
+    | '/s/$storeCode/order/$orderId'
+    | '/s/$storeCode/p/$productSlug'
   id:
     | '__root__'
     | '/'
@@ -87,6 +150,11 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/start-trial'
     | '/terms'
+    | '/s/$storeCode'
+    | '/s/$storeCode/checkout'
+    | '/s/$storeCode/'
+    | '/s/$storeCode/order/$orderId'
+    | '/s/$storeCode/p/$productSlug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -96,6 +164,7 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   StartTrialRoute: typeof StartTrialRoute
   TermsRoute: typeof TermsRoute
+  SStoreCodeRoute: typeof SStoreCodeRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -142,8 +211,61 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/s/$storeCode': {
+      id: '/s/$storeCode'
+      path: '/s/$storeCode'
+      fullPath: '/s/$storeCode'
+      preLoaderRoute: typeof SStoreCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/s/$storeCode/': {
+      id: '/s/$storeCode/'
+      path: '/'
+      fullPath: '/s/$storeCode/'
+      preLoaderRoute: typeof SStoreCodeIndexRouteImport
+      parentRoute: typeof SStoreCodeRoute
+    }
+    '/s/$storeCode/checkout': {
+      id: '/s/$storeCode/checkout'
+      path: '/checkout'
+      fullPath: '/s/$storeCode/checkout'
+      preLoaderRoute: typeof SStoreCodeCheckoutRouteImport
+      parentRoute: typeof SStoreCodeRoute
+    }
+    '/s/$storeCode/order/$orderId': {
+      id: '/s/$storeCode/order/$orderId'
+      path: '/order/$orderId'
+      fullPath: '/s/$storeCode/order/$orderId'
+      preLoaderRoute: typeof SStoreCodeOrderOrderIdRouteImport
+      parentRoute: typeof SStoreCodeRoute
+    }
+    '/s/$storeCode/p/$productSlug': {
+      id: '/s/$storeCode/p/$productSlug'
+      path: '/p/$productSlug'
+      fullPath: '/s/$storeCode/p/$productSlug'
+      preLoaderRoute: typeof SStoreCodePProductSlugRouteImport
+      parentRoute: typeof SStoreCodeRoute
+    }
   }
 }
+
+interface SStoreCodeRouteChildren {
+  SStoreCodeCheckoutRoute: typeof SStoreCodeCheckoutRoute
+  SStoreCodeIndexRoute: typeof SStoreCodeIndexRoute
+  SStoreCodeOrderOrderIdRoute: typeof SStoreCodeOrderOrderIdRoute
+  SStoreCodePProductSlugRoute: typeof SStoreCodePProductSlugRoute
+}
+
+const SStoreCodeRouteChildren: SStoreCodeRouteChildren = {
+  SStoreCodeCheckoutRoute: SStoreCodeCheckoutRoute,
+  SStoreCodeIndexRoute: SStoreCodeIndexRoute,
+  SStoreCodeOrderOrderIdRoute: SStoreCodeOrderOrderIdRoute,
+  SStoreCodePProductSlugRoute: SStoreCodePProductSlugRoute,
+}
+
+const SStoreCodeRouteWithChildren = SStoreCodeRoute._addFileChildren(
+  SStoreCodeRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -152,6 +274,7 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   StartTrialRoute: StartTrialRoute,
   TermsRoute: TermsRoute,
+  SStoreCodeRoute: SStoreCodeRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

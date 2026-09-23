@@ -15,7 +15,7 @@ const FeatureUpgrade = ({ navigation, route }) => {
     const {
         headerTitle = 'Upgrade required',
         featureTitle = 'This feature',
-        requiredPlanName = 'Basic',
+        requiredPlanName = 'Starter',
         description,
         bullets = [],
     } = route.params || {};

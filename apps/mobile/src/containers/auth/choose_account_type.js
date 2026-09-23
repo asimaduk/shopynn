@@ -13,7 +13,7 @@ const ACCOUNT_TYPES = [
     {
         id: 'customer',
         title: 'Customer',
-        subtitle: 'Shop from stores you are linked to. Pay over time where offered.',
+        subtitle: 'Link a store with a code, verify your phone, then order and track.',
         icon: 'shopping-bag',
         screen: 'CustomerSignup',
         accent: '#7C3AED',

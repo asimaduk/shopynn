@@ -26,11 +26,11 @@ import {
     REFERENCE_CODE_MIN_LENGTH,
 } from '../../components/warehouse_reference_code_field';
 
-const STEPS = ['Store verification', 'Account details'];
+const STEPS = ['Store', 'Phone', 'Name'];
 const { width } = Dimensions.get('window');
 
 const CustomerSignup = ({ navigation }) => {
-    const { colors, isDark } = useTheme();
+    const { colors } = useTheme();
     const insets = useSafeAreaInsets();
     const isFocused = useIsFocused();
     const [step, setStep] = useState(0);
@@ -39,25 +39,15 @@ const CustomerSignup = ({ navigation }) => {
     const [referenceCode, setReferenceCode] = useState('');
     const [referenceData, setReferenceData] = useState(null);
 
+    const [phone, setPhone] = useState('');
+    const [otp, setOtp] = useState('');
+    const [otpSent, setOtpSent] = useState(false);
+    const [devCode, setDevCode] = useState(null);
+    const [sessionToken, setSessionToken] = useState(null);
+    const [existingCustomer, setExistingCustomer] = useState(false);
+
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
-    const [email, setEmail] = useState('');
-    const [phone, setPhone] = useState('');
-    const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-    // useFocusEffect(
-    //     useCallback(() => {
-    //         if (Platform.OS === 'android') StatusBar.setBackgroundColor(config.THEME_COLOR);
-    //         StatusBar.setBarStyle('light-content');
-    //         return () => {
-    //             if (Platform.OS === 'android') StatusBar.setBackgroundColor(colors.background);
-    //             if (Platform.OS === 'android') StatusBar.setBarStyle('dark-content');
-    //         };
-    //     }, [colors.background])
-    // );
 
     useFocusEffect(
         useCallback(() => {
@@ -67,47 +57,7 @@ const CustomerSignup = ({ navigation }) => {
         }, [])
     );
 
-    const canVerifyReference = useMemo(
-        () => !validateReferenceCode(referenceCode),
-        [referenceCode]
-    );
-    const canSubmitSignup = useMemo(() => {
-        return (
-            firstName.trim() &&
-            lastName.trim() &&
-            email.trim() &&
-            phone.trim() &&
-            password.trim() &&
-            confirmPassword.trim()
-        );
-    }, [firstName, lastName, email, phone, password, confirmPassword]);
-
-    const handlePhoneChange = (input) => {
-        const raw = String(input || '');
-        const cleaned = raw.replace(/[^\d+]/g, '');
-
-        // Keep only one leading '+', if present
-        const normalized = cleaned.startsWith('+')
-            ? `+${cleaned.slice(1).replace(/\+/g, '')}`
-            : cleaned.replace(/\+/g, '');
-
-        if (normalized.startsWith('+')) {
-            setPhone(normalized.slice(0, 13));
-            return;
-        }
-
-        setPhone(normalized.slice(0, 10));
-    };
-
-    const isValidPhone = (value) => {
-        const v = String(value || '').trim();
-        return /^0\d{9}$/.test(v) || /^\+233\d{9}$/.test(v);
-    };
-
-    const isValidEmail = (value) => {
-        const v = String(value || '').trim();
-        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
-    };
+    const canVerifyReference = useMemo(() => !validateReferenceCode(referenceCode), [referenceCode]);
 
     const verifyReference = async () => {
         const refErr = validateReferenceCode(referenceCode);
@@ -120,6 +70,10 @@ const CustomerSignup = ({ navigation }) => {
             const data = await usersApi.verifyStoreReference(normalizeReferenceCodeInput(referenceCode));
             setReferenceData(data);
             setStep(1);
+            setOtpSent(false);
+            setOtp('');
+            setSessionToken(null);
+            setDevCode(null);
         } catch (error) {
             const msg = error?.response?.data?.message || error?.message || 'Could not verify reference code.';
             Alert.alert('Verification failed', msg);
@@ -128,46 +82,94 @@ const CustomerSignup = ({ navigation }) => {
         }
     };
 
-    const submitSignup = async () => {
-        if (!canSubmitSignup) {
-            Alert.alert('Required', 'Please complete all fields.');
+    const sendOtp = async () => {
+        if (phone.length !== 10) {
+            Alert.alert('Invalid phone', 'Enter a 10-digit mobile number (e.g. 024XXXXXXX).');
             return;
         }
-        if(firstName.trim().length < 2 || lastName.trim().length < 2) {
-            Alert.alert('Required', 'Please enter your first and last name. Minimum 2 characters required.');
-            return;
+        setLoading(true);
+        try {
+            const data = await usersApi.sendCustomerSignupOtp({
+                phone,
+                reference_code: normalizeReferenceCodeInput(referenceCode),
+            });
+            setOtpSent(true);
+            setDevCode(data?.dev_code || null);
+            if (data?.phone) {
+                let n = String(data.phone).replace(/\D/g, '');
+                if (n.startsWith('233') && n.length >= 12) n = `0${n.slice(3)}`;
+                setPhone(n.slice(0, 10));
+            }
+            Alert.alert(
+                'Code sent',
+                data?.dev_code ? `Dev code: ${data.dev_code}` : 'Enter the SMS code we sent to your phone.'
+            );
+        } catch (error) {
+            const msg = error?.response?.data?.message || error?.message || 'Could not send code.';
+            Alert.alert('Could not send code', msg);
+        } finally {
+            setLoading(false);
         }
-        if(!isValidEmail(email)) {
-            Alert.alert('Invalid email address', 'Please enter a valid email address.');
-            return;
-        }
-        if (!isValidPhone(phone)) {
-            Alert.alert('Invalid phone number', 'Use 0XXXXXXXXX (10 digits) or +233XXXXXXXXX (13 characters).');
-            return;
-        }
+    };
 
-        if (password.length < 8) {
-            Alert.alert('Invalid password', 'Password must be at least 8 characters.');
+    const verifyOtp = async () => {
+        if (String(otp).trim().length < 6) {
+            Alert.alert('Required', 'Enter the 6-digit code.');
             return;
         }
-        if (password !== confirmPassword) {
-            Alert.alert('Password mismatch', 'Password and confirm password must match.');
-            return;
+        setLoading(true);
+        try {
+            const data = await usersApi.verifyCustomerSignupOtp({
+                phone,
+                otp: String(otp).trim(),
+                reference_code: normalizeReferenceCodeInput(referenceCode),
+            });
+            setSessionToken(data?.session_token);
+            setExistingCustomer(Boolean(data?.existing_customer));
+            if (data?.first_name) setFirstName(String(data.first_name));
+            if (data?.last_name) setLastName(String(data.last_name));
+            setStep(2);
+        } catch (error) {
+            const msg = error?.response?.data?.message || error?.message || 'Invalid code.';
+            Alert.alert('Verification failed', msg);
+        } finally {
+            setLoading(false);
         }
+    };
 
+    const completeSignup = async () => {
+        if (!sessionToken) {
+            Alert.alert('Required', 'Verify your phone first.');
+            setStep(1);
+            return;
+        }
+        if (!existingCustomer && (firstName.trim().length < 2 || lastName.trim().length < 2)) {
+            Alert.alert('Required', 'Enter your first and last name (min 2 characters each).');
+            return;
+        }
         setLoading(true);
         try {
             await usersApi.customerSignup({
                 reference_code: normalizeReferenceCodeInput(referenceCode),
+                phone,
+                session_token: sessionToken,
                 first_name: firstName.trim(),
                 last_name: lastName.trim(),
-                email: email.trim().toLowerCase(),
-                phone: phone.trim(),
-                password,
             });
-            Alert.alert('Success', 'Your account has been created. Please sign in to continue.', [
-                { text: 'OK', onPress: () => navigation.navigate('Login', { prefillEmail: email.trim().toLowerCase() }) },
-            ]);
+            Alert.alert(
+                'You\'re set',
+                'Your customer account is ready. Sign in with Phone using the same number.',
+                [
+                    {
+                        text: 'Sign in',
+                        onPress: () =>
+                            navigation.navigate('Login', {
+                                authMode: 'phone',
+                                prefillPhone: phone,
+                            }),
+                    },
+                ]
+            );
         } catch (error) {
             const msg = error?.response?.data?.message || error?.message || 'Signup failed.';
             Alert.alert('Signup failed', msg);
@@ -176,9 +178,17 @@ const CustomerSignup = ({ navigation }) => {
         }
     };
 
-    const renderLineInput = ({ label, icon, value, onChangeText, placeholder, keyboardType = 'default', autoCapitalize = 'none', containerStyle }) => (
+    const renderLineInput = ({
+        icon,
+        value,
+        onChangeText,
+        placeholder,
+        keyboardType = 'default',
+        autoCapitalize = 'none',
+        maxLength,
+        containerStyle,
+    }) => (
         <View style={[styles.fieldGroup, containerStyle]}>
-            {/* <AppText label={label} fontSize={12} color={colors.textTertiary} style={styles.fieldLabel} /> */}
             <View style={[styles.inputRow, { borderBottomColor: colors.border }]}>
                 <Lucide name={icon} size={18} color={colors.placeholder} style={styles.inputIcon} />
                 <TextInput
@@ -189,19 +199,27 @@ const CustomerSignup = ({ navigation }) => {
                     placeholderTextColor={colors.placeholder}
                     keyboardType={keyboardType}
                     autoCapitalize={autoCapitalize}
+                    maxLength={maxLength}
                 />
             </View>
         </View>
     );
 
     return (
-        <KeyboardAvoidingView style={[styles.keyboard, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-            {isFocused ? (
-                <StatusBar barStyle="light-content" backgroundColor={config.THEME_COLOR} />
-            ) : null}
-            {insets.top > 0 && <View style={[styles.statusBarFill, { height: insets.top, backgroundColor: config.THEME_COLOR }]} />}
+        <KeyboardAvoidingView
+            style={[styles.keyboard, { backgroundColor: colors.background }]}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+            {isFocused ? <StatusBar barStyle="light-content" backgroundColor={config.THEME_COLOR} /> : null}
+            {insets.top > 0 && (
+                <View style={[styles.statusBarFill, { height: insets.top, backgroundColor: config.THEME_COLOR }]} />
+            )}
             <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
-                <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                <ScrollView
+                    contentContainerStyle={styles.content}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                >
                     <View style={[styles.brandStrip, { backgroundColor: config.THEME_COLOR }]}>
                         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.topBackBtn}>
                             <Lucide name="arrow-left" size={20} color="#fff" />
@@ -220,14 +238,8 @@ const CustomerSignup = ({ navigation }) => {
                     </View>
 
                     <View style={[styles.formSection, { backgroundColor: colors.background }]}>
-                        {/* <View style={styles.headerRow}>
-                            <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { borderColor: colors.border }]}>
-                                <Lucide name="arrow-left" size={16} color={colors.text} />
-                            </TouchableOpacity>
-                            <AppText label="Create customer account" variant={1} fontSize={20} color={colors.text} />
-                        </View> */}
                         <AppText
-                            label="Connect to a store with a reference code and create your customer login to browse and order."
+                            label="Same as WhatsApp ordering: link a store, verify your phone, then you can sign in with Phone anytime."
                             fontSize={14}
                             color={colors.textSecondary}
                             style={styles.formSubtitle}
@@ -244,8 +256,10 @@ const CustomerSignup = ({ navigation }) => {
                                                 style={[
                                                     styles.stepCircle,
                                                     {
-                                                        backgroundColor: isActive || isComplete ? config.THEME_COLOR : colors.surfaceSecondary,
-                                                        borderColor: isActive || isComplete ? config.THEME_COLOR : colors.border,
+                                                        backgroundColor:
+                                                            isActive || isComplete ? config.THEME_COLOR : colors.surfaceSecondary,
+                                                        borderColor:
+                                                            isActive || isComplete ? config.THEME_COLOR : colors.border,
                                                     },
                                                 ]}
                                             >
@@ -283,13 +297,18 @@ const CustomerSignup = ({ navigation }) => {
 
                     {step === 0 && (
                         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                            <AppText label="Enter store reference code" variant={1} fontSize={15} color={colors.text} style={{ marginBottom: 8 }} />
+                            <AppText
+                                label="Enter store reference code"
+                                variant={1}
+                                fontSize={15}
+                                color={colors.text}
+                                style={{ marginBottom: 8 }}
+                            />
                             {renderLineInput({
-                                label: 'Reference code',
                                 icon: 'hash',
                                 value: referenceCode,
                                 onChangeText: (text) => setReferenceCode(normalizeReferenceCodeInput(text)),
-                                placeholder: `e.g. MN-STORE-A1B2 (${REFERENCE_CODE_MIN_LENGTH}+ characters)`,
+                                placeholder: `e.g. mn-store-a1b2 (${REFERENCE_CODE_MIN_LENGTH}+ characters)`,
                                 autoCapitalize: 'characters',
                             })}
                             <TouchableOpacity
@@ -297,7 +316,11 @@ const CustomerSignup = ({ navigation }) => {
                                 disabled={!canVerifyReference || loading}
                                 style={[styles.primaryBtn, (!canVerifyReference || loading) && { opacity: 0.6 }]}
                             >
-                                {loading ? <ActivityIndicator color="#fff" /> : <AppText label="Verify store" variant={1} color="#fff" />}
+                                {loading ? (
+                                    <ActivityIndicator color="#fff" />
+                                ) : (
+                                    <AppText label="Continue" variant={1} color="#fff" />
+                                )}
                             </TouchableOpacity>
                         </View>
                     )}
@@ -306,104 +329,139 @@ const CustomerSignup = ({ navigation }) => {
                         <>
                             <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                                 <AppText label="Store confirmed" variant={1} fontSize={15} color={colors.text} />
-                                <AppText label={`Store: ${referenceData?.store?.name || '—'}`} color={colors.textSecondary} style={styles.meta} />
-                                <AppText label={`Address: ${referenceData?.store?.address || '—'}`} color={colors.textSecondary} style={styles.meta} />
-                                <AppText label={`Company: ${referenceData?.company?.name || '—'}`} color={colors.textSecondary} style={styles.meta} />
-                                <View style={{flexDirection:'row'}}>
-                                    <TouchableOpacity onPress={() => setStep(0)} style={{ marginTop: 10 }}>
-                                        <AppText label="Use another reference code" color={config.THEME_COLOR} />
-                                    </TouchableOpacity>
-                                </View>
+                                <AppText
+                                    label={`Store: ${referenceData?.store?.name || '—'}`}
+                                    color={colors.textSecondary}
+                                    style={styles.meta}
+                                />
+                                <TouchableOpacity onPress={() => setStep(0)} style={{ marginTop: 10 }}>
+                                    <AppText label="Use another code" color={config.THEME_COLOR} />
+                                </TouchableOpacity>
                             </View>
 
                             <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                                <View style={styles.rowFields}>
-                                    {renderLineInput({
-                                        label: 'First name',
-                                        icon: 'user',
-                                        value: firstName,
-                                        onChangeText: setFirstName,
-                                        placeholder: 'First name',
-                                        autoCapitalize: 'words',
-                                        containerStyle: styles.halfField,
-                                    })}
-                                    {renderLineInput({
-                                        label: 'Last name',
-                                        icon: 'user',
-                                        value: lastName,
-                                        onChangeText: setLastName,
-                                        placeholder: 'Last name',
-                                        autoCapitalize: 'words',
-                                        containerStyle: styles.halfField,
-                                    })}
-                                </View>
+                                <AppText
+                                    label="Verify mobile number"
+                                    variant={1}
+                                    fontSize={15}
+                                    color={colors.text}
+                                    style={{ marginBottom: 8 }}
+                                />
                                 {renderLineInput({
-                                    label: 'Email',
-                                    icon: 'mail',
-                                    value: email,
-                                    onChangeText: setEmail,
-                                    placeholder: 'you@example.com',
-                                    keyboardType: 'email-address',
-                                    autoCapitalize: 'none',
-                                })}
-                                {renderLineInput({
-                                    label: 'Phone',
-                                    icon: 'phone',
+                                    icon: 'smartphone',
                                     value: phone,
-                                    onChangeText: handlePhoneChange,
-                                    placeholder: '0XXXXXXXXX or +233XXXXXXXXX',
+                                    onChangeText: (v) => {
+                                        setPhone(String(v || '').replace(/\D/g, '').slice(0, 10));
+                                        setOtpSent(false);
+                                        setSessionToken(null);
+                                    },
+                                    placeholder: '024 XXX XXXX',
                                     keyboardType: 'phone-pad',
-                                    autoCapitalize: 'none',
+                                    maxLength: 10,
                                 })}
-
-                                <View style={styles.rowFields}>
-                                    <View style={[styles.passwordWrap, styles.halfField]}>
-                                        {/* <AppText label="Password" fontSize={12} color={colors.textTertiary} style={styles.fieldLabel} /> */}
-                                        <View style={[styles.inputRow, { borderBottomColor: colors.border }]}>
-                                            <Lucide name="lock" size={18} color={colors.placeholder} style={styles.inputIcon} />
-                                            <TextInput
-                                                value={password}
-                                                onChangeText={setPassword}
-                                                secureTextEntry={!showPassword}
-                                                placeholder="Password"
-                                                placeholderTextColor={colors.placeholder}
-                                                style={[styles.input, { color: colors.text }]}
+                                {otpSent ? (
+                                    <>
+                                        {renderLineInput({
+                                            icon: 'shield-check',
+                                            value: otp,
+                                            onChangeText: (v) => setOtp(String(v || '').replace(/\D/g, '').slice(0, 6)),
+                                            placeholder: '6-digit code',
+                                            keyboardType: 'number-pad',
+                                            maxLength: 6,
+                                        })}
+                                        {devCode ? (
+                                            <AppText
+                                                label={`Dev code: ${devCode}`}
+                                                fontSize={12}
+                                                color={colors.textTertiary}
+                                                style={{ marginBottom: 8 }}
                                             />
-                                            {/* <TouchableOpacity onPress={() => setShowPassword((p) => !p)} style={styles.eyeBtn}>
-                                                <Lucide name={showPassword ? 'eye-off' : 'eye'} size={18} color={colors.placeholder} />
-                                            </TouchableOpacity> */}
-                                        </View>
-                                    </View>
-
-                                    <View style={[styles.passwordWrap, styles.halfField]}>
-                                        {/* <AppText label="Confirm password" fontSize={12} color={colors.textTertiary} style={styles.fieldLabel} /> */}
-                                        <View style={[styles.inputRow, { borderBottomColor: colors.border }]}>
-                                            {/* <Lucide name="shield-check" size={18} color={colors.placeholder} style={styles.inputIcon} /> */}
-                                            <TextInput
-                                                value={confirmPassword}
-                                                onChangeText={setConfirmPassword}
-                                                secureTextEntry={!showConfirmPassword}
-                                                placeholder="Confirm password"
-                                                placeholderTextColor={colors.placeholder}
-                                                style={[styles.input, { color: colors.text }]}
-                                            />
-                                            <TouchableOpacity onPress={() => { setShowPassword((p) => !p); setShowConfirmPassword((p) => !p); }} style={styles.eyeBtn}>
-                                                <Lucide name={showConfirmPassword ? 'eye-off' : 'eye'} size={18} color={colors.placeholder} />
-                                            </TouchableOpacity>
-                                        </View>
-                                    </View>
-                                </View>
-
-                                <TouchableOpacity
-                                    onPress={submitSignup}
-                                    disabled={!canSubmitSignup || loading}
-                                    style={[styles.primaryBtn, (!canSubmitSignup || loading) && { opacity: 0.6 }]}
-                                >
-                                    {loading ? <ActivityIndicator color="#fff" /> : <AppText label="Create account" variant={1} color="#fff" />}
-                                </TouchableOpacity>
+                                        ) : null}
+                                        <TouchableOpacity
+                                            onPress={verifyOtp}
+                                            disabled={loading || String(otp).trim().length < 6}
+                                            style={[
+                                                styles.primaryBtn,
+                                                (loading || String(otp).trim().length < 6) && { opacity: 0.6 },
+                                            ]}
+                                        >
+                                            {loading ? (
+                                                <ActivityIndicator color="#fff" />
+                                            ) : (
+                                                <AppText label="Verify code" variant={1} color="#fff" />
+                                            )}
+                                        </TouchableOpacity>
+                                        <TouchableOpacity onPress={sendOtp} disabled={loading} style={{ marginTop: 10 }}>
+                                            <AppText label="Resend code" color={config.THEME_COLOR} />
+                                        </TouchableOpacity>
+                                    </>
+                                ) : (
+                                    <TouchableOpacity
+                                        onPress={sendOtp}
+                                        disabled={loading || phone.length !== 10}
+                                        style={[styles.primaryBtn, (loading || phone.length !== 10) && { opacity: 0.6 }]}
+                                    >
+                                        {loading ? (
+                                            <ActivityIndicator color="#fff" />
+                                        ) : (
+                                            <AppText label="Send code" variant={1} color="#fff" />
+                                        )}
+                                    </TouchableOpacity>
+                                )}
                             </View>
                         </>
                     )}
+
+                    {step === 2 && (
+                        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                            <AppText
+                                label={existingCustomer ? 'Confirm your name' : 'Your name'}
+                                variant={1}
+                                fontSize={15}
+                                color={colors.text}
+                                style={{ marginBottom: 8 }}
+                            />
+                            <AppText
+                                label={`Phone verified: ${phone}`}
+                                fontSize={12}
+                                color={colors.textTertiary}
+                                style={{ marginBottom: 10 }}
+                            />
+                            <View style={styles.rowFields}>
+                                {renderLineInput({
+                                    icon: 'user',
+                                    value: firstName,
+                                    onChangeText: setFirstName,
+                                    placeholder: 'First name',
+                                    autoCapitalize: 'words',
+                                    containerStyle: styles.halfField,
+                                })}
+                                {renderLineInput({
+                                    icon: 'user',
+                                    value: lastName,
+                                    onChangeText: setLastName,
+                                    placeholder: 'Last name',
+                                    autoCapitalize: 'words',
+                                    containerStyle: styles.halfField,
+                                })}
+                            </View>
+                            <TouchableOpacity
+                                onPress={completeSignup}
+                                disabled={loading}
+                                style={[styles.primaryBtn, loading && { opacity: 0.6 }]}
+                            >
+                                {loading ? (
+                                    <ActivityIndicator color="#fff" />
+                                ) : (
+                                    <AppText label="Create account" variant={1} color="#fff" />
+                                )}
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => setStep(1)} style={{ marginTop: 10 }}>
+                                <AppText label="Change phone" color={config.THEME_COLOR} />
+                            </TouchableOpacity>
+                        </View>
+                    )}
+
                     <TouchableOpacity
                         onPress={() => navigation.navigate('ChooseAccountType')}
                         style={{ alignItems: 'center', paddingVertical: 10 }}
@@ -412,8 +470,11 @@ const CustomerSignup = ({ navigation }) => {
                     </TouchableOpacity>
                     <View style={[styles.footerHint, { borderTopColor: colors.border }]}>
                         <Lucide name="badge-info" size={14} color={colors.textTertiary} />
-                        <TouchableOpacity onPress={() => navigation.navigate('Login')} style={{ marginLeft: 8 }}>
-                            <AppText label="Already have an account? Sign in" fontSize={12} color={config.THEME_COLOR} />
+                        <TouchableOpacity
+                            onPress={() => navigation.navigate('Login', { authMode: 'phone' })}
+                            style={{ marginLeft: 8 }}
+                        >
+                            <AppText label="Already ordered online? Sign in with Phone" fontSize={12} color={config.THEME_COLOR} />
                         </TouchableOpacity>
                     </View>
                 </ScrollView>
@@ -427,7 +488,14 @@ const styles = StyleSheet.create({
     safeArea: { flex: 1 },
     statusBarFill: { width: '100%' },
     content: { paddingBottom: 30 },
-    footerHint: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 24, borderTopWidth: 1 }, 
+    footerHint: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        borderTopWidth: 1,
+    },
     brandStrip: {
         width,
         paddingTop: 8,
@@ -456,15 +524,10 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         marginBottom: 14,
     },
-    brandLogoImage: {
-        width: 44,
-        height: 44,
-    },
+    brandLogoImage: { width: 44, height: 44 },
     brandTitle: { marginBottom: 4 },
     formSection: { paddingHorizontal: 20, paddingTop: 24 },
-    headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
     formSubtitle: { marginBottom: 16 },
-    backBtn: { width: 34, height: 34, borderWidth: 1, borderRadius: 17, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
     stepRow: { flexDirection: 'row', marginBottom: 16, justifyContent: 'space-between' },
     stepItem: { flex: 1, alignItems: 'center' },
     stepTrackWrap: { width: '100%', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4 },
@@ -479,17 +542,14 @@ const styles = StyleSheet.create({
     },
     stepConnector: { flex: 1, height: 2, marginLeft: 8, marginRight: 2, borderRadius: 1 },
     stepLabel: { lineHeight: 16, marginTop: 8, textAlign: 'center', paddingHorizontal: 6 },
-    card: { borderWidth: 1, borderRadius: 8, padding: 14, marginBottom: 14 },
+    card: { borderWidth: 1, borderRadius: 8, padding: 14, marginBottom: 14, marginHorizontal: 20 },
     rowFields: { flexDirection: 'row', gap: 10 },
     halfField: { flex: 1 },
     fieldGroup: { marginBottom: 10 },
-    fieldLabel: { marginLeft: 2, marginBottom: 2 },
     inputRow: {
         flexDirection: 'row',
         alignItems: 'center',
         borderBottomWidth: 1.5,
-        // paddingVertical: 8,
-        // backgroundColor: 'red',
     },
     inputIcon: { marginRight: 12 },
     input: {
@@ -499,10 +559,15 @@ const styles = StyleSheet.create({
         fontSize: 16,
         paddingVertical: 0,
     },
-    passwordWrap: { position: 'relative', marginBottom: 10 },
-    eyeBtn: { padding: 8 },
     meta: { marginTop: 6 },
-    primaryBtn: { height: 46, borderRadius: 8, backgroundColor: config.THEME_COLOR, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
+    primaryBtn: {
+        marginTop: 8,
+        height: 48,
+        borderRadius: 10,
+        backgroundColor: config.THEME_COLOR,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
 });
 
 export default CustomerSignup;

@@ -60,7 +60,7 @@ export default function MerchantUpgradeCollectPage() {
 	const handleSubmit = async () => {
 		if (!tenantId) return;
 		if (subscriptionType < 2) {
-			toast.error('Choose Basic, Standard, or Premium.');
+			toast.error('Choose Starter, Business, or Scale.');
 			return;
 		}
 		try {

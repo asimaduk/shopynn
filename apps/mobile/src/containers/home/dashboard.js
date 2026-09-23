@@ -552,7 +552,7 @@ const Dashboard = ({ navigation, route }) => {
                                         navigation.navigate('FeatureUpgrade', {
                                             headerTitle: 'Daily sales',
                                             featureTitle: 'Daily sales overview',
-                                            requiredPlanName: 'Basic',
+                                            requiredPlanName: 'Starter',
                                             description:
                                                 'The full daily sales chart and history are included from the Basic plan. Your Free plan shows the dashboard snapshot only.',
                                             bullets: [

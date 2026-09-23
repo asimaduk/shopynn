@@ -53,6 +53,10 @@ type PaymentDialogProps = {
 	open: boolean;
 	handleClose: (data: false | Record<string, unknown>) => void;
 	saleTotal?: number;
+	/** Required for partial / on-credit cash tenders */
+	customerId?: string | null;
+	/** Available store credit balance for the selected customer */
+	availableStoreCredit?: number;
 	/** Warehouse printer preference — drives Complete & print vs Complete sale */
 	printerType?: string | null;
 	/** Cart to persist when parking MoMo and serving the next customer */
@@ -71,6 +75,8 @@ export default function PaymentDialog({
 	open,
 	handleClose,
 	saleTotal = 0,
+	customerId = null,
+	availableStoreCredit = 0,
 	printerType,
 	getCartSnapshot,
 	resumeMomo
@@ -81,6 +87,7 @@ export default function PaymentDialog({
 	const completeLabel = willAutoPrint ? 'Complete & print' : 'Complete sale';
 	const [paymentType, setPaymentType] = React.useState('');
 	const [amountTendered, setAmountTendered] = React.useState('');
+	const [storeCreditInput, setStoreCreditInput] = React.useState('');
 	const [transNumber, setTransNumber] = React.useState('');
 	const [network, setNetwork] = React.useState('mtn');
 	const [voucher, setVoucher] = React.useState('');
@@ -103,7 +110,17 @@ export default function PaymentDialog({
 	const [abandonPosPayment] = useAbandonPosMomoPaymentMutation();
 	const [parkPosPayment] = useParkPosMomoPaymentMutation();
 
-	const face = toMoney(saleTotal);
+	const saleFace = toMoney(saleTotal);
+	const creditAvailable = toMoney(availableStoreCredit);
+	const storeCreditApplied = (() => {
+		if (!customerId || creditAvailable <= 0.001) return 0;
+		const raw = storeCreditInput.trim();
+		if (raw === '') return 0;
+		const n = Number(String(raw).replace(/,/g, ''));
+		if (!Number.isFinite(n) || n <= 0) return 0;
+		return toMoney(Math.min(n, creditAvailable, saleFace));
+	})();
+	const face = toMoney(Math.max(0, saleFace - storeCreditApplied));
 	const percent = chargeSettings?.enabled ? Number(chargeSettings.percent) || 0 : 0;
 	const fee = chargeSettings?.enabled ? toMoney((face * percent) / 100) : 0;
 	const chargeAmount = toMoney(face + fee);
@@ -115,7 +132,14 @@ export default function PaymentDialog({
 		tenderedParsed != null && Number.isFinite(tenderedParsed) ? toMoney(tenderedParsed) : null;
 	const changeAmount =
 		tenderedAmount != null ? toMoney(Math.max(0, tenderedAmount - face)) : toMoney(0);
-	const cashTenderOk = tenderedAmount == null || tenderedAmount + 0.001 >= face;
+	const hasCustomerForCredit = Boolean(customerId);
+	const cashIsPartialOrCredit = tenderedAmount != null && tenderedAmount + 0.001 < face;
+	const cashTenderOk =
+		tenderedAmount == null ||
+		tenderedAmount + 0.001 >= face ||
+		(tenderedAmount >= 0 && hasCustomerForCredit);
+	const cashAmountPaid =
+		tenderedAmount == null ? face : toMoney(Math.min(Math.max(0, tenderedAmount), face));
 
 	const stopPolling = React.useCallback(() => {
 		if (pollRef.current) {
@@ -139,6 +163,7 @@ export default function PaymentDialog({
 		if (!open) {
 			setPaymentType('');
 			setAmountTendered('');
+			setStoreCreditInput('');
 			setTransNumber('');
 			setNetwork('mtn');
 			setVoucher('');
@@ -289,7 +314,14 @@ export default function PaymentDialog({
 			return;
 		}
 		if (face <= 0) {
-			dispatch(showMessage({ message: 'Sale total must be greater than zero' }));
+			dispatch(
+				showMessage({
+					message:
+						storeCreditApplied > 0.001
+							? 'Store credit covers this sale — complete without MoMo'
+							: 'Sale total must be greater than zero'
+				})
+			);
 			return;
 		}
 		if (chargePaid && transactionRef) {
@@ -405,18 +437,24 @@ export default function PaymentDialog({
 
 	const handleSave = () => {
 		if (paymentType === 'Momo') {
-			if (!chargePaid || !transactionRef) {
+			if (face > 0.02 && (!chargePaid || !transactionRef)) {
 				dispatch(showMessage({ message: 'Confirm MoMo payment with Send before saving' }));
 				return;
 			}
 			requestClose({
-				paymentType: 'momo',
-				transNumber,
-				payment_transaction_ref: transactionRef,
-				payment_method: 'momo',
-				payment_number: transNumber,
-				fee_amount: fee,
-				charge_amount: chargeAmount
+				paymentType: face > 0.02 ? 'momo' : 'cash',
+				transNumber: face > 0.02 ? transNumber : '',
+				payment_transaction_ref: face > 0.02 ? transactionRef : null,
+				payment_method: face > 0.02 ? 'momo' : 'cash',
+				payment_number: face > 0.02 ? transNumber : null,
+				fee_amount: face > 0.02 ? fee : 0,
+				charge_amount: face > 0.02 ? chargeAmount : 0,
+				amount_paid: face > 0.02 ? face : 0,
+				store_credit_applied: storeCreditApplied,
+				payment_status:
+					toMoney(Math.max(0, saleFace - (face > 0.02 ? face : 0) - storeCreditApplied)) <= 0.02
+						? 1
+						: 0
 			});
 			return;
 		}
@@ -424,18 +462,33 @@ export default function PaymentDialog({
 		if (tenderedAmount != null && !cashTenderOk) {
 			dispatch(
 				showMessage({
-					message: `Amount tendered must be at least the sale total (${formatGhs(face)})`
+					message: cashIsPartialOrCredit && !hasCustomerForCredit
+						? 'Select a customer to sell on credit or accept a partial payment'
+						: `Amount tendered must be at least the amount due (${formatGhs(face)}), or select a customer for partial/credit`
+				})
+			);
+			return;
+		}
+		if (cashIsPartialOrCredit && !hasCustomerForCredit) {
+			dispatch(
+				showMessage({
+					message: 'Select a customer to sell on credit or accept a partial payment'
 				})
 			);
 			return;
 		}
 		const resolvedTendered = tenderedAmount != null ? tenderedAmount : face;
+		const amountPaid = cashAmountPaid;
+		const balanceDue = toMoney(Math.max(0, saleFace - amountPaid - storeCreditApplied));
 		requestClose({
 			paymentType: 'cash',
 			transNumber: '',
 			payment_method: 'cash',
 			amount_tendered: resolvedTendered,
-			change_amount: toMoney(Math.max(0, resolvedTendered - face))
+			change_amount: toMoney(Math.max(0, resolvedTendered - face)),
+			amount_paid: amountPaid,
+			store_credit_applied: storeCreditApplied,
+			payment_status: balanceDue <= 0.02 ? 1 : amountPaid + storeCreditApplied <= 0.001 ? 0 : 2
 		});
 	};
 
@@ -555,13 +608,53 @@ export default function PaymentDialog({
 					)}
 				/>
 
+				{creditAvailable > 0.001 ? (
+					<Box className="mb-3 rounded border border-gray-200 p-3 dark:border-gray-700">
+						<Box className="mb-2 flex justify-between text-sm">
+							<span>Store credit available</span>
+							<strong>{formatGhs(creditAvailable)}</strong>
+						</Box>
+						<TextField
+							fullWidth
+							label="Apply store credit"
+							placeholder="0.00"
+							type="number"
+							inputProps={{ min: 0, step: '0.01' }}
+							value={storeCreditInput}
+							onChange={(e) => setStoreCreditInput(e.target.value)}
+							helperText={
+								storeCreditApplied > 0.001
+									? `Applying ${formatGhs(storeCreditApplied)} · due ${formatGhs(face)}`
+									: 'Optional. Reduces cash/MoMo due.'
+							}
+							InputLabelProps={{ shrink: true }}
+							sx={{ mb: 1 }}
+						/>
+						<Button
+							size="small"
+							variant="outlined"
+							onClick={() =>
+								setStoreCreditInput(Math.min(creditAvailable, saleFace).toFixed(2))
+							}
+						>
+							Use max
+						</Button>
+					</Box>
+				) : null}
+
 				{paymentType === 'Cash' && (
 					<Box className="mb-2">
 						<Box className="mb-3 rounded border border-gray-200 p-3 dark:border-gray-700">
 							<Box className="flex justify-between text-sm">
 								<span>Sale total</span>
-								<strong>{formatGhs(face)}</strong>
+								<strong>{formatGhs(saleFace)}</strong>
 							</Box>
+							{storeCreditApplied > 0.001 ? (
+								<Box className="mt-1 flex justify-between text-sm text-gray-600">
+									<span>After store credit</span>
+									<strong>{formatGhs(face)}</strong>
+								</Box>
+							) : null}
 							<Box className="mt-1 flex justify-between text-sm text-gray-600">
 								<span>Change</span>
 								<strong>{formatGhs(changeAmount)}</strong>
@@ -577,15 +670,38 @@ export default function PaymentDialog({
 							onChange={(e) => setAmountTendered(e.target.value)}
 							helperText={
 								!cashTenderOk
-									? `Must be at least ${formatGhs(face)}`
-									: amountTendered.trim() === ''
-										? 'Leave blank for exact amount (no change)'
-										: `Change due: ${formatGhs(changeAmount)}`
+									? cashIsPartialOrCredit && !hasCustomerForCredit
+										? 'Select a customer for partial or on-credit sales'
+										: `Must be at least ${formatGhs(face)}, or select a customer for credit`
+									: cashIsPartialOrCredit && hasCustomerForCredit
+										? cashAmountPaid <= 0.001
+											? `On credit — balance ${formatGhs(face)}`
+											: `Partial — paid ${formatGhs(cashAmountPaid)}, balance ${formatGhs(face - cashAmountPaid)}`
+										: amountTendered.trim() === ''
+											? 'Leave blank for exact amount. Enter less (with customer) for partial/credit.'
+											: `Change due: ${formatGhs(changeAmount)}`
 							}
 							error={!cashTenderOk}
 							InputLabelProps={{ shrink: true }}
 							sx={{ mb: 1 }}
 						/>
+						<Box className="mb-2 flex gap-2">
+							<Button
+								size="small"
+								variant="outlined"
+								onClick={() => setAmountTendered(face.toFixed(2))}
+							>
+								Exact
+							</Button>
+							<Button
+								size="small"
+								variant="outlined"
+								disabled={!hasCustomerForCredit}
+								onClick={() => setAmountTendered('0')}
+							>
+								On credit
+							</Button>
+						</Box>
 					</Box>
 				)}
 

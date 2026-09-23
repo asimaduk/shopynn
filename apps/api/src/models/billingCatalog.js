@@ -8,9 +8,9 @@ import {
 
 const SUBSCRIPTION_META = {
     1: { name: "Free", durationDays: 14 },
-    2: { name: "Basic", durationDays: 30 },
-    3: { name: "Standard", durationDays: 30 },
-    4: { name: "Premium", durationDays: 30 },
+    2: { name: "Starter", durationDays: 30 },
+    3: { name: "Business", durationDays: 30 },
+    4: { name: "Scale", durationDays: 30 },
 };
 
 const mapRow = (row) => {

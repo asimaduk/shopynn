@@ -104,6 +104,15 @@ function Purchase() {
 							</div>
 							<div className="flex items-center gap-1">
 								<Button
+									variant="outlined"
+									color="inherit"
+									component={Link}
+									to={`/trading/sales/returns/new?saleId=${encodeURIComponent(orderId)}`}
+									startIcon={<FuseSvgIcon size={18}>heroicons-outline:arrow-uturn-left</FuseSvgIcon>}
+								>
+									Return
+								</Button>
+								<Button
 									variant="contained"
 									color="secondary"
 									onClick={() => setInvoiceOpen(true)}

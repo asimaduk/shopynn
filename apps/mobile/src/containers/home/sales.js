@@ -370,6 +370,14 @@ const Sales = ({ navigation }) => {
                             <Lucide name="calendar" size={20} color={config.THEME_COLOR} />
                         </TouchableOpacity>
 
+                        <TouchableOpacity
+                            activeOpacity={0.7}
+                            onPress={() => navigation.navigate('OutstandingBalances')}
+                            style={styles.dateFilterButton}
+                        >
+                            <Lucide name="wallet" size={20} color={config.THEME_COLOR} />
+                        </TouchableOpacity>
+
                         {/* <TouchableOpacity
                             activeOpacity={0.7}
                             onPress={() => setShowFilter(true)}

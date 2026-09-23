@@ -14,9 +14,9 @@ export const TIER_RANK: Record<SubscriptionTierCode, number> = {
 
 export const TIER_DISPLAY: Record<SubscriptionTierCode, string> = {
 	free: 'Free',
-	basic: 'Basic',
-	standard: 'Standard',
-	premium: 'Premium'
+	basic: 'Starter',
+	standard: 'Business',
+	premium: 'Scale'
 };
 
 /** Single-letter nav badge (Free is rarely shown on locked items). */
@@ -184,9 +184,9 @@ export function normalizePlanTierCode(raw: unknown): SubscriptionTierCode {
 	if (key === 'free' || key === 'basic' || key === 'standard' || key === 'premium') {
 		return key;
 	}
-	if (key.includes('premium')) return 'premium';
-	if (key.includes('standard')) return 'standard';
-	if (key.includes('basic')) return 'basic';
+	if (key.includes('premium') || key.includes('scale')) return 'premium';
+	if (key.includes('standard') || key.includes('business')) return 'standard';
+	if (key.includes('basic') || key.includes('starter')) return 'basic';
 	return 'free';
 }
 

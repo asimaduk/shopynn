@@ -1,5 +1,5 @@
 import express from "express";
-import { createSale, getAllSaleDetails, getAllSales, getSalesByDate, getCogsReport, getRevenueReport, getDailySalesSummary, getSalesByCustomersSummary, getSalesByCustomersReport, getSalesByUserSummary, getSalesSummary, getSaleAttendants, getSaleById, getTopSellingProducts, getMyMtdSalesTotal, getSaleInvoicePdf, sendSaleInvoice } from "../controllers/sale.js";
+import { createSale, getAllSaleDetails, getAllSales, getSalesByDate, getCogsReport, getRevenueReport, getDailySalesSummary, getSalesByCustomersSummary, getSalesByCustomersReport, getSalesByUserSummary, getSalesSummary, getSaleAttendants, getSaleById, getTopSellingProducts, getMyMtdSalesTotal, getSaleInvoicePdf, sendSaleInvoice, recordSalePayment, getOutstandingAr } from "../controllers/sale.js";
 import auth from "../middleware/auth.js";
 import { requireAnyPermission, requirePermission } from "../middleware/requirePermission.js";
 
@@ -19,8 +19,10 @@ router.get("/customers-report", auth, requirePermission("reports.view"), getSale
 router.get("/staff-report", auth, requirePermission("reports.view"), getSalesByUserSummary);
 router.get("/top-selling", auth, requirePermission("sales.view"), getTopSellingProducts);
 router.get("/attendants", auth, requirePermission("sales.view"), getSaleAttendants);
+router.get("/outstanding", auth, requirePermission("sales.view"), getOutstandingAr);
 router.get("/:id/invoice.pdf", auth, requirePermission("sales.share_receipt"), getSaleInvoicePdf);
 router.post("/:id/send-invoice", auth, requirePermission("sales.share_receipt"), sendSaleInvoice);
+router.post("/:id/payments", auth, requirePermission("sales.create"), recordSalePayment);
 router.get("/:id", auth, requireAnyPermission("sales.details.view", "sales.view"), getSaleById);
 router.get("/details-list", auth, requireAnyPermission("sales.details.view", "sales.view"), getAllSaleDetails);
 

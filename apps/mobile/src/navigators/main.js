@@ -24,6 +24,7 @@ import Sales from '../containers/home/sales';
 import Purchases from '../containers/home/purchases';
 import Settings from '../containers/home/settings';
 import SaleDetails from '../containers/home/sale_details';
+import OutstandingBalances from '../containers/home/outstanding_balances';
 import PurchaseDetails from '../containers/home/purchase_details';
 import ProductDetails from '../containers/home/product_details';
 import ProductTransactions from '../containers/home/product_transactions';
@@ -77,6 +78,7 @@ import PrintAgentSettings from '../containers/settings/print_agent_settings';
 import DataExportBackup from '../containers/settings/data_export_backup';
 import Returns from '../containers/home/returns';
 import NewSaleReturn from '../containers/home/new_sale_return';
+import NewOrderReturn from '../containers/home/new_order_return';
 import NewPurchaseReturn from '../containers/home/new_purchase_return';
 import ReturnDetails from '../containers/home/return_details';
 import ReturnItems from '../containers/home/return_items';
@@ -432,6 +434,7 @@ function MainNavigator({ user, onNavigationStateChange }) {
             <Stack.Navigator>
                 <Stack.Screen name="Home" component={HomeStackScreen} options={{ headerShown: false }} />
                 <Stack.Screen name="SaleDetails" component={SaleDetails} options={{ headerShown: false }} />
+                <Stack.Screen name="OutstandingBalances" component={OutstandingBalances} options={{ headerShown: false }} />
                 <Stack.Screen name="PurchaseDetails" component={PurchaseDetails} options={{ headerShown: false }} />
                 <Stack.Screen name="ProductDetails" component={ProductDetails} options={{ headerShown: false }} />
                 <Stack.Screen name="ForYouProductDetails" component={ForYouProductDetails} options={{ headerShown: false }} />
@@ -497,6 +500,7 @@ function MainNavigator({ user, onNavigationStateChange }) {
                 <Stack.Screen name="DataExportBackup" component={DataExportBackup} options={{ headerShown: false }} />
                 <Stack.Screen name="Returns" component={Returns} options={{ headerShown: false }} />
                 <Stack.Screen name="NewSaleReturn" component={NewSaleReturn} options={{ headerShown: false }} />
+                <Stack.Screen name="NewOrderReturn" component={NewOrderReturn} options={{ headerShown: false }} />
                 <Stack.Screen name="NewPurchaseReturn" component={NewPurchaseReturn} options={{ headerShown: false }} />
                 <Stack.Screen name="ReturnDetails" component={ReturnDetails} options={{ headerShown: false }} />
                 <Stack.Screen name="ReturnItems" component={ReturnItems} options={{ headerShown: false }} />

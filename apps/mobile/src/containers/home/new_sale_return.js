@@ -1,232 +1,359 @@
-import React, { useState, useMemo } from 'react';
-import { StyleSheet, TouchableOpacity, ScrollView, View, TextInput, Alert } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+    StyleSheet,
+    TouchableOpacity,
+    ScrollView,
+    View,
+    TextInput,
+    Alert,
+    ActivityIndicator,
+    Switch,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
 import config from '../../config';
 import ScreenHeader from '../../components/screen_header';
-import AppModal from '../../components/app_modal';
-import { FlashList } from '@shopify/flash-list';
 import useTheme from '../../hooks/useTheme';
+import { formatCurrency } from '../../utils/format';
 import { returnsApi } from '../../services/api';
 
-const SAMPLE_CUSTOMERS = [
-    { id: '1', name: 'Liam Mensah', phone: '+233 24 111 2233' },
-    { id: '2', name: 'Ama Serwaa', phone: '+233 20 444 5566' },
-    { id: '3', name: 'Walk-in', phone: '' },
-];
-const SAMPLE_SALES = [
-    { id: '10888', customer: 'Liam Mensah', customerId: '1', amount: '2,450.50', date: 'Today' },
-    { id: '10887', customer: 'Ama Serwaa', customerId: '2', amount: '890.00', date: 'Yesterday' },
-    { id: '10886', customer: 'Walk-in', customerId: '3', amount: '1,200.00', date: 'Yesterday' },
-];
-const REASONS = ['Defective', 'Wrong item', 'Customer change of mind', 'Other'];
+const REASONS = ['Defective', 'Wrong item', 'Customer change of mind', 'Damaged', 'Other'];
 
-const NewSaleReturn = ({ navigation }) => {
+/**
+ * Create a POS sale return with partial lines + refund method.
+ * Route params: { saleId } or { saleId, item }
+ */
+const NewSaleReturn = ({ navigation, route }) => {
     const { colors } = useTheme();
-    const [selectedCustomer, setSelectedCustomer] = useState(null);
-    const [showCustomerPicker, setShowCustomerPicker] = useState(false);
-    const [selectedSale, setSelectedSale] = useState(null);
-    const [showSalePicker, setShowSalePicker] = useState(false);
-    const [reason, setReason] = useState('');
-    const [showReasonPicker, setShowReasonPicker] = useState(false);
-    const [notes, setNotes] = useState('');
-    const [customerSearch, setCustomerSearch] = useState('');
-    const [saleSearch, setSaleSearch] = useState('');
-
-    const salesFilteredByCustomer = useMemo(() => (
-        selectedCustomer
-            ? SAMPLE_SALES.filter((s) => s.customerId === selectedCustomer.id || s.customer === selectedCustomer.name)
-            : SAMPLE_SALES
-    ), [selectedCustomer]);
-
-    const customersFiltered = useMemo(() => {
-        if (!customerSearch.trim()) return SAMPLE_CUSTOMERS;
-        const q = customerSearch.toLowerCase().trim();
-        return SAMPLE_CUSTOMERS.filter(
-            (c) => c.name.toLowerCase().includes(q) || (c.phone && c.phone.includes(q))
-        );
-    }, [customerSearch]);
-
-    const salesFilteredBySearch = useMemo(() => {
-        if (!saleSearch.trim()) return salesFilteredByCustomer;
-        const q = saleSearch.toLowerCase().trim();
-        return salesFilteredByCustomer.filter(
-            (s) =>
-                String(s.id).toLowerCase().includes(q) ||
-                (s.customer && s.customer.toLowerCase().includes(q)) ||
-                (s.amount && s.amount.replace(/,/g, '').includes(q))
-        );
-    }, [salesFilteredByCustomer, saleSearch]);
-
+    const saleId = route?.params?.saleId || route?.params?.item?.id;
+    const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [data, setData] = useState(null);
+    const [qtys, setQtys] = useState({});
+    const [restockMap, setRestockMap] = useState({});
+    const [reason, setReason] = useState('');
+    const [notes, setNotes] = useState('');
+    const [refundMethod, setRefundMethod] = useState('cash');
+    const [refundAmount, setRefundAmount] = useState('');
+
+    const load = useCallback(async () => {
+        if (!saleId) {
+            setLoading(false);
+            return;
+        }
+        setLoading(true);
+        try {
+            const res = await returnsApi.saleReturnable(saleId);
+            setData(res);
+            const nextQty = {};
+            const nextRestock = {};
+            (res?.lines || []).forEach((line) => {
+                nextQty[line.sale_detail_id] = '';
+                nextRestock[line.sale_detail_id] = true;
+            });
+            setQtys(nextQty);
+            setRestockMap(nextRestock);
+            setRefundAmount('');
+        } catch (err) {
+            Alert.alert('Error', err?.response?.data?.message || err?.message || 'Could not load sale.');
+        } finally {
+            setLoading(false);
+        }
+    }, [saleId]);
+
+    useEffect(() => {
+        load();
+    }, [load]);
+
+    const selectedLines = useMemo(() => {
+        if (!data?.lines) return [];
+        return data.lines
+            .map((line) => {
+                const q = Number(String(qtys[line.sale_detail_id] || '').replace(/,/g, ''));
+                if (!Number.isFinite(q) || q <= 0) return null;
+                return {
+                    ...line,
+                    return_qty: Math.min(q, line.returnable_qty),
+                    restock: restockMap[line.sale_detail_id] !== false,
+                };
+            })
+            .filter(Boolean);
+    }, [data, qtys, restockMap]);
+
+    const goodsValue = useMemo(
+        () =>
+            Math.round(
+                selectedLines.reduce((s, l) => s + l.return_qty * Number(l.unit_price || 0), 0) * 100,
+            ) / 100,
+        [selectedLines],
+    );
+
+    useEffect(() => {
+        if (!refundAmount && goodsValue > 0) {
+            setRefundAmount(goodsValue.toFixed(2));
+        }
+    }, [goodsValue]);
 
     const handleSubmit = async () => {
-        if (!selectedSale) { Alert.alert('Required', 'Please select a sale.'); return; }
-        if (!reason.trim()) { Alert.alert('Required', 'Please select a reason.'); return; }
+        if (!saleId) {
+            Alert.alert('Required', 'Open this screen from a sale.');
+            return;
+        }
+        if (!selectedLines.length) {
+            Alert.alert('Required', 'Enter a return quantity on at least one line.');
+            return;
+        }
+        if (!reason.trim()) {
+            Alert.alert('Required', 'Select a reason.');
+            return;
+        }
+        const writeOffMissing = selectedLines.some((l) => !l.restock);
+        if (writeOffMissing && !reason.trim()) {
+            Alert.alert('Required', 'Reason is required for write-off (non-restock) lines.');
+            return;
+        }
+        if (refundMethod === 'store_credit' && !data?.sale?.customer_id) {
+            Alert.alert('Customer required', 'Store credit refunds need a customer on the sale.');
+            return;
+        }
+        if (refundMethod === 'momo' && !data?.can_momo_refund) {
+            Alert.alert(
+                'MoMo unavailable',
+                'No original MoMo payment found. Use cash or store credit.',
+            );
+            return;
+        }
+
+        const amt = Number(String(refundAmount || goodsValue).replace(/,/g, ''));
         setSaving(true);
         try {
             await returnsApi.create({
-                type: 'sales',
-                saleId: selectedSale.id,
-                customerId: selectedCustomer?.id,
+                sale_id: saleId,
                 reason: reason.trim(),
-                notes: notes?.trim() || undefined,
+                notes: notes.trim() || undefined,
+                refund_method: refundMethod,
+                refund_amount: Number.isFinite(amt) ? amt : goodsValue,
+                details: selectedLines.map((l) => ({
+                    sale_detail_id: l.sale_detail_id,
+                    quantity: l.return_qty,
+                    unit_price: l.unit_price,
+                    restock: l.restock,
+                    reason: reason.trim(),
+                    write_off_reason: l.restock ? undefined : reason.trim(),
+                })),
             });
-            Alert.alert('Return created', 'Sales return has been recorded.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
+            Alert.alert('Return recorded', 'Stock and refund have been updated.', [
+                { text: 'OK', onPress: () => navigation.goBack() },
+            ]);
         } catch (err) {
-            const msg = err?.response?.data?.message || err?.message || 'Failed to create return.';
-            Alert.alert('Error', msg);
+            Alert.alert('Error', err?.response?.data?.message || err?.message || 'Failed to create return.');
         } finally {
             setSaving(false);
         }
     };
 
+    if (!saleId) {
+        return (
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
+                <ScreenHeader onPress={() => navigation.goBack()} label="New return" />
+                <View style={styles.center}>
+                    <AppText label="Open a sale first, then tap Return." color={colors.textSecondary} />
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    if (loading) {
+        return (
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
+                <ActivityIndicator size="large" color={config.THEME_COLOR} />
+            </SafeAreaView>
+        );
+    }
+
+    const sale = data?.sale || {};
+
     return (
-        <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.safe, { backgroundColor: colors.background }]}>
-            <ScreenHeader onPress={() => navigation.goBack()} label="New sales return" />
-            <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-                <View style={[styles.card, { backgroundColor: colors.surface }]}>
-                    <AppText label="Select customer" variant={1} fontSize={14} style={styles.label} color={colors.text} />
-                    <TouchableOpacity activeOpacity={0.7} onPress={() => setShowCustomerPicker(true)} style={[styles.picker, { borderColor: colors.border }]}>
-                        <AppText label={selectedCustomer ? selectedCustomer.name : 'Tap to select customer'} color={selectedCustomer ? colors.text : colors.placeholder} numberOfLines={1} />
-                        <Lucide name="chevron-down" color={colors.placeholder} size={20} />
-                    </TouchableOpacity>
-                </View>
-                <View style={[styles.card, { backgroundColor: colors.surface }]}>
-                    <AppText label="Select sale" variant={1} fontSize={14} style={styles.label} color={colors.text} />
-                    <TouchableOpacity activeOpacity={0.7} onPress={() => setShowSalePicker(true)} style={[styles.picker, { borderColor: colors.border }]}>
-                        <AppText label={selectedSale ? `#${selectedSale.id} - ${selectedSale.customer}` : 'Tap to select sale'} color={selectedSale ? colors.text : colors.placeholder} numberOfLines={1} />
-                        <Lucide name="chevron-down" color={colors.placeholder} size={20} />
-                    </TouchableOpacity>
-                    {selectedCustomer && salesFilteredByCustomer.length === 0 && (
-                        <AppText label="No sales found for this customer" fontSize={12} color={colors.textTertiary} style={{ marginTop: 6 }} />
-                    )}
-                </View>
-                <View style={[styles.card, { backgroundColor: colors.surface }]}>
-                    <AppText label="Reason" variant={1} fontSize={14} style={styles.label} color={colors.text} />
-                    <TouchableOpacity activeOpacity={0.7} onPress={() => setShowReasonPicker(true)} style={[styles.picker, { borderColor: colors.border }]}>
-                        <AppText label={reason || 'Tap to select reason'} color={reason ? colors.text : colors.placeholder} />
-                        <Lucide name="chevron-down" color={colors.placeholder} size={20} />
-                    </TouchableOpacity>
-                </View>
-                <View style={[styles.card, { backgroundColor: colors.surface }]}>
-                    <AppText label="Notes (optional)" variant={1} fontSize={14} style={styles.label} color={colors.text} />
-                    <TextInput placeholder="Additional notes..." placeholderTextColor={colors.placeholder} value={notes} onChangeText={setNotes} multiline style={[styles.picker, styles.textArea, { borderColor: colors.border, color: colors.text }]} />
-                </View>
-                <TouchableOpacity activeOpacity={0.8} onPress={handleSubmit} style={styles.submitBtn}>
-                    <AppText label="Create return" variant={1} color={colors.textInverse} fontSize={16} />
-                </TouchableOpacity>
-            </ScrollView>
-            <AppModal title="Select customer" visible={showCustomerPicker} handleClose={() => { setShowCustomerPicker(false); setCustomerSearch(''); }} onRequestClose={() => { setShowCustomerPicker(false); setCustomerSearch(''); }}>
-                <View style={[styles.modalSearchWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <Lucide name="search" size={18} color={colors.textTertiary} style={{ marginLeft: 12 }} />
-                    <TextInput
-                        placeholder="Search by name or phone..."
-                        placeholderTextColor={colors.placeholder}
-                        value={customerSearch}
-                        onChangeText={setCustomerSearch}
-                        style={[styles.modalSearchInput, { color: colors.text }]}
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
+            <ScreenHeader onPress={() => navigation.goBack()} label="Return sale" />
+            <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+                <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <AppText label={`Invoice #${sale.invoice_number || saleId}`} variant={1} fontSize={16} color={colors.text} />
+                    <AppText
+                        label={sale.customer_name || 'Walk-in'}
+                        fontSize={13}
+                        color={colors.textSecondary}
+                        style={{ marginTop: 4 }}
                     />
-                    {customerSearch.length > 0 && (
-                        <TouchableOpacity onPress={() => setCustomerSearch('')} style={{ padding: 8, marginRight: 8 }}>
-                            <Lucide name="x" size={16} color={colors.textTertiary} />
-                        </TouchableOpacity>
-                    )}
-                </View>
-                <View style={styles.modalList}>
-                    {customersFiltered.length === 0 ? (
-                        <View style={styles.modalEmpty}>
-                            <AppText label="No customers match your search" fontSize={14} color={colors.textTertiary} />
-                        </View>
-                    ) : (
-                        customersFiltered.map((c) => (
-                            <TouchableOpacity key={c.id} activeOpacity={0.7} onPress={() => { setSelectedCustomer(c); setShowCustomerPicker(false); setSelectedSale(null); setCustomerSearch(''); }} style={[styles.modalRow, { borderBottomColor: colors.border }]}>
-                                <View>
-                                    <AppText label={c.name} variant={2} color={colors.text} />
-                                    {c.phone ? <AppText label={c.phone} fontSize={12} color={colors.textTertiary} style={{ marginTop: 2 }} /> : null}
-                                </View>
-                                {selectedCustomer?.id === c.id && <Lucide name="check" size={20} color={config.THEME_COLOR} />}
-                            </TouchableOpacity>
-                        ))
-                    )}
-                </View>
-            </AppModal>
-            <AppModal title="Select sale" visible={showSalePicker} handleClose={() => { setShowSalePicker(false); setSaleSearch(''); }} onRequestClose={() => { setShowSalePicker(false); setSaleSearch(''); }}>
-                <View style={[styles.modalSearchWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <Lucide name="search" size={18} color={colors.textTertiary} style={{ marginLeft: 12 }} />
-                    <TextInput
-                        placeholder="Search by sale ID, customer or amount..."
-                        placeholderTextColor={colors.placeholder}
-                        value={saleSearch}
-                        onChangeText={setSaleSearch}
-                        style={[styles.modalSearchInput, { color: colors.text }]}
+                    <AppText
+                        label={`Paid ${formatCurrency(sale.amount_paid || 0)} · Balance ${formatCurrency(sale.balance_due || 0)}`}
+                        fontSize={12}
+                        color={colors.textTertiary}
+                        style={{ marginTop: 4 }}
                     />
-                    {saleSearch.length > 0 && (
-                        <TouchableOpacity onPress={() => setSaleSearch('')} style={{ padding: 8, marginRight: 8 }}>
-                            <Lucide name="x" size={16} color={colors.textTertiary} />
-                        </TouchableOpacity>
-                    )}
                 </View>
-                <View style={styles.modalList}>
-                    <FlashList
-                        data={salesFilteredBySearch}
-                        estimatedItemSize={52}
-                        keyExtractor={(item) => item.id}
-                        ListEmptyComponent={() => (
-                            <View style={styles.modalEmpty}>
-                                <AppText label="No sales match your search" fontSize={14} color={colors.textTertiary} />
+
+                <AppText label="Lines to return" variant={1} fontSize={15} color={colors.text} style={{ marginBottom: 10 }} />
+                {(data?.lines || []).map((line) => {
+                    const disabled = line.returnable_qty <= 0;
+                    return (
+                        <View
+                            key={line.sale_detail_id}
+                            style={[
+                                styles.line,
+                                { backgroundColor: colors.surface, borderColor: colors.border, opacity: disabled ? 0.5 : 1 },
+                            ]}
+                        >
+                            <View style={{ flex: 1 }}>
+                                <AppText label={line.product_name || 'Item'} fontSize={14} variant={1} color={colors.text} />
+                                <AppText
+                                    label={`${formatCurrency(line.unit_price)} · returnable ${line.returnable_qty}`}
+                                    fontSize={12}
+                                    color={colors.textTertiary}
+                                />
                             </View>
-                        )}
-                        renderItem={({ item }) => (
-                            <TouchableOpacity activeOpacity={0.7} onPress={() => { setSelectedSale(item); setShowSalePicker(false); setSaleSearch(''); }} style={[styles.modalRow, { borderBottomColor: colors.border }]}>
-                                <AppText label={`#${item.id} - ${item.customer}`} variant={2} color={colors.text} />
-                                <AppText label={item.amount} fontSize={13} color={config.THEME_COLOR} />
-                            </TouchableOpacity>
-                        )}
-                    />
-                </View>
-            </AppModal>
-            <AppModal title="Reason" visible={showReasonPicker} handleClose={() => setShowReasonPicker(false)} onRequestClose={() => setShowReasonPicker(false)}>
-                <View style={styles.modalList}>
+                            <TextInput
+                                editable={!disabled}
+                                keyboardType="decimal-pad"
+                                placeholder="0"
+                                placeholderTextColor={colors.placeholder}
+                                value={qtys[line.sale_detail_id] || ''}
+                                onChangeText={(v) => setQtys((p) => ({ ...p, [line.sale_detail_id]: v }))}
+                                style={[styles.qtyInput, { borderColor: colors.border, color: colors.text }]}
+                            />
+                            <View style={styles.restockRow}>
+                                <AppText label="Restock" fontSize={11} color={colors.textTertiary} />
+                                <Switch
+                                    disabled={disabled}
+                                    value={restockMap[line.sale_detail_id] !== false}
+                                    onValueChange={(v) => setRestockMap((p) => ({ ...p, [line.sale_detail_id]: v }))}
+                                />
+                            </View>
+                        </View>
+                    );
+                })}
+
+                <AppText label="Reason" variant={1} fontSize={15} color={colors.text} style={{ marginTop: 16, marginBottom: 8 }} />
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                     {REASONS.map((r) => (
-                        <TouchableOpacity key={r} activeOpacity={0.7} onPress={() => { setReason(r); setShowReasonPicker(false); }} style={[styles.modalRow, { borderBottomColor: colors.border }]}>
-                            <AppText label={r} variant={2} color={colors.text} />
+                        <TouchableOpacity
+                            key={r}
+                            onPress={() => setReason(r)}
+                            style={[
+                                styles.chip,
+                                {
+                                    backgroundColor: reason === r ? config.THEME_COLOR : colors.surfaceSecondary,
+                                    borderColor: reason === r ? config.THEME_COLOR : colors.border,
+                                },
+                            ]}
+                        >
+                            <AppText label={r} fontSize={12} color={reason === r ? '#fff' : colors.text} />
                         </TouchableOpacity>
                     ))}
                 </View>
-            </AppModal>
+
+                <AppText label="Refund method" variant={1} fontSize={15} color={colors.text} style={{ marginTop: 16, marginBottom: 8 }} />
+                <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                    {[
+                        { id: 'cash', label: 'Cash' },
+                        { id: 'store_credit', label: 'Store credit' },
+                        { id: 'momo', label: 'MoMo', disabled: !data?.can_momo_refund },
+                    ].map((m) => (
+                        <TouchableOpacity
+                            key={m.id}
+                            disabled={m.disabled}
+                            onPress={() => setRefundMethod(m.id)}
+                            style={[
+                                styles.chip,
+                                {
+                                    backgroundColor: refundMethod === m.id ? config.THEME_COLOR : colors.surfaceSecondary,
+                                    opacity: m.disabled ? 0.4 : 1,
+                                },
+                            ]}
+                        >
+                            <AppText label={m.label} fontSize={12} color={refundMethod === m.id ? '#fff' : colors.text} />
+                        </TouchableOpacity>
+                    ))}
+                </View>
+
+                <AppText label="Refund amount" fontSize={13} color={colors.text} style={{ marginTop: 14, marginBottom: 6 }} />
+                <TextInput
+                    keyboardType="decimal-pad"
+                    value={refundAmount}
+                    onChangeText={setRefundAmount}
+                    placeholder={goodsValue.toFixed(2)}
+                    placeholderTextColor={colors.placeholder}
+                    style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.surface }]}
+                />
+                <AppText
+                    label={`Goods value ${formatCurrency(goodsValue)}`}
+                    fontSize={12}
+                    color={colors.textTertiary}
+                    style={{ marginBottom: 10 }}
+                />
+
+                <AppText label="Notes (optional)" fontSize={13} color={colors.text} style={{ marginBottom: 6 }} />
+                <TextInput
+                    value={notes}
+                    onChangeText={setNotes}
+                    placeholder="Optional note"
+                    placeholderTextColor={colors.placeholder}
+                    style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.surface }]}
+                />
+
+                <TouchableOpacity
+                    activeOpacity={0.85}
+                    disabled={saving}
+                    onPress={handleSubmit}
+                    style={[styles.submit, { backgroundColor: config.THEME_COLOR, opacity: saving ? 0.6 : 1 }]}
+                >
+                    <Lucide name="undo-2" size={18} color="#fff" />
+                    <AppText
+                        label={saving ? 'Saving…' : 'Confirm return'}
+                        variant={1}
+                        fontSize={15}
+                        color="#fff"
+                        style={{ marginLeft: 8 }}
+                    />
+                </TouchableOpacity>
+            </ScrollView>
         </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: '#eee' },
-    scroll: { flex: 1 },
-    scrollContent: { padding: 16, paddingBottom: 40 },
-    card: { backgroundColor: '#fff', padding: 16, borderRadius: 10, marginBottom: 12 },
-    label: { marginBottom: 8 },
-    picker: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderWidth: 1, borderColor: '#ddd', borderRadius: 8 },
-    textArea: { minHeight: 80, alignItems: 'flex-start' },
-    submitBtn: { height: 50, backgroundColor: config.THEME_COLOR, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginTop: 16 },
-    modalSearchWrap: {
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+    card: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 10, padding: 14, marginBottom: 16 },
+    line: {
+        borderWidth: StyleSheet.hairlineWidth,
+        borderRadius: 10,
+        padding: 12,
+        marginBottom: 8,
         flexDirection: 'row',
         alignItems: 'center',
+        gap: 8,
+        flexWrap: 'wrap',
+    },
+    qtyInput: {
+        width: 64,
         borderWidth: 1,
         borderRadius: 8,
-        marginBottom: 12,
+        paddingHorizontal: 8,
+        paddingVertical: 8,
+        textAlign: 'center',
     },
-    modalSearchInput: {
-        flex: 1,
-        height: 44,
-        marginLeft: 8,
-        marginRight: 8,
-        fontSize: 15,
-        paddingVertical: 0,
+    restockRow: { alignItems: 'center' },
+    chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth },
+    input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 },
+    submit: {
+        marginTop: 16,
+        paddingVertical: 14,
+        borderRadius: 10,
+        alignItems: 'center',
+        flexDirection: 'row',
+        justifyContent: 'center',
     },
-    modalList: { maxHeight: 280 },
-    modalEmpty: { padding: 24, alignItems: 'center' },
-    modalRow: { padding: 14, borderBottomWidth: 1, borderBottomColor: '#eee', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 });
 
 export default NewSaleReturn;

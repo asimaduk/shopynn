@@ -84,22 +84,22 @@ export const SUBSCRIPTION_PLANS = [
   {
     value: 2,
     slug: "basic",
-    label: "Basic — GHS 149/mo",
+    label: "Starter — GHS 149/mo",
     description: "Account is created now. Access starts after you complete payment in the app (subscription stays pending until then).",
     activatesImmediately: false,
   },
   {
     value: 3,
     slug: "standard",
-    label: "Standard — GHS 349/mo",
-    description: "Account is created now. Complete payment in the app to activate Standard features.",
+    label: "Business — GHS 349/mo",
+    description: "Account is created now. Complete payment in the app to activate Business features.",
     activatesImmediately: false,
   },
   {
     value: 4,
     slug: "premium",
-    label: "Premium — GHS 649/mo",
-    description: "Account is created now. Complete payment in the app to activate Premium features.",
+    label: "Scale — GHS 649/mo",
+    description: "Account is created now. Complete payment in the app to activate Scale features.",
     activatesImmediately: false,
   },
 ] as const;

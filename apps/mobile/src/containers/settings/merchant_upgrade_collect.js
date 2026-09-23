@@ -66,7 +66,7 @@ const MerchantUpgradeCollect = ({ navigation, route }) => {
     const handleCreateQuote = async () => {
         if (!tenantId) return;
         if (plan < 2) {
-            Alert.alert('Upgrade & collect', 'Choose Basic, Standard, or Premium.');
+            Alert.alert('Upgrade & collect', 'Choose Starter, Business, or Scale.');
             return;
         }
         setBusy(true);

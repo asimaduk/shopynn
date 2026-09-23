@@ -22,7 +22,7 @@ import {
 	useGetSubscriptionBillingPaymentsQuery,
 	useOnboardSubscriptionMutation
 } from '../../../billing/SubscriptionApi';
-import { CHOOSEABLE_SUBSCRIPTION_PLANS, type ChooseablePlan } from '../../../billing/subscriptionPlans';
+import { CHOOSEABLE_SUBSCRIPTION_PLANS, displayPlanName, type ChooseablePlan } from '../../../billing/subscriptionPlans';
 import { useGetBillingCatalogQuery } from '../../../billing/BillingCatalogApi';
 import { buildChooseablePlansFromCatalog } from '../../../billing/buildPlansFromCatalog';
 import '../../../billing/BillingCatalogApi';
@@ -67,7 +67,7 @@ export default function SubscriptionSection() {
 	const [chooseError, setChooseError] = useState<string | null>(null);
 
 	const sub = _sub?.subscription;
-	const planName = sub?.name || 'Subscription';
+	const planName = displayPlanName(sub?.name) || 'Subscription';
 	const billingCycle = sub?.subscription_type === 2 ? 'yearly' : 'monthly';
 	const currency = sub?.currency || 'GHS';
 	const amount = Number(sub?.amount ?? 0) || 0;
@@ -80,7 +80,15 @@ export default function SubscriptionSection() {
 		const fromCatalog = buildChooseablePlansFromCatalog(catalog);
 		return fromCatalog.length > 0 ? fromCatalog : CHOOSEABLE_SUBSCRIPTION_PLANS;
 	}, [catalog]);
-	const planRankByName: Record<string, number> = { Free: 1, Basic: 2, Standard: 3, Premium: 4 };
+	const planRankByName: Record<string, number> = {
+		Free: 1,
+		Starter: 2,
+		Basic: 2,
+		Business: 3,
+		Standard: 3,
+		Scale: 4,
+		Premium: 4
+	};
 	const currentRank = planRankByName[planName] ?? 0;
 	const selectablePlans =
 		subscriptionActive && currentRank > 0

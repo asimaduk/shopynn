@@ -185,6 +185,12 @@ export const users = {
                 }
             )
             .then((res) => ({ token: getData(res)?.token ?? getData(res), ...res.data })),
+    sendPhoneLoginOtp: (phone) =>
+        axios.post('/users/phone-login/send-otp', { phone }).then((res) => getData(res)),
+    verifyPhoneLoginOtp: (phone, otp) =>
+        axios
+            .post('/users/phone-login/verify', { phone, otp })
+            .then((res) => ({ token: getData(res)?.token ?? getData(res), ...getData(res), ...res.data })),
     forgotPassword: (email) => axios.post('/users/forgot-password', { email }).then((res) => res.data),
     resetPassword: (currentPassword, newPassword) => axios.post('/users/reset-password', { password: newPassword, old_password: currentPassword }).then((res) => res.data),
     changePassword: (currentPassword, newPassword) => axios.post('/users/change-password', { current_password: currentPassword, new_password: newPassword }).then((res) => res.data),
@@ -228,6 +234,10 @@ export const users = {
     assignMerchantPermissions: (body) => axios.post('/users/assign-merchant-permissions', body).then((res) => getData(res)),
     verifyStoreReference: (reference_code) =>
         axios.post('/users/customer-signup/verify-reference', { reference_code }).then((res) => getData(res)),
+    sendCustomerSignupOtp: (body) =>
+        axios.post('/users/customer-signup/send-otp', body).then((res) => getData(res)),
+    verifyCustomerSignupOtp: (body) =>
+        axios.post('/users/customer-signup/verify-otp', body).then((res) => getData(res)),
     customerSignup: (body) => axios.post('/users/customer-signup', body).then((res) => getData(res)),
     sendShopOwnerSignupEmailOtp: (email) =>
         axios.post('/users/shop-owner-signup/send-email-otp', { email }).then((res) => getData(res)),
@@ -275,6 +285,12 @@ export const sales = {
     dailySales: (params) => axios.get('/sales/daily-summary', { params }).then((res) => getData(res)),
     byDate: (params) => axios.get('/sales/by-date', { params }).then((res) => getData(res)),
     attendants: () => axios.get('/sales/attendants').then((res) => getData(res)),
+    recordPayment: (id, body) =>
+        axios.post(`/sales/${id}/payments`, body).then((res) => getData(res)),
+    outstanding: (params) =>
+        axios.get('/sales/outstanding', { params }).then((res) => getData(res)),
+    returnable: (id) =>
+        axios.get(`/returns/sale/${id}/returnable`).then((res) => getData(res)),
 };
 
 // —— Purchases ——
@@ -504,6 +520,10 @@ export const returnsApi = {
     list: (params) => axios.get('/returns', { params }).then((res) => getData(res)),
     get: (id) => axios.get(`/returns/${id}`).then((res) => getData(res)),
     create: (body) => axios.post('/returns', body).then((res) => getData(res)),
+    saleReturnable: (saleId) =>
+        axios.get(`/returns/sale/${saleId}/returnable`).then((res) => getData(res)),
+    orderReturnable: (orderId) =>
+        axios.get(`/returns/order/${orderId}/returnable`).then((res) => getData(res)),
 };
 
 // —— Notifications ——

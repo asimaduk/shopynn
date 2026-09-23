@@ -6,6 +6,11 @@ import {
     View,
     ActivityIndicator,
     useWindowDimensions,
+    Alert,
+    Linking,
+    Share,
+    Modal,
+    Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -15,10 +20,12 @@ import AppText from '../../components/text';
 import config from '../../config';
 import ScreenHeader from '../../components/screen_header';
 import useTheme from '../../hooks/useTheme';
-import { products as productsApi } from '../../services/api';
+import { products as productsApi, warehouses as warehousesApi } from '../../services/api';
 import { normalizeProduct } from '../../utils/normalizeProduct';
 import { formatQuantity } from '../../utils/format';
-import { getScreenPlanAccess, navigateToScreenOrUpgrade } from '../../utils/permissions';
+import { getScreenPlanAccess, canManageCustomerSignupCodes } from '../../utils/permissions';
+import { buildWhatsAppUrl } from '../../utils/invoice';
+import { storefrontProductUrl, storefrontShareMessage } from '../../utils/storefrontLinks';
 
 const formatter = new Intl.NumberFormat('en-GH', {
     style: 'currency',
@@ -38,11 +45,16 @@ const ProductDetails = ({ navigation, route }) => {
     const { colors } = useTheme();
     const { width } = useWindowDimensions();
     const user = useSelector(({ user }) => user);
+    const currentUser = user?.data || user;
     const subscriptionFeatures = useSelector(({ appSettings }) => appSettings?.subscriptionFeatures || []);
     const adjustAccess = getScreenPlanAccess(user, 'NewAdjustments', subscriptionFeatures);
+    const canShareOrderLink = canManageCustomerSignupCodes(currentUser, subscriptionFeatures);
     const { product: paramProduct, productId } = route.params || {};
     const [product, setProduct] = useState(() => normalizeProduct(paramProduct || {}));
     const [loading, setLoading] = useState(!!(productId || paramProduct?.id));
+    const [sharing, setSharing] = useState(false);
+    const [shareStores, setShareStores] = useState(null); // null | warehouse[]
+    const sharePickResolveRef = React.useRef(null);
 
     const loadProduct = useCallback(() => {
         const id = productId || paramProduct?.id;
@@ -117,29 +129,100 @@ const ProductDetails = ({ navigation, route }) => {
 
     const backPress = () => navigation.goBack();
 
+    const resolveStoreCodeForShare = async () => {
+        const list = await warehousesApi.list();
+        const rows = Array.isArray(list) ? list : list?.warehouses || list?.data || [];
+        const userWh = currentUser?.warehouse_id;
+        const withCode = rows.filter((w) => String(w?.reference_code || '').trim());
+        if (!withCode.length) return null;
+        if (withCode.length === 1) return withCode[0].reference_code;
+
+        const userMatch = userWh
+            ? withCode.find((w) => String(w.id) === String(userWh))
+            : null;
+        const storesQty = product.stores_quantities || [];
+        const stocked = withCode.filter((w) =>
+            storesQty.some(
+                (s) =>
+                    String(s?.warehouse_id) === String(w.id) &&
+                    Number(s?.quantity_available ?? 0) > 0
+            )
+        );
+        const preferred = userMatch
+            ? [userMatch, ...withCode.filter((w) => w.id !== userMatch.id)]
+            : stocked.length
+              ? [...stocked, ...withCode.filter((w) => !stocked.some((s) => s.id === w.id))]
+              : withCode;
+
+        return new Promise((resolve) => {
+            sharePickResolveRef.current = resolve;
+            setShareStores(preferred);
+        });
+    };
+
+    const finishShareStorePick = (code) => {
+        const resolve = sharePickResolveRef.current;
+        sharePickResolveRef.current = null;
+        setShareStores(null);
+        resolve?.(code || null);
+    };
+
+    const shareProductLink = async () => {
+        if (!canShareOrderLink || sharing) return;
+        const id = product.id || productId;
+        if (!id) return;
+        setSharing(true);
+        try {
+            const code = await resolveStoreCodeForShare();
+            if (!code) {
+                Alert.alert(
+                    'Store code needed',
+                    'Set a customer signup code on your store (Scale) before sharing a product order link.'
+                );
+                return;
+            }
+            const url = storefrontProductUrl(code, product.slug || id);
+            const message = storefrontShareMessage({
+                storeName: currentUser?.company?.name || currentUser?.companyName,
+                productName: product.name || 'this product',
+                url,
+            });
+            try {
+                const wa = buildWhatsAppUrl(null, message);
+                const canOpen = await Linking.canOpenURL(wa);
+                if (canOpen) {
+                    await Linking.openURL(wa);
+                    return;
+                }
+            } catch (_) {
+                /* Share sheet fallback */
+            }
+            await Share.share({ message, title: product.name || 'Share product' });
+        } catch (e) {
+            if (e?.message !== 'User did not share') {
+                Alert.alert('Share failed', e?.message || 'Could not share link.');
+            }
+        } finally {
+            setSharing(false);
+        }
+    };
+
     const HeaderActions = () => (
         <View style={styles.headerActions}>
-            {/* {adjustAccess.show && (
+            {canShareOrderLink ? (
                 <TouchableOpacity
                     activeOpacity={0.7}
-                    onPress={() =>
-                        navigateToScreenOrUpgrade(
-                            navigation,
-                            user,
-                            'NewAdjustments',
-                            subscriptionFeatures,
-                            { product },
-                        )
-                    }
-                    style={[styles.headerBtn, { backgroundColor: colors.surfaceSecondary }]}
+                    onPress={shareProductLink}
+                    disabled={sharing}
+                    style={styles.headerBtn}
                 >
-                    <Lucide
-                        name={adjustAccess.locked ? 'lock' : 'sliders-horizontal'}
-                        color={config.THEME_COLOR}
-                        size={20}
-                    />
+                    {sharing ? (
+                        <ActivityIndicator size="small" color={config.THEME_COLOR} />
+                    ) : (
+                        <Lucide name="share-2" color={config.THEME_COLOR} size={22} />
+                    )}
                 </TouchableOpacity>
-            )} */}
+            ) : null}
             <TouchableOpacity
                 activeOpacity={0.7}
                 onPress={() => navigation.navigate('ProductTransactions', { product })}
@@ -173,6 +256,70 @@ const ProductDetails = ({ navigation, route }) => {
             <ScreenHeader onPress={backPress} label="Product details">
                 <HeaderActions />
             </ScreenHeader>
+
+            <Modal
+                visible={Array.isArray(shareStores)}
+                transparent
+                animationType="fade"
+                onRequestClose={() => finishShareStorePick(null)}
+            >
+                <Pressable
+                    style={styles.shareModalBackdrop}
+                    onPress={() => finishShareStorePick(null)}
+                >
+                    <Pressable
+                        style={[styles.shareModalSheet, { backgroundColor: colors.surface }]}
+                        onPress={(e) => e.stopPropagation?.()}
+                    >
+                        <AppText
+                            label="Share from which store?"
+                            variant={1}
+                            fontSize={17}
+                            color={colors.text}
+                            style={{ marginBottom: 6 }}
+                        />
+                        <AppText
+                            label="Choose the store signup code for this product order link."
+                            fontSize={13}
+                            color={colors.textSecondary}
+                            style={{ marginBottom: 12 }}
+                        />
+                        <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+                            {(shareStores || []).map((w) => (
+                                <TouchableOpacity
+                                    key={String(w.id)}
+                                    activeOpacity={0.75}
+                                    onPress={() => finishShareStorePick(w.reference_code)}
+                                    style={[
+                                        styles.shareStoreRow,
+                                        { borderBottomColor: colors.border || colors.surfaceSecondary },
+                                    ]}
+                                >
+                                    <AppText
+                                        label={w.name || 'Store'}
+                                        variant={1}
+                                        fontSize={15}
+                                        color={colors.text}
+                                    />
+                                    <AppText
+                                        label={String(w.reference_code || '').toLowerCase()}
+                                        fontSize={12}
+                                        color={colors.textSecondary}
+                                        style={{ marginTop: 2 }}
+                                    />
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                        <TouchableOpacity
+                            activeOpacity={0.75}
+                            onPress={() => finishShareStorePick(null)}
+                            style={{ marginTop: 12, alignItems: 'center', paddingVertical: 10 }}
+                        >
+                            <AppText label="Cancel" color={config.THEME_COLOR} fontSize={15} variant={1} />
+                        </TouchableOpacity>
+                    </Pressable>
+                </Pressable>
+            </Modal>
 
             <ScrollView
                 showsVerticalScrollIndicator={false}
@@ -487,6 +634,23 @@ const styles = {
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingVertical: 12,
+        borderBottomWidth: 1,
+    },
+    shareModalBackdrop: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.45)',
+        justifyContent: 'flex-end',
+        padding: 16,
+    },
+    shareModalSheet: {
+        borderRadius: 16,
+        paddingHorizontal: 18,
+        paddingTop: 18,
+        paddingBottom: 10,
+        maxHeight: '80%',
+    },
+    shareStoreRow: {
+        paddingVertical: 14,
         borderBottomWidth: 1,
     },
 };

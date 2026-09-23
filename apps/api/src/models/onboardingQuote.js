@@ -321,7 +321,7 @@ export const createUpgradeCollectQuoteForTenantService = async ({
 }) => {
     const typeNum = Number(subscription_type);
     if (!Number.isInteger(typeNum) || typeNum < 2 || typeNum > 4) {
-        throw new Error("Choose Basic, Standard, or Premium for upgrade & collect.");
+        throw new Error("Choose Starter, Business, or Scale for upgrade & collect.");
     }
 
     if (await tenantHasPaidOnboardingBundleService(tenant_id)) {

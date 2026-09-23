@@ -1,6 +1,6 @@
 import express from "express";
-import { assignMerchantPermissionsToUserRole, changePasswordWithTemporary, createUser, deleteUser, forgotPassword, getAllUsers, getMyPreferences, getUserById, getUserDetails, loginUser, resetPassword, toggleUserActive, updateMyFcmToken, updateMyPreferences, updateUser } from "../controllers/user.js";
-import { signupCustomerAccount, verifyStoreReferencePublic } from "../controllers/customerProfile.js";
+import { assignMerchantPermissionsToUserRole, changePasswordWithTemporary, createUser, deleteUser, forgotPassword, getAllUsers, getMyPreferences, getUserById, getUserDetails, loginUser, resetPassword, sendPhoneLoginOtp, toggleUserActive, updateMyFcmToken, updateMyPreferences, updateUser, verifyPhoneLoginOtp } from "../controllers/user.js";
+import { signupCustomerAccount, sendCustomerSignupPhoneOtp, verifyCustomerSignupPhoneOtp, verifyStoreReferencePublic } from "../controllers/customerProfile.js";
 import {
     sendShopOwnerSignupEmailOtp,
     verifyShopOwnerSignupEmailOtp,
@@ -13,8 +13,12 @@ const router = express.Router();
 
 // Public auth routes first so they are never captured by `/:id` (e.g. GET /users/login).
 router.post('/login', loginUser);
+router.post('/phone-login/send-otp', sendPhoneLoginOtp);
+router.post('/phone-login/verify', verifyPhoneLoginOtp);
 router.post('/forgot-password', forgotPassword);
 router.post('/customer-signup/verify-reference', verifyStoreReferencePublic);
+router.post('/customer-signup/send-otp', sendCustomerSignupPhoneOtp);
+router.post('/customer-signup/verify-otp', verifyCustomerSignupPhoneOtp);
 router.post('/customer-signup', signupCustomerAccount);
 router.post('/shop-owner-signup/send-email-otp', sendShopOwnerSignupEmailOtp);
 router.post('/shop-owner-signup/verify-email-otp', verifyShopOwnerSignupEmailOtp);

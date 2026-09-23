@@ -13,7 +13,7 @@ const FeatureUpgradePrompt = ({
     navigation,
     user,
     featureTitle = 'This feature',
-    requiredPlanName = 'Premium',
+    requiredPlanName = 'Scale',
     description,
     bullets = [],
     currentPlanName,

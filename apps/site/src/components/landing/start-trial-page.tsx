@@ -243,7 +243,7 @@ export function StartTrialPage({ initialSubscriptionType, planSlug }: Props) {
         </p>
         <p className="mt-2 text-sm text-muted-foreground max-w-xl mx-auto">
           <strong className="text-foreground">Free (14 days)</strong> is active immediately with no payment.{" "}
-          <strong className="text-foreground">Basic, Standard, and Premium</strong> are reserved at signup and activate
+          <strong className="text-foreground">Starter, Business, and Scale</strong> are reserved at signup and activate
           after you pay in the app.
         </p>
       </div>

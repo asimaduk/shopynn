@@ -10,6 +10,14 @@ import {
     priceMismatchError,
 } from "../utils/bulkDiscount.js";
 import { linkPosPaymentToSaleService } from "./payment.js";
+import {
+    toMoney,
+    resolveSaleCreditAmounts,
+    normalizeSalePaymentMethod,
+    paymentTypeFromMethod,
+    salePaymentStatusFromAmounts,
+} from "./saleCredit.js";
+import { applyStoreCreditEntry, getCustomerStoreCredit } from "./storeCredit.js";
 
 const canViewAllSalesForUser = async (user) => {
     if (user.user_type === 1) return true;
@@ -77,6 +85,10 @@ export const getAllSalesService = async (user, requestQuery = {}) => {
             sales.notes,
             sales.sale_date,
             sales.created_at,
+            sales.payment_status,
+            sales.amount_paid,
+            sales.balance_due,
+            sales.customer_id,
             customers.name AS customer,
             customers.email AS customer_email,
             users.first_name AS attendant_first_name,
@@ -172,6 +184,10 @@ export const getSalesByDateService = async (user, requestQuery = {}) => {
             sales.notes,
             sales.sale_date,
             sales.created_at,
+            sales.payment_status,
+            sales.amount_paid,
+            sales.balance_due,
+            sales.customer_id,
             customers.name AS customer,
             customers.email AS customer_email,
             users.first_name AS attendant_first_name,
@@ -320,6 +336,7 @@ export const getSalesSummaryService = async (user, requestQuery = {}) => {
     const summaryFragment = `
         COUNT(*)::int AS transaction_count,
         COALESCE(SUM(s.total_amount), 0)::numeric AS total_sales,
+        COALESCE(SUM(COALESCE(s.amount_paid, 0)), 0)::numeric AS collected_sales,
         CASE WHEN COUNT(*) > 0 THEN COALESCE(SUM(s.total_amount), 0) / COUNT(*) ELSE 0 END::numeric AS average_per_sale
     `;
 
@@ -399,6 +416,7 @@ export const getSalesSummaryService = async (user, requestQuery = {}) => {
         const r = rangeResult.rows[0] || { transaction_count: 0, total_sales: 0, average_per_sale: 0 };
         range = {
             totalSales: Number(r.total_sales || 0),
+            collectedSales: Number(r.collected_sales || 0),
             transactionCount: Number(r.transaction_count || 0),
             averagePerSale: Number(r.average_per_sale || 0),
         };
@@ -406,6 +424,7 @@ export const getSalesSummaryService = async (user, requestQuery = {}) => {
 
     const mapRow = (row) => ({
         totalSales: Number(row.total_sales || 0),
+        collectedSales: Number(row.collected_sales || 0),
         transactionCount: Number(row.transaction_count || 0),
         averagePerSale: Number(row.average_per_sale || 0),
     });
@@ -1010,6 +1029,7 @@ const SALE_BY_ID_SELECT = `
             sales.id,
             sales.tenant_id,
             sales.warehouse_id,
+            sales.customer_id,
             sales.number_of_items,
             sales.total_amount,
             sales.discount_amount,
@@ -1025,13 +1045,36 @@ const SALE_BY_ID_SELECT = `
             sales.payment_status,
             sales.amount_tendered,
             sales.change_amount,
+            sales.amount_paid,
+            sales.balance_due,
             customers.name AS customer,
             customers.phone AS customer_phone,
             customers.email AS customer_email,
             customers.address AS customer_address,
+            customers.store_credit_balance,
             u.first_name AS attendant_first_name,
             u.last_name AS attendant_last_name,
             warehouses.name AS warehouse_name`;
+
+async function getSalePaymentsForSale(saleId, tenantId = null) {
+    const params = [saleId];
+    let sql = `SELECT sp.id, sp.amount, sp.payment_method, sp.payment_type, sp.payment_number,
+                       sp.payment_reference, sp.payments_id, sp.recorded_by, sp.note, sp.created_at,
+                       u.first_name AS recorder_first_name, u.last_name AS recorder_last_name
+                FROM sale_payments sp
+                LEFT JOIN users u ON u.id = sp.recorded_by
+                WHERE sp.sale_id = $1`;
+    if (tenantId) {
+        params.push(tenantId);
+        sql += ` AND sp.tenant_id = $2`;
+    }
+    sql += ` ORDER BY sp.created_at ASC`;
+    const result = await pool.query(sql, params);
+    return result.rows.map((row) => ({
+        ...row,
+        amount: toMoney(row.amount),
+    }));
+}
 
 async function attachSaleProducts(saleRow, saleId) {
     if (!saleRow) return null;
@@ -1043,6 +1086,12 @@ async function attachSaleProducts(saleRow, saleId) {
         [saleId],
     );
     saleRow.products = x.rows || [];
+    saleRow.amount_paid = toMoney(saleRow.amount_paid);
+    saleRow.balance_due = toMoney(saleRow.balance_due);
+    saleRow.total_amount = toMoney(saleRow.total_amount);
+    saleRow.store_credit_balance = toMoney(saleRow.store_credit_balance);
+    saleRow.payments = await getSalePaymentsForSale(saleId, saleRow.tenant_id);
+    saleRow.can_collect_payment = toMoney(saleRow.balance_due) > 0.02;
     return saleRow;
 }
 
@@ -1223,7 +1272,7 @@ export const createSaleService = async (payload) => {
         await client.query('BEGIN');
         // console.log('pl is',payload);
         
-        const { discount_amount, tenant_id, invoice_number, current_status, customer_id, warehouse_id, products, notes, created_at, creator_id, payment_type, payment_method, payment_number, payment_reference, payment_status, payment_date, payment_transaction_ref, amount_tendered, change_amount } = payload;
+        const { discount_amount, tenant_id, invoice_number, current_status, customer_id, warehouse_id, products, notes, created_at, creator_id, payment_type, payment_method, payment_number, payment_reference, payment_status, payment_date, payment_transaction_ref, amount_tendered, change_amount, amount_paid, store_credit_applied } = payload;
 
         if(!products || !products.length) {
             throw new Error("Products list cannot be empty.");
@@ -1338,10 +1387,23 @@ export const createSaleService = async (payload) => {
 
         let resolvedTendered = null;
         let resolvedChange = null;
+
+        // Explicit amount_paid (partial/credit) or unpaid status → allow cash tender below total
+        const wantsPartialOrCredit =
+            (amount_paid != null && String(amount_paid).trim() !== "") ||
+            payment_status === 0 ||
+            payment_status === "0" ||
+            payment_status === "unpaid" ||
+            payment_status === 2 ||
+            payment_status === "2" ||
+            payment_status === "partial";
+
         if (isCash) {
             const tenderedRaw = amount_tendered != null && String(amount_tendered).trim() !== ""
                 ? Number(amount_tendered)
-                : total_amount;
+                : wantsPartialOrCredit
+                    ? (amount_paid != null && String(amount_paid).trim() !== "" ? Number(amount_paid) : 0)
+                    : total_amount;
             if (!Number.isFinite(tenderedRaw) || tenderedRaw < 0) {
                 const err = new Error("Amount tendered must be a valid non-negative number.");
                 err.status = 400;
@@ -1349,9 +1411,11 @@ export const createSaleService = async (payload) => {
                 throw err;
             }
             const tendered = Math.round(tenderedRaw * 100) / 100;
-            if (tendered + 0.001 < total_amount) {
+            const storeCreditPreview = toMoney(store_credit_applied);
+            const effectiveNeed = Math.max(0, total_amount - storeCreditPreview);
+            if (!wantsPartialOrCredit && tendered + 0.001 < effectiveNeed) {
                 const err = new Error(
-                    `Amount tendered (${tendered.toFixed(2)}) is less than sale total (${Number(total_amount).toFixed(2)}).`
+                    `Amount tendered (${tendered.toFixed(2)}) plus store credit is less than sale total (${Number(total_amount).toFixed(2)}).`
                 );
                 err.status = 400;
                 err.code = "INSUFFICIENT_TENDER";
@@ -1360,10 +1424,52 @@ export const createSaleService = async (payload) => {
             const changeRaw =
                 change_amount != null && String(change_amount).trim() !== ""
                     ? Number(change_amount)
-                    : tendered - total_amount;
-            const change = Math.round((Number.isFinite(changeRaw) ? changeRaw : tendered - total_amount) * 100) / 100;
+                    : Math.max(0, tendered - effectiveNeed);
+            const change = Math.round((Number.isFinite(changeRaw) ? changeRaw : Math.max(0, tendered - effectiveNeed)) * 100) / 100;
             resolvedTendered = tendered;
             resolvedChange = Math.max(0, change);
+        }
+
+        const credit = resolveSaleCreditAmounts({
+            totalAmount: total_amount,
+            amount_paid,
+            customer_id,
+            isMomo,
+            isCash,
+            resolvedTendered: wantsPartialOrCredit
+                ? (amount_paid != null && String(amount_paid).trim() !== ""
+                    ? Number(amount_paid)
+                    : resolvedTendered)
+                : resolvedTendered,
+            payment_status,
+        });
+
+        let storeCreditApplied = toMoney(store_credit_applied);
+        if (storeCreditApplied > 0.001) {
+            if (!customer_id) {
+                const err = new Error("A customer is required to apply store credit.");
+                err.status = 400;
+                err.code = "CUSTOMER_REQUIRED_FOR_CREDIT";
+                throw err;
+            }
+            const available = await getCustomerStoreCredit(client, tenant_id, customer_id);
+            storeCreditApplied = toMoney(Math.min(storeCreditApplied, available, total_amount));
+            const combinedPaid = toMoney(Math.min(total_amount, credit.amountPaid + storeCreditApplied));
+            credit.amountPaid = combinedPaid;
+            credit.balanceDue = toMoney(Math.max(0, total_amount - combinedPaid));
+            credit.paymentStatus = salePaymentStatusFromAmounts(total_amount, combinedPaid);
+        } else {
+            storeCreditApplied = 0;
+        }
+
+        // MoMo must fully pay the remaining face after store credit at create time.
+        if (isMomo && credit.balanceDue > 0.02) {
+            const err = new Error(
+                "MoMo at sale time must cover the remaining sale total after store credit. Use cash/credit for partial, then collect MoMo later."
+            );
+            err.status = 400;
+            err.code = "MOMO_PARTIAL_NOT_AT_CREATE";
+            throw err;
         }
 
         const result = await client.query(`
@@ -1371,9 +1477,9 @@ export const createSaleService = async (payload) => {
                 id, number_of_items, total_amount, discount_amount, tenant_id, invoice_number, current_status,
                 customer_id, warehouse_id, notes, created_at, creator_id,
                 payment_type, payment_number, payment_reference, payment_status, payment_date,
-                amount_tendered, change_amount
+                amount_tendered, change_amount, amount_paid, balance_due
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING id`,
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING id`,
             [
                 id,
                 number_of_items,
@@ -1390,22 +1496,82 @@ export const createSaleService = async (payload) => {
                 Number.isFinite(resolvedPaymentType) ? resolvedPaymentType : null,
                 payment_number || null,
                 payment_reference || payment_transaction_ref || null,
-                payment_status != null ? payment_status : (isMomo ? "paid" : null),
-                payment_date || (isMomo ? new Date() : null),
+                credit.paymentStatus,
+                payment_date || (credit.amountPaid > 0 ? new Date() : null),
                 resolvedTendered,
                 resolvedChange,
+                credit.amountPaid,
+                credit.balanceDue,
             ]
         );
 
+        const cashOrMomoFace = toMoney(Math.max(0, credit.amountPaid - storeCreditApplied));
         if (isMomo && payment_transaction_ref) {
             await linkPosPaymentToSaleService({
                 client,
                 transaction_ref: payment_transaction_ref,
                 sale_id: result.rows[0].id,
                 tenant_id,
-                expected_face_amount: total_amount,
+                expected_face_amount: cashOrMomoFace > 0.02 ? cashOrMomoFace : total_amount,
                 payment_number,
             });
+        }
+
+        if (credit.amountPaid > 0.001) {
+            const payId = uuidv4();
+            const method = normalizeSalePaymentMethod(payment_method, resolvedPaymentType);
+            const cashOrMomoPortion = toMoney(Math.max(0, credit.amountPaid - storeCreditApplied));
+            if (cashOrMomoPortion > 0.001) {
+                await client.query(
+                    `INSERT INTO sale_payments (
+                        id, sale_id, tenant_id, amount, payment_method, payment_type,
+                        payment_number, payment_reference, recorded_by, note, created_at
+                    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+                    [
+                        payId,
+                        result.rows[0].id,
+                        tenant_id,
+                        cashOrMomoPortion,
+                        method,
+                        Number.isFinite(resolvedPaymentType) ? resolvedPaymentType : paymentTypeFromMethod(method),
+                        payment_number || null,
+                        payment_reference || payment_transaction_ref || null,
+                        creator_id || null,
+                        credit.balanceDue > 0.02 ? "Initial partial payment" : "Sale payment",
+                        new Date(),
+                    ]
+                );
+            }
+            if (storeCreditApplied > 0.001) {
+                await applyStoreCreditEntry(client, {
+                    tenantId: tenant_id,
+                    customerId: customer_id,
+                    amount: -storeCreditApplied,
+                    entryType: "sale_apply",
+                    saleId: result.rows[0].id,
+                    note: "Applied at POS sale",
+                    recordedBy: creator_id,
+                });
+                await client.query(
+                    `INSERT INTO sale_payments (
+                        id, sale_id, tenant_id, amount, payment_method, payment_type,
+                        payment_number, payment_reference, recorded_by, note, created_at
+                    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+                    [
+                        uuidv4(),
+                        result.rows[0].id,
+                        tenant_id,
+                        storeCreditApplied,
+                        "store_credit",
+                        4,
+                        null,
+                        null,
+                        creator_id || null,
+                        "Store credit applied",
+                        new Date(),
+                    ]
+                );
+            }
         }
 
         for (const prod of pricedProducts) {
@@ -1445,7 +1611,12 @@ export const createSaleService = async (payload) => {
         }
 
         await client.query('COMMIT');
-        return result.rows[0];
+        return {
+            id: result.rows[0].id,
+            amount_paid: credit.amountPaid,
+            balance_due: credit.balanceDue,
+            payment_status: credit.paymentStatus,
+        };
     } catch (error) {
         await client.query('ROLLBACK');
         throw error;
@@ -1473,6 +1644,278 @@ export const deleteSaleService = async (id) => {
 
     return result.rows[0];
 }
+
+/**
+ * Record a collection against an outstanding sale balance (cash / MoMo).
+ * Body: { amount, payment_method|payment_type, payment_number?, payment_reference?, payment_transaction_ref?, note? }
+ */
+export const recordSalePaymentService = async (user, saleId, body = {}) => {
+    const tenantId = user.tenant_id;
+    const client = await pool.connect();
+    try {
+        await client.query("BEGIN");
+
+        const saleRes = await client.query(
+            `SELECT id, tenant_id, customer_id, total_amount, amount_paid, balance_due, payment_status
+             FROM sales WHERE id = $1 AND tenant_id = $2 FOR UPDATE`,
+            [saleId, tenantId]
+        );
+        const sale = saleRes.rows[0];
+        if (!sale) {
+            const err = new Error("Sale not found.");
+            err.status = 404;
+            err.code = "SALE_NOT_FOUND";
+            throw err;
+        }
+
+        const balance = toMoney(sale.balance_due != null ? sale.balance_due : toMoney(sale.total_amount) - toMoney(sale.amount_paid));
+        if (balance <= 0.02) {
+            const err = new Error("This sale is already fully paid.");
+            err.status = 400;
+            err.code = "SALE_ALREADY_PAID";
+            throw err;
+        }
+
+        const amount = toMoney(body.amount);
+        if (amount <= 0) {
+            const err = new Error("Payment amount must be greater than zero.");
+            err.status = 400;
+            err.code = "INVALID_PAYMENT_AMOUNT";
+            throw err;
+        }
+        if (amount > balance + 0.02) {
+            const err = new Error(`Amount cannot exceed remaining balance of GHS ${balance.toFixed(2)}.`);
+            err.status = 400;
+            err.code = "PAYMENT_EXCEEDS_BALANCE";
+            throw err;
+        }
+        const payAmount = Math.min(amount, balance);
+
+        const method = normalizeSalePaymentMethod(body.payment_method || body.method, body.payment_type);
+        const resolvedMethod = method === "store_credit" ? "store_credit" : method;
+        const payType = resolvedMethod === "store_credit"
+            ? 4
+            : Number.isFinite(Number(body.payment_type))
+              ? Number(body.payment_type)
+              : paymentTypeFromMethod(resolvedMethod);
+
+        let paymentsId = null;
+        if (resolvedMethod === "store_credit") {
+            if (!sale.customer_id) {
+                const err = new Error("A customer is required to apply store credit.");
+                err.status = 400;
+                err.code = "CUSTOMER_REQUIRED_FOR_CREDIT";
+                throw err;
+            }
+            await applyStoreCreditEntry(client, {
+                tenantId,
+                customerId: sale.customer_id,
+                amount: -payAmount,
+                entryType: "sale_apply",
+                saleId,
+                note: body.note || "Applied on balance collection",
+                recordedBy: user.id,
+            });
+        } else if (resolvedMethod === "momo") {
+            const txRef = String(body.payment_transaction_ref || "").trim();
+            if (!txRef) {
+                const err = new Error(
+                    "MoMo collection requires a confirmed Paystack payment reference. Complete MoMo first, then record."
+                );
+                err.status = 400;
+                err.code = "MOMO_PAYMENT_REQUIRED";
+                throw err;
+            }
+            await linkPosPaymentToSaleService({
+                client,
+                transaction_ref: txRef,
+                sale_id: saleId,
+                tenant_id: tenantId,
+                expected_face_amount: payAmount,
+                payment_number: body.payment_number,
+            });
+            const payLookup = await client.query(
+                `SELECT id FROM payments WHERE transaction_ref = $1 AND tenant_id = $2 LIMIT 1`,
+                [txRef, tenantId]
+            );
+            paymentsId = payLookup.rows[0]?.id || null;
+        }
+
+        const payId = uuidv4();
+        await client.query(
+            `INSERT INTO sale_payments (
+                id, sale_id, tenant_id, amount, payment_method, payment_type,
+                payment_number, payment_reference, payments_id, recorded_by, note, created_at
+            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+            [
+                payId,
+                saleId,
+                tenantId,
+                payAmount,
+                resolvedMethod,
+                payType,
+                body.payment_number || null,
+                body.payment_reference || body.payment_transaction_ref || null,
+                paymentsId,
+                user.id || null,
+                body.note != null ? String(body.note).trim().slice(0, 300) : null,
+                new Date(),
+            ]
+        );
+
+        const newPaid = toMoney(toMoney(sale.amount_paid) + payAmount);
+        const total = toMoney(sale.total_amount);
+        const newBalance = toMoney(Math.max(0, total - newPaid));
+        const paymentStatus = salePaymentStatusFromAmounts(total, newPaid);
+
+        const upd = await client.query(
+            `UPDATE sales
+             SET amount_paid = $1,
+                 balance_due = $2,
+                 payment_status = $3,
+                 payment_type = COALESCE($4, payment_type),
+                 payment_number = COALESCE($5, payment_number),
+                 payment_reference = COALESCE($6, payment_reference),
+                 payment_date = COALESCE(payment_date, $7),
+                 updated_at = $7
+             WHERE id = $8 AND tenant_id = $9
+             RETURNING id, amount_paid, balance_due, payment_status, total_amount, customer_id`,
+            [
+                newPaid,
+                newBalance,
+                paymentStatus,
+                payType,
+                body.payment_number || null,
+                body.payment_reference || body.payment_transaction_ref || null,
+                new Date(),
+                saleId,
+                tenantId,
+            ]
+        );
+
+        await client.query("COMMIT");
+
+        const updated = upd.rows[0];
+        return {
+            sale_id: saleId,
+            payment_id: payId,
+            amount: payAmount,
+            amount_paid: toMoney(updated.amount_paid),
+            balance_due: toMoney(updated.balance_due),
+            payment_status: updated.payment_status,
+            fully_paid: toMoney(updated.balance_due) <= 0.02,
+        };
+    } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+    } finally {
+        client.release();
+    }
+};
+
+/** Outstanding AR: sales with balance_due > 0, optionally grouped by customer. */
+export const getOutstandingArService = async (user, requestQuery = {}) => {
+    const tenantId = user.tenant_id;
+    const customerId = requestQuery.customer_id || requestQuery.customerId || null;
+    const groupByCustomer =
+        requestQuery.group_by === "customer" ||
+        requestQuery.groupBy === "customer" ||
+        requestQuery.by_customer === "1" ||
+        requestQuery.by_customer === "true";
+
+    const permissionCodes = Array.isArray(user.permissions)
+        ? user.permissions
+        : await getUserPermissionsService(user.id, user.tenant_id).catch(() => []);
+    const canViewAll = permissionCodes.includes("sales.view_all");
+
+    if (groupByCustomer) {
+        const params = [tenantId];
+        let where = `sales.tenant_id = $1 AND sales.balance_due > 0.02 AND sales.customer_id IS NOT NULL`;
+        let paramIndex = 2;
+        if (!canViewAll) {
+            where += ` AND sales.creator_id = $${paramIndex}`;
+            params.push(user.id);
+            paramIndex += 1;
+        }
+        if (customerId) {
+            where += ` AND sales.customer_id = $${paramIndex}`;
+            params.push(customerId);
+            paramIndex += 1;
+        }
+        const result = await pool.query(
+            `SELECT
+                sales.customer_id,
+                customers.name AS customer_name,
+                customers.phone AS customer_phone,
+                customers.store_credit_balance,
+                COUNT(sales.id)::int AS open_sales,
+                COALESCE(SUM(sales.balance_due), 0)::numeric AS balance_due,
+                COALESCE(SUM(sales.amount_paid), 0)::numeric AS amount_paid,
+                COALESCE(SUM(sales.total_amount), 0)::numeric AS total_amount,
+                MIN(sales.created_at) AS oldest_sale_at,
+                MAX(sales.created_at) AS newest_sale_at
+             FROM sales
+             LEFT JOIN customers ON customers.id = sales.customer_id
+             WHERE ${where}
+             GROUP BY sales.customer_id, customers.name, customers.phone, customers.store_credit_balance
+             ORDER BY balance_due DESC`,
+            params
+        );
+        const customers = result.rows.map((row) => ({
+            ...row,
+            balance_due: toMoney(row.balance_due),
+            amount_paid: toMoney(row.amount_paid),
+            total_amount: toMoney(row.total_amount),
+            store_credit_balance: toMoney(row.store_credit_balance),
+        }));
+        const total_outstanding = toMoney(customers.reduce((s, c) => s + c.balance_due, 0));
+        return { customers, total_outstanding, count: customers.length };
+    }
+
+    const params = [tenantId];
+    let where = `sales.tenant_id = $1 AND sales.balance_due > 0.02`;
+    let paramIndex = 2;
+    if (!canViewAll) {
+        where += ` AND sales.creator_id = $${paramIndex}`;
+        params.push(user.id);
+        paramIndex += 1;
+    }
+    if (customerId) {
+        where += ` AND sales.customer_id = $${paramIndex}`;
+        params.push(customerId);
+        paramIndex += 1;
+    }
+
+    const result = await pool.query(
+        `SELECT
+            sales.id,
+            sales.invoice_number,
+            sales.created_at,
+            sales.total_amount,
+            sales.amount_paid,
+            sales.balance_due,
+            sales.payment_status,
+            sales.customer_id,
+            customers.name AS customer,
+            customers.phone AS customer_phone,
+            customers.store_credit_balance
+         FROM sales
+         LEFT JOIN customers ON customers.id = sales.customer_id
+         WHERE ${where}
+         ORDER BY sales.created_at ASC`,
+        params
+    );
+
+    const items = result.rows.map((row) => ({
+        ...row,
+        total_amount: toMoney(row.total_amount),
+        amount_paid: toMoney(row.amount_paid),
+        balance_due: toMoney(row.balance_due),
+        store_credit_balance: toMoney(row.store_credit_balance),
+    }));
+    const total_outstanding = toMoney(items.reduce((s, r) => s + r.balance_due, 0));
+    return { items, total_outstanding, count: items.length };
+};
 
 export const getAllSaleDetailsService = async () => {
     const result = await pool.query("SELECT * FROM saledetails");

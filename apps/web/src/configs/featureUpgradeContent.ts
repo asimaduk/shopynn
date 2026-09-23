@@ -9,7 +9,7 @@ type UpgradeCopy = {
 const FEATURE_PREFIX_COPY: Record<string, UpgradeCopy> = {
 	'orders.': {
 		featureTitle: 'Online orders',
-		description: 'Accept and manage customer orders from your store — included on Premium.',
+		description: 'Accept and manage customer orders from your store — included on Scale.',
 		bullets: ['Store order queue', 'Customer checkout', 'Order payments tracking']
 	},
 	'transfers.': {
@@ -40,11 +40,11 @@ const FEATURE_PREFIX_COPY: Record<string, UpgradeCopy> = {
 	'reports.': {
 		featureTitle: 'Reports',
 		description: 'Business reports and analytics for day-to-day decisions.',
-		bullets: ['Sales & inventory reports', 'Operational summaries', 'Export on Premium']
+		bullets: ['Sales & inventory reports', 'Operational summaries', 'Export on Scale']
 	},
 	'users.': {
 		featureTitle: 'User management',
-		description: 'Add staff and manage team access. Basic includes up to 3 users.',
+		description: 'Add staff and manage team access. Starter includes up to 3 users.',
 		bullets: ['Create users', 'Deactivate accounts', 'Upgrade for more users and custom roles']
 	},
 	'roles.': {
@@ -64,8 +64,8 @@ const FEATURE_PREFIX_COPY: Record<string, UpgradeCopy> = {
 	},
 	'warehouses.': {
 		featureTitle: 'Stores / branches',
-		description: 'Manage multiple storage locations on Standard and above.',
-		bullets: ['Branch setup', 'Per-store inventory', 'Reference codes on Premium']
+		description: 'Manage multiple storage locations on Business and above.',
+		bullets: ['Branch setup', 'Per-store inventory', 'Reference codes on Scale']
 	},
 	'notifications.': {
 		featureTitle: 'Notifications',
@@ -80,7 +80,7 @@ const FEATURE_PREFIX_COPY: Record<string, UpgradeCopy> = {
 	'payments.view': {
 		featureTitle: 'Order payments',
 		description: 'View and reconcile payments linked to customer orders.',
-		bullets: ['Payment records', 'Order settlement', 'Premium operations']
+		bullets: ['Payment records', 'Order settlement', 'Scale operations']
 	},
 	'data_export.': {
 		featureTitle: 'Data export',

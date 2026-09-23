@@ -1,6 +1,13 @@
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import List from '@mui/material/List';
+import ListItemButton from '@mui/material/ListItemButton';
+import ListItemText from '@mui/material/ListItemText';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { alpha } from '@mui/material/styles';
@@ -23,6 +30,22 @@ import {
 import toast from 'react-hot-toast';
 import { URLS } from '@/configs/settingsConfig';
 import ProductBulkImportDialog from './ProductBulkImportDialog';
+import useUser from '@auth/useUser';
+import { canManageCustomerSignupCodes } from '@auth/permissions';
+import { useGetWarehousesQuery } from '../../../../setups/warehouses/WarehouseApi';
+
+const MARKETING_SITE_URL = (
+	process.env.NEXT_PUBLIC_MARKETING_SITE_URL || 'https://shopynn.vercel.app'
+).replace(/\/$/, '');
+
+function storefrontProductUrl(referenceCode: string, productSlugOrId: string) {
+	const code = String(referenceCode || '')
+		.trim()
+		.toLowerCase();
+	const key = String(productSlugOrId || '').trim();
+	if (!code || !key) return '';
+	return `${MARKETING_SITE_URL}/s/${encodeURIComponent(code)}/p/${encodeURIComponent(key)}`;
+}
 
 function initialsFromProductName(name: string): string {
 	const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -55,6 +78,12 @@ function ProductHeader({ updateProcessing, product }: ProductHeaderProps) {
 
 	const navigate = useNavigate();
 	const [bulkImportOpen, setBulkImportOpen] = useState(false);
+	const [shareStoreOpen, setShareStoreOpen] = useState(false);
+	const { data: authUser } = useUser();
+	const canShareOrderLink = canManageCustomerSignupCodes(authUser);
+	const { data: warehouses = [] } = useGetWarehousesQuery(null, {
+		skip: !canShareOrderLink || isNew
+	});
 
 	const { name } = watch() as EcommerceProduct;
 	const title = (name != null ? String(name) : '').trim();
@@ -63,6 +92,37 @@ function ProductHeader({ updateProcessing, product }: ProductHeaderProps) {
 	const thumbSrc =
 		product?.thumbnail &&
 		`${URLS.serverUrl}/images?id=${product.thumbnail}&refresh=${Date.now()}`;
+
+	const warehousesWithCode = (warehouses || []).filter((w) => String(w.reference_code || '').trim());
+
+	const openShareForCode = (code: string) => {
+		const key = String(product?.slug || product?.id || '').trim();
+		if (!key) {
+			toast.error('Save the product before sharing a link.');
+			return;
+		}
+		const url = storefrontProductUrl(code, key);
+		const text = `Order ${title || 'this product'} on Shopynn:\n${url}`;
+		window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer');
+		setShareStoreOpen(false);
+	};
+
+	const shareWhatsAppProductLink = () => {
+		const key = String(product?.slug || product?.id || '').trim();
+		if (!key) {
+			toast.error('Save the product before sharing a link.');
+			return;
+		}
+		if (!warehousesWithCode.length) {
+			toast.error('Set a customer signup code on your store before sharing.');
+			return;
+		}
+		if (warehousesWithCode.length === 1) {
+			openShareForCode(String(warehousesWithCode[0].reference_code).trim());
+			return;
+		}
+		setShareStoreOpen(true);
+	};
 
 	function createSlug(slg: string) {
 		if (!slg) return '';
@@ -296,6 +356,18 @@ function ProductHeader({ updateProcessing, product }: ProductHeaderProps) {
 					>
 						Products
 					</Button>
+					{!isNew && canShareOrderLink ? (
+						<Button
+							variant="outlined"
+							color="success"
+							size="medium"
+							onClick={shareWhatsAppProductLink}
+							sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
+							startIcon={<FuseSvgIcon size={18}>heroicons-outline:share</FuseSvgIcon>}
+						>
+							Share order link
+						</Button>
+					) : null}
 					{isNew && (
 						<Button
 							variant="outlined"
@@ -336,6 +408,30 @@ function ProductHeader({ updateProcessing, product }: ProductHeaderProps) {
 				</motion.div>
 			</Stack>
 			<ProductBulkImportDialog open={bulkImportOpen} onClose={() => setBulkImportOpen(false)} />
+			<Dialog open={shareStoreOpen} onClose={() => setShareStoreOpen(false)} maxWidth="xs" fullWidth>
+				<DialogTitle>Share from which store?</DialogTitle>
+				<DialogContent dividers>
+					<Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+						Choose the store signup code for this product order link.
+					</Typography>
+					<List disablePadding>
+						{warehousesWithCode.map((w) => (
+							<ListItemButton
+								key={String(w.id)}
+								onClick={() => openShareForCode(String(w.reference_code).trim())}
+							>
+								<ListItemText
+									primary={w.name || 'Store'}
+									secondary={String(w.reference_code || '').toLowerCase()}
+								/>
+							</ListItemButton>
+						))}
+					</List>
+				</DialogContent>
+				<DialogActions>
+					<Button onClick={() => setShareStoreOpen(false)}>Cancel</Button>
+				</DialogActions>
+			</Dialog>
 		</Box>
 	);
 }

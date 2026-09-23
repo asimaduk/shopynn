@@ -22,9 +22,9 @@ import Checkbox from '@mui/material/Checkbox';
 
 const FALLBACK_OPTIONS = [
 	{ value: 1, label: 'Free (14 days)' },
-	{ value: 2, label: 'Basic' },
-	{ value: 3, label: 'Standard' },
-	{ value: 4, label: 'Premium' }
+	{ value: 2, label: 'Starter' },
+	{ value: 3, label: 'Business' },
+	{ value: 4, label: 'Scale' }
 ];
 
 export default function MerchantOnboardPage() {
