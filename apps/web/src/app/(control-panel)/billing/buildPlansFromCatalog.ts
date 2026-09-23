@@ -58,9 +58,9 @@ const PAID_NAMES: Record<ChooseableSubscriptionType, ChooseablePlan['name']> = {
 };
 
 const PAID_AMOUNTS: Record<ChooseableSubscriptionType, number> = {
-	2: 229,
-	3: 429,
-	4: 799
+	2: 149,
+	3: 349,
+	4: 649
 };
 
 export function buildChooseablePlansFromCatalog(

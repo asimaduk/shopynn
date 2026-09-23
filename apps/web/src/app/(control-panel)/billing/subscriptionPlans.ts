@@ -3,9 +3,9 @@
  * Keep in sync with `ims-services/src/models/subscription.js` SUBSCRIPTION_TYPES.
  */
 export const MONTHLY_SUBSCRIPTION_AMOUNTS_GHS = {
-	basic: 229,
-	standard: 429,
-	premium: 799
+	basic: 149,
+	standard: 349,
+	premium: 649
 } as const;
 
 export type ChooseableSubscriptionType = 2 | 3 | 4;

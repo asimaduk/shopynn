@@ -5,9 +5,9 @@ import { resolveSubscriptionTypeConfigService } from "./billingCatalog.js";
 /** Tier metadata (duration); amounts come from billing_catalog_items. */
 const SUBSCRIPTION_TYPES = {
     1: { name: "Free", amount: 0, durationDays: 14 },
-    2: { name: "Basic", amount: 229, durationDays: 30 },
-    3: { name: "Standard", amount: 429, durationDays: 30 },
-    4: { name: "Premium", amount: 799, durationDays: 30 },
+    2: { name: "Basic", amount: 149, durationDays: 30 },
+    3: { name: "Standard", amount: 349, durationDays: 30 },
+    4: { name: "Premium", amount: 649, durationDays: 30 },
 };
 
 const NAME_TO_DURATION_DAYS = { Free: 14, Basic: 30, Standard: 30, Premium: 30 };
@@ -336,7 +336,7 @@ export const changeSubscriptionPlanService = async (tenant_id, subscription_type
 /**
  * Create a subscription for onboarding and link it to a tenant.
  * subscription_type: 1=Free, 2=Basic, 3=Standard, 4=Premium.
- * amount and duration derived from type (Free=0, 2 weeks; paid tiers=229/429/799 GHS, 1 month).
+ * amount and duration derived from type (Free=0, 2 weeks; paid tiers=149/349/649 GHS, 1 month).
  * billing_interval = monthly; start_at = now; end_at = start + duration.
  */
 export const onboardSubscriptionService = async (tenant_id, subscription_type) => {

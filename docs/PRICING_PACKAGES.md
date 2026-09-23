@@ -4,19 +4,19 @@ Budget-friendly monthly tiers (Ghana), hosting included, WhatsApp support.
 
 ## Monthly subscription (GHS)
 
-### Basic — GHS 229 / month
+### Basic — GHS 149 / month
 - Best for: single store getting started
 - Includes: core inventory, products, sales (incl. receipt sharing), purchases, customers & suppliers (create/edit), payments & subscription viewing
 - Limits: 1 branch, up to 3 users
 - Support: business-hours WhatsApp support
 
-### Standard — GHS 429 / month
+### Standard — GHS 349 / month
 - Best for: multi-branch operations needing controls
 - Includes: everything in Basic, plus multi-store access, transfers, adjustments, **stock counts**, reorder/expiring insights, users/roles/permissions, locations, purchase orders workflow, reports (view), **notifications**
 - Limits: up to 5 branches, up to 12 users
 - Support: business-hours WhatsApp support
 
-### Premium — GHS 799 / month
+### Premium — GHS 649 / month
 - Best for: full platform + customer ordering
 - Includes: everything in Standard, plus Orders/customer ordering, exports & data export, audit logs, advanced order analytics/automation
 - Limits: up to 10 branches, up to 25 users (custom for larger teams)
@@ -49,7 +49,7 @@ When a tenant upgrades to a **higher** paid tier while their current plan is sti
 2. That value is converted to days on the new plan: `credit_value ÷ (new_monthly_price / period_days)`.
 3. After successful payment, the new plan is active for **one full billing period plus those bonus days** (`end_at`).
 
-Example: 10 days left on Basic (GHS 229 / 30 days) ≈ GHS 76.33 credit → about **5.3 extra days** on Standard (GHS 429 / 30 days), on top of the new 30-day term.
+Example: 10 days left on Basic (GHS 149 / 30 days) ≈ GHS 49.67 credit → about **4.3 extra days** on Standard (GHS 349 / 30 days), on top of the new 30-day term.
 
 The current plan stays active until checkout completes. Downgrades are not supported via this flow.
 

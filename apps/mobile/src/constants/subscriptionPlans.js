@@ -1,8 +1,8 @@
 /** Paid tiers for in-app choose / upgrade (matches ims-web billing/subscriptionPlans.ts). */
 export const MONTHLY_SUBSCRIPTION_AMOUNTS_GHS = {
-    basic: 229,
-    standard: 429,
-    premium: 799,
+    basic: 149,
+    standard: 349,
+    premium: 649,
 };
 
 export const CHOOSEABLE_SUBSCRIPTION_PLANS = [
@@ -74,7 +74,7 @@ export const SUBSCRIPTION_PLANS = [
     {
         value: 2,
         slug: 'basic',
-        label: 'Basic — GHS 229/mo',
+        label: 'Basic — GHS 149/mo',
         description:
             'Account is created now. Access starts after you complete payment in the app.',
         activatesImmediately: false,
@@ -82,14 +82,14 @@ export const SUBSCRIPTION_PLANS = [
     {
         value: 3,
         slug: 'standard',
-        label: 'Standard — GHS 429/mo',
+        label: 'Standard — GHS 349/mo',
         description: 'Account is created now. Complete payment in the app to activate Standard.',
         activatesImmediately: false,
     },
     {
         value: 4,
         slug: 'premium',
-        label: 'Premium — GHS 799/mo',
+        label: 'Premium — GHS 649/mo',
         description: 'Account is created now. Complete payment in the app to activate Premium.',
         activatesImmediately: false,
     },

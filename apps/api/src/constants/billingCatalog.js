@@ -15,7 +15,7 @@ export const TIER_TO_SUBSCRIPTION_TYPE = {
 
 /** Fallback amounts if DB catalog is empty (matches seed migration). */
 export const FALLBACK_CATALOG_AMOUNTS = {
-    subscription_monthly: { free: 0, basic: 229, standard: 429, premium: 799 },
+    subscription_monthly: { free: 0, basic: 149, standard: 349, premium: 649 },
     onboarding: { basic: 700, standard: 1300, premium: 2000 },
 };
 
@@ -41,7 +41,7 @@ export const DEFAULT_BILLING_CATALOG_SEED = [
         plan_tier: "basic",
         label: "Basic monthly",
         description: "Monthly subscription",
-        amount_ghs: 229,
+        amount_ghs: 149,
         commission_eligible: "subscription_residual_5",
         is_active: true,
         sort_order: 10,
@@ -52,7 +52,7 @@ export const DEFAULT_BILLING_CATALOG_SEED = [
         plan_tier: "standard",
         label: "Standard monthly",
         description: "Monthly subscription",
-        amount_ghs: 429,
+        amount_ghs: 349,
         commission_eligible: "subscription_residual_5",
         is_active: true,
         sort_order: 20,
@@ -63,7 +63,7 @@ export const DEFAULT_BILLING_CATALOG_SEED = [
         plan_tier: "premium",
         label: "Premium monthly",
         description: "Monthly subscription",
-        amount_ghs: 799,
+        amount_ghs: 649,
         commission_eligible: "subscription_residual_5",
         is_active: true,
         sort_order: 30,

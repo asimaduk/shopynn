@@ -24,7 +24,7 @@ CHOOSEABLE_SUBSCRIPTION_PLANS.forEach((p) => {
     };
 });
 
-const FALLBACK_MONTHLY_GHS = { 1: 0, 2: 229, 3: 429, 4: 799 };
+const FALLBACK_MONTHLY_GHS = { 1: 0, 2: 149, 3: 349, 4: 649 };
 
 /** @param {import('../services/api').billingCatalogGrouped | null | undefined} catalog */
 export function buildPlansFromCatalog(catalog) {

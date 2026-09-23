@@ -84,21 +84,21 @@ export const SUBSCRIPTION_PLANS = [
   {
     value: 2,
     slug: "basic",
-    label: "Basic — GHS 229/mo",
+    label: "Basic — GHS 149/mo",
     description: "Account is created now. Access starts after you complete payment in the app (subscription stays pending until then).",
     activatesImmediately: false,
   },
   {
     value: 3,
     slug: "standard",
-    label: "Standard — GHS 429/mo",
+    label: "Standard — GHS 349/mo",
     description: "Account is created now. Complete payment in the app to activate Standard features.",
     activatesImmediately: false,
   },
   {
     value: 4,
     slug: "premium",
-    label: "Premium — GHS 799/mo",
+    label: "Premium — GHS 649/mo",
     description: "Account is created now. Complete payment in the app to activate Premium features.",
     activatesImmediately: false,
   },
@@ -117,7 +117,7 @@ export type BillingCatalogGrouped = {
 export function planPriceFromCatalog(catalog: BillingCatalogGrouped | null, tier: string): string {
   const monthly = catalog?.plans?.[tier]?.subscription_monthly;
   if (monthly) return `GHS ${Number(monthly.amount_ghs).toFixed(0)}`;
-  const fallback: Record<string, string> = { basic: "GHS 229", standard: "GHS 429", premium: "GHS 799" };
+  const fallback: Record<string, string> = { basic: "GHS 149", standard: "GHS 349", premium: "GHS 649" };
   return fallback[tier] || "—";
 }
 

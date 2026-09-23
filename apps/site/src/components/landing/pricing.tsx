@@ -9,17 +9,17 @@ import { fetchPublicBillingCatalog, planPriceFromCatalog, type BillingCatalogGro
 
 const STATIC_PLANS = [
   {
-    name: "Basic", price: "GHS 229", desc: "For new stores getting started.", plan: "basic",
+    name: "Basic", price: "GHS 149", desc: "For new stores getting started.", plan: "basic",
     features: ["Up to 100 SKUs", "1 branch", "Customer ordering portal", "Basic analytics", "Email support"],
     cta: "Get Started",
   },
   {
-    name: "Standard", price: "GHS 429", desc: "For growing retailers.", popular: true, plan: "standard",
+    name: "Standard", price: "GHS 349", desc: "For growing retailers.", popular: true, plan: "standard",
     features: ["Unlimited SKUs", "Up to 5 branches", "Mobile ordering app", "Advanced analytics", "Barcode scanning & POS", "Priority support"],
     cta: "Start now",
   },
   {
-    name: "Premium", price: "GHS 799", desc: "For established businesses.", plan: "premium",
+    name: "Premium", price: "GHS 649", desc: "For established businesses.", plan: "premium",
     features: ["Unlimited SKUs", "Up to 15 branches", "White-label mobile app", "Real-time multi-location sync", "Advanced reporting", "Dedicated account manager"],
     cta: "Start now",
   },
