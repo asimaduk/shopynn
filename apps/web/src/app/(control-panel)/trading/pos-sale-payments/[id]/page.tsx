@@ -1,7 +1,7 @@
 'use client';
 
 import PlanFeatureGate from '@auth/PlanFeatureGate';
-import OrderPaymentDetailsPage from '../order-payments/OrderPaymentDetailsPage';
+import OrderPaymentDetailsPage from '../../order-payments/OrderPaymentDetailsPage';
 
 export default function Page() {
 	return (

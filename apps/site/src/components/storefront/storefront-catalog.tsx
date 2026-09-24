@@ -20,13 +20,9 @@ function formatGhs(n: number) {
   return `GHS ${Number(n || 0).toFixed(2)}`;
 }
 
-/** Mobile brick heights (For You). Desktop uses uniform aspect ratio instead. */
-function brickImageClass(index: number) {
-  const pattern = index % 4;
-  if (pattern === 0) return "h-[154px] lg:h-auto";
-  if (pattern === 1) return "h-[186px] lg:h-auto";
-  if (pattern === 2) return "h-[168px] lg:h-auto";
-  return "h-[198px] lg:h-auto";
+/** Mobile brick image height — uniform so 2-col rows stay aligned. Desktop uses aspect ratio. */
+function brickImageClass(_index: number) {
+  return "h-[160px] sm:h-[176px] lg:h-auto";
 }
 
 export function StorefrontCatalog({ storeCode }: { storeCode: string }) {
@@ -216,10 +212,10 @@ export function StorefrontCatalog({ storeCode }: { storeCode: string }) {
       ) : (
         <ul
           className={cn(
-            /* Mobile / tablet: brick masonry */
-            "columns-2 gap-2.5 sm:gap-3",
-            /* Desktop: modern e-commerce grid */
-            "lg:columns-1 lg:grid lg:grid-cols-4 lg:gap-x-5 lg:gap-y-8 xl:grid-cols-6",
+            /* Mobile / tablet: 2-col grid (CSS columns left a top-right gap) */
+            "grid grid-cols-2 gap-2.5 sm:gap-3",
+            /* Desktop: denser catalog grid */
+            "lg:grid-cols-4 lg:gap-x-5 lg:gap-y-8 xl:grid-cols-6",
           )}
         >
           {products.map((p, index) => {
@@ -237,7 +233,7 @@ export function StorefrontCatalog({ storeCode }: { storeCode: string }) {
             return (
               <li
                 key={p.id}
-                className="mb-2.5 break-inside-avoid sm:mb-3 lg:mb-0"
+                className="min-w-0"
               >
                 <article className="group relative flex h-full flex-col overflow-hidden rounded-xl bg-card shadow-[0_3px_12px_rgb(0_0_0_/0.07)] ring-1 ring-border/50 transition duration-300 hover:shadow-[0_6px_20px_rgb(0_0_0_/0.1)] lg:rounded-2xl lg:bg-transparent lg:shadow-none lg:ring-0 lg:hover:shadow-none">
                   <div className="relative overflow-hidden lg:rounded-2xl lg:bg-muted/60">

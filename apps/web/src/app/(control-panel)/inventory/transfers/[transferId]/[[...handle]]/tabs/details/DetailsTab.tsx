@@ -9,7 +9,7 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import Chip from '@mui/material/Chip';
 import toast from 'react-hot-toast';
-import { useReceiveTransferMutation } from '../../../../ECommerceApi';
+import { useReceiveTransferMutation } from '../../../../../ECommerceApi';
 
 /**
  * The order details tab — includes receive handoff when pending.
