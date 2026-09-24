@@ -11,7 +11,7 @@ export type StorefrontStore = {
     address: string | null;
     minimum_order_amount?: number;
   };
-  company: { name: string | null };
+  company: { name: string | null; logo?: string | null };
   share_path?: string;
 };
 

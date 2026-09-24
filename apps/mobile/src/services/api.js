@@ -243,6 +243,22 @@ export const users = {
         axios.post('/users/shop-owner-signup/send-email-otp', { email }).then((res) => getData(res)),
     verifyShopOwnerSignupEmailOtp: (email, otp) =>
         axios.post('/users/shop-owner-signup/verify-email-otp', { email, otp }).then((res) => getData(res)),
+    sendChangeEmailOtp: (email) =>
+        axios
+            .post('/users/me/change-email/send-otp', { email }, { skipErrorAlert: true })
+            .then((res) => getData(res)),
+    verifyChangeEmailOtp: (email, otp) =>
+        axios
+            .post('/users/me/change-email/verify', { email, otp }, { skipErrorAlert: true })
+            .then((res) => getData(res)),
+    sendChangePhoneOtp: (phone) =>
+        axios
+            .post('/users/me/change-phone/send-otp', { phone }, { skipErrorAlert: true })
+            .then((res) => getData(res)),
+    verifyChangePhoneOtp: (phone, otp) =>
+        axios
+            .post('/users/me/change-phone/verify', { phone, otp }, { skipErrorAlert: true })
+            .then((res) => getData(res)),
 };
 
 // —— Dashboard & Reports ——
@@ -531,7 +547,8 @@ export const returnsApi = {
 export const notifications = {
     list: (params) => axios.get('/notifications', { params }).then((res) => getData(res)),
     get: (id) => axios.get(`/notifications/${id}`).then((res) => getData(res)),
-    markRead: (id) => axios.patch(`/notifications/${id}/read`).then((res) => res.data),
+    markRead: (id) =>
+        axios.patch(`/notifications/${id}/read`, null, { skipErrorAlert: true }).then((res) => res.data),
 };
 
 // —— Subscriptions ——

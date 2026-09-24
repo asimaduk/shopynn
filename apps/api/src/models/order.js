@@ -53,14 +53,13 @@ const toNumber = (value) => {
     return Number.isFinite(n) ? n : 0;
 };
 
-/** Permissions that imply a user should receive store-side order alerts. */
+/** Permissions that imply a user should receive store-side order alerts (staff only — not customer portal). */
 const STAFF_ORDER_FCM_PERMISSIONS = [
     "orders.multi_store.manage",
     "orders.store.manage",
     "orders.store.view",
     "orders.status.update",
     "orders.process",
-    "orders.view",
 ];
 
 function wantsOrderPushFromPreferences(preferences) {
@@ -91,11 +90,13 @@ function formatOrderStatusForMessage(status) {
 }
 
 /**
- * Staff users (tenant) who can act on orders for this warehouse and have an FCM token.
- * Excludes excludeUserId when set (e.g. creator) to avoid duplicate self-alerts when that user is staff.
+ * Staff users (tenant) who can act on orders for this warehouse.
+ * Excludes Customer role and excludeUserId when set.
+ * @param {{ requireFcm?: boolean }} [opts]
  */
-async function loadStaffFcmRowsForWarehouseOrder(tenantId, warehouseId, excludeUserId) {
+async function loadStaffRowsForWarehouseOrder(tenantId, warehouseId, excludeUserId, opts = {}) {
     if (!tenantId || !warehouseId) return [];
+    const requireFcm = Boolean(opts.requireFcm);
     const result = await pool.query(
         `SELECT DISTINCT u.id, u.fcm_token, up.preferences
          FROM users u
@@ -105,8 +106,8 @@ async function loadStaffFcmRowsForWarehouseOrder(tenantId, warehouseId, excludeU
          WHERE u.tenant_id = $1
            AND COALESCE(u.is_active, true) = true
            AND COALESCE(u.deleted, false) = false
-           AND u.fcm_token IS NOT NULL
-           AND btrim(u.fcm_token) <> ''
+           AND lower(coalesce(r.name, '')) <> 'customer'
+           AND ($5::boolean = false OR (u.fcm_token IS NOT NULL AND btrim(u.fcm_token) <> ''))
            AND (r.tenant_id = u.tenant_id OR r.tenant_id IS NULL)
            AND (
              lower(r.name) = 'super admin'
@@ -134,9 +135,41 @@ async function loadStaffFcmRowsForWarehouseOrder(tenantId, warehouseId, excludeU
              )
            )
            AND ($4::varchar IS NULL OR $4::varchar = '' OR u.id <> $4::varchar)`,
-        [tenantId, STAFF_ORDER_FCM_PERMISSIONS, warehouseId, excludeUserId ?? null]
+        [tenantId, STAFF_ORDER_FCM_PERMISSIONS, warehouseId, excludeUserId ?? null, requireFcm]
     );
     return result.rows;
+}
+
+/** @deprecated use loadStaffRowsForWarehouseOrder(..., { requireFcm: true }) */
+async function loadStaffFcmRowsForWarehouseOrder(tenantId, warehouseId, excludeUserId) {
+    return loadStaffRowsForWarehouseOrder(tenantId, warehouseId, excludeUserId, { requireFcm: true });
+}
+
+async function notifyStaffNewOrderInApp({ tenantId, warehouseId, orderId, orderNumber, excludeUserId }) {
+    try {
+        const rows = await loadStaffRowsForWarehouseOrder(tenantId, warehouseId, excludeUserId, {
+            requireFcm: false,
+        });
+        const seen = new Set();
+        await Promise.all(
+            rows.map(async (row) => {
+                const uid = String(row?.id || "").trim();
+                if (!uid || seen.has(uid)) return;
+                seen.add(uid);
+                await createNotificationService({
+                    tenant_id: tenantId,
+                    user_id: uid,
+                    type: "order_created",
+                    title: "New order received",
+                    message: `Order ${orderNumber} has been placed.`,
+                    mobile_screen: "Orders",
+                    mobile_params: { orderId, order_id: orderId, warehouse_id: warehouseId },
+                }).catch(() => null);
+            })
+        );
+    } catch {
+        /* non-blocking */
+    }
 }
 
 async function sendStaffNewOrderFcm({ tenantId, warehouseId, orderId, orderNumber, excludeUserId }) {
@@ -193,7 +226,7 @@ async function sendCustomerOrderStatusFcm({ tenantId, customerUserId, orderId, o
                 order_id: String(orderId),
                 order_number: num,
                 status: normalizeStatus(status),
-                mobile_screen: "OrderDetails",
+                mobile_screen: "MyOrderDetails",
             },
         });
     } catch {
@@ -615,6 +648,35 @@ export const getOrderByIdService = async (user, orderId) => {
     order.amount_paid = toMoney(order.amount_paid);
     order.balance_due = toMoney(order.balance_due);
     const ledger = await getInstallmentPaymentsForOrder(orderId, user.tenant_id);
+
+    const openPay = await pool.query(
+        `SELECT id, amount, face_amount, fee_amount, payment_method_type, payment_number,
+                transaction_ref, status, created_at
+         FROM payments
+         WHERE order_id = $1 AND tenant_id = $2
+           AND transaction_ref IS NOT NULL
+           AND lower(coalesce(status, '')) IN ('pending', 'otp', 'ongoing', 'send_otp')
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [orderId, user.tenant_id]
+    );
+    if (openPay.rowCount > 0) {
+        const row = openPay.rows[0];
+        order.open_payment = {
+            id: row.id,
+            amount: toMoney(row.amount),
+            face_amount: toMoney(row.face_amount ?? row.amount),
+            fee_amount: toMoney(row.fee_amount),
+            payment_method_type: row.payment_method_type,
+            payment_number: row.payment_number,
+            transaction_ref: row.transaction_ref,
+            status: row.status,
+            created_at: row.created_at,
+        };
+    } else {
+        order.open_payment = null;
+    }
+
     return enrichOrderInstallmentFields(order, ledger);
 };
 
@@ -832,15 +894,13 @@ export const createOrderService = async (user, payload = {}) => {
 
         await client.query("COMMIT");
 
-        await createNotificationService({
-            tenant_id: user.tenant_id,
-            user_id: null,
-            type: "order_created",
-            title: "New order received",
-            message: `Order ${orderNumber} has been placed.`,
-            mobile_screen: "Orders",
-            mobile_params: { order_id: orderId, warehouse_id },
-        }).catch(() => null);
+        void notifyStaffNewOrderInApp({
+            tenantId: user.tenant_id,
+            warehouseId: warehouse_id,
+            orderId,
+            orderNumber,
+            excludeUserId: user.id,
+        });
 
         void sendStaffNewOrderFcm({
             tenantId: user.tenant_id,
@@ -996,8 +1056,8 @@ export const updateOrderStatusService = async (user, orderId, toStatus, reason =
             type: "order_status",
             title: `Order ${orderNumber} updated`,
             message: `Status changed to ${normalized}.`,
-            mobile_screen: "OrderDetails",
-            mobile_params: { order_id: orderId, status: normalized },
+            mobile_screen: "MyOrderDetails",
+            mobile_params: { orderId, order_id: orderId, status: normalized },
         }).catch(() => null);
 
         void sendCustomerOrderStatusFcm({
@@ -1442,7 +1502,7 @@ export const markOrderPaidCashService = async (user, orderId, payload = {}) => {
         title: `Payment recorded for ${orderNumber}`,
         message: "Cash payment has been marked as paid by store staff.",
         mobile_screen: "MyOrderDetails",
-        mobile_params: { order_id: orderId, payment_status: "paid" },
+        mobile_params: { orderId, order_id: orderId, payment_status: "paid" },
     }).catch(() => null);
 
     return updated.rows[0] ?? null;

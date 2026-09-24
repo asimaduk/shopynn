@@ -13,9 +13,87 @@ function parsePagination(requestQuery = {}) {
 	return { limit, offset };
 }
 
+const normalizePhoneKey = (phone) => String(phone || "").replace(/\D/g, "");
+const normalizeEmailKey = (email) => {
+	const e = String(email || "").trim().toLowerCase();
+	if (!e || e.endsWith("@otp.shopynn.local")) return "";
+	return e;
+};
+
+/**
+ * One person should appear once in the directory.
+ * Prefer app-signup (`account`) over POS twin; carry store credit / loyalty from the POS row.
+ */
+function dedupeMergedCustomers(rows = []) {
+	const byKey = new Map();
+	const rank = (source) => (String(source).toLowerCase() === "account" ? 2 : 1);
+
+	const identityKeys = (row) => {
+		const keys = [];
+		const phone = normalizePhoneKey(row?.phone);
+		const email = normalizeEmailKey(row?.email);
+		if (phone.length >= 9) keys.push(`p:${phone}`);
+		if (email) keys.push(`e:${email}`);
+		if (!keys.length) keys.push(`id:${row?.id}`);
+		return keys;
+	};
+
+	for (const raw of rows) {
+		if (!raw?.id) continue;
+		const row = {
+			...raw,
+			store_credit_balance: Number(raw.store_credit_balance) || 0,
+			loyalty_points: Number(raw.loyalty_points) || 0,
+		};
+		const keys = identityKeys(row);
+		let placed = false;
+		for (const key of keys) {
+			const existing = byKey.get(key);
+			if (!existing) continue;
+			placed = true;
+			if (rank(row.source) > rank(existing.source)) {
+				byKey.set(key, {
+					...row,
+					store_credit_balance: Math.max(row.store_credit_balance, existing.store_credit_balance),
+					loyalty_points: Math.max(row.loyalty_points, existing.loyalty_points),
+				});
+			} else if (rank(row.source) < rank(existing.source)) {
+				byKey.set(key, {
+					...existing,
+					store_credit_balance: Math.max(existing.store_credit_balance, row.store_credit_balance),
+					loyalty_points: Math.max(existing.loyalty_points, row.loyalty_points),
+				});
+			} else {
+				// Same source duplicate — keep newer
+				const keep =
+					new Date(row.created_at || 0) >= new Date(existing.created_at || 0) ? row : existing;
+				byKey.set(key, keep);
+			}
+			// Keep all keys for this identity pointing at the winner
+			const winner = byKey.get(key);
+			for (const k of identityKeys(winner)) byKey.set(k, winner);
+			break;
+		}
+		if (!placed) {
+			for (const key of keys) byKey.set(key, row);
+		}
+	}
+
+	const unique = [];
+	const seenIds = new Set();
+	for (const row of byKey.values()) {
+		if (seenIds.has(row.id)) continue;
+		seenIds.add(row.id);
+		unique.push(row);
+	}
+	return unique;
+}
+
 /**
  * Merged directory: POS/admin `customers` rows (`source: 'pos'`) plus
  * self-registered shoppers (`customer_profiles` + `users`, `source: 'account'`).
+ * POS rows auto-created as sale mirrors of app-signup profiles are hidden; credit is
+ * surfaced on the account row instead.
  *
  * With `limit`/`pageSize`: returns `{ items, total, limit, offset }`.
  * Without: returns a plain array (backward compatible).
@@ -27,7 +105,13 @@ export const getAllCustomersService = async (user, requestQuery = {}) => {
 	const hasDate = Boolean(requestQuery.startDate && requestQuery.endDate);
 	const pagination = parsePagination(requestQuery);
 
-	const posConditions = ['c.tenant_id = $1'];
+	const posConditions = [
+		"c.tenant_id = $1",
+		"COALESCE(c.deleted, false) = false",
+		// Hide POS mirrors of app-signup profiles (shown via the account row instead).
+		"c.customer_profile_id IS NULL",
+		"COALESCE(c.notes, '') NOT ILIKE 'Linked from app signup profile%'",
+	];
 	const posParams = [tenantId];
 	let pi = 2;
 	if (hasDate) {
@@ -40,7 +124,7 @@ export const getAllCustomersService = async (user, requestQuery = {}) => {
 		posParams.push(searchPattern);
 		pi += 1;
 	}
-	const posWhere = posConditions.join(' AND ');
+	const posWhere = posConditions.join(" AND ");
 
 	const accConditions = ["cp.tenant_id = $1", "cp.profile_type = 'customer'"];
 	const accParams = [tenantId];
@@ -59,7 +143,7 @@ export const getAllCustomersService = async (user, requestQuery = {}) => {
 		accParams.push(searchPattern);
 		qi += 1;
 	}
-	const accWhere = accConditions.join(' AND ');
+	const accWhere = accConditions.join(" AND ");
 
 	const posSelect = `
         SELECT
@@ -90,8 +174,44 @@ export const getAllCustomersService = async (user, requestQuery = {}) => {
             cp.created_at,
             u.is_active,
             NULL::varchar AS customer_group,
-            0::numeric AS store_credit_balance,
-            0::int AS loyalty_points,
+            COALESCE((
+                SELECT c.store_credit_balance
+                FROM customers c
+                WHERE c.tenant_id = cp.tenant_id
+                  AND COALESCE(c.deleted, false) = false
+                  AND (
+                    c.customer_profile_id = cp.id
+                    OR (u.phone IS NOT NULL AND btrim(u.phone) <> '' AND c.phone = u.phone)
+                    OR (
+                        u.email IS NOT NULL
+                        AND lower(u.email) NOT LIKE '%@otp.shopynn.local'
+                        AND lower(c.email) = lower(u.email)
+                    )
+                  )
+                ORDER BY
+                    CASE WHEN c.customer_profile_id = cp.id THEN 0 ELSE 1 END,
+                    c.updated_at DESC NULLS LAST
+                LIMIT 1
+            ), 0)::numeric AS store_credit_balance,
+            COALESCE((
+                SELECT c.loyalty_points
+                FROM customers c
+                WHERE c.tenant_id = cp.tenant_id
+                  AND COALESCE(c.deleted, false) = false
+                  AND (
+                    c.customer_profile_id = cp.id
+                    OR (u.phone IS NOT NULL AND btrim(u.phone) <> '' AND c.phone = u.phone)
+                    OR (
+                        u.email IS NOT NULL
+                        AND lower(u.email) NOT LIKE '%@otp.shopynn.local'
+                        AND lower(c.email) = lower(u.email)
+                    )
+                  )
+                ORDER BY
+                    CASE WHEN c.customer_profile_id = cp.id THEN 0 ELSE 1 END,
+                    c.updated_at DESC NULLS LAST
+                LIMIT 1
+            ), 0)::int AS loyalty_points,
             'account'::text AS source,
             u.id AS user_id
         FROM customer_profiles cp
@@ -103,7 +223,7 @@ export const getAllCustomersService = async (user, requestQuery = {}) => {
 			pool.query(posSelect, posParams),
 			pool.query(accSelect, accParams),
 		]);
-		return [...posResult.rows, ...accResult.rows].sort(
+		return dedupeMergedCustomers([...posResult.rows, ...accResult.rows]).sort(
 			(a, b) => new Date(b.created_at) - new Date(a.created_at)
 		);
 	}
@@ -111,44 +231,24 @@ export const getAllCustomersService = async (user, requestQuery = {}) => {
 	// Single UNION with remapped account placeholders ($1..$n → $(n+posLen)..)
 	const shift = posParams.length;
 	const remappedAccWhere = accWhere.replace(/\$(\d+)/g, (_, n) => `$${Number(n) + shift}`);
-	const accSelectUnion = `
-        SELECT
-            cp.id,
-            trim(concat_ws(' ', coalesce(u.first_name, ''), coalesce(u.last_name, ''))) AS name,
-            u.email,
-            NULL::varchar AS address,
-            u.phone AS phone,
-            NULL::varchar AS notes,
-            cp.created_at,
-            u.is_active,
-            NULL::varchar AS customer_group,
-            0::numeric AS store_credit_balance,
-            0::int AS loyalty_points,
-            'account'::text AS source,
-            u.id AS user_id
-        FROM customer_profiles cp
-        INNER JOIN users u ON u.id = cp.user_id
-        WHERE ${remappedAccWhere}`;
+	const accSelectUnion = accSelect.replace(accWhere, remappedAccWhere);
 
 	const unionParams = [...posParams, ...accParams];
 	const unionSql = `(${posSelect}) UNION ALL (${accSelectUnion})`;
 
-	const countResult = await pool.query(
-		`SELECT COUNT(*)::int AS total FROM (${unionSql}) AS merged`,
+	const allMerged = await pool.query(
+		`SELECT * FROM (${unionSql}) AS merged
+		 ORDER BY created_at DESC NULLS LAST`,
 		unionParams
 	);
-	const total = Number(countResult.rows[0]?.total || 0);
-
-	const limIdx = unionParams.length + 1;
-	const pageResult = await pool.query(
-		`SELECT * FROM (${unionSql}) AS merged
-		 ORDER BY created_at DESC NULLS LAST
-		 LIMIT $${limIdx} OFFSET $${limIdx + 1}`,
-		[...unionParams, pagination.limit, pagination.offset]
+	const deduped = dedupeMergedCustomers(allMerged.rows).sort(
+		(a, b) => new Date(b.created_at) - new Date(a.created_at)
 	);
+	const total = deduped.length;
+	const items = deduped.slice(pagination.offset, pagination.offset + pagination.limit);
 
 	return {
-		items: pageResult.rows,
+		items,
 		total,
 		limit: pagination.limit,
 		offset: pagination.offset,

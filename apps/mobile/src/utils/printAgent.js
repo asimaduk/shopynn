@@ -38,3 +38,33 @@ export function getPrintAgentHealthUrl(appSettings) {
     const base = getPrintAgentBaseUrl(appSettings);
     return base ? `${base}/health` : null;
 }
+
+/**
+ * Print agent should return JSON. Wrong host / offline gateway often returns HTML (`<!DOCTYPE…`),
+ * which makes response.json() throw "Unexpected character: <".
+ */
+export async function readPrintAgentResponse(response) {
+    const raw = await response.text();
+    const trimmed = String(raw || '').trim();
+    if (!trimmed) {
+        return {
+            ok: response.ok,
+            status: response.status,
+            data: { status: response.status, message: 'Empty response from print agent.' },
+        };
+    }
+    try {
+        const data = JSON.parse(trimmed);
+        return { ok: response.ok, status: response.status, data };
+    } catch (_) {
+        const looksHtml = trimmed.startsWith('<') || /<html/i.test(trimmed);
+        const message = looksHtml
+            ? 'Print agent did not respond with JSON. Check More → Print agent: use the PC IP running Shopynn Print (not a browser/router page), and confirm the agent is online.'
+            : `Unexpected print agent response (HTTP ${response.status}).`;
+        return {
+            ok: false,
+            status: response.status,
+            data: { status: response.status || 502, message },
+        };
+    }
+}

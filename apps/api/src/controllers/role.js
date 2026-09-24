@@ -45,6 +45,9 @@ export const createRole = async (req, res, next) => {
         const role = await createRoleService(payload);
         handleResponse(res, 201, "Role created.", role);
     } catch (error) {
+        if (error?.status === 400 || error?.message?.includes("Customer role")) {
+            return handleResponse(res, 400, error.message);
+        }
         next(error);
     }
 };
@@ -67,6 +70,9 @@ export const updateRole = async (req, res, next) => {
         if (!role) return handleResponse(res, 404, "Role not found.");
         handleResponse(res, 200, "Role updated.", role);
     } catch (error) {
+        if (error?.status === 400 || error?.message?.includes("Customer role")) {
+            return handleResponse(res, 400, error.message);
+        }
         next(error);
     }
 };
@@ -78,7 +84,11 @@ export const deleteRole = async (req, res, next) => {
         if (deleted.status) return handleResponse(res, deleted.status, deleted.message);
         handleResponse(res, 200, "Role deleted.");
     } catch (error) {
-        if (error?.message === "Role is assigned to users and cannot be deleted.") {
+        if (
+            error?.message === "Role is assigned to users and cannot be deleted." ||
+            error?.status === 400 ||
+            error?.message?.includes("Customer role")
+        ) {
             return handleResponse(res, 400, error.message);
         }
         next(error);
@@ -93,6 +103,9 @@ export const addPermissionToRole = async (req, res, next) => {
         if (!permissions) return handleResponse(res, 404, "Role not found.");
         handleResponse(res, 200, "Permission added to role.", permissions);
     } catch (error) {
+        if (error?.status === 400 || error?.message?.includes("Customer role")) {
+            return handleResponse(res, 400, error.message);
+        }
         next(error);
     }
 };
@@ -105,6 +118,9 @@ export const removePermissionFromRole = async (req, res, next) => {
         if (!removed) return handleResponse(res, 404, "Role or permission not found.");
         handleResponse(res, 200, "Permission removed from role.");
     } catch (error) {
+        if (error?.status === 400 || error?.message?.includes("Customer role")) {
+            return handleResponse(res, 400, error.message);
+        }
         next(error);
     }
 };
@@ -116,6 +132,9 @@ export const setRolePermissions = async (req, res, next) => {
         if (!permissions) return handleResponse(res, 404, "Role not found.");
         handleResponse(res, 200, "Role permissions updated.", permissions);
     } catch (error) {
+        if (error?.status === 400 || error?.message?.includes("Customer role")) {
+            return handleResponse(res, 400, error.message);
+        }
         next(error);
     }
 };

@@ -33,6 +33,8 @@ import ProductImport from '../containers/home/product_import';
 import Profile from '../containers/settings/profile';
 import ProfileForm from '../containers/settings/profile_form';
 import ResetPassword from '../containers/settings/reset_password';
+import ChangeEmail from '../containers/settings/change_email';
+import ChangePhone from '../containers/settings/change_phone';
 import CompanyProfile from '../containers/settings/company_profile';
 import Warehouses from '../containers/settings/warehouses';
 import Customers from '../containers/settings/customers';
@@ -112,6 +114,7 @@ import OrderDetails from '../containers/home/order_details';
 import ForYou from '../containers/home/for_you';
 import ForYouProductDetails from '../containers/home/for_you_product_details';
 import ForYouSearch from '../containers/home/for_you_search';
+import ForYouBrowseHistory from '../containers/home/for_you_browse_history';
 import Cart from '../containers/home/cart';
 import Checkout from '../containers/home/checkout';
 import CheckoutSuccess from '../containers/home/checkout_success';
@@ -441,12 +444,15 @@ function MainNavigator({ user, onNavigationStateChange }) {
                 <Stack.Screen name="ProductDetails" component={ProductDetails} options={{ headerShown: false }} />
                 <Stack.Screen name="ForYouProductDetails" component={ForYouProductDetails} options={{ headerShown: false }} />
                 <Stack.Screen name="ForYouSearch" component={ForYouSearch} options={{ headerShown: false }} />
+                <Stack.Screen name="ForYouBrowseHistory" component={ForYouBrowseHistory} options={{ headerShown: false }} />
                 <Stack.Screen name="ProductTransactions" component={ProductTransactions} options={{ headerShown: false }} />
                 <Stack.Screen name="ProductForm" component={ProductForm} options={{ headerShown: false }} />
                 <Stack.Screen name="ProductImport" component={ProductImport} options={{ headerShown: false }} />
                 <Stack.Screen name="Profile" component={Profile} options={{ headerShown: false }} />
                 <Stack.Screen name="ProfileForm" component={ProfileForm} options={{ headerShown: false }} />
                 <Stack.Screen name="ResetPassword" component={ResetPassword} options={{ headerShown: false }} />
+                <Stack.Screen name="ChangeEmail" component={ChangeEmail} options={{ headerShown: false }} />
+                <Stack.Screen name="ChangePhone" component={ChangePhone} options={{ headerShown: false }} />
                 <Stack.Screen name="CompanyProfile" component={CompanyProfile} options={{ headerShown: false }} />
                 <Stack.Screen name="Warehouses" component={Warehouses} options={{ headerShown: false }} />
                 <Stack.Screen name="Customers" component={Customers} options={{ headerShown: false }} />

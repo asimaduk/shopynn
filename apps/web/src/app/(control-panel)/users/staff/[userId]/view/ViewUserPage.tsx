@@ -23,6 +23,10 @@ function roleLabel(user: SystemUser) {
 	return user.user_type === 1 ? 'Administrator' : 'Staff';
 }
 
+function userHasCustomerRole(user: SystemUser | null | undefined): boolean {
+	return (user?.roles || []).some((r) => String(r?.name || '').trim().toLowerCase() === 'customer');
+}
+
 function formatWhen(iso?: string) {
 	if (!iso) return '—';
 	try {
@@ -189,6 +193,7 @@ export default function ViewUserPage() {
 
 	const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || '—';
 	const isDeleted = userIsDeleted(user);
+	const isCustomerAccount = userHasCustomerRole(user);
 
 	return (
 		<div className="w-full min-h-full pb-12">
@@ -248,9 +253,12 @@ export default function ViewUserPage() {
 											{fullName}
 										</Typography>
 										<Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-											Staff profile · {roleLabel(user)}
+											{isCustomerAccount ? 'App signup customer' : `Staff profile · ${roleLabel(user)}`}
 										</Typography>
 										<Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1.5 }}>
+											{isCustomerAccount && (
+												<Chip label="Not editable" size="small" variant="outlined" sx={{ fontWeight: 600 }} />
+											)}
 											{isDeleted && <Chip label="Deleted" color="error" size="small" />}
 											{!isDeleted &&
 												(user.is_active !== false ? (
@@ -273,18 +281,20 @@ export default function ViewUserPage() {
 									>
 										Users
 									</Button>
-									<Button
-										variant="contained"
-										color="secondary"
-										component={Link}
-										to={`/trading/sales?soldBy=${encodeURIComponent(user.id)}&soldByName=${encodeURIComponent(fullName)}`}
-										size="medium"
-										sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
-										startIcon={<FuseSvgIcon size={18}>heroicons-outline:shopping-cart</FuseSvgIcon>}
-									>
-										Sales
-									</Button>
-									{!isDeleted && (
+									{!isCustomerAccount && (
+										<Button
+											variant="contained"
+											color="secondary"
+											component={Link}
+											to={`/trading/sales?soldBy=${encodeURIComponent(user.id)}&soldByName=${encodeURIComponent(fullName)}`}
+											size="medium"
+											sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
+											startIcon={<FuseSvgIcon size={18}>heroicons-outline:shopping-cart</FuseSvgIcon>}
+										>
+											Sales
+										</Button>
+									)}
+									{!isDeleted && !isCustomerAccount && (
 										<Button
 											variant="contained"
 											color="primary"
@@ -296,6 +306,14 @@ export default function ViewUserPage() {
 										>
 											Edit
 										</Button>
+									)}
+									{isCustomerAccount && (
+										<Chip
+											icon={<FuseSvgIcon size={16}>heroicons-outline:lock-closed</FuseSvgIcon>}
+											label="Managed by Shopynn"
+											variant="outlined"
+											sx={{ height: 36, borderRadius: 2, fontWeight: 600 }}
+										/>
 									)}
 								</Stack>
 							</Stack>

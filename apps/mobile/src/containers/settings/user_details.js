@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, ScrollView, TouchableOpacity, Switch, Alert, Linking, TextInput } from 'react-native';
+import { View, ScrollView, TouchableOpacity, Switch, Alert, Linking, TextInput, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import ScreenHeader from '../../components/screen_header';
@@ -193,9 +193,9 @@ const UserDetails = ({ navigation, route }) => {
         <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={backPress} label="User details">
                 {!user.deleted && (
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={localStyles.headerActions}>
                         <TouchableOpacity
-                            activeOpacity={0.6}
+                            activeOpacity={0.7}
                             disabled={!hasPermission(currentUser, ['users.update', 'users.view'])}
                             onPress={() => {
                                 if (!hasPermission(currentUser, ['users.update', 'users.view'])) {
@@ -205,22 +205,26 @@ const UserDetails = ({ navigation, route }) => {
                                 navigation.navigate('UserForm', { user });
                             }}
                             style={[
-                                styles.actionButton,
-                                { backgroundColor: colors.surface, marginRight: 8 },
-                                !hasPermission(currentUser, ['users.update', 'users.view']) && { opacity: 0.5 },
-                            ]}>
-                            <Lucide name="pencil" color={config.THEME_COLOR} size={20} />
+                                localStyles.headerBtn,
+                                { backgroundColor: `${config.THEME_COLOR}14` },
+                                !hasPermission(currentUser, ['users.update', 'users.view']) && { opacity: 0.45 },
+                            ]}
+                            accessibilityLabel="Edit user"
+                        >
+                            <Lucide name="pencil" color={config.THEME_COLOR} size={17} />
                         </TouchableOpacity>
                         <TouchableOpacity
-                            activeOpacity={0.6}
+                            activeOpacity={0.7}
                             disabled={!hasPermission(currentUser, 'users.delete')}
                             onPress={handleDelete}
                             style={[
-                                styles.actionButton,
-                                { backgroundColor: colors.surface },
-                                !hasPermission(currentUser, 'users.delete') && { opacity: 0.5 },
-                            ]}>
-                            <Lucide name="trash-2" color={colors.error} size={20} />
+                                localStyles.headerBtn,
+                                { backgroundColor: colors.errorLight || '#fee2e2' },
+                                !hasPermission(currentUser, 'users.delete') && { opacity: 0.45 },
+                            ]}
+                            accessibilityLabel="Delete user"
+                        >
+                            <Lucide name="trash-2" color={colors.error || '#ef4444'} size={17} />
                         </TouchableOpacity>
                     </View>
                 )}
@@ -394,5 +398,21 @@ const UserDetails = ({ navigation, route }) => {
         </SafeAreaView>
     );
 };
+
+const localStyles = StyleSheet.create({
+    headerActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginRight: 4,
+    },
+    headerBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+});
 
 export default UserDetails;

@@ -68,6 +68,9 @@ export const updateUser = async (req, res, next) => {
 
         handleResponse(res, 201, "User updated.", updatedUser);
     } catch (error) {
+        if (error?.status === 400 || error?.message?.includes("App signup customer")) {
+            return handleResponse(res, 400, error.message);
+        }
         next(error);
     }
 }
@@ -97,6 +100,9 @@ export const deleteUser = async (req, res, next) => {
 
         handleResponse(res, 200, "User deleted.", deletedUser);
     } catch (error) {
+        if (error?.status === 400 || error?.message?.includes("App signup customer")) {
+            return handleResponse(res, 400, error.message);
+        }
         next(error);
     }
 }
@@ -111,6 +117,9 @@ export const toggleUserActive = async (req, res, next) => {
         if (!updated) return handleResponse(res, 404, "Not found.", null);
         handleResponse(res, 200, "User status updated.", updated);
     } catch (error) {
+        if (error?.status === 400 || error?.message?.includes("App signup customer")) {
+            return handleResponse(res, 400, error.message);
+        }
         next(error);
     }
 }
@@ -149,11 +158,14 @@ export const sendPhoneLoginOtp = async (req, res, next) => {
         const data = await sendPhoneLoginOtpService(req.body || {});
         handleResponse(res, 200, "OTP sent.", data);
     } catch (error) {
+        const payload = {};
+        if (error?.code) payload.code = error.code;
+        if (error?.retry_after_seconds != null) payload.retry_after_seconds = error.retry_after_seconds;
         return handleResponse(
             res,
             error.status || 400,
             error.message || "Failed.",
-            error?.code ? { code: error.code } : null
+            Object.keys(payload).length ? payload : null
         );
     }
 };
@@ -164,11 +176,14 @@ export const verifyPhoneLoginOtp = async (req, res, next) => {
         const data = await verifyPhoneLoginOtpService(req.body || {});
         handleResponse(res, 200, "Login success.", data);
     } catch (error) {
+        const payload = {};
+        if (error?.code) payload.code = error.code;
+        if (error?.attempts_remaining != null) payload.attempts_remaining = error.attempts_remaining;
         return handleResponse(
             res,
             error.status || 400,
             error.message || "Failed.",
-            error?.code ? { code: error.code } : null
+            Object.keys(payload).length ? payload : null
         );
     }
 };

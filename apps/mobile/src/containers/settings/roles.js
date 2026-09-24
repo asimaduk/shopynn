@@ -32,6 +32,12 @@ const roleInitials = (name) => {
     return `${parts[0][0] || ''}${parts[parts.length - 1][0] || ''}`.toUpperCase();
 };
 
+/** Built-in B2C portal role — not editable/deletable from Roles UI. */
+const isProtectedSystemRole = (role) =>
+    String(role?.name || role?.code || '')
+        .trim()
+        .toLowerCase() === 'customer';
+
 const moduleFromPermission = (perm) => {
     const code = String(perm?.code || '').trim();
     if (code.includes('.')) {
@@ -158,6 +164,13 @@ const Roles = ({ navigation }) => {
 
     const openEdit = useCallback(
         async (role) => {
+            if (isProtectedSystemRole(role)) {
+                Alert.alert(
+                    'System role',
+                    'The Customer role is managed by Shopynn and cannot be edited.',
+                );
+                return;
+            }
             const id = role?.id || '';
             const name = role?.name || role?.code || '';
             setEditingRoleId(id);
@@ -277,6 +290,13 @@ const Roles = ({ navigation }) => {
 
     const removeRole = useCallback(
         (role) => {
+            if (isProtectedSystemRole(role)) {
+                Alert.alert(
+                    'System role',
+                    'The Customer role is managed by Shopynn and cannot be deleted.',
+                );
+                return;
+            }
             if (!canDeleteRole) {
                 Alert.alert('Permission', 'You are not allowed to delete roles.');
                 return;
@@ -413,15 +433,20 @@ const Roles = ({ navigation }) => {
                         permissions.length > 0 && summary.count >= permissions.length;
                     const modules = summary.modules.slice(0, 3);
                     const moreModules = Math.max(0, summary.modules.length - modules.length);
+                    const isProtected = isProtectedSystemRole(item);
+                    const CardWrapper = isProtected ? View : TouchableOpacity;
+                    const cardPressProps = isProtected
+                        ? {}
+                        : {
+                              activeOpacity: 0.75,
+                              onPress: canUpdateRole
+                                  ? () => openEdit(item)
+                                  : () => Alert.alert('Permission', 'You are not allowed to update roles.'),
+                          };
 
                     return (
-                        <TouchableOpacity
-                            activeOpacity={0.75}
-                            onPress={
-                                canUpdateRole
-                                    ? () => openEdit(item)
-                                    : () => Alert.alert('Permission', 'You are not allowed to update roles.')
-                            }
+                        <CardWrapper
+                            {...cardPressProps}
                             style={[styles.roleCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
                         >
                             <View style={styles.roleTop}>
@@ -429,42 +454,66 @@ const Roles = ({ navigation }) => {
                                     <AppText label={roleInitials(title)} variant={1} fontSize={14} color={config.THEME_COLOR} />
                                 </View>
                                 <View style={styles.roleMain}>
-                                    <AppText label={title} variant={1} fontSize={16} color={colors.text} numberOfLines={1} />
+                                    <View style={styles.roleTitleRow}>
+                                        <AppText label={title} variant={1} fontSize={16} color={colors.text} numberOfLines={1} style={{ flexShrink: 1 }} />
+                                        {isProtected ? (
+                                            <View style={[styles.systemBadge, { backgroundColor: colors.surfaceSecondary }]}>
+                                                <Lucide name="lock" size={11} color={colors.textSecondary} />
+                                                <AppText
+                                                    label="System"
+                                                    fontSize={11}
+                                                    color={colors.textSecondary}
+                                                    variant={1}
+                                                    style={{ marginLeft: 4 }}
+                                                />
+                                            </View>
+                                        ) : null}
+                                    </View>
                                     <AppText
                                         label={
-                                            isFullAccess
-                                                ? `Full access · ${summary.count} permissions`
-                                                : `${summary.count} permission${summary.count === 1 ? '' : 's'}`
+                                            isProtected
+                                                ? 'Managed by Shopynn · not editable'
+                                                : isFullAccess
+                                                  ? `Full access · ${summary.count} permissions`
+                                                  : `${summary.count} permission${summary.count === 1 ? '' : 's'}`
                                         }
                                         fontSize={12}
-                                        color={isFullAccess ? config.THEME_COLOR : colors.textSecondary}
+                                        color={isFullAccess && !isProtected ? config.THEME_COLOR : colors.textSecondary}
                                         style={{ marginTop: 2 }}
                                     />
                                 </View>
-                                <TouchableOpacity
-                                    activeOpacity={0.7}
-                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                                    onPress={(e) => {
-                                        e?.stopPropagation?.();
-                                        if (canUpdateRole) openEdit(item);
-                                        else Alert.alert('Permission', 'You are not allowed to update roles.');
-                                    }}
-                                    style={[styles.iconBtn, { opacity: canUpdateRole ? 1 : 0.4 }]}
-                                >
-                                    <Lucide name="pencil" size={16} color={config.THEME_COLOR} />
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    activeOpacity={0.7}
-                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                                    disabled={!canDeleteRole}
-                                    onPress={(e) => {
-                                        e?.stopPropagation?.();
-                                        removeRole(item);
-                                    }}
-                                    style={[styles.iconBtn, { opacity: canDeleteRole ? 1 : 0.4 }]}
-                                >
-                                    <Lucide name="trash-2" size={16} color="#ef4444" />
-                                </TouchableOpacity>
+                                {isProtected ? (
+                                    <View style={[styles.iconBtn, { opacity: 0.7 }]}>
+                                        <Lucide name="lock" size={16} color={colors.textTertiary} />
+                                    </View>
+                                ) : (
+                                    <>
+                                        <TouchableOpacity
+                                            activeOpacity={0.7}
+                                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                            onPress={(e) => {
+                                                e?.stopPropagation?.();
+                                                if (canUpdateRole) openEdit(item);
+                                                else Alert.alert('Permission', 'You are not allowed to update roles.');
+                                            }}
+                                            style={[styles.iconBtn, { opacity: canUpdateRole ? 1 : 0.4 }]}
+                                        >
+                                            <Lucide name="pencil" size={16} color={config.THEME_COLOR} />
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            activeOpacity={0.7}
+                                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                            disabled={!canDeleteRole}
+                                            onPress={(e) => {
+                                                e?.stopPropagation?.();
+                                                removeRole(item);
+                                            }}
+                                            style={[styles.iconBtn, { opacity: canDeleteRole ? 1 : 0.4 }]}
+                                        >
+                                            <Lucide name="trash-2" size={16} color="#ef4444" />
+                                        </TouchableOpacity>
+                                    </>
+                                )}
                             </View>
 
                             {modules.length > 0 ? (
@@ -491,7 +540,7 @@ const Roles = ({ navigation }) => {
                                     style={{ marginTop: 10 }}
                                 />
                             )}
-                        </TouchableOpacity>
+                        </CardWrapper>
                     );
                 }}
                 ListEmptyComponent={
@@ -747,6 +796,19 @@ const styles = StyleSheet.create({
         marginRight: 12,
     },
     roleMain: { flex: 1, minWidth: 0, marginRight: 4 },
+    roleTitleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        flexWrap: 'wrap',
+    },
+    systemBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 999,
+    },
     iconBtn: { padding: 8 },
     chipRow: {
         flexDirection: 'row',

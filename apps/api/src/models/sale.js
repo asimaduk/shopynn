@@ -19,6 +19,132 @@ import {
 } from "./saleCredit.js";
 import { applyStoreCreditEntry, getCustomerStoreCredit } from "./storeCredit.js";
 
+/**
+ * POS sales.customer_id FK → customers.id.
+ * App-signup shoppers are listed with customer_profiles.id; map to (or create) a POS customers row
+ * linked via customers.customer_profile_id.
+ */
+async function resolvePosCustomerIdForSale(client, tenantId, customerId) {
+    if (customerId == null || String(customerId).trim() === "") return null;
+    const id = String(customerId).trim();
+
+    const pos = await client.query(
+        `SELECT id FROM customers
+         WHERE id = $1 AND tenant_id = $2 AND COALESCE(deleted, false) = false
+         LIMIT 1`,
+        [id, tenantId]
+    );
+    if (pos.rowCount) return pos.rows[0].id;
+
+    const byProfile = await client.query(
+        `SELECT id FROM customers
+         WHERE customer_profile_id = $1
+           AND tenant_id = $2
+           AND COALESCE(deleted, false) = false
+         LIMIT 1`,
+        [id, tenantId]
+    );
+    if (byProfile.rowCount) return byProfile.rows[0].id;
+
+    const profile = await client.query(
+        `SELECT cp.id,
+                u.first_name,
+                u.last_name,
+                u.email,
+                u.phone
+         FROM customer_profiles cp
+         INNER JOIN users u ON u.id = cp.user_id
+         WHERE cp.id = $1
+           AND cp.tenant_id = $2
+           AND cp.profile_type = 'customer'
+         LIMIT 1`,
+        [id, tenantId]
+    );
+    if (!profile.rowCount) {
+        const err = new Error("Selected customer was not found for this shop.");
+        err.status = 400;
+        err.code = "CUSTOMER_NOT_FOUND";
+        throw err;
+    }
+
+    const row = profile.rows[0];
+    const name =
+        [row.first_name, row.last_name].filter(Boolean).join(" ").trim() ||
+        row.email ||
+        row.phone ||
+        "Customer";
+    const phone = row.phone ? String(row.phone).trim() : null;
+    const emailRaw = row.email ? String(row.email).trim().toLowerCase() : null;
+    const email =
+        emailRaw && !emailRaw.endsWith("@otp.shopynn.local") ? emailRaw : null;
+
+    const attachProfile = async (customerRowId) => {
+        const linked = await client.query(
+            `SELECT id FROM customers
+             WHERE customer_profile_id = $1
+               AND tenant_id = $2
+               AND COALESCE(deleted, false) = false
+             LIMIT 1`,
+            [row.id, tenantId]
+        );
+        if (linked.rowCount) return linked.rows[0].id;
+
+        await client.query(
+            `UPDATE customers
+             SET customer_profile_id = $1,
+                 updated_at = now()
+             WHERE id = $2
+               AND tenant_id = $3
+               AND customer_profile_id IS NULL`,
+            [row.id, customerRowId, tenantId]
+        );
+        return customerRowId;
+    };
+
+    if (phone) {
+        const byPhone = await client.query(
+            `SELECT id FROM customers
+             WHERE tenant_id = $1
+               AND phone = $2
+               AND COALESCE(deleted, false) = false
+             ORDER BY CASE WHEN customer_profile_id = $3 THEN 0 ELSE 1 END, updated_at DESC NULLS LAST
+             LIMIT 1`,
+            [tenantId, phone, row.id]
+        );
+        if (byPhone.rowCount) return attachProfile(byPhone.rows[0].id);
+    }
+    if (email) {
+        const byEmail = await client.query(
+            `SELECT id FROM customers
+             WHERE tenant_id = $1
+               AND lower(email) = $2
+               AND COALESCE(deleted, false) = false
+             ORDER BY CASE WHEN customer_profile_id = $3 THEN 0 ELSE 1 END, updated_at DESC NULLS LAST
+             LIMIT 1`,
+            [tenantId, email, row.id]
+        );
+        if (byEmail.rowCount) return attachProfile(byEmail.rows[0].id);
+    }
+
+    const newId = uuidv4();
+    await client.query(
+        `INSERT INTO customers (
+            id, name, email, phone, tenant_id, is_active, created_at, updated_at,
+            customer_profile_id, notes
+         ) VALUES ($1, $2, $3, $4, $5, true, now(), now(), $6, $7)`,
+        [
+            newId,
+            name.slice(0, 100),
+            email,
+            phone,
+            tenantId,
+            row.id,
+            `Linked from app signup profile ${row.id}`,
+        ]
+    );
+    return newId;
+}
+
 const canViewAllSalesForUser = async (user) => {
     if (user.user_type === 1) return true;
     const permissionCodes = Array.isArray(user.permissions)
@@ -1272,7 +1398,29 @@ export const createSaleService = async (payload) => {
         await client.query('BEGIN');
         // console.log('pl is',payload);
         
-        const { discount_amount, tenant_id, invoice_number, current_status, customer_id, warehouse_id, products, notes, created_at, creator_id, payment_type, payment_method, payment_number, payment_reference, payment_status, payment_date, payment_transaction_ref, amount_tendered, change_amount, amount_paid, store_credit_applied } = payload;
+        const {
+            discount_amount,
+            tenant_id,
+            invoice_number,
+            current_status,
+            customer_id: rawCustomerId,
+            warehouse_id,
+            products,
+            notes,
+            created_at,
+            creator_id,
+            payment_type,
+            payment_method,
+            payment_number,
+            payment_reference,
+            payment_status,
+            payment_date,
+            payment_transaction_ref,
+            amount_tendered,
+            change_amount,
+            amount_paid,
+            store_credit_applied,
+        } = payload;
 
         if(!products || !products.length) {
             throw new Error("Products list cannot be empty.");
@@ -1280,6 +1428,8 @@ export const createSaleService = async (payload) => {
         if (!tenant_id) {
             throw new Error("tenant_id is required.");
         }
+
+        const customer_id = await resolvePosCustomerIdForSale(client, tenant_id, rawCustomerId);
 
         const tenantRes = await client.query(`SELECT settings FROM tenants WHERE id = $1`, [tenant_id]);
         if (!tenantRes.rowCount) {

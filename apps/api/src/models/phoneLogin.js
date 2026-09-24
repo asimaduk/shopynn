@@ -77,10 +77,13 @@ export async function sendPhoneLoginOtpService({ phone }) {
     );
     if (recent.rowCount > 0) {
         const last = new Date(recent.rows[0].created_at).getTime();
-        if (Date.now() - last < RESEND_COOLDOWN_MS) {
-            const err = new Error("Please wait a minute before requesting another code.");
+        const elapsed = Date.now() - last;
+        if (elapsed < RESEND_COOLDOWN_MS) {
+            const retryAfter = Math.max(1, Math.ceil((RESEND_COOLDOWN_MS - elapsed) / 1000));
+            const err = new Error(`Please wait ${retryAfter}s before requesting another code.`);
             err.status = 400;
             err.code = "OTP_COOLDOWN";
+            err.retry_after_seconds = retryAfter;
             throw err;
         }
     }
@@ -107,6 +110,7 @@ export async function sendPhoneLoginOtpService({ phone }) {
     const result = {
         phone: normalized,
         expires_in_seconds: Math.floor(OTP_TTL_MS / 1000),
+        resend_cooldown_seconds: Math.floor(RESEND_COOLDOWN_MS / 1000),
         sms_sent: Boolean(sms.ok),
         first_name: user.first_name || null,
     };
@@ -163,14 +167,23 @@ export async function verifyPhoneLoginOtpService({ phone, otp }) {
     if (Number(row.attempts) >= MAX_ATTEMPTS) {
         const err = new Error("Too many attempts. Request a new code.");
         err.status = 400;
+        err.code = "OTP_MAX_ATTEMPTS";
         throw err;
     }
 
     const match = hashOtp(normalized, code) === row.code_hash;
     await pool.query(`UPDATE email_verification_codes SET attempts = attempts + 1 WHERE id = $1`, [row.id]);
     if (!match) {
-        const err = new Error("Incorrect code.");
+        const attemptsUsed = Number(row.attempts) + 1;
+        const remaining = Math.max(0, MAX_ATTEMPTS - attemptsUsed);
+        const err = new Error(
+            remaining > 0
+                ? `Incorrect code. ${remaining} attempt${remaining === 1 ? "" : "s"} left.`
+                : "Too many attempts. Request a new code."
+        );
         err.status = 400;
+        err.code = remaining > 0 ? "OTP_INVALID" : "OTP_MAX_ATTEMPTS";
+        err.attempts_remaining = remaining;
         throw err;
     }
 

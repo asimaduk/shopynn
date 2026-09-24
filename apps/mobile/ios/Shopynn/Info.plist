@@ -50,6 +50,9 @@
 		<string>fbapi</string>
 		<string>fb-messenger-share-api</string>
 		<string>whatsapp</string>
+		<string>mailto</string>
+		<string>googlegmail</string>
+		<string>ms-outlook</string>
 	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>

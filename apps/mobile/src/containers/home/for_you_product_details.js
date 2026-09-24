@@ -6,8 +6,9 @@ import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
 import useTheme from '../../hooks/useTheme';
 import config from '../../config';
-import { addToCart, clearCart, getCartItems, removeCartItem, subscribeCart, updateCartItemQty } from '../../store/cartStore';
+import { addToCart, clearCart, getCartItems, subscribeCart, updateCartItemQty } from '../../store/cartStore';
 import { catalog } from '../../services/api';
+import { recordBrowseHistory } from '../../utils/forYouBrowseHistory';
 
 const { width } = Dimensions.get('window');
 const CAROUSEL_WIDTH = width;
@@ -51,9 +52,9 @@ const ForYouProductDetails = ({ navigation, route }) => {
     const [relatedLoading, setRelatedLoading] = useState(false);
     const [relatedProducts, setRelatedProducts] = useState([]);
     const [cartItems, setCartItems] = useState(getCartItems());
+    const [orderQty, setOrderQty] = useState(1);
     const [toastMessage, setToastMessage] = useState('');
     const [toastVisible, setToastVisible] = useState(false);
-    const actionAnim = useMemo(() => new Animated.Value(0), []);
     const toastAnim = useMemo(() => new Animated.Value(0), []);
 
     useFocusEffect(
@@ -78,7 +79,6 @@ const ForYouProductDetails = ({ navigation, route }) => {
             setDetailsLoading(true);
             try {
                 const res = await catalog.get(product.id, warehouseId);
-                console.log('res', res);
                 if (mounted && res) setFullProduct(res);
             } catch (_) {
                 // Keep lightweight route payload as fallback.
@@ -109,15 +109,29 @@ const ForYouProductDetails = ({ navigation, route }) => {
     const quantityInCart = Number(cartEntry?.quantity || 0);
     const isInCart = quantityInCart > 0;
 
-    console.log('images', images);
-    
     useEffect(() => {
-        Animated.timing(actionAnim, {
-            toValue: isInCart ? 1 : 0,
-            duration: 220,
-            useNativeDriver: true,
-        }).start();
-    }, [isInCart, actionAnim]);
+        if (!currentProduct?.id || !warehouseId) return;
+        recordBrowseHistory(warehouseId, currentProduct);
+        // Record once per product visit / enriched details load.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentProduct?.id, warehouseId, fullProduct?.id]);
+
+    const clampQty = (raw) => {
+        let next = Number(raw);
+        if (!Number.isFinite(next) || next <= 0) next = minQty > 0 ? minQty : 1;
+        if (minQty > 0 && next < minQty) next = minQty;
+        if (stock > 0 && next > stock) next = stock;
+        if (!allowsFractional) next = Math.round(next / stepValue) * stepValue || minQty || stepValue;
+        return next;
+    };
+
+    useEffect(() => {
+        const entry = getCartItems().find((item) => String(item?.key) === String(cartKey));
+        const preferred = entry ? Number(entry.quantity || 0) : minQty > 0 ? minQty : 1;
+        setOrderQty(clampQty(preferred));
+        // Re-init when product / stock / min change — not on every cart tick while editing.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentProduct?.id, warehouseId, minQty, stock, stepValue, allowsFractional]);
 
     useEffect(() => {
         let mounted = true;
@@ -179,52 +193,66 @@ const ForYouProductDetails = ({ navigation, route }) => {
         ]).start(() => setToastVisible(false));
     };
 
-    const handleAddToCart = () => {
-        if (!isInStock) return;
-        const initialQty = Math.min(Number(currentProduct?.min_order_qty || 1), stock);
-        if (initialQty <= 0) return;
-        addToCart({
-            warehouse_id: warehouseId,
-            product_id: currentProduct?.id,
-            name: currentProduct?.name,
-            image_uri: images[0] || null,
-            measurement_unit: unit,
-            unit_price: price,
-            quantity: initialQty,
-            available_quantity: stock,
-            installment_enabled: Boolean(currentProduct?.installment_enabled),
-            installment_min_initial_percent: currentProduct?.installment_min_initial_percent,
-            installment_min_payment_amount: currentProduct?.installment_min_payment_amount,
-        });
-        showToast(`${currentProduct?.name || 'Product'} added to cart`);
+    const buildCartPayload = (qty) => ({
+        warehouse_id: warehouseId,
+        product_id: currentProduct?.id,
+        name: currentProduct?.name,
+        image_uri: images[0] || null,
+        measurement_unit: unit,
+        unit_price: price,
+        quantity: qty,
+        available_quantity: stock,
+        min_order_qty: minQty,
+        installment_enabled: Boolean(currentProduct?.installment_enabled),
+        installment_min_initial_percent: currentProduct?.installment_min_initial_percent,
+        installment_min_payment_amount: currentProduct?.installment_min_payment_amount,
+    });
+
+    const handleDecreaseOrderQty = () => {
+        const next = clampQty(Number(orderQty) - stepValue);
+        if (next >= (minQty > 0 ? minQty : stepValue)) {
+            setOrderQty(next);
+        }
     };
 
-    const handleIncreaseQty = () => {
-        if (!isInCart) return;
-        if (stock <= 0) {
+    const handleIncreaseOrderQty = () => {
+        if (!isInStock) {
             showToast('Out of stock');
             return;
         }
-        if (quantityInCart >= stock) {
+        if (stock > 0 && orderQty >= stock) {
             showToast(`Maximum available is ${stock}`);
             return;
         }
-        const nextQty = Math.min(Number(quantityInCart + stepValue), stock);
-        if (nextQty !== Number(quantityInCart + stepValue)) {
+        const next = clampQty(Number(orderQty) + stepValue);
+        if (next === orderQty && stock > 0) {
             showToast(`Maximum available is ${stock}`);
+            return;
         }
-        updateCartItemQty(cartKey, nextQty);
+        setOrderQty(next);
     };
 
-    const handleDecreaseQty = () => {
-        if (!isInCart) return;
-        const next = Number(quantityInCart - stepValue);
-        if (next <= 0) {
-            removeCartItem(cartKey);
-            showToast('Removed from cart');
+    const handleAddToCart = () => {
+        if (!isInStock) return;
+        const qty = clampQty(orderQty);
+        if (qty <= 0) return;
+        setOrderQty(qty);
+        if (isInCart) {
+            updateCartItemQty(cartKey, qty);
+            showToast(`Cart updated · ${qty} ${unit}`);
             return;
         }
-        updateCartItemQty(cartKey, next);
+        addToCart(buildCartPayload(qty));
+        showToast(`${currentProduct?.name || 'Product'} added to cart`);
+    };
+
+    const handleBuyNow = () => {
+        if (!isInStock) return;
+        const qty = clampQty(orderQty);
+        if (qty <= 0) return;
+        clearCart();
+        addToCart(buildCartPayload(qty));
+        navigation.navigate('Checkout');
     };
 
     return (
@@ -359,98 +387,119 @@ const ForYouProductDetails = ({ navigation, route }) => {
                         </View>
 
                         <View style={styles.actionSection}>
-                            <Animated.View
-                                pointerEvents={isInCart ? 'none' : 'auto'}
-                                style={[
-                                    styles.addBtnWrap,
-                                    {
-                                        opacity: actionAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
-                                        transform: [
-                                            {
-                                                translateY: actionAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 10] }),
-                                            },
-                                        ],
-                                    },
-                                ]}
-                            >
-                                <TouchableOpacity
-                                    disabled={!isInStock}
-                                    onPress={handleAddToCart}
+                            <View style={styles.qtyRow}>
+                                <AppText label="Quantity" color={colors.textSecondary} fontSize={13} />
+                                <View
                                     style={[
-                                        styles.addBtn,
-                                        { backgroundColor: isInStock ? config.THEME_COLOR : colors.border, opacity: isInStock ? 1 : 0.65 },
+                                        styles.qtyPill,
+                                        {
+                                            backgroundColor: colors.surfaceSecondary,
+                                            borderColor: colors.border,
+                                            opacity: isInStock ? 1 : 0.5,
+                                        },
                                     ]}
                                 >
-                                    <Lucide name="shopping-cart" size={16} color="#fff" />
-                                    <AppText label={isInStock ? 'Add to cart' : 'Out of stock'} color="#fff" variant={1} style={{ marginLeft: 8 }} />
-                                </TouchableOpacity>
-                            </Animated.View>
+                                    <TouchableOpacity
+                                        style={styles.qtyBtn}
+                                        onPress={handleDecreaseOrderQty}
+                                        disabled={!isInStock || orderQty <= (minQty > 0 ? minQty : stepValue)}
+                                    >
+                                        <Lucide name="minus" size={15} color={colors.text} />
+                                    </TouchableOpacity>
+                                    <AppText
+                                        label={`${orderQty}`}
+                                        variant={1}
+                                        color={colors.text}
+                                        style={{ minWidth: 36, textAlign: 'center' }}
+                                    />
+                                    <TouchableOpacity
+                                        style={styles.qtyBtn}
+                                        onPress={handleIncreaseOrderQty}
+                                        disabled={!isInStock || (stock > 0 && orderQty >= stock)}
+                                    >
+                                        <Lucide
+                                            name="plus"
+                                            size={15}
+                                            color={
+                                                isInStock && !(stock > 0 && orderQty >= stock)
+                                                    ? colors.text
+                                                    : colors.textSecondary
+                                            }
+                                        />
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
 
-                            <Animated.View
-                                pointerEvents={isInCart ? 'auto' : 'none'}
+                            <TouchableOpacity
+                                disabled={!isInStock}
+                                onPress={handleAddToCart}
                                 style={[
-                                    styles.cartControlsWrap,
+                                    styles.addBtn,
                                     {
-                                        opacity: actionAnim,
-                                        transform: [
-                                            {
-                                                translateY: actionAnim.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }),
-                                            },
-                                        ],
+                                        backgroundColor: isInStock ? config.THEME_COLOR : colors.border,
+                                        opacity: isInStock ? 1 : 0.65,
                                     },
                                 ]}
                             >
-                                <View style={[styles.qtyPill, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
-                                    <TouchableOpacity style={styles.qtyBtn} onPress={handleDecreaseQty}>
-                                        <Lucide name="minus" size={15} color={colors.text} />
-                                    </TouchableOpacity>
-                                    <AppText label={`${quantityInCart}`} variant={1} color={colors.text} style={{ minWidth: 30, textAlign: 'center' }} />
-                                    <TouchableOpacity style={styles.qtyBtn} onPress={handleIncreaseQty} disabled={!isInStock}>
-                                        <Lucide name="plus" size={15} color={isInStock ? colors.text : colors.textSecondary} />
-                                    </TouchableOpacity>
-                                </View>
-                                <TouchableOpacity style={[styles.goToCartBtn, { backgroundColor: config.THEME_COLOR }]} onPress={goToCart}>
-                                    <AppText label="Go to cart" color="#fff" variant={1} style={{ marginRight: 6 }} />
-                                    <Lucide name="arrow-right" size={16} color="#fff" />
+                                <Lucide name="shopping-cart" size={16} color="#fff" />
+                                <AppText
+                                    label={
+                                        !isInStock
+                                            ? 'Out of stock'
+                                            : isInCart
+                                              ? 'Update cart'
+                                              : 'Add to cart'
+                                    }
+                                    color="#fff"
+                                    variant={1}
+                                    style={{ marginLeft: 8 }}
+                                />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                disabled={!isInStock}
+                                onPress={handleBuyNow}
+                                style={[
+                                    styles.buyBtn,
+                                    {
+                                        borderColor: isInStock ? config.THEME_COLOR : colors.border,
+                                        opacity: isInStock ? 1 : 0.65,
+                                    },
+                                ]}
+                            >
+                                <Lucide
+                                    name="zap"
+                                    size={16}
+                                    color={isInStock ? config.THEME_COLOR : colors.textSecondary}
+                                />
+                                <AppText
+                                    label={
+                                        isInStock
+                                            ? `Buy now · ${orderQty} ${unit}`
+                                            : 'Unavailable'
+                                    }
+                                    color={isInStock ? config.THEME_COLOR : colors.textSecondary}
+                                    variant={1}
+                                    style={{ marginLeft: 8 }}
+                                />
+                            </TouchableOpacity>
+
+                            {isInCart ? (
+                                <TouchableOpacity
+                                    activeOpacity={0.85}
+                                    onPress={goToCart}
+                                    style={styles.inCartLink}
+                                >
+                                    <AppText
+                                        label={`${quantityInCart} in cart · Go to cart`}
+                                        color={config.THEME_COLOR}
+                                        variant={1}
+                                        fontSize={13}
+                                    />
+                                    <Lucide name="arrow-right" size={14} color={config.THEME_COLOR} />
                                 </TouchableOpacity>
-                            </Animated.View>
+                            ) : null}
                         </View>
-                        <TouchableOpacity
-                            disabled={!isInStock}
-                            onPress={() => {
-                                if (!isInStock) return;
-                                clearCart();
-                                addToCart({
-                                    warehouse_id: warehouseId,
-                                    product_id: currentProduct?.id,
-                                    name: currentProduct?.name,
-                                    image_uri: images[0] || null,
-                                    measurement_unit: unit,
-                                    unit_price: price,
-                                    quantity: Math.min(Number(currentProduct?.min_order_qty || 1), stock),
-                                    available_quantity: stock,
-                                    installment_enabled: Boolean(currentProduct?.installment_enabled),
-                                    installment_min_initial_percent: currentProduct?.installment_min_initial_percent,
-                                    installment_min_payment_amount: currentProduct?.installment_min_payment_amount,
-                                });
-                                navigation.navigate('Checkout');
-                            }}
-                            style={[
-                                styles.buyBtn,
-                                {
-                                    borderColor: isInStock ? config.THEME_COLOR : colors.border,
-                                    opacity: isInStock ? 1 : 0.65,
-                                },
-                            ]}
-                        >
-                            <Lucide name="zap" size={16} color={isInStock ? config.THEME_COLOR : colors.textSecondary} />
-                            <AppText
-                                label={isInStock ? 'Buy now' : 'Unavailable'}
-                                color={isInStock ? config.THEME_COLOR : colors.textSecondary}
-                                variant={1}
-                                style={{ marginLeft: 8 }}
-                            />
-                        </TouchableOpacity>
 
                         <View style={styles.relatedWrap}>
                             <AppText label="Related products" variant={1} fontSize={16} color={colors.text} />
@@ -649,19 +698,12 @@ const styles = StyleSheet.create({
     aboutRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
     actionSection: {
         marginTop: 16,
-        minHeight: 48,
-        justifyContent: 'center',
     },
-    addBtnWrap: {
-        width: '100%',
-    },
-    cartControlsWrap: {
-        position: 'absolute',
-        left: 0,
-        right: 0,
+    qtyRow: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
+        marginBottom: 12,
     },
     qtyPill: {
         flexDirection: 'row',
@@ -678,18 +720,30 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    goToCartBtn: {
-        flex: 1,
-        marginLeft: 12,
-        height: 42,
+    addBtn: {
+        marginTop: 0,
         borderRadius: 999,
-        paddingHorizontal: 16,
+        height: 46,
         alignItems: 'center',
         justifyContent: 'center',
         flexDirection: 'row',
     },
-    addBtn: { marginTop: 0, borderRadius: 999, height: 46, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
-    buyBtn: { marginTop: 10, borderRadius: 999, height: 46, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', borderWidth: 1.3, },
+    buyBtn: {
+        marginTop: 10,
+        borderRadius: 999,
+        height: 46,
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexDirection: 'row',
+        borderWidth: 1.3,
+    },
+    inCartLink: {
+        marginTop: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+    },
     viewerBackdrop: {
         flex: 1,
         backgroundColor: 'rgba(0,0,0,0.94)',

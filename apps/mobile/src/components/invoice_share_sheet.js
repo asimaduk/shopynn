@@ -92,9 +92,17 @@ const InvoiceShareSheet = ({ visible, sale, saleId, appSettings, onClose }) => {
                 code === 'ECONNABORTED' ||
                 /timeout/i.test(String(raw)) ||
                 /timeout of \d+ms exceeded/i.test(String(raw));
-            const msg = timedOut
-                ? 'The invoice PDF took too long to generate. Check your connection and try again.'
-                : raw || 'Could not share the invoice. Please try again.';
+            let msg;
+            if (timedOut) {
+                msg = 'The invoice PDF took too long to generate. Check your connection and try again.';
+            } else if (/Unable to open URL|mailto:|LSApplicationQueriesSchemes/i.test(String(raw))) {
+                msg =
+                    'Could not open Mail on this device. On the simulator, use a real device with Mail set up, or share via WhatsApp / PDF instead.';
+            } else if (String(raw).length > 180 || /https?:\/\/|wa\.me\//i.test(String(raw))) {
+                msg = 'Could not share the invoice. Please try another option.';
+            } else {
+                msg = raw || 'Could not share the invoice. Please try again.';
+            }
             Alert.alert('Invoice', msg);
         } finally {
             setBusy(null);

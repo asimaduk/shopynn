@@ -4,7 +4,10 @@ import { signupCustomerAccount, sendCustomerSignupPhoneOtp, verifyCustomerSignup
 import {
     sendShopOwnerSignupEmailOtp,
     verifyShopOwnerSignupEmailOtp,
+    sendCustomerChangeEmailOtp,
+    verifyCustomerChangeEmailOtp,
 } from "../controllers/emailVerification.js";
+import { sendChangePhoneOtp, verifyChangePhoneOtp } from "../controllers/changePhone.js";
 import { removeMyProfileImage, setMyProfileImage, uploadProfileImage } from "../controllers/userProfileImage.js";
 import auth from "../middleware/auth.js";
 import requireActiveSubscription from "../middleware/requireActiveSubscription.js";
@@ -34,6 +37,11 @@ router.get('/me/preferences', auth, requireActiveSubscription, getMyPreferences)
 router.put('/me/preferences', auth, requireActiveSubscription, updateMyPreferences);
 /** Device push token — no subscription gate so renewal alerts can still target the device. */
 router.put('/me/fcm-token', auth, updateMyFcmToken);
+/** Profile contact change — OTP to the new email/phone; no subscription gate. */
+router.post('/me/change-email/send-otp', auth, sendCustomerChangeEmailOtp);
+router.post('/me/change-email/verify', auth, verifyCustomerChangeEmailOtp);
+router.post('/me/change-phone/send-otp', auth, sendChangePhoneOtp);
+router.post('/me/change-phone/verify', auth, verifyChangePhoneOtp);
 router.put('/toggle-active', auth, requireActiveSubscription, toggleUserActive);
 router.post('/assign-merchant-permissions', auth, requireActiveSubscription, assignMerchantPermissionsToUserRole);
 router.post('/reset-password', auth, requireActiveSubscription, resetPassword);

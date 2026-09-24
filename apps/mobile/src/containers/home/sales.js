@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { StyleSheet, TextInput, TouchableOpacity, View, KeyboardAvoidingView, Platform, ActivityIndicator, RefreshControl, ScrollView, Alert } from 'react-native';
+import { StyleSheet, TextInput, TouchableOpacity, View, KeyboardAvoidingView, Platform, ActivityIndicator, RefreshControl, ScrollView, Alert, DeviceEventEmitter } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import Header from '../../components/main_header';
 import AppText from '../../components/text';
@@ -13,6 +14,7 @@ import AppModal from '../../components/app_modal';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import useTheme from '../../hooks/useTheme';
 import { canAccessScreen, hasPermission } from '../../utils/permissions';
+import { SALES_LIST_REFRESH_EVENT } from '../../utils/salesEvents';
 
 const PAGE_SIZE = 20;
 
@@ -232,8 +234,17 @@ const Sales = ({ navigation }) => {
         }
     }, [buildListParams]);
 
+    useFocusEffect(
+        useCallback(() => {
+            loadSalesData({ reset: true });
+        }, [loadSalesData]),
+    );
+
     useEffect(() => {
-        loadSalesData({ reset: true });
+        const sub = DeviceEventEmitter.addListener(SALES_LIST_REFRESH_EVENT, () => {
+            loadSalesData({ reset: true });
+        });
+        return () => sub.remove();
     }, [loadSalesData]);
 
     const onRefresh = async () => {

@@ -400,8 +400,8 @@ export async function ensureStorefrontCustomer({
                     `UPDATE users SET
                         first_name = COALESCE(NULLIF($1, ''), first_name),
                         last_name = COALESCE(NULLIF($2, ''), last_name),
-                        warehouse_id = COALESCE(warehouse_id, $3::uuid),
-                        tenant_id = COALESCE(tenant_id, $4::uuid),
+                        warehouse_id = COALESCE(warehouse_id, $3),
+                        tenant_id = COALESCE(tenant_id, $4),
                         updated_at = now()
                      WHERE id = $5`,
                     [firstName || "", lastName || "", store.warehouse_id, store.tenant_id, userId]
@@ -409,8 +409,8 @@ export async function ensureStorefrontCustomer({
             } else {
                 await client.query(
                     `UPDATE users SET
-                        warehouse_id = COALESCE(warehouse_id, $1::uuid),
-                        tenant_id = COALESCE(tenant_id, $2::uuid),
+                        warehouse_id = COALESCE(warehouse_id, $1),
+                        tenant_id = COALESCE(tenant_id, $2),
                         updated_at = now()
                      WHERE id = $3`,
                     [store.warehouse_id, store.tenant_id, userId]

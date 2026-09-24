@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, ActivityIndicator, TextInput, Alert } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ActivityIndicator, TextInput, Alert, BackHandler } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { useDispatch } from 'react-redux';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
@@ -38,6 +39,7 @@ const MomoStatus = ({ navigation, route }) => {
         needsVoucher = false,
         successNavigateTo,
         successNavigateParams,
+        retryPaymentParams,
     } = route.params || {};
 
     const [status, setStatus] = useState('checking'); // 'checking', 'pending', 'success', 'failed'
@@ -45,6 +47,58 @@ const MomoStatus = ({ navigation, route }) => {
     const [voucher, setVoucher] = useState('');
     const [submittingVoucher, setSubmittingVoucher] = useState(false);
     const isTelecel = momoNetwork === 'telecel' || needsVoucher;
+
+    const goToOrderDetails = useCallback(() => {
+        // Use navigate (not replace) so we return to an existing MyOrderDetails
+        // instead of stacking a second copy on top of it.
+        navigation.navigate(
+            successNavigateTo || 'MyOrderDetails',
+            successNavigateParams || { orderId },
+        );
+    }, [navigation, successNavigateTo, successNavigateParams, orderId]);
+
+    const handleHeaderBack = useCallback(() => {
+        if (mode === 'order' && orderId) {
+            // Prefer popping back when order details is already under this screen.
+            const state = navigation.getState?.();
+            const routes = state?.routes || [];
+            const hasOrderDetailsBelow = routes
+                .slice(0, -1)
+                .some((r) => r?.name === (successNavigateTo || 'MyOrderDetails'));
+            if (hasOrderDetailsBelow && navigation.canGoBack()) {
+                navigation.goBack();
+                return;
+            }
+            goToOrderDetails();
+            return;
+        }
+        navigation.goBack();
+    }, [mode, orderId, goToOrderDetails, navigation, successNavigateTo]);
+
+    useFocusEffect(
+        useCallback(() => {
+            const onHardwareBack = () => {
+                handleHeaderBack();
+                return true;
+            };
+            const sub = BackHandler.addEventListener('hardwareBackPress', onHardwareBack);
+            return () => sub.remove();
+        }, [handleHeaderBack]),
+    );
+
+    const handleTryAgain = useCallback(() => {
+        if (mode === 'order') {
+            if (retryPaymentParams) {
+                navigation.replace('Payment', retryPaymentParams);
+                return;
+            }
+            if (orderId) {
+                goToOrderDetails();
+                return;
+            }
+        }
+        navigation.goBack();
+    }, [mode, retryPaymentParams, orderId, goToOrderDetails, navigation]);
 
     const verifyPaymentStatus = useCallback(async () => {
         if (!transactionRef) {
@@ -115,10 +169,7 @@ const MomoStatus = ({ navigation, route }) => {
                     buttonLabel: 'Done',
                     buttonAction: () => {
                         if (mode === 'order') {
-                            navigation.navigate(
-                                successNavigateTo || 'MyOrderDetails',
-                                successNavigateParams || { orderId }
-                            );
+                            goToOrderDetails();
                             return;
                         }
                         if (mode === 'subscription') {
@@ -149,7 +200,7 @@ const MomoStatus = ({ navigation, route }) => {
                     title: 'Payment Failed',
                     message: 'Your payment could not be processed. Please try again.',
                     buttonLabel: 'Try Again',
-                    buttonAction: () => navigation.goBack(),
+                    buttonAction: handleTryAgain,
                 };
             default:
                 return {
@@ -173,7 +224,7 @@ const MomoStatus = ({ navigation, route }) => {
         <View style={[styles.safeArea, { backgroundColor: colors.background }]}>
             <ScreenHeader
                 label={mode === 'order' ? 'Order Payment Status' : 'Plan Payment Status'}
-                onPress={() => navigation.goBack()}
+                onPress={handleHeaderBack}
             />
             <View style={[styles.container, { paddingBottom: insets.bottom + 24 }]}>
                 <View style={styles.content}>

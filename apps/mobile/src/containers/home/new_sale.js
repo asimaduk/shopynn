@@ -18,7 +18,8 @@ import useTheme from '../../hooks/useTheme';
 import { sales as salesApi, warehouses as warehousesApi, customers as customersApi, payments as paymentsApi, platformSettings, normalizeList } from '../../services/api';
 import { MOMO_NETWORK_OPTIONS, getMomoNetworkIcon, validateMomoNumberForProvider, isTelecelMomoProvider } from '../../utils/momoNetworks';
 import { hasPermission, hasFeature, getScreenPlanAccess, navigateToScreenOrUpgrade } from '../../utils/permissions';
-import { getPrintAgentPrintUrl } from '../../utils/printAgent';
+import { getPrintAgentPrintUrl, readPrintAgentResponse } from '../../utils/printAgent';
+import { SALES_LIST_REFRESH_EVENT } from '../../utils/salesEvents';
 import NetInfo from '@react-native-community/netinfo';
 import {
     SECURE_PENDING_SALES_KEY as PENDING_SALES_KEY,
@@ -1292,42 +1293,41 @@ const NewSale = ({ navigation, route }) => {
                         (i) => i?.id !== pendingId,
                     );
                     await writeSecureList(PENDING_SALES_KEY, remaining);
-                } catch (createErr) {
-                    if (isPriceMismatchError(createErr)) {
+                    DeviceEventEmitter.emit(SALES_LIST_REFRESH_EVENT);
+                } catch (uploadErr) {
+                    if (isPriceMismatchError(uploadErr)) {
                         const remaining = (await readSecureList(PENDING_SALES_KEY)).filter(
                             (i) => i?.id !== pendingId,
                         );
                         await writeSecureList(PENDING_SALES_KEY, remaining);
-                        throw createErr;
+                        throw uploadErr;
                     }
                     const nowIso = new Date().toISOString();
                     const list = await readSecureList(PENDING_SALES_KEY);
+                    const errCode = String(
+                        uploadErr?.response?.data?.code ||
+                            uploadErr?.response?.data?.error?.code ||
+                            '',
+                    ).toUpperCase();
+                    const errMessage =
+                        uploadErr?.response?.data?.message ||
+                        uploadErr?.message ||
+                        'Upload failed.';
                     const next = list.map((i) =>
                         i?.id === pendingId
                             ? {
                                   ...i,
                                   attempts: 1,
                                   last_attempt_at: nowIso,
-                                  last_error_code:
-                                      String(
-                                          createErr?.response?.data?.code ||
-                                              createErr?.response?.data?.error?.code ||
-                                              '',
-                                      ).toUpperCase() || null,
-                                  last_error_message:
-                                      createErr?.response?.data?.message ||
-                                      createErr?.message ||
-                                      'Upload failed.',
+                                  last_error_code: errCode || null,
+                                  last_error_message: errMessage,
                               }
                             : i,
                     );
                     await writeSecureList(PENDING_SALES_KEY, next);
                     Alert.alert(
                         'Saved for later',
-                        (createErr?.response?.data?.message ||
-                            createErr?.message ||
-                            'Could not complete sale.') +
-                            '\n\nThe sale has been saved to Pending Sales for retry.',
+                        `${errMessage}\n\nThe sale has been saved to Pending Sales for retry.`,
                     );
                 }
             }
@@ -1391,14 +1391,16 @@ const NewSale = ({ navigation, route }) => {
                 try {
                     const printRes = await fetch(printUrl, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
                         body: JSON.stringify(printPayload),
                     });
-                    const printData = await printRes.json();
-                    if (printData.status != 200) {
+                    const { data: printData } = await readPrintAgentResponse(printRes);
+                    if (Number(printData?.status) !== 200) {
                         Alert.alert(
                             'Print',
-                            printData.message ? String(printData.message) : 'Could not print receipt.',
+                            printData?.message
+                                ? String(printData.message)
+                                : 'Could not print receipt. Your sale is complete.',
                         );
                     }
                 } catch (printErr) {
@@ -1406,7 +1408,7 @@ const NewSale = ({ navigation, route }) => {
                         'Print',
                         printErr?.message
                             ? String(printErr.message)
-                            : 'Could not reach print agent. Check More → Print agent.',
+                            : 'Could not reach print agent. Check More → Print agent. Your sale is complete.',
                     );
                 }
                 }

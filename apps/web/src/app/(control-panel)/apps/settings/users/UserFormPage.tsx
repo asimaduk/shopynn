@@ -146,6 +146,10 @@ export default function UserFormPage({ isNew }: UserFormPageProps) {
 	const { data: warehouses } = useGetWarehousesQuery(null, { skip: false });
 	const { data: rolesFromServer = [] } = useGetRolesQuery();
 
+	const isCustomerAccount =
+		!isNew &&
+		(user?.roles || []).some((r) => String(r?.name || '').trim().toLowerCase() === 'customer');
+
 	const roleOptions =
 		rolesFromServer.length > 0
 			? rolesFromServer
@@ -153,7 +157,7 @@ export default function UserFormPage({ isNew }: UserFormPageProps) {
 						const name = String((r as any)?.name ?? '').trim();
 						if (!name) return null;
 						const normalized = name.toLowerCase();
-						// const value = normalized.includes('admin') ? 1 : 2;
+						if (normalized === 'customer') return null;
 						const value = r.id;
 						return { value, label: name };
 					})
@@ -283,6 +287,43 @@ export default function UserFormPage({ isNew }: UserFormPageProps) {
 
 	if (!isNew && userId && userLoading) {
 		return <FuseLoading />;
+	}
+
+	if (isCustomerAccount) {
+		return (
+			<Box className="px-4 py-12 max-w-lg mx-auto text-center">
+				<PageBreadcrumb className="mb-6 text-left" />
+				<Paper variant="outlined" className="p-8 rounded-3xl" sx={{ borderColor: 'divider' }}>
+					<Box
+						className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full"
+						sx={{ bgcolor: (t) => alpha(t.palette.warning.main, 0.12), color: 'warning.main' }}
+					>
+						<FuseSvgIcon size={32}>heroicons-outline:lock-closed</FuseSvgIcon>
+					</Box>
+					<Typography variant="h6" fontWeight={700} gutterBottom>
+						App signup customers cannot be edited
+					</Typography>
+					<Typography variant="body2" color="text.secondary" className="mb-6">
+						This account signed up in the Shopynn app. Profile changes are managed by the customer, not from staff user settings.
+					</Typography>
+					<Stack direction="row" spacing={1} justifyContent="center" flexWrap="wrap" useFlexGap>
+						<Button
+							variant="outlined"
+							component={Link}
+							to="/users/staff"
+							startIcon={<FuseSvgIcon size={18}>heroicons-outline:arrow-left</FuseSvgIcon>}
+						>
+							Users
+						</Button>
+						{userId ? (
+							<Button variant="contained" color="secondary" component={Link} to={`/users/staff/${userId}/view`}>
+								View profile
+							</Button>
+						) : null}
+					</Stack>
+				</Paper>
+			</Box>
+		);
 	}
 
 	const fullNamePreview =

@@ -1,8 +1,20 @@
-import { useNavigate } from "@tanstack/react-router";
-import { Loader2, Minus, Plus, Trash2 } from "lucide-react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import {
+  ArrowLeft,
+  Check,
+  Loader2,
+  MapPin,
+  Minus,
+  Package,
+  Plus,
+  ShoppingBag,
+  Trash2,
+  Truck,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { GetTheAppNote } from "@/components/storefront/get-the-app-note";
+import { StorefrontPaystackPayment } from "@/components/storefront/storefront-paystack-payment";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +32,7 @@ import {
   clearOrderPayContext,
   markOrderPaidLocally,
   sendStorefrontOtp,
+  storefrontImageUrl,
   verifyStorefrontOtp,
   type StorefrontStore,
 } from "@/lib/storefront-api";
@@ -31,13 +44,240 @@ import {
   writeCart,
 } from "@/lib/storefront-cart";
 import { clearSession, readSession, writeSession } from "@/lib/storefront-session";
-import { StorefrontPaystackPayment } from "@/components/storefront/storefront-paystack-payment";
+import { cn } from "@/lib/utils";
 
 function formatGhs(n: number) {
   return `GHS ${Number(n || 0).toFixed(2)}`;
 }
 
 type Step = "cart" | "phone" | "otp" | "details" | "pay";
+
+const CHECKOUT_STEPS = [
+  { id: "cart", label: "Cart" },
+  { id: "account", label: "Account" },
+  { id: "details", label: "Details" },
+  { id: "pay", label: "Pay" },
+] as const;
+
+function stepIndex(step: Step): number {
+  if (step === "cart") return 0;
+  if (step === "phone" || step === "otp") return 1;
+  if (step === "details") return 2;
+  return 3;
+}
+
+function CheckoutStepper({ step }: { step: Step }) {
+  const active = stepIndex(step);
+  return (
+    <ol className="flex items-center gap-1 sm:gap-2">
+      {CHECKOUT_STEPS.map((s, i) => {
+        const done = i < active;
+        const current = i === active;
+        return (
+          <li key={s.id} className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2">
+            <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+              <span
+                className={cn(
+                  "flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition sm:size-8",
+                  done && "bg-primary text-primary-foreground",
+                  current && "bg-foreground text-background ring-4 ring-foreground/10",
+                  !done && !current && "bg-muted text-muted-foreground",
+                )}
+              >
+                {done ? <Check className="size-3.5" /> : i + 1}
+              </span>
+              <span
+                className={cn(
+                  "hidden truncate text-xs font-medium sm:inline md:text-sm",
+                  current ? "text-foreground" : "text-muted-foreground",
+                )}
+              >
+                {s.label}
+              </span>
+            </div>
+            {i < CHECKOUT_STEPS.length - 1 ? (
+              <div
+                className={cn(
+                  "mx-1 h-px min-w-3 flex-1 sm:mx-2",
+                  i < active ? "bg-primary" : "bg-border",
+                )}
+                aria-hidden
+              />
+            ) : null}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+function CartLineRow({
+  line,
+  onUpdate,
+  compact = false,
+}: {
+  line: CartLine;
+  onUpdate: (line: CartLine, quantity: number) => void;
+  compact?: boolean;
+}) {
+  const img = storefrontImageUrl(line.thumbnail);
+  return (
+    <div
+      className={cn(
+        "flex gap-3",
+        compact ? "py-3" : "rounded-xl border border-border/70 bg-card p-3 sm:p-4",
+      )}
+    >
+      <div
+        className={cn(
+          "shrink-0 overflow-hidden rounded-lg bg-muted",
+          compact ? "size-14" : "size-16 sm:size-20",
+        )}
+      >
+        {img ? (
+          <img src={img} alt="" className="size-full object-cover" loading="lazy" />
+        ) : (
+          <div className="flex size-full items-center justify-center text-[10px] text-muted-foreground">
+            No img
+          </div>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-2">
+          <p className={cn("font-medium leading-snug text-foreground", compact ? "text-sm line-clamp-2" : "line-clamp-2")}>
+            {line.name}
+          </p>
+          <p className="shrink-0 text-sm font-semibold tabular-nums">
+            {formatGhs(line.quantity * line.unit_price)}
+          </p>
+        </div>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          {formatGhs(line.unit_price)} each
+        </p>
+        <div className="mt-2.5 inline-flex items-center gap-0.5 rounded-full border border-border bg-background p-0.5">
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="size-7 rounded-full"
+            onClick={() => onUpdate(line, Math.max(0, line.quantity - 1))}
+            aria-label="Decrease"
+          >
+            <Minus className="size-3.5" />
+          </Button>
+          <span className="min-w-6 text-center text-sm font-medium tabular-nums">{line.quantity}</span>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="size-7 rounded-full"
+            onClick={() => onUpdate(line, line.quantity + 1)}
+            aria-label="Increase"
+          >
+            <Plus className="size-3.5" />
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="size-7 rounded-full text-destructive hover:text-destructive"
+            onClick={() => onUpdate(line, 0)}
+            aria-label="Remove"
+          >
+            <Trash2 className="size-3.5" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OrderSummaryCard({
+  storeTitle,
+  lines,
+  total,
+  minOrder,
+  belowMin,
+  onUpdate,
+  sticky = false,
+  editable = true,
+}: {
+  storeTitle: string;
+  lines: CartLine[];
+  total: number;
+  minOrder: number;
+  belowMin: boolean;
+  onUpdate: (line: CartLine, quantity: number) => void;
+  sticky?: boolean;
+  editable?: boolean;
+}) {
+  return (
+    <aside
+      className={cn(
+        "rounded-2xl border border-border/70 bg-card p-5 shadow-sm lg:p-6",
+        sticky && "lg:sticky lg:top-24",
+      )}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Order summary</p>
+          <p className="mt-1 font-display text-lg font-semibold tracking-tight">{storeTitle}</p>
+        </div>
+        <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+          {lines.length} {lines.length === 1 ? "item" : "items"}
+        </span>
+      </div>
+
+      <div className="mt-5 divide-y divide-border/70">
+        {lines.map((line) =>
+          editable ? (
+            <CartLineRow key={line.product_id} line={line} onUpdate={onUpdate} compact />
+          ) : (
+            <div key={line.product_id} className="flex gap-3 py-3">
+              <div className="size-14 shrink-0 overflow-hidden rounded-lg bg-muted">
+                {storefrontImageUrl(line.thumbnail) ? (
+                  <img
+                    src={storefrontImageUrl(line.thumbnail)!}
+                    alt=""
+                    className="size-full object-cover"
+                    loading="lazy"
+                  />
+                ) : null}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="line-clamp-2 text-sm font-medium">{line.name}</p>
+                  <p className="shrink-0 text-sm font-semibold tabular-nums">
+                    {formatGhs(line.quantity * line.unit_price)}
+                  </p>
+                </div>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Qty {line.quantity} · {formatGhs(line.unit_price)}
+                </p>
+              </div>
+            </div>
+          ),
+        )}
+      </div>
+
+      <div className="mt-5 space-y-2 border-t border-border/70 pt-4">
+        <div className="flex justify-between text-sm text-muted-foreground">
+          <span>Subtotal</span>
+          <span className="tabular-nums">{formatGhs(total)}</span>
+        </div>
+        <div className="flex justify-between text-base font-semibold">
+          <span>Total</span>
+          <span className="tabular-nums">{formatGhs(total)}</span>
+        </div>
+        {belowMin ? (
+          <p className="text-sm text-destructive">
+            Minimum order for this store is {formatGhs(minOrder)}.
+          </p>
+        ) : null}
+      </div>
+    </aside>
+  );
+}
 
 export function StorefrontCheckout({
   storeCode,
@@ -185,6 +425,7 @@ export function StorefrontCheckout({
   const total = lines.reduce((s, l) => s + l.quantity * l.unit_price, 0);
   const minOrder = Number(store?.store?.minimum_order_amount || 0);
   const belowMin = minOrder > 0 && total < minOrder;
+  const storeTitle = store?.store?.name || store?.company?.name || storeCode;
 
   const updateQty = (line: CartLine, quantity: number) => {
     const max = Number(line.quantity_available);
@@ -379,290 +620,397 @@ export function StorefrontCheckout({
 
   if (step === "pay" && placed) {
     return (
-      <div className="mx-auto max-w-lg px-4 pb-16 pt-4">
-        <h1 className="font-display text-2xl font-semibold tracking-tight">Pay for your order</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Order <span className="font-medium text-foreground">{placed.orderNumber}</span> ·{" "}
-          {formatGhs(placed.total)}
-        </p>
-        <StorefrontPaystackPayment
-          token={placed.token}
-          orderId={placed.orderId}
-          storeCode={storeCode}
-          defaultPhone={phone}
-          faceAmount={placed.total}
-          onPaid={() => finishAfterPay(true)}
-          onSkip={() => finishAfterPay(false)}
-        />
-        <GetTheAppNote className="mt-6" />
+      <div className="mx-auto max-w-7xl px-3 pb-16 pt-4 sm:px-5 lg:px-8 lg:pt-8">
+        <div className="mb-6 max-w-2xl">
+          <CheckoutStepper step="pay" />
+        </div>
+        <div className="mx-auto max-w-xl">
+          <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm sm:p-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Payment</p>
+            <h1 className="mt-2 font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+              Pay for your order
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Order <span className="font-medium text-foreground">{placed.orderNumber}</span> ·{" "}
+              {formatGhs(placed.total)}
+            </p>
+            <div className="mt-6">
+              <StorefrontPaystackPayment
+                token={placed.token}
+                orderId={placed.orderId}
+                storeCode={storeCode}
+                defaultPhone={phone}
+                faceAmount={placed.total}
+                onPaid={() => finishAfterPay(true)}
+                onSkip={() => finishAfterPay(false)}
+              />
+            </div>
+          </div>
+          <GetTheAppNote className="mt-8" />
+        </div>
       </div>
     );
   }
 
   if (lines.length === 0 && step === "cart") {
     return (
-      <div className="mx-auto max-w-lg px-4 py-16 text-center">
-        <h1 className="font-display text-2xl font-semibold">Your cart is empty</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Add products from the catalog to order.</p>
+      <div className="mx-auto flex max-w-lg flex-col items-center px-4 py-20 text-center">
+        <div className="flex size-16 items-center justify-center rounded-full bg-muted">
+          <ShoppingBag className="size-7 text-muted-foreground" />
+        </div>
+        <h1 className="mt-5 font-display text-2xl font-semibold">Your cart is empty</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Browse the catalog and add items to place an order.
+        </p>
         <Button
-          className="mt-6"
+          className="mt-7 rounded-full px-6"
+          size="lg"
           onClick={() => navigate({ to: "/s/$storeCode", params: { storeCode } })}
         >
-          Browse products
+          Continue shopping
         </Button>
       </div>
     );
   }
 
+  const showSummary = step === "cart" || step === "details" || step === "phone" || step === "otp";
+
   return (
-    <div className="mx-auto max-w-lg px-4 pb-16 pt-4">
-      <h1 className="font-display text-2xl font-semibold tracking-tight">Checkout</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {store?.store?.name || store?.company?.name || storeCode}
-      </p>
-
-      {step === "cart" || step === "details" ? (
-        <section className="mt-6 space-y-3">
-          {lines.map((line) => (
-            <div
-              key={line.product_id}
-              className="flex items-start justify-between gap-3 border-b border-border/60 py-3"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{line.name}</p>
-                <p className="text-sm text-muted-foreground">
-                  {formatGhs(line.unit_price)} × {line.quantity}
-                </p>
-                <div className="mt-2 inline-flex items-center gap-1 rounded-md border border-border p-0.5">
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    className="size-7"
-                    onClick={() => updateQty(line, Math.max(0, line.quantity - 1))}
-                  >
-                    <Minus className="size-3.5" />
-                  </Button>
-                  <span className="min-w-5 text-center text-sm">{line.quantity}</span>
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    className="size-7"
-                    onClick={() => updateQty(line, line.quantity + 1)}
-                  >
-                    <Plus className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    className="size-7 text-destructive"
-                    onClick={() => updateQty(line, 0)}
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
-                </div>
-              </div>
-              <p className="text-sm font-medium">{formatGhs(line.quantity * line.unit_price)}</p>
-            </div>
-          ))}
-          <div className="flex justify-between pt-2 text-base font-semibold">
-            <span>Total</span>
-            <span>{formatGhs(total)}</span>
-          </div>
-          {belowMin ? (
-            <p className="text-sm text-destructive">
-              Minimum order for this store is {formatGhs(minOrder)}.
-            </p>
-          ) : null}
-        </section>
-      ) : null}
-
-      {step === "cart" ? (
-        <Button
-          className="mt-8 w-full"
-          size="lg"
-          disabled={belowMin || lines.length === 0}
-          onClick={() => setStep(sessionToken ? "details" : "phone")}
-        >
-          Continue
-        </Button>
-      ) : null}
-
-      {step === "phone" ? (
-        <section className="mt-8 space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="phone">Mobile number</Label>
-            <Input
-              id="phone"
-              inputMode="tel"
-              autoComplete="tel"
-              placeholder="024 XXX XXXX"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="h-11"
-            />
-            <p className="text-xs text-muted-foreground">We&apos;ll send a one-time code by SMS.</p>
-          </div>
-          <Button className="w-full" size="lg" disabled={busy} onClick={sendOtp}>
-            {busy ? <Loader2 className="animate-spin" /> : null}
-            Send code
-          </Button>
-          {!express ? (
-            <Button type="button" variant="ghost" className="w-full" onClick={() => setStep("cart")}>
-              Back to cart
-            </Button>
-          ) : null}
-        </section>
-      ) : null}
-
-      {step === "otp" ? (
-        <section className="mt-8 space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Enter the 6-digit code sent to <span className="font-medium text-foreground">{phone}</span>
-          </p>
-          <InputOTP maxLength={6} value={otp} onChange={setOtp}>
-            <InputOTPGroup>
-              {Array.from({ length: 6 }).map((_, i) => (
-                <InputOTPSlot key={i} index={i} />
-              ))}
-            </InputOTPGroup>
-          </InputOTP>
-          {devCode ? (
-            <p className="text-xs text-muted-foreground">Dev code: {devCode}</p>
-          ) : null}
-          <Button className="w-full" size="lg" disabled={busy} onClick={verifyOtp}>
-            {busy ? <Loader2 className="animate-spin" /> : null}
-            Verify
-          </Button>
-          <Button type="button" variant="ghost" className="w-full" disabled={busy} onClick={sendOtp}>
-            Resend code
-          </Button>
-        </section>
-      ) : null}
-
-      {step === "details" ? (
-        <section className="mt-8 space-y-4">
-          {nameKnown && !editingName ? (
-            <div className="rounded-md border border-border/70 bg-muted/40 px-4 py-3">
-              <p className="text-sm font-medium text-foreground">
-                Welcome back, {firstName}
-                {lastName ? ` ${lastName}` : ""}
-              </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Ordering as {phone}. We already have your name on file.
-              </p>
-              <button
-                type="button"
-                className="mt-2 text-xs font-medium text-primary underline-offset-2 hover:underline"
-                onClick={() => setEditingName(true)}
-              >
-                Change name
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="first">First name</Label>
-                <Input
-                  id="first"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  className="h-11"
-                  autoComplete="given-name"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="last">Last name</Label>
-                <Input
-                  id="last"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  className="h-11"
-                  autoComplete="family-name"
-                />
-              </div>
-            </div>
-          )}
-          <div className="space-y-2">
-            <Label>Fulfillment</Label>
-            <div className="flex gap-2">
-              {(["pickup", "delivery"] as const).map((t) => (
-                <Button
-                  key={t}
-                  type="button"
-                  variant={fulfillment === t ? "default" : "outline"}
-                  className="flex-1 capitalize"
-                  onClick={() => setFulfillment(t)}
-                >
-                  {t}
-                </Button>
-              ))}
-            </div>
-          </div>
-          {fulfillment === "delivery" ? (
-            <div className="space-y-2">
-              <Label htmlFor="addr">Delivery address</Label>
-              <Input
-                id="addr"
-                value={deliveryAddress}
-                onChange={(e) => setDeliveryAddress(e.target.value)}
-                className="h-11"
-              />
-            </div>
-          ) : null}
-          <div className="space-y-2">
-            <Label>Payment</Label>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant={payMode === "now" ? "default" : "outline"}
-                className="flex-1"
-                onClick={() => setPayMode("now")}
-              >
-                Pay now
-              </Button>
-              <Button
-                type="button"
-                variant={payMode === "later" ? "default" : "outline"}
-                className="flex-1"
-                onClick={() => setPayMode("later")}
-              >
-                Pay on {fulfillment === "delivery" ? "delivery" : "pickup"}
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {payMode === "now"
-                ? "Pay with mobile money or card via Paystack after placing the order."
-                : "No payment now — settle when you receive the order."}
-            </p>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes (optional)</Label>
-            <Input id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} className="h-11" />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {nameKnown && !editingName ? null : <>Verified as {phone}.</>}
-          </p>
-          <Button className="w-full" size="lg" disabled={busy || belowMin} onClick={placeOrder}>
-            {busy ? <Loader2 className="animate-spin" /> : null}
-            {payMode === "now" ? `Place order & pay · ${formatGhs(total)}` : `Place order · ${formatGhs(total)}`}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            className="w-full"
-            onClick={() => {
-              writeCart(storeCode, lines);
-              setStep(express ? "phone" : "cart");
-            }}
+    <div className="mx-auto max-w-7xl px-3 pb-16 pt-4 sm:px-5 lg:px-8 lg:pt-8">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 lg:mb-8">
+        <div>
+          <Link
+            to="/s/$storeCode"
+            params={{ storeCode }}
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition hover:text-foreground"
           >
-            Back
-          </Button>
-          <GetTheAppNote className="mt-2" />
-        </section>
-      ) : null}
+            <ArrowLeft className="size-3.5" />
+            Back to store
+          </Link>
+          <h1 className="mt-2 font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+            Checkout
+          </h1>
+        </div>
+      </div>
+
+      <div className="mb-8 max-w-2xl">
+        <CheckoutStepper step={step} />
+      </div>
+
+      <div className="grid gap-8 lg:grid-cols-12 lg:gap-10">
+        <div className="lg:col-span-7 xl:col-span-7">
+          {step === "cart" ? (
+            <section className="space-y-4">
+              <div className="lg:hidden">
+                <OrderSummaryCard
+                  storeTitle={storeTitle}
+                  lines={lines}
+                  total={total}
+                  minOrder={minOrder}
+                  belowMin={belowMin}
+                  onUpdate={updateQty}
+                />
+              </div>
+              <div className="hidden space-y-3 lg:block">
+                {lines.map((line) => (
+                  <CartLineRow key={line.product_id} line={line} onUpdate={updateQty} />
+                ))}
+                {belowMin ? (
+                  <p className="text-sm text-destructive">
+                    Minimum order for this store is {formatGhs(minOrder)}.
+                  </p>
+                ) : null}
+              </div>
+              <Button
+                className="mt-4 h-12 w-full rounded-full text-base font-semibold lg:mt-6"
+                size="lg"
+                disabled={belowMin || lines.length === 0}
+                onClick={() => setStep(sessionToken ? "details" : "phone")}
+              >
+                Continue to checkout
+              </Button>
+            </section>
+          ) : null}
+
+          {step === "phone" ? (
+            <section className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm sm:p-8">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Account</p>
+              <h2 className="mt-2 font-display text-xl font-semibold tracking-tight">
+                Verify your phone
+              </h2>
+              <p className="mt-1.5 text-sm text-muted-foreground">
+                We&apos;ll send a one-time code by SMS so we can find or create your customer profile.
+              </p>
+              <div className="mt-6 space-y-2">
+                <Label htmlFor="phone">Mobile number</Label>
+                <Input
+                  id="phone"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder="024 XXX XXXX"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="h-12 rounded-xl"
+                />
+              </div>
+              <Button
+                className="mt-6 h-12 w-full rounded-full text-base font-semibold"
+                size="lg"
+                disabled={busy}
+                onClick={sendOtp}
+              >
+                {busy ? <Loader2 className="animate-spin" /> : null}
+                Send code
+              </Button>
+              {!express ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="mt-2 w-full"
+                  onClick={() => setStep("cart")}
+                >
+                  Back to cart
+                </Button>
+              ) : null}
+            </section>
+          ) : null}
+
+          {step === "otp" ? (
+            <section className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm sm:p-8">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Account</p>
+              <h2 className="mt-2 font-display text-xl font-semibold tracking-tight">Enter code</h2>
+              <p className="mt-1.5 text-sm text-muted-foreground">
+                Sent to <span className="font-medium text-foreground">{phone}</span>
+              </p>
+              <div className="mt-6 flex justify-center sm:justify-start">
+                <InputOTP maxLength={6} value={otp} onChange={setOtp}>
+                  <InputOTPGroup>
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <InputOTPSlot key={i} index={i} />
+                    ))}
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+              {devCode ? (
+                <p className="mt-3 text-xs text-muted-foreground">Dev code: {devCode}</p>
+              ) : null}
+              <Button
+                className="mt-6 h-12 w-full rounded-full text-base font-semibold"
+                size="lg"
+                disabled={busy}
+                onClick={verifyOtp}
+              >
+                {busy ? <Loader2 className="animate-spin" /> : null}
+                Verify & continue
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="mt-2 w-full"
+                disabled={busy}
+                onClick={sendOtp}
+              >
+                Resend code
+              </Button>
+            </section>
+          ) : null}
+
+          {step === "details" ? (
+            <section className="space-y-5">
+              <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm sm:p-8">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
+                  Delivery details
+                </p>
+                <h2 className="mt-2 font-display text-xl font-semibold tracking-tight">
+                  How should we fulfill this?
+                </h2>
+
+                {nameKnown && !editingName ? (
+                  <div className="mt-5 rounded-xl border border-border/70 bg-muted/40 px-4 py-3.5">
+                    <p className="text-sm font-medium text-foreground">
+                      Welcome back, {firstName}
+                      {lastName ? ` ${lastName}` : ""}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Ordering as {phone}. We already have your name on file.
+                    </p>
+                    <button
+                      type="button"
+                      className="mt-2 text-xs font-medium text-primary underline-offset-2 hover:underline"
+                      onClick={() => setEditingName(true)}
+                    >
+                      Change name
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="first">First name</Label>
+                      <Input
+                        id="first"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        className="h-11 rounded-xl"
+                        autoComplete="given-name"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="last">Last name</Label>
+                      <Input
+                        id="last"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        className="h-11 rounded-xl"
+                        autoComplete="family-name"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-6 space-y-2">
+                  <Label>Fulfillment</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(
+                      [
+                        { id: "pickup" as const, label: "Pickup", icon: Package },
+                        { id: "delivery" as const, label: "Delivery", icon: Truck },
+                      ] as const
+                    ).map(({ id, label, icon: Icon }) => (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => setFulfillment(id)}
+                        className={cn(
+                          "flex flex-col items-start gap-2 rounded-xl border px-4 py-3.5 text-left transition",
+                          fulfillment === id
+                            ? "border-primary bg-primary/5 ring-1 ring-primary"
+                            : "border-border/80 bg-background hover:border-border",
+                        )}
+                      >
+                        <Icon
+                          className={cn(
+                            "size-5",
+                            fulfillment === id ? "text-primary" : "text-muted-foreground",
+                          )}
+                        />
+                        <span className="text-sm font-semibold">{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {fulfillment === "delivery" ? (
+                  <div className="mt-5 space-y-2">
+                    <Label htmlFor="addr">Delivery address</Label>
+                    <div className="relative">
+                      <MapPin className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        id="addr"
+                        value={deliveryAddress}
+                        onChange={(e) => setDeliveryAddress(e.target.value)}
+                        className="h-11 rounded-xl pl-9"
+                        placeholder="Street, landmark, area"
+                      />
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="mt-6 space-y-2">
+                  <Label>Payment</Label>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => setPayMode("now")}
+                      className={cn(
+                        "rounded-xl border px-4 py-3.5 text-left transition",
+                        payMode === "now"
+                          ? "border-primary bg-primary/5 ring-1 ring-primary"
+                          : "border-border/80 bg-background hover:border-border",
+                      )}
+                    >
+                      <p className="text-sm font-semibold">Pay now</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        MoMo or card via Paystack
+                      </p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPayMode("later")}
+                      className={cn(
+                        "rounded-xl border px-4 py-3.5 text-left transition",
+                        payMode === "later"
+                          ? "border-primary bg-primary/5 ring-1 ring-primary"
+                          : "border-border/80 bg-background hover:border-border",
+                      )}
+                    >
+                      <p className="text-sm font-semibold">
+                        Pay on {fulfillment === "delivery" ? "delivery" : "pickup"}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Settle when you receive the order
+                      </p>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-5 space-y-2">
+                  <Label htmlFor="notes">Notes (optional)</Label>
+                  <Input
+                    id="notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    className="h-11 rounded-xl"
+                    placeholder="Any special instructions"
+                  />
+                </div>
+
+                {!(nameKnown && !editingName) ? (
+                  <p className="mt-4 text-xs text-muted-foreground">Verified as {phone}.</p>
+                ) : null}
+              </div>
+
+              <Button
+                className="h-12 w-full rounded-full text-base font-semibold"
+                size="lg"
+                disabled={busy || belowMin}
+                onClick={placeOrder}
+              >
+                {busy ? <Loader2 className="animate-spin" /> : null}
+                {payMode === "now"
+                  ? `Place order & pay · ${formatGhs(total)}`
+                  : `Place order · ${formatGhs(total)}`}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full"
+                onClick={() => {
+                  writeCart(storeCode, lines);
+                  setStep(express ? "phone" : "cart");
+                }}
+              >
+                Back
+              </Button>
+              <GetTheAppNote className="mt-2" />
+            </section>
+          ) : null}
+        </div>
+
+        {showSummary ? (
+          <div className="hidden lg:col-span-5 lg:block xl:col-span-5">
+            <OrderSummaryCard
+              storeTitle={storeTitle}
+              lines={lines}
+              total={total}
+              minOrder={minOrder}
+              belowMin={belowMin}
+              onUpdate={updateQty}
+              sticky
+              editable={false}
+            />
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

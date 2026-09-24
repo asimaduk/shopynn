@@ -40,6 +40,7 @@ function StorefrontLayout() {
           storeCode={storeCode}
           storeName={store?.store?.name}
           companyName={store?.company?.name}
+          companyLogo={store?.company?.logo}
         />
         <main>
           <Outlet />

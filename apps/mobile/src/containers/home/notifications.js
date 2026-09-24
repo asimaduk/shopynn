@@ -42,12 +42,25 @@ const Notifications = ({ navigation, route }) => {
         if (!canViewStaffNotifications) return;
         try {
             const raw = await notificationsApi.list({ limit: 50 });
-            const list = normalizeList(raw);
-            setNotifications(Array.isArray(list) ? list : []);
+            let list = normalizeList(raw);
+            list = Array.isArray(list) ? list : [];
+            // Hide merchant-only "new order" broadcasts from customer accounts (legacy rows used user_id null).
+            const isCustomer =
+                hasPermission(currentUser, 'orders.view') &&
+                !hasPermission(currentUser, 'orders.store.view');
+            if (isCustomer) {
+                list = list.filter((n) => {
+                    const screen = String(n?.mobile_screen || '');
+                    if (screen === 'Orders') return false;
+                    if (String(n?.type || '') === 'order_created') return false;
+                    return true;
+                });
+            }
+            setNotifications(list);
         } catch (_) {
             setNotifications([]);
         }
-    }, [canViewStaffNotifications]);
+    }, [canViewStaffNotifications, currentUser]);
 
     const loadPreferences = useCallback(async () => {
         if (!canOrderPushToggle) return;
@@ -191,16 +204,31 @@ const Notifications = ({ navigation, route }) => {
         } catch (e) {
             // fail silently for now
         }
-        const screen = item.mobile_screen;
-        if (screen && typeof screen === 'string') {
-            const params = item.mobile_params && typeof item.mobile_params === 'object' ? item.mobile_params : {};
-            try {
-                navigation.navigate(screen, params);
-            } catch (_) {
-                /* unknown route */
+        let screen = item.mobile_screen;
+        if (!screen || typeof screen !== 'string') return;
+
+        const rawParams =
+            item.mobile_params && typeof item.mobile_params === 'object' ? { ...item.mobile_params } : {};
+        const orderId = rawParams.orderId || rawParams.order_id || rawParams.id;
+        if (orderId) {
+            rawParams.orderId = orderId;
+        }
+
+        // Customers must never open staff Online Orders screens from a tap.
+        const isCustomer =
+            hasPermission(currentUser, 'orders.view') && !hasPermission(currentUser, 'orders.store.view');
+        if (isCustomer) {
+            if (screen === 'Orders' || screen === 'OrderDetails') {
+                screen = orderId ? 'MyOrderDetails' : 'MyOrders';
             }
         }
-    }, [navigation]);
+
+        try {
+            navigation.navigate(screen, rawParams);
+        } catch (_) {
+            /* unknown route */
+        }
+    }, [navigation, currentUser]);
 
     const pushHeader = useMemo(() => {
         if (!canOrderPushToggle) return null;
@@ -303,23 +331,15 @@ const Notifications = ({ navigation, route }) => {
                             <Lucide name="circle-check" color={colors.textSecondary} size={20} />
                         </TouchableOpacity>
                     )}
-                    <TouchableOpacity
-                        activeOpacity={0.6}
-                        disabled={!canOpenNotificationsSettings}
-                        onPress={() => {
-                            if (!canOpenNotificationsSettings) {
-                                Alert.alert('Permission', 'You are not allowed to update notification settings.');
-                                return;
-                            }
-                            navigation.navigate("NotificationsSetup");
-                        }}
-                        style={[
-                            styles.headerIcon,
-                            { backgroundColor: colors.surfaceSecondary, opacity: canOpenNotificationsSettings ? 1 : 0.45 },
-                        ]}
-                    >
-                        <Lucide name="settings-2" color={colors.textSecondary} size={20} />
-                    </TouchableOpacity>
+                    {canOpenNotificationsSettings ? (
+                        <TouchableOpacity
+                            activeOpacity={0.6}
+                            onPress={() => navigation.navigate('NotificationsSetup')}
+                            style={[styles.headerIcon, { backgroundColor: colors.surfaceSecondary }]}
+                        >
+                            <Lucide name="settings-2" color={colors.textSecondary} size={20} />
+                        </TouchableOpacity>
+                    ) : null}
                 </View>
             </ScreenHeader>
 

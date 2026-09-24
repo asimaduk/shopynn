@@ -198,22 +198,28 @@ axios.interceptors.response.use(
             }
             showSessionExpired();
         } else if (status === 403 && !isAuthEndpoint && FEATURE_GATE_CODES.has(responseCode)) {
-            Alert.alert(
-                'Feature unavailable',
-                extractServerErrorMessage(error) || 'This feature requires a higher subscription plan.',
-                [
-                    { text: 'Not now', style: 'cancel' },
-                    { text: 'View plans', onPress: goToSubscription },
-                ]
-            );
+            if (!originalRequest?.skipErrorAlert) {
+                Alert.alert(
+                    'Feature unavailable',
+                    extractServerErrorMessage(error) || 'This feature requires a higher subscription plan.',
+                    [
+                        { text: 'Not now', style: 'cancel' },
+                        { text: 'View plans', onPress: goToSubscription },
+                    ]
+                );
+            }
         } else if (status === 403 && !isAuthEndpoint && responseCode === 'INSUFFICIENT_PERMISSIONS') {
-            Alert.alert(
-                'Access denied',
-                extractServerErrorMessage(error) || 'You do not have permission for this action.',
-                [{ text: 'OK', style: 'cancel' }],
-            );
+            if (!originalRequest?.skipErrorAlert) {
+                Alert.alert(
+                    'Access denied',
+                    extractServerErrorMessage(error) || 'You do not have permission for this action.',
+                    [{ text: 'OK', style: 'cancel' }],
+                );
+            }
         } else if (status === 403 && !isAuthEndpoint) {
-            showSessionExpired();
+            if (!originalRequest?.skipErrorAlert) {
+                showSessionExpired();
+            }
         } else if (status >= 500 && originalRequest?.method?.toLowerCase() === 'get') {
             const retries = originalRequest._retryCount ?? 0;
             if (retries < MAX_GET_RETRIES) {
@@ -231,7 +237,17 @@ axios.interceptors.response.use(
                 url.indexOf('/payments/verify') !== -1 ||
                 url.indexOf('/payments/pos-') !== -1 ||
                 url.indexOf('/payments/pos/') !== -1;
-            if (!isLoginEndpoint && !isHandledMomoEndpoint) {
+            // Change-email screen shows an inline banner instead of Alert.
+            const isHandledChangeEmailEndpoint = url.indexOf('/users/me/change-email') !== -1;
+            const isHandledChangePhoneEndpoint = url.indexOf('/users/me/change-phone') !== -1;
+            const skipErrorAlert = Boolean(originalRequest?.skipErrorAlert);
+            if (
+                !isLoginEndpoint &&
+                !isHandledMomoEndpoint &&
+                !isHandledChangeEmailEndpoint &&
+                !isHandledChangePhoneEndpoint &&
+                !skipErrorAlert
+            ) {
                 Alert.alert('Error', extractServerErrorMessage(error));
             }
         }

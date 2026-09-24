@@ -162,14 +162,14 @@ function ContactForm(props: ContactFormProps) {
 						This customer signed up with the app
 					</Typography>
 					<Typography color="text.secondary" className="text-center mb-6">
-						POS customer edits do not apply. Manage them as a staff user (customer role) instead.
+						App signup accounts are not editable from admin. You can view their linked user profile (read-only).
 					</Typography>
 					<Button variant="contained" color="secondary" component={Link} to="/users/customers">
 						Back to customers
 					</Button>
 					{contact.user_id ? (
 						<Button className="mt-3" component={Link} to={`/users/staff/${contact.user_id}/view`} variant="outlined">
-							Open user profile
+							View user profile
 						</Button>
 					) : null}
 				</Box>

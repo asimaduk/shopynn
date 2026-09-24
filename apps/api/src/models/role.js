@@ -1,13 +1,36 @@
 import pool from "../config/db.js";
 import { v4 as uuidv4 } from "uuid";
 
+const PROTECTED_ROLE_NAMES = new Set(["customer"]);
+
+const isProtectedRoleName = (name) =>
+    PROTECTED_ROLE_NAMES.has(String(name || "").trim().toLowerCase());
+
+async function assertRoleMutable(id, tenant_id) {
+    const role = await getRoleByIdService(id, tenant_id);
+    if (!role) return null;
+    if (isProtectedRoleName(role.name)) {
+        const err = new Error("The Customer role is managed by Shopynn and cannot be modified.");
+        err.status = 400;
+        throw err;
+    }
+    return role;
+}
+
 /**
  * List roles for a tenant (and optionally system roles where tenant_id is null).
+ * Customer (B2C portal) role is excluded by default — pass include_customer=1 to include it.
  */
 export const getAllRolesService = async (tenant_id, requestQuery = {}) => {
     const conditions = ["(r.tenant_id = $1 OR r.tenant_id IS NULL)"];
     const params = [tenant_id];
     let paramIndex = 2;
+    const includeCustomer = ["1", "true", "yes"].includes(
+        String(requestQuery.include_customer ?? requestQuery.includeCustomer ?? "").trim().toLowerCase()
+    );
+    if (!includeCustomer) {
+        conditions.push(`lower(r.name) <> 'customer'`);
+    }
     const search = requestQuery.search ?? requestQuery.q ?? requestQuery.name;
     if (search && String(search).trim()) {
         conditions.push(`(r.name ILIKE $${paramIndex} OR r.description ILIKE $${paramIndex})`);
@@ -53,6 +76,11 @@ export const getRolePermissionsService = async (role_id, tenant_id) => {
 
 export const createRoleService = async (payload) => {
     const { name, description, tenant_id } = payload;
+    if (isProtectedRoleName(name)) {
+        const err = new Error("The Customer role name is reserved and cannot be created.");
+        err.status = 400;
+        throw err;
+    }
     const id = uuidv4();
     await pool.query(
         `INSERT INTO roles (id, name, description, tenant_id, created_at, updated_at)
@@ -63,7 +91,13 @@ export const createRoleService = async (payload) => {
 };
 
 export const updateRoleService = async (id, payload, tenant_id) => {
+    await assertRoleMutable(id, tenant_id);
     const { name, description } = payload;
+    if (name !== undefined && isProtectedRoleName(name)) {
+        const err = new Error("The Customer role name is reserved.");
+        err.status = 400;
+        throw err;
+    }
     // If provided, treat as "replace role permissions" (including empty array).
     const permission_ids = payload.permission_ids ?? payload.permissionIds ?? payload.permissions;
     const updates = [];
@@ -121,6 +155,9 @@ export const updateRoleService = async (id, payload, tenant_id) => {
 };
 
 export const deleteRoleService = async (id, tenant_id) => {
+    const role = await assertRoleMutable(id, tenant_id);
+    if (!role) return false;
+
     const assignedUsersResult = await pool.query(
         `SELECT COUNT(*)::int AS assigned_users
          FROM user_roles ur
@@ -149,7 +186,7 @@ export const deleteRoleService = async (id, tenant_id) => {
  * Add a permission to a role.
  */
 export const addPermissionToRoleService = async (role_id, permission_id, tenant_id) => {
-    const role = await getRoleByIdService(role_id, tenant_id);
+    const role = await assertRoleMutable(role_id, tenant_id);
     if (!role) return null;
     const id = uuidv4();
     await pool.query(
@@ -164,6 +201,7 @@ export const addPermissionToRoleService = async (role_id, permission_id, tenant_
  * Remove a permission from a role.
  */
 export const removePermissionFromRoleService = async (role_id, permission_id, tenant_id) => {
+    await assertRoleMutable(role_id, tenant_id);
     const result = await pool.query(
         `DELETE FROM role_permissions rp
          USING roles r
@@ -179,7 +217,7 @@ export const removePermissionFromRoleService = async (role_id, permission_id, te
  * Set all permissions for a role (replaces existing).
  */
 export const setRolePermissionsService = async (role_id, permission_ids, tenant_id) => {
-    const role = await getRoleByIdService(role_id, tenant_id);
+    const role = await assertRoleMutable(role_id, tenant_id);
     if (!role) return null;
     const client = await pool.connect();
     try {

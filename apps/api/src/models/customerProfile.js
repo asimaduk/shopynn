@@ -40,7 +40,8 @@ export const resolveStoreReferencePublicService = async (referenceCode) => {
             wrc.reference_code,
             w.name AS warehouse_name,
             w.address AS warehouse_address,
-            t.name AS company_name
+            t.name AS company_name,
+            t.logo AS company_logo
          FROM warehouse_reference_codes wrc
          LEFT JOIN warehouses w ON w.id = wrc.warehouse_id
          LEFT JOIN tenants t ON t.id = wrc.tenant_id
@@ -64,6 +65,7 @@ export const resolveStoreReferencePublicService = async (referenceCode) => {
         },
         company: {
             name: row.company_name || null,
+            logo: row.company_logo || null,
         },
     };
 };
@@ -279,10 +281,13 @@ export const linkCustomerStoreService = async (user, payload = {}) => {
 
 export const getCustomerStoresService = async (user) => {
     const result = await pool.query(
-        `SELECT csa.warehouse_id, w.name, w.address, w.minimum_order_amount, csa.access_source, csa.created_at
+        `SELECT csa.warehouse_id, w.name, w.address, w.minimum_order_amount,
+                t.logo AS tenant_logo, t.name AS tenant_name,
+                csa.access_source, csa.created_at
          FROM customer_profiles cp
          JOIN customer_store_access csa ON csa.customer_profile_id = cp.id AND csa.tenant_id = cp.tenant_id
          LEFT JOIN warehouses w ON w.id = csa.warehouse_id
+         LEFT JOIN tenants t ON t.id = cp.tenant_id
          WHERE cp.user_id = $1 AND cp.tenant_id = $2
          ORDER BY csa.created_at ASC`,
         [user.id, user.tenant_id]

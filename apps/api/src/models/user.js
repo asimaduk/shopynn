@@ -135,6 +135,7 @@ export const getAllUsersService = async (currentUser) => {
 
 export const toggleUserActiveService = async (payload) => {
     const { id, is_active } = payload;
+    await assertNotCustomerPortalUser(id);
     const result = await pool.query(
         `UPDATE users
          SET is_active = $1,
@@ -155,7 +156,7 @@ export const getUserByIdService = async (id) => {
         let company = null;
         if(userRes.rows[0]?.tenant_id){
             const tenantRes = await pool.query(
-                `SELECT t.name, t.phone, t.address, t.organization, t.email, t.industry_id, t.logo, t.subscription_id, t.settings
+                `SELECT t.name, t.phone, t.address, t.organization, t.email, t.website, t.industry_id, t.logo, t.subscription_id, t.settings
                  FROM tenants t
                  WHERE t.id = $1`,
                 [userRes.rows[0].tenant_id]
@@ -224,6 +225,7 @@ export const getUserByIdService = async (id) => {
                     phone: tenantRes.rows[0].phone || null,
                     email: tenantRes.rows[0].email || null,
                     organization: tenantRes.rows[0].organization || null,
+                    website: tenantRes.rows[0].website || null,
                     industry,
                     industry_id: tenantRes.rows[0].industry_id ?? null,
                     logo: tenantRes.rows[0].logo || null,
@@ -370,6 +372,38 @@ export const getUserDetailsService = async (id) => {
         roles,
         permissions,
     };
+}
+
+/** App-signup / B2C portal accounts — not editable as staff users. */
+async function assertNotCustomerPortalUser(userId) {
+    const id = String(userId || "").trim();
+    if (!id) return;
+    const byRole = await pool.query(
+        `SELECT 1
+         FROM user_roles ur
+         INNER JOIN roles r ON r.id = ur.role_id
+         WHERE ur.user_id = $1 AND lower(r.name) = 'customer'
+         LIMIT 1`,
+        [id]
+    );
+    if (byRole.rowCount) {
+        const err = new Error("App signup customer accounts cannot be edited here.");
+        err.status = 400;
+        throw err;
+    }
+    const byProfile = await pool.query(
+        `SELECT 1
+         FROM customer_profiles cp
+         WHERE cp.user_id = $1
+           AND (cp.profile_type IS NULL OR lower(trim(cp.profile_type)) = 'customer')
+         LIMIT 1`,
+        [id]
+    );
+    if (byProfile.rowCount) {
+        const err = new Error("App signup customer accounts cannot be edited here.");
+        err.status = 400;
+        throw err;
+    }
 }
 
 const sendCredentials = async (data) => {
@@ -609,6 +643,7 @@ export const createUserService = async (payload) => {
 
 export const updateUserService = async (payload) => {
     const { id, first_name, last_name, email, fcm_token, phone, is_active, role_id, warehouse_id, user_permissions = [] } = payload;
+    await assertNotCustomerPortalUser(id);
     const updates = [];
     const values = [];
     let i = 1;
@@ -670,6 +705,7 @@ export const updateUserService = async (payload) => {
 
 export const deleteUserService = async (payload) => {
     const { id, deleted_by, deleted_reason } = payload;
+    await assertNotCustomerPortalUser(id);
     const result = await pool.query(
         `UPDATE users
          SET is_active = false,

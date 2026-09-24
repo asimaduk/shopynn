@@ -4,10 +4,12 @@ import { v4 as uuidv4 } from "uuid";
 import { sendEmailService } from "./mail.js";
 
 const PURPOSE_SHOP_OWNER = "shop_owner_signup";
+const PURPOSE_CUSTOMER_CHANGE_EMAIL = "customer_change_email";
 const OTP_TTL_MS = 10 * 60 * 1000;
 const TOKEN_TTL_MS = 30 * 60 * 1000;
 const RESEND_COOLDOWN_MS = 60 * 1000;
 const MAX_ATTEMPTS = 5;
+const PLACEHOLDER_EMAIL_DOMAIN = "@otp.shopynn.local";
 
 const normalizeEmail = (email) => String(email || "").trim().toLowerCase();
 
@@ -18,6 +20,32 @@ const hashOtp = (email, code, purpose) =>
         .digest("hex");
 
 const generateOtp = () => String(Math.floor(100000 + Math.random() * 900000));
+
+const assertValidEmail = (normalized) => {
+    if (!normalized) throw new Error("Email is required.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+        throw new Error("Enter a valid email address.");
+    }
+    if (normalized.endsWith(PLACEHOLDER_EMAIL_DOMAIN)) {
+        throw new Error("Enter a real email address.");
+    }
+};
+
+async function assertActiveUser(userId) {
+    const id = String(userId || "").trim();
+    if (!id) throw new Error("Not authenticated.");
+    const res = await pool.query(
+        `SELECT id, email, phone
+         FROM users
+         WHERE id = $1 AND deleted IS NOT TRUE
+         LIMIT 1`,
+        [id]
+    );
+    if (!res.rowCount) {
+        throw new Error("Not authenticated.");
+    }
+    return res.rows[0];
+}
 
 export async function sendShopOwnerEmailOtpService(email) {
     const normalized = normalizeEmail(email);
@@ -147,4 +175,134 @@ export async function assertShopOwnerEmailVerified(ownerEmail, verificationToken
     if (new Date(res.rows[0].expires_at).getTime() < Date.now()) {
         throw new Error("Email verification has expired. Verify your owner email again.");
     }
+}
+
+export async function sendCustomerChangeEmailOtpService({ userId, email }) {
+    const user = await assertActiveUser(userId);
+    const normalized = normalizeEmail(email);
+    assertValidEmail(normalized);
+
+    const current = normalizeEmail(user.email);
+    if (current && current === normalized) {
+        throw new Error("That is already your email address.");
+    }
+
+    const existing = await pool.query(
+        `SELECT id FROM users WHERE lower(email) = $1 AND id <> $2 LIMIT 1`,
+        [normalized, user.id]
+    );
+    if (existing.rowCount > 0) {
+        throw new Error("An account with this email already exists. Use a different email.");
+    }
+
+    const recent = await pool.query(
+        `SELECT created_at FROM email_verification_codes
+         WHERE lower(email) = $1 AND purpose = $2
+         ORDER BY created_at DESC LIMIT 1`,
+        [normalized, PURPOSE_CUSTOMER_CHANGE_EMAIL]
+    );
+    if (recent.rowCount > 0) {
+        const last = new Date(recent.rows[0].created_at).getTime();
+        if (Date.now() - last < RESEND_COOLDOWN_MS) {
+            throw new Error("Please wait a minute before requesting another code.");
+        }
+    }
+
+    const code = generateOtp();
+    const id = uuidv4();
+    const expiresAt = new Date(Date.now() + OTP_TTL_MS);
+
+    await pool.query(
+        `INSERT INTO email_verification_codes (
+            id, email, purpose, code_hash, attempts, expires_at, created_at
+        ) VALUES ($1, $2, $3, $4, 0, $5, now())`,
+        [id, normalized, PURPOSE_CUSTOMER_CHANGE_EMAIL, hashOtp(normalized, code, PURPOSE_CUSTOMER_CHANGE_EMAIL), expiresAt]
+    );
+
+    await sendEmailService({
+        sender_name: "Shopynn",
+        receipient: normalized,
+        subject: "Confirm your new email — Shopynn",
+        title: "Your verification code",
+        message: `Use this code to confirm your new Shopynn email:\n\n${code}\n\nThis code expires in 10 minutes. If you did not request this, you can ignore this email.`,
+        text: `Your Shopynn email change code is ${code}. It expires in 10 minutes.`,
+        html: `<p>Use this code to confirm your new Shopynn email:</p><p style="font-size:28px;font-weight:bold;letter-spacing:4px">${code}</p><p>This code expires in 10 minutes.</p>`,
+    });
+
+    return { email: normalized, expires_in_seconds: Math.floor(OTP_TTL_MS / 1000) };
+}
+
+export async function verifyCustomerChangeEmailOtpService({ userId, email, otp }) {
+    const user = await assertActiveUser(userId);
+    const normalized = normalizeEmail(email);
+    const code = String(otp || "").trim();
+    assertValidEmail(normalized);
+    if (!/^\d{6}$/.test(code)) throw new Error("Enter the 6-digit code from your email.");
+
+    const current = normalizeEmail(user.email);
+    if (current && current === normalized) {
+        throw new Error("That is already your email address.");
+    }
+
+    const existing = await pool.query(
+        `SELECT id FROM users WHERE lower(email) = $1 AND id <> $2 LIMIT 1`,
+        [normalized, user.id]
+    );
+    if (existing.rowCount > 0) {
+        throw new Error("An account with this email already exists. Use a different email.");
+    }
+
+    const rowRes = await pool.query(
+        `SELECT id, code_hash, attempts, expires_at
+         FROM email_verification_codes
+         WHERE lower(email) = $1 AND purpose = $2 AND verified_at IS NULL
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [normalized, PURPOSE_CUSTOMER_CHANGE_EMAIL]
+    );
+    if (!rowRes.rowCount) {
+        throw new Error("No active verification code. Request a new code.");
+    }
+
+    const row = rowRes.rows[0];
+    if (new Date(row.expires_at).getTime() < Date.now()) {
+        throw new Error("This code has expired. Request a new code.");
+    }
+    if (Number(row.attempts) >= MAX_ATTEMPTS) {
+        throw new Error("Too many attempts. Request a new code.");
+    }
+
+    const match = hashOtp(normalized, code, PURPOSE_CUSTOMER_CHANGE_EMAIL) === row.code_hash;
+    await pool.query(
+        `UPDATE email_verification_codes SET attempts = attempts + 1 WHERE id = $1`,
+        [row.id]
+    );
+
+    if (!match) {
+        throw new Error("Incorrect code. Check your email and try again.");
+    }
+
+    await pool.query(
+        `UPDATE email_verification_codes
+         SET verified_at = now()
+         WHERE id = $1`,
+        [row.id]
+    );
+
+    const updated = await pool.query(
+        `UPDATE users
+         SET email = $1, updated_at = now()
+         WHERE id = $2
+         RETURNING id, email, first_name, last_name, phone`,
+        [normalized, user.id]
+    );
+
+    if (!updated.rowCount) {
+        throw new Error("Could not update email. Try again.");
+    }
+
+    return {
+        email: updated.rows[0].email,
+        user: updated.rows[0],
+    };
 }

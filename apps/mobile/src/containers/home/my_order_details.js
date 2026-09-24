@@ -119,11 +119,15 @@ const MyOrderDetails = ({ navigation, route }) => {
     const totalAmount = Number(order?.total_amount || 0);
     const payProgress = totalAmount > 0 ? Math.min(100, (amountPaid / totalAmount) * 100) : 0;
     const installmentPayments = Array.isArray(order?.installment_payments) ? order.installment_payments : [];
+    const openPayment = order?.open_payment || null;
+    const hasOpenPayment = Boolean(openPayment?.transaction_ref);
     const canPayFull =
         !isInstallment &&
-        currentStatus === 'confirmed' &&
+        ['pending', 'confirmed'].includes(currentStatus) &&
         ['unpaid', 'failed', 'pending'].includes(paymentStatus);
-    const canPayPartial = Boolean(order?.can_pay_partial) || (isInstallment && currentStatus === 'confirmed' && balanceDue > 0);
+    const canPayPartial =
+        Boolean(order?.can_pay_partial) ||
+        (isInstallment && currentStatus === 'confirmed' && balanceDue > 0);
 
     const presetAmounts = useMemo(() => {
         const b = balanceDue;
@@ -154,6 +158,46 @@ const MyOrderDetails = ({ navigation, route }) => {
             planName: order?.order_number || 'Order payment',
             onSuccessNavigateTo: 'MyOrderDetails',
             onSuccessNavigateParams: { orderId },
+        });
+    };
+
+    const openPendingPaymentStatus = () => {
+        if (!orderId || !openPayment?.transaction_ref) {
+            openOrderPayment();
+            return;
+        }
+        const method = String(openPayment.payment_method_type || '').toLowerCase();
+        const charge = Number(openPayment.amount || openPayment.face_amount || totalAmount);
+        if (method === 'card') {
+            Alert.alert(
+                'Card payment pending',
+                'A card checkout was already started. You can check status or start a new payment.',
+                [
+                    { text: 'Start new payment', onPress: () => openOrderPayment() },
+                    { text: 'OK', style: 'cancel' },
+                ],
+            );
+            return;
+        }
+        navigation.navigate('MomoStatus', {
+            amount: charge,
+            planName: order?.order_number || 'Order payment',
+            momoNumber: openPayment.payment_number || '',
+            momoNetwork: '',
+            transactionId: openPayment.transaction_ref,
+            transactionRef: openPayment.transaction_ref,
+            mode: 'order',
+            orderId,
+            successNavigateTo: 'MyOrderDetails',
+            successNavigateParams: { orderId },
+            retryPaymentParams: {
+                flowType: 'order',
+                orderId,
+                amount: totalAmount,
+                planName: order?.order_number || 'Order payment',
+                onSuccessNavigateTo: 'MyOrderDetails',
+                onSuccessNavigateParams: { orderId },
+            },
         });
     };
 
@@ -288,17 +332,48 @@ const MyOrderDetails = ({ navigation, route }) => {
                             <AppText label="Pay for this order" variant={1} color={colors.text} style={{ marginLeft: 6 }} />
                         </View>
                         <AppText
-                            label="The store has confirmed your order. Continue to the secure payment screen."
+                            label={
+                                hasOpenPayment
+                                    ? 'A payment was already started. Check its status, or start a new one if you need to change the number or method.'
+                                    : paymentStatus === 'failed'
+                                      ? 'The last payment attempt failed. You can try again with MoMo or card.'
+                                      : 'Pay with MoMo or card. You can do this while the order is still pending.'
+                            }
                             fontSize={12}
                             color={colors.textSecondary}
                             style={{ marginBottom: 10 }}
                         />
-                        <TouchableOpacity
-                            onPress={() => openOrderPayment()}
-                            style={[styles.payPrimaryBtn, { backgroundColor: config.THEME_COLOR }]}
-                        >
-                            <AppText label={`Continue payment (GHS ${totalAmount.toFixed(2)})`} color="#fff" variant={1} />
-                        </TouchableOpacity>
+                        {hasOpenPayment ? (
+                            <>
+                                <TouchableOpacity
+                                    onPress={openPendingPaymentStatus}
+                                    style={[styles.payPrimaryBtn, { backgroundColor: config.THEME_COLOR }]}
+                                >
+                                    <AppText
+                                        label={`Check payment status · GHS ${Number(openPayment.amount || totalAmount).toFixed(2)}`}
+                                        color="#fff"
+                                        variant={1}
+                                    />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => openOrderPayment()}
+                                    style={[styles.payOutlineBtn, { borderColor: colors.border }]}
+                                >
+                                    <AppText label="Start a new payment" color={colors.text} variant={1} />
+                                </TouchableOpacity>
+                            </>
+                        ) : (
+                            <TouchableOpacity
+                                onPress={() => openOrderPayment()}
+                                style={[styles.payPrimaryBtn, { backgroundColor: config.THEME_COLOR }]}
+                            >
+                                <AppText
+                                    label={`Pay now · GHS ${totalAmount.toFixed(2)}`}
+                                    color="#fff"
+                                    variant={1}
+                                />
+                            </TouchableOpacity>
+                        )}
                     </View>
                 )}
 

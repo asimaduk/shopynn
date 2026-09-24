@@ -22,9 +22,11 @@ export const createSale = async (req, res, next) => {
             error?.code === "PAYMENT_ALREADY_LINKED" ||
             error?.code === "PAYMENT_FACE_MISMATCH" ||
             error?.code === "CUSTOMER_REQUIRED_FOR_CREDIT" ||
+            error?.code === "CUSTOMER_NOT_FOUND" ||
             error?.code === "MOMO_PARTIAL_NOT_AT_CREATE" ||
             error?.code === "INSUFFICIENT_TENDER" ||
-            error?.code === "INVALID_AMOUNT_TENDERED"
+            error?.code === "INVALID_AMOUNT_TENDERED" ||
+            error?.message?.includes("Selected customer was not found")
         ) {
             return handleResponse(res, 400, error.message, error?.code ? { code: error.code } : null);
         }

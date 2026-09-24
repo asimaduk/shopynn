@@ -41,7 +41,10 @@ const Payment = ({ navigation, route }) => {
     } = route.params || {};
     
     const [selectedMethod, setSelectedMethod] = useState('momo'); // 'card', 'momo'
-    const [momoNumber, setMomoNumber] = useState('');
+    const [momoNumber, setMomoNumber] = useState(() => {
+        const fromUser = user?.phone || user?.mobile || '';
+        return normalizeMomoNumber(fromUser);
+    });
     const [momoNetwork, setMomoNetwork] = useState('mtn'); // 'mtn', 'telecel', 'airteltigo'
     const [telecelVoucher, setTelecelVoucher] = useState('');
     const [submitting, setSubmitting] = useState(false);
@@ -51,6 +54,12 @@ const Payment = ({ navigation, route }) => {
     const isTelecel = momoNetwork === 'telecel';
 
     const isOrderFlow = flowType === 'order' || flowType === 'order_partial';
+
+    useEffect(() => {
+        if (momoNumber) return;
+        const fromUser = user?.phone || user?.mobile || '';
+        if (fromUser) setMomoNumber(normalizeMomoNumber(fromUser));
+    }, [user?.phone, user?.mobile, momoNumber]);
 
     useEffect(() => {
         if (!isOrderFlow) return;
@@ -249,7 +258,7 @@ const Payment = ({ navigation, route }) => {
                     ? 'Telecel voucher submitted. Confirm status on the next screen.'
                     : 'Complete the payment prompt on your phone.');
             Alert.alert('Mobile money', msg);
-            navigation.navigate('MomoStatus', {
+            navigation.replace('MomoStatus', {
                 amount: res?.charge_amount || chargeAmount || amount,
                 planName: planName || 'Order payment',
                 momoNumber: momo.phone,
@@ -261,6 +270,14 @@ const Payment = ({ navigation, route }) => {
                 needsVoucher: isTelecel,
                 successNavigateTo: onSuccessNavigateTo || 'MyOrderDetails',
                 successNavigateParams: onSuccessNavigateParams || { orderId },
+                retryPaymentParams: {
+                    flowType,
+                    orderId,
+                    amount,
+                    planName: planName || 'Order payment',
+                    onSuccessNavigateTo: onSuccessNavigateTo || 'MyOrderDetails',
+                    onSuccessNavigateParams: onSuccessNavigateParams || { orderId },
+                },
             });
         } catch (error) {
             Alert.alert('Payment failed', error?.response?.data?.message || error?.message || 'Could not start payment.');

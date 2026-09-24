@@ -279,11 +279,13 @@ export function digitsOnlyPhone(phone) {
 }
 
 export function buildMailtoUrl(email, subject, body) {
+    const address = String(email || '').trim();
+    // mailto local-part must stay as email text (@ unencoded); only query params are encoded.
     const params = [];
     if (subject) params.push(`subject=${encodeURIComponent(subject)}`);
     if (body) params.push(`body=${encodeURIComponent(body)}`);
     const query = params.length ? `?${params.join('&')}` : '';
-    return `mailto:${encodeURIComponent(email)}${query}`;
+    return `mailto:${address}${query}`;
 }
 
 export function buildWhatsAppUrl(phoneDigits, text) {
@@ -323,25 +325,45 @@ export async function shareInvoiceByEmail(invoice, emailOverride) {
     const email = String(emailOverride || invoice.customer_email || '').trim();
     const subject = `Invoice ${invoice.invoice_number}`;
     const body = formatInvoiceText(invoice);
+    const url = buildMailtoUrl(email, subject, body);
 
-    if (!email) {
-        const url = buildMailtoUrl('', subject, body);
-        const ok = await Linking.canOpenURL(url);
-        if (!ok) {
-            Alert.alert('Email', 'No email app is available on this device.');
-            return;
+    const openMailto = async () => {
+        const canQuery = await Linking.canOpenURL(url).catch(() => false);
+        if (!canQuery) {
+            // Simulator / no Mail app / scheme blocked — fall back to system share sheet.
+            await Share.share({
+                message: body,
+                title: subject,
+            });
+            return { usedFallback: true };
         }
         await Linking.openURL(url);
-        return;
-    }
+        return { usedFallback: false };
+    };
 
-    const url = buildMailtoUrl(email, subject, body);
-    const ok = await Linking.canOpenURL(url);
-    if (!ok) {
-        Alert.alert('Email', 'Could not open your email app.');
-        return;
+    try {
+        return await openMailto();
+    } catch (err) {
+        const raw = String(err?.message || err || '');
+        // Avoid dumping the full mailto URL into an alert.
+        if (/LSApplicationQueriesSchemes|Unable to open URL|mailto:/i.test(raw)) {
+            try {
+                await Share.share({
+                    message: body,
+                    title: subject,
+                });
+                return { usedFallback: true };
+            } catch (_) {
+                const friendly = new Error(
+                    email
+                        ? 'Could not open Mail. Install or set up an email app, or share the invoice another way.'
+                        : 'Could not open Mail on this device. Use Share or WhatsApp instead.',
+                );
+                throw friendly;
+            }
+        }
+        throw err;
     }
-    await Linking.openURL(url);
 }
 
 export async function shareInvoiceByWhatsApp(invoice, phoneOverride) {

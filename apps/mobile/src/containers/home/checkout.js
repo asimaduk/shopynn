@@ -1,5 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+    Alert,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
@@ -19,9 +29,65 @@ const computeRequiredInitial = (total, items) => {
         if (Number.isFinite(floor) && floor > minFloor) minFloor = floor;
     }
     if (maxPct <= 0) return 0;
-    const fromPct = Math.round((total * maxPct) / 100 * 100) / 100;
+    const fromPct = Math.round(((total * maxPct) / 100) * 100) / 100;
     return Math.max(fromPct, minFloor);
 };
+
+const resolveImageUri = (raw) => {
+    const value = String(raw || '').trim();
+    if (!value) return '';
+    if (/^(https?:|file:|content:|data:)/i.test(value)) return value;
+    return `${config.BASE_API}/images?id=${encodeURIComponent(value)}`;
+};
+
+const OptionTile = ({ selected, onPress, icon, title, subtitle, colors, compact = false }) => (
+    <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={onPress}
+        style={[
+            styles.optionTile,
+            compact && styles.optionTileCompact,
+            {
+                borderColor: selected ? config.THEME_COLOR : colors.border,
+                backgroundColor: selected ? `${config.THEME_COLOR}12` : colors.surface,
+            },
+        ]}
+    >
+        <View
+            style={[
+                styles.optionIcon,
+                { backgroundColor: selected ? config.THEME_COLOR : colors.surfaceSecondary },
+            ]}
+        >
+            <Lucide name={icon} size={16} color={selected ? '#fff' : colors.textSecondary} />
+        </View>
+        <View style={{ flex: 1 }}>
+            <AppText label={title} variant={1} fontSize={14} color={colors.text} />
+            {subtitle ? (
+                <AppText
+                    label={subtitle}
+                    fontSize={11}
+                    color={colors.textSecondary}
+                    style={{ marginTop: 2 }}
+                    numberOfLines={compact ? 2 : 2}
+                />
+            ) : null}
+        </View>
+        {!compact ? (
+            <View
+                style={[
+                    styles.radio,
+                    {
+                        borderColor: selected ? config.THEME_COLOR : colors.border,
+                        backgroundColor: selected ? config.THEME_COLOR : 'transparent',
+                    },
+                ]}
+            >
+                {selected ? <Lucide name="check" size={11} color="#fff" /> : null}
+            </View>
+        ) : null}
+    </TouchableOpacity>
+);
 
 const Checkout = ({ navigation }) => {
     const { colors } = useTheme();
@@ -31,27 +97,33 @@ const Checkout = ({ navigation }) => {
     const [notes, setNotes] = useState('');
     const [storeMinAmount, setStoreMinAmount] = useState(0);
     const [paymentMode, setPaymentMode] = useState('full');
+    const [payTiming, setPayTiming] = useState('now');
     const [initialPayment, setInitialPayment] = useState('');
 
     const items = getCartItems();
     const totalItems = useMemo(
         () => items.reduce((sum, it) => sum + Number(it.quantity || 0), 0),
-        [items]
+        [items],
     );
     const total = useMemo(
         () => items.reduce((sum, it) => sum + Number(it.quantity || 0) * Number(it.unit_price || 0), 0),
-        [items]
+        [items],
     );
 
     const warehouseId = items[0]?.warehouse_id;
     const allInstallmentEligible = useMemo(
         () => items.length > 0 && items.every((it) => Boolean(it.installment_enabled)),
-        [items]
+        [items],
     );
     const requiredInitial = useMemo(
         () => (paymentMode === 'installment' ? computeRequiredInitial(total, items) : 0),
-        [paymentMode, total, items]
+        [paymentMode, total, items],
     );
+
+    const canSubmit =
+        !loading &&
+        Boolean(fulfillmentType) &&
+        !(storeMinAmount > 0 && total < storeMinAmount);
 
     useEffect(() => {
         if (!allInstallmentEligible && paymentMode === 'installment') {
@@ -76,7 +148,9 @@ const Checkout = ({ navigation }) => {
             }
             try {
                 const list = await customerProfiles.stores();
-                const row = Array.isArray(list) ? list.find((s) => String(s?.warehouse_id) === String(warehouseId)) : null;
+                const row = Array.isArray(list)
+                    ? list.find((s) => String(s?.warehouse_id) === String(warehouseId))
+                    : null;
                 const m = Number(row?.minimum_order_amount ?? 0);
                 if (mounted) setStoreMinAmount(Number.isFinite(m) && m > 0 ? m : 0);
             } catch (_) {
@@ -101,17 +175,14 @@ const Checkout = ({ navigation }) => {
         if (storeMinAmount > 0 && total < storeMinAmount) {
             Alert.alert(
                 'Minimum order',
-                `This store requires a minimum order of GHS ${storeMinAmount.toFixed(2)}. Your total is GHS ${total.toFixed(2)}.`
+                `This store requires a minimum order of GHS ${storeMinAmount.toFixed(2)}. Your total is GHS ${total.toFixed(2)}.`,
             );
             return;
         }
         const initialAmt = paymentMode === 'installment' ? Number(initialPayment || 0) : 0;
         if (paymentMode === 'installment') {
             if (initialAmt < requiredInitial - 0.02) {
-                Alert.alert(
-                    'Initial payment',
-                    `Minimum initial payment is GHS ${requiredInitial.toFixed(2)}.`
-                );
+                Alert.alert('Initial payment', `Minimum initial payment is GHS ${requiredInitial.toFixed(2)}.`);
                 return;
             }
             if (initialAmt > total + 0.02) {
@@ -137,10 +208,29 @@ const Checkout = ({ navigation }) => {
             }
             const createdOrder = await orders.create(payload);
             clearCart();
-            navigation.navigate('CheckoutSuccess', {
-                orderNumber: createdOrder?.order_number || null,
+            const orderId = createdOrder?.id;
+            const orderNumber = createdOrder?.order_number || null;
+            const orderTotal = Number(createdOrder?.total_amount ?? total);
+            const wantPayNow = paymentMode === 'full' && payTiming === 'now' && orderId;
+
+            if (wantPayNow) {
+                navigation.replace('Payment', {
+                    flowType: 'order',
+                    orderId,
+                    amount: orderTotal,
+                    planName: orderNumber || 'Order payment',
+                    onSuccessNavigateTo: 'MyOrderDetails',
+                    onSuccessNavigateParams: { orderId },
+                });
+                return;
+            }
+
+            navigation.replace('CheckoutSuccess', {
+                orderNumber,
                 paymentMode,
-                orderId: createdOrder?.id,
+                payTiming,
+                orderId,
+                totalAmount: orderTotal,
                 balanceDue: createdOrder?.balance_due,
             });
         } catch (error) {
@@ -149,6 +239,14 @@ const Checkout = ({ navigation }) => {
             setLoading(false);
         }
     };
+
+    const ctaLabel = loading
+        ? 'Placing order...'
+        : paymentMode === 'installment'
+          ? 'Place pay-over-time order'
+          : payTiming === 'now'
+            ? `Place order & pay · GHS ${total.toFixed(2)}`
+            : `Place order · GHS ${total.toFixed(2)}`;
 
     return (
         <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
@@ -160,248 +258,405 @@ const Checkout = ({ navigation }) => {
                 <ScreenHeader onPress={() => navigation.goBack()} label="Checkout" />
                 <ScrollView
                     keyboardShouldPersistTaps="handled"
-                    contentContainerStyle={{ padding: 12, paddingBottom: 36 }}
+                    contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 140 }}
+                    showsVerticalScrollIndicator={false}
                 >
-                <View style={[styles.infoBanner, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
-                    <Lucide name="info" size={16} color={config.THEME_COLOR} />
                     <AppText
-                        label={
-                            paymentMode === 'installment'
-                                ? 'Pay over time: pay any amount after the store confirms your order until the balance is cleared.'
-                                : 'You will pay after the store confirms your order. Complete checkout to submit — payment opens from order details once confirmed.'
-                        }
-                        fontSize={12}
+                        label={`${totalItems} item${totalItems === 1 ? '' : 's'} · GHS ${total.toFixed(2)}`}
+                        fontSize={13}
                         color={colors.textSecondary}
-                        style={{ flex: 1, marginLeft: 8 }}
+                        style={{ marginBottom: 14 }}
                     />
-                </View>
-                {storeMinAmount > 0 ? (
-                    <View style={[styles.minBanner, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-                        <AppText
-                            label={`Minimum order for this store: GHS ${storeMinAmount.toFixed(2)}`}
-                            fontSize={12}
-                            color={total >= storeMinAmount ? colors.textSecondary : colors.error || '#DC2626'}
-                            variant={total >= storeMinAmount ? 0 : 1}
-                        />
-                    </View>
-                ) : null}
-                {allInstallmentEligible ? (
-                    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                        <View style={styles.sectionHeader}>
-                            <Lucide name="wallet" size={15} color={colors.textSecondary} />
-                            <AppText label="Payment option" color={colors.textSecondary} fontSize={13} style={{ marginLeft: 6 }} />
-                        </View>
-                        <View style={styles.row}>
-                            {[
-                                { id: 'full', label: 'Pay in full' },
-                                { id: 'installment', label: 'Pay over time' },
-                            ].map((opt) => (
-                                <TouchableOpacity
-                                    key={opt.id}
-                                    onPress={() => setPaymentMode(opt.id)}
-                                    style={[
-                                        styles.chip,
-                                        {
-                                            borderColor: paymentMode === opt.id ? config.THEME_COLOR : colors.border,
-                                            backgroundColor: paymentMode === opt.id ? config.THEME_COLOR : colors.surfaceSecondary,
-                                        },
-                                    ]}
-                                >
-                                    <AppText label={opt.label} color={paymentMode === opt.id ? '#fff' : config.THEME_COLOR} />
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                        {paymentMode === 'installment' ? (
-                            <View style={{ marginTop: 10 }}>
-                                {requiredInitial > 0 ? (
-                                    <AppText
-                                        label={`Minimum initial payment: GHS ${requiredInitial.toFixed(2)}`}
-                                        fontSize={12}
-                                        color={colors.textSecondary}
-                                        style={{ marginBottom: 6 }}
-                                    />
-                                ) : null}
-                                <TextInput
-                                    value={initialPayment}
-                                    onChangeText={setInitialPayment}
-                                    placeholder="Initial payment (optional)"
-                                    placeholderTextColor={colors.placeholder}
-                                    keyboardType="decimal-pad"
-                                    style={[styles.input, { borderColor: colors.border, color: colors.text, minHeight: 44 }]}
-                                />
-                                <AppText
-                                    label={`Balance after checkout: GHS ${Math.max(0, total - Number(initialPayment || 0)).toFixed(2)}`}
-                                    fontSize={12}
-                                    color={config.THEME_COLOR}
-                                    style={{ marginTop: 6 }}
-                                />
-                            </View>
-                        ) : null}
-                    </View>
-                ) : null}
-                <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <View style={styles.sectionHeader}>
-                        <Lucide name="shopping-bag" size={15} color={colors.textSecondary} />
-                        <AppText label="Items in this order" color={colors.textSecondary} fontSize={13} style={{ marginLeft: 6 }} />
-                    </View>
-                    <View style={{ marginTop: 8, gap: 8 }}>
-                        {items.map((it, idx) => (
-                            <View key={it.key || `${it.product_id}-${idx}`} style={[styles.itemCard, { backgroundColor: colors.surfaceSecondary }]}>
-                                <View style={{ flex: 1 }}>
-                                    <AppText label={it.name || 'Item'} color={colors.text} variant={1} fontSize={14} numberOfLines={1} />
-                                    <AppText
-                                        label={`${Number(it.quantity || 0)} x GHS ${Number(it.unit_price || 0).toFixed(2)}`}
-                                        color={colors.textSecondary}
-                                        fontSize={12}
-                                        style={{ marginTop: 2 }}
-                                    />
-                                </View>
-                                <AppText
-                                    label={`GHS ${(Number(it.quantity || 0) * Number(it.unit_price || 0)).toFixed(2)}`}
-                                    color={colors.text}
-                                    fontSize={13}
-                                />
-                            </View>
-                        ))}
-                    </View>
-                </View>
 
-                <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, marginTop: 12 }]}>
-                    <View style={styles.sectionHeader}>
-                        <Lucide name="truck" size={15} color={colors.textSecondary} />
-                        <AppText label="Fulfillment type" color={colors.textSecondary} fontSize={13} style={{ marginLeft: 6 }} />
-                    </View>
-                    <View style={styles.row}>
-                        {['pickup', 'delivery'].map((type) => (
-                            <TouchableOpacity
-                                key={type}
-                                onPress={() => setFulfillmentType(type)}
-                                style={[
-                                    styles.chip,
-                                    {
-                                        borderColor: fulfillmentType === type ? config.THEME_COLOR : colors.border,
-                                        backgroundColor: fulfillmentType === type ? config.THEME_COLOR : colors.surfaceSecondary,
-                                    },
-                                ]}
-                            >
-                                <Lucide
-                                    name={type === 'pickup' ? 'store' : 'bike'}
-                                    size={14}
-                                    color={fulfillmentType === type ? '#fff' : colors.textSecondary}
-                                />
-                                <AppText label={type} color={fulfillmentType === type ? '#fff' : config.THEME_COLOR} />
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </View>
-
-                <View style={[styles.heroCard, { backgroundColor: colors.surface, borderColor: colors.border, marginTop: 12 }]}>
-                    <View style={styles.heroTopRow}>
-                        <View style={[styles.heroIconWrap, { backgroundColor: colors.surfaceSecondary }]}>
-                            <Lucide name="receipt-text" size={17} color={config.THEME_COLOR} />
-                        </View>
-                        <View style={{ flex: 1, marginLeft: 10 }}>
-                            <AppText label="Review your order" variant={1} color={colors.text} fontSize={16} />
-                            <AppText label={`${totalItems} item(s) ready`} color={colors.textSecondary} fontSize={12} style={{ marginTop: 2 }} />
-                        </View>
-                    </View>
-                    <View style={[styles.heroStats, { backgroundColor: colors.surfaceSecondary }]}>
-                        <View>
-                            <AppText label="Order total" color={colors.textSecondary} fontSize={12} />
-                            <AppText label={`GHS ${total.toFixed(2)}`} variant={1} color={config.THEME_COLOR} fontSize={18} style={{ marginTop: 2 }} />
-                        </View>
-                        <View style={[styles.heroDivider, { backgroundColor: colors.border }]} />
-                        <View>
-                            <AppText label="Fulfillment" color={colors.textSecondary} fontSize={12} />
+                    {storeMinAmount > 0 ? (
+                        <View
+                            style={[
+                                styles.notice,
+                                {
+                                    borderColor:
+                                        total >= storeMinAmount
+                                            ? colors.border
+                                            : colors.error || '#DC2626',
+                                    backgroundColor: colors.surface,
+                                },
+                            ]}
+                        >
+                            <Lucide
+                                name="package"
+                                size={15}
+                                color={total >= storeMinAmount ? config.THEME_COLOR : colors.error || '#DC2626'}
+                            />
                             <AppText
-                                label={fulfillmentType ? (fulfillmentType === 'pickup' ? 'Pickup' : 'Delivery') : 'Not selected'}
-                                color={fulfillmentType ? colors.text : colors.textSecondary}
-                                variant={1}
-                                style={{ marginTop: 2 }}
+                                label={`Minimum order GHS ${storeMinAmount.toFixed(2)}${
+                                    total < storeMinAmount
+                                        ? ` · add GHS ${(storeMinAmount - total).toFixed(2)} more`
+                                        : ''
+                                }`}
+                                fontSize={12}
+                                color={
+                                    total >= storeMinAmount
+                                        ? colors.textSecondary
+                                        : colors.error || '#DC2626'
+                                }
+                                style={{ flex: 1, marginLeft: 8 }}
+                            />
+                        </View>
+                    ) : null}
+
+                    <View style={styles.section}>
+                        <AppText label="Your items" variant={1} fontSize={15} color={colors.text} />
+                        <View
+                            style={[
+                                styles.panel,
+                                { backgroundColor: colors.surface, borderColor: colors.border, marginTop: 10 },
+                            ]}
+                        >
+                            {items.map((it, idx) => {
+                                const img = resolveImageUri(it.image_uri || it.thumbnail || it.image);
+                                return (
+                                    <View
+                                        key={it.key || `${it.product_id}-${idx}`}
+                                        style={[
+                                            styles.lineRow,
+                                            idx > 0 && {
+                                                borderTopWidth: StyleSheet.hairlineWidth,
+                                                borderTopColor: colors.border,
+                                            },
+                                        ]}
+                                    >
+                                        <View
+                                            style={[
+                                                styles.thumb,
+                                                { backgroundColor: colors.surfaceSecondary },
+                                            ]}
+                                        >
+                                            {img ? (
+                                                <Image source={{ uri: img }} style={styles.thumbImg} />
+                                            ) : (
+                                                <Lucide name="package" size={16} color={colors.textTertiary || colors.textSecondary} />
+                                            )}
+                                        </View>
+                                        <View style={{ flex: 1, marginHorizontal: 10 }}>
+                                            <AppText
+                                                label={it.name || 'Item'}
+                                                color={colors.text}
+                                                variant={1}
+                                                fontSize={14}
+                                                numberOfLines={2}
+                                            />
+                                            <AppText
+                                                label={`${Number(it.quantity || 0)} × GHS ${Number(it.unit_price || 0).toFixed(2)}`}
+                                                color={colors.textSecondary}
+                                                fontSize={12}
+                                                style={{ marginTop: 2 }}
+                                            />
+                                        </View>
+                                        <AppText
+                                            label={`GHS ${(Number(it.quantity || 0) * Number(it.unit_price || 0)).toFixed(2)}`}
+                                            color={colors.text}
+                                            variant={1}
+                                            fontSize={13}
+                                        />
+                                    </View>
+                                );
+                            })}
+                        </View>
+                    </View>
+
+                    <View style={styles.section}>
+                        <AppText label="Fulfillment" variant={1} fontSize={15} color={colors.text} />
+                        <View style={styles.tileRow}>
+                            <OptionTile
+                                selected={fulfillmentType === 'pickup'}
+                                onPress={() => setFulfillmentType('pickup')}
+                                icon="store"
+                                title="Pickup"
+                                subtitle="Collect from the store"
+                                colors={colors}
+                                compact
+                            />
+                            <OptionTile
+                                selected={fulfillmentType === 'delivery'}
+                                onPress={() => setFulfillmentType('delivery')}
+                                icon="bike"
+                                title="Delivery"
+                                subtitle="To your address"
+                                colors={colors}
+                                compact
                             />
                         </View>
                     </View>
-                </View>
 
-                <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, marginTop: 12 }]}>
-                    <View style={styles.sectionHeader}>
-                        <Lucide name="sticky-note" size={15} color={colors.textSecondary} />
-                        <AppText label="Notes" color={colors.textSecondary} fontSize={13} style={{ marginLeft: 6 }} />
+                    {allInstallmentEligible ? (
+                        <View style={styles.section}>
+                            <AppText label="Payment plan" variant={1} fontSize={15} color={colors.text} />
+                            <View style={styles.tileStack}>
+                                <OptionTile
+                                    selected={paymentMode === 'full'}
+                                    onPress={() => setPaymentMode('full')}
+                                    icon="wallet"
+                                    title="Pay in full"
+                                    subtitle="One payment for the full amount"
+                                    colors={colors}
+                                />
+                                <OptionTile
+                                    selected={paymentMode === 'installment'}
+                                    onPress={() => setPaymentMode('installment')}
+                                    icon="calendar-clock"
+                                    title="Pay over time"
+                                    subtitle="Pay after the store confirms, until cleared"
+                                    colors={colors}
+                                />
+                            </View>
+                            {paymentMode === 'installment' ? (
+                                <View
+                                    style={[
+                                        styles.panel,
+                                        {
+                                            backgroundColor: colors.surface,
+                                            borderColor: colors.border,
+                                            marginTop: 10,
+                                            padding: 12,
+                                        },
+                                    ]}
+                                >
+                                    {requiredInitial > 0 ? (
+                                        <AppText
+                                            label={`Minimum initial payment: GHS ${requiredInitial.toFixed(2)}`}
+                                            fontSize={12}
+                                            color={colors.textSecondary}
+                                            style={{ marginBottom: 8 }}
+                                        />
+                                    ) : null}
+                                    <TextInput
+                                        value={initialPayment}
+                                        onChangeText={setInitialPayment}
+                                        placeholder="Initial payment (optional)"
+                                        placeholderTextColor={colors.placeholder}
+                                        keyboardType="decimal-pad"
+                                        style={[
+                                            styles.input,
+                                            {
+                                                borderColor: colors.border,
+                                                color: colors.text,
+                                                minHeight: 46,
+                                                backgroundColor: colors.background,
+                                            },
+                                        ]}
+                                    />
+                                    <AppText
+                                        label={`Balance after checkout: GHS ${Math.max(0, total - Number(initialPayment || 0)).toFixed(2)}`}
+                                        fontSize={12}
+                                        color={config.THEME_COLOR}
+                                        style={{ marginTop: 8 }}
+                                    />
+                                </View>
+                            ) : null}
+                        </View>
+                    ) : null}
+
+                    {paymentMode === 'full' ? (
+                        <View style={styles.section}>
+                            <AppText label="When to pay" variant={1} fontSize={15} color={colors.text} />
+                            <View style={styles.tileStack}>
+                                <OptionTile
+                                    selected={payTiming === 'now'}
+                                    onPress={() => setPayTiming('now')}
+                                    icon="smartphone"
+                                    title="Pay now"
+                                    subtitle="MoMo or card right after placing the order"
+                                    colors={colors}
+                                />
+                                <OptionTile
+                                    selected={payTiming === 'later'}
+                                    onPress={() => setPayTiming('later')}
+                                    icon="clock-3"
+                                    title={fulfillmentType === 'delivery' ? 'Pay on delivery' : 'Pay later'}
+                                    subtitle="Settle from order details when you’re ready"
+                                    colors={colors}
+                                />
+                            </View>
+                        </View>
+                    ) : null}
+
+                    <View style={styles.section}>
+                        <AppText label="Notes" variant={1} fontSize={15} color={colors.text} />
+                        <AppText
+                            label="Optional — delivery instructions or pickup preference"
+                            fontSize={12}
+                            color={colors.textSecondary}
+                            style={{ marginTop: 4 }}
+                        />
+                        <TextInput
+                            value={notes}
+                            onChangeText={setNotes}
+                            placeholder="Add a note"
+                            placeholderTextColor={colors.placeholder}
+                            multiline
+                            style={[
+                                styles.input,
+                                styles.notesInput,
+                                {
+                                    borderColor: colors.border,
+                                    color: colors.text,
+                                    backgroundColor: colors.surface,
+                                    marginTop: 10,
+                                },
+                            ]}
+                        />
                     </View>
-                    <TextInput
-                        value={notes}
-                        onChangeText={setNotes}
-                        placeholder="Any delivery/pickup note"
-                        placeholderTextColor={colors.placeholder}
-                        multiline
-                        style={[styles.input, { borderColor: colors.border, color: colors.text }]}
-                    />
-                </View>
+                </ScrollView>
 
-                <View style={[styles.payCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <AppText label="Order total" color={colors.textSecondary} />
-                        <AppText label={`GHS ${total.toFixed(2)}`} variant={1} color={config.THEME_COLOR} />
+                <View
+                    style={[
+                        styles.footer,
+                        {
+                            backgroundColor: colors.surface,
+                            borderTopColor: colors.border,
+                            paddingBottom: Math.max(12, insets.bottom || 0),
+                        },
+                    ]}
+                >
+                    <View style={styles.footerTotalRow}>
+                        <View>
+                            <AppText label="Total" fontSize={12} color={colors.textSecondary} />
+                            <AppText
+                                label={`GHS ${total.toFixed(2)}`}
+                                variant={1}
+                                fontSize={20}
+                                color={colors.text}
+                                style={{ marginTop: 2 }}
+                            />
+                        </View>
+                        <AppText
+                            label={
+                                fulfillmentType
+                                    ? fulfillmentType === 'pickup'
+                                        ? 'Pickup'
+                                        : 'Delivery'
+                                    : 'Choose fulfillment'
+                            }
+                            fontSize={12}
+                            color={fulfillmentType ? config.THEME_COLOR : colors.textSecondary}
+                        />
                     </View>
                     <TouchableOpacity
                         onPress={submit}
-                        disabled={loading || !fulfillmentType || (storeMinAmount > 0 && total < storeMinAmount)}
+                        disabled={!canSubmit}
+                        activeOpacity={0.85}
                         style={[
-                            styles.btn,
+                            styles.cta,
                             {
                                 backgroundColor: config.THEME_COLOR,
-                                opacity: loading || !fulfillmentType || (storeMinAmount > 0 && total < storeMinAmount) ? 0.45 : 1,
+                                opacity: canSubmit ? 1 : 0.45,
                             },
                         ]}
                     >
-                        <AppText
-                            label={
-                                loading
-                                    ? 'Placing order...'
-                                    : paymentMode === 'installment'
-                                      ? 'Place pay-over-time order'
-                                      : 'Place order'
-                            }
-                            color="#fff"
-                            variant={1}
-                        />
+                        <AppText label={ctaLabel} color="#fff" variant={1} fontSize={15} />
                     </TouchableOpacity>
                 </View>
-                </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
-    infoBanner: {
+    section: { marginBottom: 22 },
+    notice: {
         flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderRadius: 12,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        marginBottom: 14,
+    },
+    panel: {
+        borderWidth: 1,
+        borderRadius: 14,
+        overflow: 'hidden',
+    },
+    lineRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 12,
+    },
+    thumb: {
+        width: 48,
+        height: 48,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+    },
+    thumbImg: { width: '100%', height: '100%' },
+    tileStack: { marginTop: 10, gap: 8 },
+    tileRow: { marginTop: 10, flexDirection: 'row', gap: 8 },
+    optionTile: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        borderWidth: 1.5,
+        borderRadius: 14,
+        paddingHorizontal: 12,
+        paddingVertical: 12,
+    },
+    optionTileCompact: {
+        flex: 1,
+        flexDirection: 'column',
         alignItems: 'flex-start',
-        borderWidth: 1,
+        gap: 8,
+        minHeight: 102,
+        paddingVertical: 14,
+    },
+    optionIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    radio: {
+        width: 20,
+        height: 20,
         borderRadius: 10,
-        padding: 10,
+        borderWidth: 1.5,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    input: {
+        borderWidth: 1,
+        borderRadius: 12,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        fontSize: 15,
+        fontFamily: 'FiraSans-Regular',
+    },
+    notesInput: {
+        minHeight: 88,
+        textAlignVertical: 'top',
+    },
+    footer: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        paddingHorizontal: 16,
+        paddingTop: 12,
+    },
+    footerTotalRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-end',
+        justifyContent: 'space-between',
         marginBottom: 10,
     },
-    minBanner: {
-        borderWidth: 1,
-        borderRadius: 10,
-        paddingHorizontal: 10,
-        paddingVertical: 8,
-        marginBottom: 10,
+    cta: {
+        borderRadius: 14,
+        alignItems: 'center',
+        paddingVertical: 15,
     },
-    heroCard: { borderWidth: 1, borderRadius: 12, padding: 12, marginBottom: 12 },
-    heroTopRow: { flexDirection: 'row', alignItems: 'center' },
-    heroIconWrap: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-    heroStats: { marginTop: 12, borderRadius: 10, padding: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    heroDivider: { width: 1, alignSelf: 'stretch', marginHorizontal: 14 },
-    card: { borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 12 },
-    sectionHeader: { flexDirection: 'row', alignItems: 'center' },
-    itemCard: { borderRadius: 9, paddingHorizontal: 10, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    row: { flexDirection: 'row', gap: 8, marginTop: 10 },
-    chip: { borderWidth: 1, borderRadius: 99, paddingHorizontal: 12, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 6 },
-    input: { marginTop: 6, borderWidth: 1, borderRadius: 8, minHeight: 82, textAlignVertical: 'top', padding: 10 },
-    payCard: { marginTop: 12, borderWidth: 1, borderRadius: 10, padding: 12 },
-    btn: { marginTop: 12, borderRadius: 10, alignItems: 'center', paddingVertical: 13 },
 });
 
 export default Checkout;

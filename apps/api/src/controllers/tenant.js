@@ -9,7 +9,103 @@ import {
 } from "../models/tenant.js";
 import { assignServingMerchantService } from "../models/merchant.js";
 import { getPrinterSetupEntitlementForTenantService } from "../models/onboardingQuote.js";
+import { createAuditLogService } from "../models/auditLog.js";
 import pool from "../config/db.js";
+
+const COMPANY_AUDIT_FIELDS = [
+    "name",
+    "organization",
+    "phone",
+    "email",
+    "address",
+    "city",
+    "state",
+    "country",
+    "postal_code",
+    "website",
+    "logo",
+    "industry_id",
+    "notes",
+    "product_categorization",
+];
+
+async function loadCompanyAuditSnapshot(tenantId) {
+    if (!tenantId) return null;
+    const result = await pool.query(
+        `SELECT name, organization, phone, email, address, city, state, country, postal_code,
+                website, logo, industry_id, notes, product_categorization, settings
+         FROM tenants
+         WHERE id = $1
+         LIMIT 1`,
+        [tenantId]
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    let bulk = null;
+    try {
+        const settings =
+            typeof row.settings === "string" ? JSON.parse(row.settings) : row.settings;
+        bulk = settings?.bulk_discount ?? null;
+    } catch (_) {
+        bulk = null;
+    }
+    const snap = {};
+    for (const field of COMPANY_AUDIT_FIELDS) {
+        snap[field] = row[field] ?? null;
+    }
+    snap.bulk_discount = bulk;
+    return snap;
+}
+
+function snapshotCompanyForAudit(tenant) {
+    if (!tenant) return null;
+    const snap = {};
+    for (const field of COMPANY_AUDIT_FIELDS) {
+        snap[field] = tenant[field] ?? null;
+    }
+    snap.bulk_discount = tenant.settings?.bulk_discount ?? null;
+    return snap;
+}
+
+function diffCompanySnapshots(before, after) {
+    const changes = {};
+    const keys = new Set([...Object.keys(before || {}), ...Object.keys(after || {})]);
+    for (const key of keys) {
+        const from = before?.[key] ?? null;
+        const to = after?.[key] ?? null;
+        if (JSON.stringify(from) !== JSON.stringify(to)) {
+            changes[key] = { from, to };
+        }
+    }
+    return changes;
+}
+
+async function logCompanyProfileUpdate(req, { tenantId, before, after, source }) {
+    if (!req?.user?.id || !tenantId) return;
+    const changes = diffCompanySnapshots(before, after);
+    if (!Object.keys(changes).length) return;
+    try {
+        await createAuditLogService({
+            user_id: req.user.id,
+            tenant_id: tenantId,
+            action: "COMPANY_PROFILE_UPDATE",
+            entity_type: "company_profile",
+            entity_id: tenantId,
+            details: JSON.stringify({
+                source: source || "company_profile",
+                actor: {
+                    id: req.user.id,
+                    email: req.user.email || null,
+                },
+                changed_fields: Object.keys(changes),
+                changes,
+            }),
+            ip_address: req.ip,
+        });
+    } catch (err) {
+        console.error("[audit] Failed to log company profile update", err?.message || err);
+    }
+}
 
 export const createTenant = async (req, res, next) => {
     try {
@@ -99,10 +195,17 @@ export const updateTenant = async (req, res, next) => {
         const setup_inventory = req.body.setup_inventory === true || req.query.setup_inventory === "true";
         const payload = { ...req.body };
         delete payload.setup_inventory;
+        const before = await loadCompanyAuditSnapshot(tenant_id);
         const options = { setup_inventory, creator_id: req.user?.id ?? null };
         const tenant = await updateTenantService(tenant_id, payload, options);
         if (!tenant) return handleResponse(res, 404, "Tenant not found.", null);
         handleResponse(res, 200, setup_inventory ? "Tenant updated; inventories created where missing." : "Tenant updated.", tenant);
+        await logCompanyProfileUpdate(req, {
+            tenantId: tenant_id,
+            before,
+            after: snapshotCompanyForAudit(tenant),
+            source: "admin_tenant_update",
+        });
     } catch (error) {
         if (error.message?.includes("Tenant not found")) {
             return handleResponse(res, 404, error.message, null);
@@ -121,10 +224,17 @@ export const updateMyCompanyInfo = async (req, res, next) => {
         const setup_inventory = true;//req.body.setup_inventory === true || req.query.setup_inventory === "true";
         const payload = { ...req.body };
         // delete payload.setup_inventory;
+        const before = await loadCompanyAuditSnapshot(tenant_id);
         const options = { setup_inventory, creator_id: req.user.id };
         const tenant = await updateTenantService(tenant_id, payload, options);
         if (!tenant) return handleResponse(res, 404, "Tenant not found.", null);
         handleResponse(res, 200, setup_inventory ? "Company updated; inventories created where missing." : "Company updated.", tenant);
+        await logCompanyProfileUpdate(req, {
+            tenantId: tenant_id,
+            before,
+            after: snapshotCompanyForAudit(tenant),
+            source: "company_profile",
+        });
     } catch (error) {
         if (error.message?.includes("Tenant not found")) {
             return handleResponse(res, 404, error.message, null);

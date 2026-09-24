@@ -275,17 +275,28 @@ const Profile = ({ navigation, route }) => {
         );
     }
 
-    const InfoRow = ({ icon, label, val }) => (
-        <View style={styles.infoRow}>
-            <View style={[styles.infoIconBox, { backgroundColor: colors.surfaceSecondary }]}>
-                <Lucide name={icon} size={18} color={colors.textSecondary} />
-            </View>
-            <View style={{ flex: 1 }}>
-                <AppText label={label} fontSize={12} color={colors.textTertiary} />
-                <AppText label={val} fontSize={15} color={colors.text} variant={1} style={{ marginTop: 2 }} />
-            </View>
-        </View>
-    );
+    const InfoRow = ({ icon, label, val, onPress }) => {
+        const content = (
+            <>
+                <View style={[styles.infoIconBox, { backgroundColor: colors.surfaceSecondary }]}>
+                    <Lucide name={icon} size={18} color={colors.textSecondary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                    <AppText label={label} fontSize={12} color={colors.textTertiary} />
+                    <AppText label={val} fontSize={15} color={colors.text} variant={1} style={{ marginTop: 2 }} />
+                </View>
+                {onPress ? <Lucide name="chevron-right" size={18} color={colors.border} /> : null}
+            </>
+        );
+        if (onPress) {
+            return (
+                <TouchableOpacity activeOpacity={0.7} onPress={onPress} style={styles.infoRow}>
+                    {content}
+                </TouchableOpacity>
+            );
+        }
+        return <View style={styles.infoRow}>{content}</View>;
+    };
 
     const StatItem = ({ label, value, icon, color }) => (
         <View style={styles.statItem}>
@@ -421,9 +432,27 @@ const Profile = ({ navigation, route }) => {
                 <View style={styles.section}>
                     <AppText label="CONTACT INFORMATION" variant={1} fontSize={13} color={colors.textTertiary} style={styles.sectionTitle} />
                     <View style={[styles.card, { backgroundColor: colors.surface }]}>
-                        <InfoRow icon="phone" label="Phone" val={phone} />
+                        <InfoRow
+                            icon="phone"
+                            label="Phone"
+                            val={phone}
+                            onPress={() =>
+                                navigation.navigate('ChangePhone', {
+                                    currentPhone: phone === '—' ? '' : phone,
+                                })
+                            }
+                        />
                         <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-                        <InfoRow icon="mail" label="Email" val={email} />
+                        <InfoRow
+                            icon="mail"
+                            label="Email"
+                            val={email}
+                            onPress={() =>
+                                navigation.navigate('ChangeEmail', {
+                                    currentEmail: email === '—' ? '' : email,
+                                })
+                            }
+                        />
                     </View>
                 </View>
 

@@ -398,7 +398,12 @@ const Settings = ({ navigation, route }) => {
                 showsVerticalScrollIndicator={false}
                 style={{ flex: 1 }}
                 keyboardShouldPersistTaps="handled"
-                contentContainerStyle={{ padding: 10, paddingBottom: TAB_BAR_HEIGHT + insets.bottom + 24 }}>
+                contentContainerStyle={{
+                    padding: 10,
+                    // Customers have no search header — keep avatar below Dynamic Island / status bar.
+                    paddingTop: isCustomer ? insets.top + 16 : 10,
+                    paddingBottom: TAB_BAR_HEIGHT + insets.bottom + 24,
+                }}>
 
                 {/* Profile Section */}
                 <TouchableOpacity

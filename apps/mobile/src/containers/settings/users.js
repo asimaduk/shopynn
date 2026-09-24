@@ -73,7 +73,13 @@ const Users = ({ navigation }) => {
         () => [
             { id: '', label: 'All roles' },
             ...roles
-                .filter((r) => r && (r.name || r.code || r.id))
+                .filter((r) => {
+                    if (!r || !(r.name || r.code || r.id)) return false;
+                    // Customer is a B2C portal role — not used for system user filtering.
+                    return String(r.name || r.code || '')
+                        .trim()
+                        .toLowerCase() !== 'customer';
+                })
                 .map((r) => ({
                     id: r.id,
                     label: r.name || r.code || String(r.id),

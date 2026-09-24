@@ -250,7 +250,8 @@ create table customers (
     deleted_by varchar(40) references users(id),
     deleted_reason varchar(255),
     notes varchar(300),
-    store_credit_balance decimal(12,2) not null default 0
+    store_credit_balance decimal(12,2) not null default 0,
+    customer_profile_id varchar(40)
 );
 
 create table warehouse_reference_codes (
@@ -274,6 +275,14 @@ create table customer_profiles (
     created_at timestamp,
     updated_at timestamp
 );
+
+alter table customers
+    add constraint customers_customer_profile_id_fkey
+    foreign key (customer_profile_id) references customer_profiles(id) on delete set null;
+
+create unique index if not exists uq_customers_tenant_customer_profile
+    on customers (tenant_id, customer_profile_id)
+    where customer_profile_id is not null;
 
 create table customer_store_access (
     id varchar(40) primary key,

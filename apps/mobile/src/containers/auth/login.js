@@ -61,6 +61,16 @@ const normalizePassword = (value) =>
         .replace(/[\u200B-\u200D\uFEFF]/g, '')
         .trim();
 
+const PHONE_OTP_RESEND_COOLDOWN_SEC = 60;
+const PHONE_OTP_MAX_RESENDS = 5;
+
+const formatCountdown = (seconds) => {
+    const s = Math.max(0, Number(seconds) || 0);
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    if (m > 0) return `${m}:${String(r).padStart(2, '0')}`;
+    return `${r}s`;
+};
 const getResponseCode = (error) => {
     const data = error?.response?.data;
     return String(
@@ -86,6 +96,8 @@ const Login = ({ navigation, route }) => {
     const [phoneOtp, setPhoneOtp] = useState('');
     const [phoneOtpSent, setPhoneOtpSent] = useState(false);
     const [phoneDevCode, setPhoneDevCode] = useState(null);
+    const [phoneResendCooldownSec, setPhoneResendCooldownSec] = useState(0);
+    const [phoneResendAttempts, setPhoneResendAttempts] = useState(0);
     const [tabWidth, setTabWidth] = useState(0);
     const tabUnderlineX = useRef(new Animated.Value(0)).current;
     const [biometricAvailable, setBiometricAvailable] = useState(false);
@@ -144,6 +156,25 @@ const Login = ({ navigation, route }) => {
         setPhoneOtpSent(false);
         setPhoneOtp('');
         setPhoneDevCode(null);
+        setPhoneResendCooldownSec(0);
+        setPhoneResendAttempts(0);
+    };
+
+    useEffect(() => {
+        if (phoneResendCooldownSec <= 0) return undefined;
+        const t = setTimeout(() => {
+            setPhoneResendCooldownSec((s) => Math.max(0, s - 1));
+        }, 1000);
+        return () => clearTimeout(t);
+    }, [phoneResendCooldownSec]);
+
+    const resetPhoneOtpFlow = () => {
+        setPhoneOtpSent(false);
+        setPhoneOtp('');
+        setPhoneDevCode(null);
+        setPhoneResendCooldownSec(0);
+        setPhoneResendAttempts(0);
+        setLoginError('');
     };
 
     useFocusEffect(
@@ -409,10 +440,20 @@ const Login = ({ navigation, route }) => {
 
 
 
-    const sendPhoneOtp = async () => {
+    const sendPhoneOtp = async ({ isResend = false } = {}) => {
         if (!phone.trim()) {
             Alert.alert('Required', 'Enter the mobile number you used on the store link.');
             return;
+        }
+        if (isResend) {
+            if (phoneResendCooldownSec > 0) return;
+            if (phoneResendAttempts >= PHONE_OTP_MAX_RESENDS) {
+                Alert.alert(
+                    'Resend limit reached',
+                    `You can request up to ${PHONE_OTP_MAX_RESENDS} codes. Change the number or try again later.`
+                );
+                return;
+            }
         }
         setLoading(true);
         setLoginError('');
@@ -420,6 +461,7 @@ const Login = ({ navigation, route }) => {
             await clearTokens();
             const data = await usersApi.sendPhoneLoginOtp(phone.trim());
             setPhoneOtpSent(true);
+            setPhoneOtp('');
             setPhoneDevCode(data?.dev_code || null);
             if (data?.phone) {
                 let normalized = String(data.phone).replace(/\D/g, '');
@@ -428,13 +470,28 @@ const Login = ({ navigation, route }) => {
                 }
                 setPhone(normalized.slice(0, 10));
             }
-            Alert.alert(
-                'Code sent',
-                data?.dev_code
-                    ? `Dev code: ${data.dev_code}`
-                    : 'Enter the SMS code we sent to your phone.'
-            );
+            const cooldown = Number(data?.resend_cooldown_seconds) || PHONE_OTP_RESEND_COOLDOWN_SEC;
+            setPhoneResendCooldownSec(cooldown);
+            setPhoneResendAttempts((n) => (isResend || phoneOtpSent ? n + 1 : 1));
+            if (!isResend) {
+                Alert.alert(
+                    'Code sent',
+                    data?.dev_code
+                        ? `Dev code: ${data.dev_code}`
+                        : 'Enter the SMS code we sent to your phone.'
+                );
+            }
         } catch (err) {
+            const payload = err?.response?.data?.data || {};
+            const retryAfter = Number(payload.retry_after_seconds);
+            if (payload.code === 'OTP_COOLDOWN' || (Number.isFinite(retryAfter) && retryAfter > 0)) {
+                setPhoneOtpSent(true);
+                setPhoneResendCooldownSec(
+                    Number.isFinite(retryAfter) && retryAfter > 0
+                        ? retryAfter
+                        : PHONE_OTP_RESEND_COOLDOWN_SEC
+                );
+            }
             const msg = err?.response?.data?.message || err?.message || 'Could not send code.';
             setLoginError(msg);
             Alert.alert('Could not send code', msg);
@@ -711,8 +768,27 @@ const Login = ({ navigation, route }) => {
                         ) : (
                             <>
                                 <View style={styles.fieldGroup}>
-                                    <AppText label="Mobile number" fontSize={12} color={colors.textTertiary} style={styles.fieldLabel} />
-                                    <View style={[styles.inputRow, { borderBottomColor: colors.border }]}>
+                                    <View style={styles.phoneLabelRow}>
+                                        <AppText label="Mobile number" fontSize={12} color={colors.textTertiary} style={styles.fieldLabel} />
+                                        {phoneOtpSent ? (
+                                            <TouchableOpacity
+                                                onPress={resetPhoneOtpFlow}
+                                                disabled={loading}
+                                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                            >
+                                                <AppText label="Change" fontSize={12} color={config.THEME_COLOR} />
+                                            </TouchableOpacity>
+                                        ) : null}
+                                    </View>
+                                    <View
+                                        style={[
+                                            styles.inputRow,
+                                            {
+                                                borderBottomColor: colors.border,
+                                                opacity: phoneOtpSent ? 0.72 : 1,
+                                            },
+                                        ]}
+                                    >
                                         <Lucide name="smartphone" size={18} color={colors.placeholder} style={styles.inputIcon} />
                                         <TextInput
                                             style={[styles.input, { color: colors.text }]}
@@ -722,15 +798,17 @@ const Login = ({ navigation, route }) => {
                                             onChangeText={(value) => {
                                                 const digits = String(value || '').replace(/\D/g, '').slice(0, 10);
                                                 setPhone(digits);
-                                                setPhoneOtpSent(false);
                                                 if (loginError) setLoginError('');
                                             }}
                                             keyboardType="phone-pad"
                                             autoComplete="tel"
                                             textContentType="telephoneNumber"
                                             maxLength={10}
-                                            editable={!loading}
+                                            editable={!loading && !phoneOtpSent}
                                         />
+                                        {phoneOtpSent ? (
+                                            <Lucide name="lock" size={16} color={colors.placeholder} />
+                                        ) : null}
                                     </View>
                                 </View>
                                 {phoneOtpSent ? (
@@ -749,6 +827,7 @@ const Login = ({ navigation, route }) => {
                                                 keyboardType="number-pad"
                                                 maxLength={6}
                                                 editable={!loading}
+                                                autoFocus
                                             />
                                         </View>
                                         {phoneDevCode ? (
@@ -769,7 +848,7 @@ const Login = ({ navigation, route }) => {
                                 {!phoneOtpSent ? (
                                     <TouchableOpacity
                                         activeOpacity={0.8}
-                                        onPress={sendPhoneOtp}
+                                        onPress={() => sendPhoneOtp({ isResend: false })}
                                         disabled={loading || !phone.trim()}
                                         style={[
                                             styles.primaryBtn,
@@ -801,14 +880,44 @@ const Login = ({ navigation, route }) => {
                                                 <AppText label="Verify & sign in" variant={1} fontSize={16} color="#fff" />
                                             )}
                                         </TouchableOpacity>
-                                        <TouchableOpacity
-                                            activeOpacity={0.8}
-                                            onPress={sendPhoneOtp}
-                                            disabled={loading}
-                                            style={styles.forgotBtn}
-                                        >
-                                            <AppText label="Resend code" fontSize={13} color={config.THEME_COLOR} />
-                                        </TouchableOpacity>
+                                        <View style={styles.resendRow}>
+                                            <AppText
+                                                label={
+                                                    phoneResendAttempts >= PHONE_OTP_MAX_RESENDS
+                                                        ? `Resend limit reached (${PHONE_OTP_MAX_RESENDS}/${PHONE_OTP_MAX_RESENDS})`
+                                                        : `${Math.max(0, PHONE_OTP_MAX_RESENDS - phoneResendAttempts)} resend${
+                                                              PHONE_OTP_MAX_RESENDS - phoneResendAttempts === 1 ? '' : 's'
+                                                          } left`
+                                                }
+                                                fontSize={12}
+                                                color={colors.textTertiary}
+                                            />
+                                            <TouchableOpacity
+                                                activeOpacity={0.8}
+                                                onPress={() => sendPhoneOtp({ isResend: true })}
+                                                disabled={
+                                                    loading ||
+                                                    phoneResendCooldownSec > 0 ||
+                                                    phoneResendAttempts >= PHONE_OTP_MAX_RESENDS
+                                                }
+                                                style={styles.resendLink}
+                                            >
+                                                <AppText
+                                                    label={
+                                                        phoneResendCooldownSec > 0
+                                                            ? `Resend in ${formatCountdown(phoneResendCooldownSec)}`
+                                                            : 'Resend code'
+                                                    }
+                                                    fontSize={13}
+                                                    color={
+                                                        phoneResendCooldownSec > 0 ||
+                                                        phoneResendAttempts >= PHONE_OTP_MAX_RESENDS
+                                                            ? colors.textTertiary
+                                                            : config.THEME_COLOR
+                                                    }
+                                                />
+                                            </TouchableOpacity>
+                                        </View>
                                     </>
                                 )}
                                 {/* <AppText
@@ -982,6 +1091,20 @@ const styles = StyleSheet.create({
     },
     fieldGroup: { marginBottom: 20 },
     fieldLabel: { marginLeft: 2 },
+    phoneLabelRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 0,
+    },
+    resendRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: 4,
+        marginBottom: 12,
+        gap: 8,
+    },
     inputRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -999,6 +1122,7 @@ const styles = StyleSheet.create({
     },
     eyeBtn: { padding: 8 },
     forgotBtn: { alignSelf: 'flex-end', marginBottom: 20 },
+    resendLink: { paddingVertical: 4 },
     errorText: {
         fontFamily: 'FiraSans-Regular',
         fontSize: 13,

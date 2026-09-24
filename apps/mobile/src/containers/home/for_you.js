@@ -14,12 +14,79 @@ import { useSelector } from 'react-redux';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 20) / 2;
+const SHOPYNN_LOGO = require('../../assets/images/logo/shopynn-icon.png');
 
 const resolveProfileImageUri = (raw) => {
     const value = String(raw || '').trim();
     if (!value) return '';
     if (/^(https?:|file:|content:|data:)/i.test(value)) return value;
     return `${config.BASE_API}/images?id=${encodeURIComponent(value)}`;
+};
+
+/** YouTube-style overlapping collaborator badges: Shopynn overlaps tenant. */
+const CollaboratorLogos = ({ tenantLogoUri, tenantName, colors }) => {
+    const shopynnSize = 30;
+    const tenantSize = 32;
+    const overlap = 12;
+    const wrapW = shopynnSize + tenantSize - overlap;
+    const wrapH = Math.max(shopynnSize, tenantSize);
+    return (
+        <View style={[styles.collabWrap, { width: wrapW, height: wrapH }]}>
+            {/* Tenant (back) */}
+            <View
+                style={[
+                    styles.collabCircle,
+                    {
+                        width: tenantSize,
+                        height: tenantSize,
+                        borderRadius: tenantSize / 2,
+                        left: shopynnSize - overlap,
+                        top: (wrapH - tenantSize) / 2,
+                        zIndex: 1,
+                        backgroundColor: colors.surfaceSecondary || '#e5e7eb',
+                        borderColor: colors.border || '#d1d5db',
+                        borderWidth: 2,
+                    },
+                ]}
+            >
+                {tenantLogoUri ? (
+                    <Image source={{ uri: tenantLogoUri }} style={styles.collabLogoImg} resizeMode="cover" />
+                ) : (
+                    <View style={styles.collabTenantFallback}>
+                        <AppText
+                            label={String(tenantName || 'S')
+                                .trim()
+                                .charAt(0)
+                                .toUpperCase() || 'S'}
+                            variant={1}
+                            fontSize={12}
+                            color={colors.textSecondary}
+                        />
+                    </View>
+                )}
+            </View>
+            {/* Shopynn (front, overlaps tenant) */}
+            <View
+                style={[
+                    styles.collabCircle,
+                    {
+                        width: shopynnSize,
+                        height: shopynnSize,
+                        borderRadius: shopynnSize / 2,
+                        left: 0,
+                        top: (wrapH - shopynnSize) / 2,
+                        zIndex: 2,
+                        backgroundColor: '#fff',
+                        borderColor: colors.border || '#d1d5db',
+                        borderWidth: 2,
+                        padding: 4,
+                    },
+                ]}
+            >
+                <Image source={SHOPYNN_LOGO} style={styles.collabShopynnImg} resizeMode="contain" />
+            </View>
+        </View>
+    );
 };
 
 const getBrickMetrics = (index) => {
@@ -60,6 +127,25 @@ const ForYou = ({ navigation, route }) => {
             ),
         [user],
     );
+
+    const activeStore = useMemo(
+        () => stores.find((s) => String(s.warehouse_id) === String(warehouseId)) || stores[0] || null,
+        [stores, warehouseId],
+    );
+
+    const tenantLogoUri = useMemo(
+        () =>
+            resolveProfileImageUri(
+                activeStore?.tenant_logo ||
+                    activeStore?.logo ||
+                    user?.company?.logo ||
+                    user?.tenant?.logo,
+            ),
+        [activeStore, user],
+    );
+
+    const tenantDisplayName =
+        activeStore?.tenant_name || activeStore?.name || user?.company?.name || 'Store';
 
     const getProductImageUri = (product) => {
         return (
@@ -125,13 +211,47 @@ const ForYou = ({ navigation, route }) => {
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
             {/* <ScreenHeader label="For You" /> */}
-            <View style={{flexDirection:'row',padding:10,backgroundColor:colors.surface,justifyContent:'space-between',alignItems:'center'}}>
+            <View
+                style={[
+                    styles.headerBar,
+                    { backgroundColor: colors.surface, borderBottomColor: colors.border },
+                ]}
+            >
+                <CollaboratorLogos
+                    tenantLogoUri={tenantLogoUri}
+                    tenantName={tenantDisplayName}
+                    colors={colors}
+                />
+                <AppText
+                    label="For You"
+                    variant={1}
+                    fontSize={17}
+                    fontFamily="FiraSans-Bold"
+                    color={colors.text}
+                    style={{ flex: 1, marginLeft: 10 }}
+                />
+                <TouchableOpacity
+                    activeOpacity={0.75}
+                    onPress={() => navigation.navigate('ForYouSearch', { warehouseId })}
+                    style={[
+                        styles.headerSearch,
+                        { backgroundColor: colors.surfaceSecondary || 'rgba(240,240,240,0.12)' },
+                    ]}
+                >
+                    <Lucide name="search" color={colors.text} size={16} />
+                    <AppText label="Search" color={colors.text} fontSize={12} style={{ marginLeft: 5 }} />
+                </TouchableOpacity>
                 <TouchableOpacity
                     activeOpacity={0.7}
                     onPress={() => navigation.navigate('Profile')}
-                    style={{marginRight: 8}}
+                    style={{ marginLeft: 8 }}
                 >
-                    <View style={[styles.headerProfileImageContainer, { backgroundColor: colors.primaryShade || colors.border }]}>
+                    <View
+                        style={[
+                            styles.headerProfileImageContainer,
+                            { backgroundColor: colors.primaryShade || colors.border },
+                        ]}
+                    >
                         {profileImageUri ? (
                             <Image
                                 source={{ uri: profileImageUri }}
@@ -145,37 +265,11 @@ const ForYou = ({ navigation, route }) => {
                                     { backgroundColor: colors.primaryShade || colors.border },
                                 ]}
                             >
-                                <Lucide name="user" color={config.THEME_COLOR} size={22} />
+                                <Lucide name="user" color={config.THEME_COLOR} size={16} />
                             </View>
                         )}
                     </View>
                 </TouchableOpacity>
-                <AppText label="For You" variant={1} fontSize={16} fontFamily="FiraSans-Bold" color={colors.text} style={{flex:1}} />
-                <View style={{flexDirection:'row',alignItems:'center',flex:1}}>
-                    <TouchableOpacity
-                        activeOpacity={0.75}
-                        onPress={() => navigation.navigate('ForYouSearch', { warehouseId })}
-                        style={{
-                            height: 40,
-                            borderRadius: 999,
-                            marginRight: 8,
-                            paddingHorizontal: 12,
-                            backgroundColor: colors.surfaceSecondary || 'rgba(240,240,240,0.12)',
-                            alignItems: 'center',
-                            flexDirection: 'row',
-                            flex:1,
-                            marginLeft:10,
-                        }}>
-                        <Lucide name="search" color={colors.text} size={17} />
-                        <AppText label="Search" color={colors.text} fontSize={12} style={{ marginLeft: 6 }} />
-                    </TouchableOpacity>
-                    {/* <TouchableOpacity
-                        activeOpacity={.6}
-                        onPress={()=> navigation.navigate("Notifications")}
-                        style={{width:45,height:45,borderRadius:45,backgroundColor:'rgba(240,240,240,0.1)',justifyContent:'center',alignItems:'center'}}>
-                        <Lucide name="bell" color={colors.text} size={17} />
-                    </TouchableOpacity> */}
-                </View>
             </View>
 
             {loading ? (
@@ -322,10 +416,52 @@ const ForYou = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
+    headerBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+    },
+    headerSearch: {
+        flexGrow: 0,
+        flexShrink: 1,
+        width: 118,
+        maxWidth: 118,
+        height: 36,
+        borderRadius: 999,
+        marginLeft: 10,
+        paddingHorizontal: 10,
+        alignItems: 'center',
+        flexDirection: 'row',
+    },
+    collabWrap: {
+        position: 'relative',
+    },
+    collabCircle: {
+        position: 'absolute',
+        overflow: 'hidden',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    collabLogoImg: {
+        width: '100%',
+        height: '100%',
+    },
+    collabShopynnImg: {
+        width: '100%',
+        height: '100%',
+    },
+    collabTenantFallback: {
+        flex: 1,
+        width: '100%',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
     headerProfileImageContainer: {
-        width: 45,
-        height: 45,
-        borderRadius: 22.5,
+        width: 32,
+        height: 32,
+        borderRadius: 16,
         overflow: 'hidden',
     },
     headerProfileImage: {

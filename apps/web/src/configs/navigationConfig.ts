@@ -288,6 +288,15 @@ const navigationConfig: FuseNavItemType[] = [
 				url: '/setup/go-live'
 			},
 			{
+				id: 'setups.companyProfile',
+				title: 'Company profile',
+				type: 'item',
+				icon: 'heroicons-outline:building-office',
+				url: '/company-profile',
+				requiredPermissions: ['company_profile.view'],
+				requiredFeatures: ['company_profile.view']
+			},
+			{
 				id: 'setups.locations',
 				title: 'Locations / Towns',
 				type: 'item',

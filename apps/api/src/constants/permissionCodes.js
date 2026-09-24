@@ -1,6 +1,6 @@
 /**
  * B2C storefront / customer-portal permissions (see ensureCustomerRoleWithPermissions).
- * Must not be auto-granted to tenant Super Admin on onboarding.
+ * Includes shared inbox codes (notifications.*) that staff also use.
  */
 export const CUSTOMER_PORTAL_PERMISSION_CODES = [
     "orders.view",
@@ -8,6 +8,15 @@ export const CUSTOMER_PORTAL_PERMISSION_CODES = [
     "orders.details.view",
     "orders.cancel",
     "notifications.view",
+    "notifications.mark_read",
+];
+
+/** Shopping-only portal codes — Super Admin must not get these via the full-perms shortcut. */
+export const CUSTOMER_SHOPPING_PERMISSION_CODES = [
+    "orders.view",
+    "orders.create",
+    "orders.details.view",
+    "orders.cancel",
 ];
 
 /** Platform-operator permissions (not tenant Super Admin defaults). */
@@ -28,5 +37,5 @@ export const PLATFORM_PERMISSION_CODES = [
 /** Omitted when seeding a new tenant Super Admin role (onboarding + permission shortcut). */
 export const SUPER_ADMIN_EXCLUDED_PERMISSION_CODES = [
     ...PLATFORM_PERMISSION_CODES,
-    ...CUSTOMER_PORTAL_PERMISSION_CODES,
+    ...CUSTOMER_SHOPPING_PERMISSION_CODES,
 ];
