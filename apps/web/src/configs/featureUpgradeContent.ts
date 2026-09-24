@@ -40,7 +40,7 @@ const FEATURE_PREFIX_COPY: Record<string, UpgradeCopy> = {
 	'reports.': {
 		featureTitle: 'Reports',
 		description: 'Business reports and analytics for day-to-day decisions.',
-		bullets: ['Sales & inventory reports', 'Operational summaries', 'Export on Scale']
+		bullets: ['Sales & inventory reports', 'Operational summaries', 'CSV / Excel export on Starter & Business']
 	},
 	'users.': {
 		featureTitle: 'User management',

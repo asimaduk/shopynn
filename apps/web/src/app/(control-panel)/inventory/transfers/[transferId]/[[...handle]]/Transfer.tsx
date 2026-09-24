@@ -26,7 +26,8 @@ function Transfer() {
 	const {
 		data: transfer,
 		isLoading,
-		isError
+		isError,
+		refetch
 	} = useGetTransferByIdQuery(transferId, {refetchOnMountOrArgChange: true});
 
 	const isMobile = useThemeMediaQuery((_theme) => _theme.breakpoints.down('lg'));
@@ -94,7 +95,13 @@ function Transfer() {
 								variant="caption"
 								className="font-medium"
 							>
-								Trasfered By: {transfer.first_name} {transfer.last_name}
+								Sent by: {transfer.first_name} {transfer.last_name}
+								{transfer.status_label || transfer.status
+									? ` · ${transfer.status_label || transfer.status}`
+									: ''}
+								{transfer.receiver_first_name
+									? ` · Received by: ${transfer.receiver_first_name} ${transfer.receiver_last_name || ''}`
+									: ''}
 							</Typography>
 						</motion.div>
 					</div>
@@ -118,7 +125,9 @@ function Transfer() {
 					</FuseTabs>
 					{transfer && (
 						<>
-							{tabValue === 'details' && <DetailsTab transfer={transfer}/>}
+							{tabValue === 'details' && (
+								<DetailsTab transfer={transfer} onReceived={() => void refetch()} />
+							)}
 							{tabValue === 'products' && <ProductsTab transfer={transfer} />}
 						</>
 					)}

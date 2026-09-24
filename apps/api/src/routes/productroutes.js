@@ -1,5 +1,5 @@
 import express from "express";
-import { createProduct, getAllProducts, getProductsByCategory, updateProduct, updateProductImages, uploadProductImages, changeProductPrice, getProductById, deleteProduct, getProductBySlug, changeProductStatus, getAllTransfers, createTransfer, getAllTransferById, getAllProductsCount, getProductsForExport, getCatalog, getCatalogProductById } from "../controllers/product.js";
+import { createProduct, getAllProducts, getProductsByCategory, updateProduct, updateProductImages, uploadProductImages, changeProductPrice, getProductById, deleteProduct, getProductBySlug, changeProductStatus, getAllTransfers, createTransfer, receiveTransfer, getAllTransferById, getAllProductsCount, getProductsForExport, getCatalog, getCatalogProductById } from "../controllers/product.js";
 import { uploadImages } from "../controllers/image.js";
 import { requireAnyPermission, requirePermission } from "../middleware/requirePermission.js";
 import requireFeature from "../middleware/requireFeature.js";
@@ -19,6 +19,11 @@ router.get("/export", requirePermission("products.export"), getProductsForExport
 router.get("/transfers", requirePermission("transfers.view"), getAllTransfers);
 router.get("/transfers/:id", requireAnyPermission("transfers.details.view", "transfers.view"), getAllTransferById);
 router.post("/transfers", requirePermission("transfers.create"), createTransfer);
+router.post(
+    "/transfers/:id/receive",
+    requireAnyPermission("transfers.receive", "transfers.create"),
+    receiveTransfer
+);
 router.get("/slug/:slug", requirePermission("products.view"), getProductBySlug);
 router.get("/:id", requirePermission("products.view"), getProductById);
 router.post("/update-images", requirePermission("products.update_images"), updateProductImages);

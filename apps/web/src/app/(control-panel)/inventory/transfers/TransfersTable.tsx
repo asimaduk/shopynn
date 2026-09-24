@@ -38,11 +38,13 @@ function TransfersTable({ transfers }) {
 				header: 'Total Qty.',
 				accessorFn: (row) => row.number_of_items
 			},
-			// {
-			// 	accessorKey: 'unit_price',
-			// 	header: 'Receipt Status',
-			// 	accessorFn: (row) => `₵ ${row.unit_price}`
-			// },
+			{
+				accessorKey: 'status',
+				header: 'Status',
+				accessorFn: (row) =>
+					row.status_label ||
+					(row.status === 'pending' ? 'Pending' : row.status === 'received' ? 'Received' : row.status || '—')
+			},
 			{
 				accessorKey: 'created_at',
 				header: 'Date',
@@ -50,8 +52,19 @@ function TransfersTable({ transfers }) {
 			},
 			{
 				accessorKey: 'attendant',
-				header: 'Attendant',
-				accessorFn: (row) => row.attendant
+				header: 'Sent by',
+				accessorFn: (row) =>
+					row.attendant ||
+					[row.first_name, row.last_name].filter(Boolean).join(' ') ||
+					'—'
+			},
+			{
+				accessorKey: 'received_by',
+				header: 'Received by',
+				accessorFn: (row) =>
+					row.received_by ||
+					[row.receiver_first_name, row.receiver_last_name].filter(Boolean).join(' ') ||
+					'—'
 			}
 		],
 		[]

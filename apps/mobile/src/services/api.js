@@ -383,6 +383,7 @@ export const transfers = {
     summary: (params) => axios.get('/transfers/summary', { params }).then((res) => getData(res)),
     get: (id) => axios.get(`/transfers/${id}`).then((res) => getData(res)),
     create: (body) => axios.post('/transfers', body).then((res) => getData(res)),
+    receive: (id, body) => axios.post(`/transfers/${id}/receive`, body).then((res) => getData(res)),
 };
 
 // —— Customers ——

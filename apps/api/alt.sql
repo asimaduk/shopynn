@@ -448,13 +448,12 @@ JOIN (
         lower(t.code) = 'basic'
         AND p.feature_code NOT IN (
             'stores.multi_access',
-            'reports.view',
-            'reports.export',
             'inventory.reorder.view',
             'inventory.expiring.view',
             'transfers.view',
             'transfers.details.view',
             'transfers.create',
+            'transfers.receive',
             'adjustments.view',
             'adjustments.details.view',
             'adjustments.create',
@@ -509,7 +508,6 @@ JOIN (
     (
         lower(t.code) = 'standard'
         AND p.feature_code NOT IN (
-            'reports.export',
             'orders.view',
             'orders.details.view',
             'orders.create',

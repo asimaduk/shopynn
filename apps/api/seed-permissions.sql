@@ -90,6 +90,7 @@ INSERT INTO permissions (id, code, name, description, created_at) VALUES
 (gen_random_uuid()::text, 'transfers.view', 'View transfers', 'List and view stock transfers', now()),
 (gen_random_uuid()::text, 'transfers.details.view', 'View transfer details', 'View transfer details screen', now()),
 (gen_random_uuid()::text, 'transfers.create', 'Create transfers', 'Create new stock transfer', now()),
+(gen_random_uuid()::text, 'transfers.receive', 'Receive transfers', 'Accept inbound stock transfers and confirm quantities', now()),
 
 -- Adjustments
 (gen_random_uuid()::text, 'adjustments.view', 'View adjustments', 'List and view stock adjustments', now()),
@@ -254,13 +255,12 @@ JOIN (
         lower(t.code) = 'basic'
         AND p.feature_code NOT IN (
             'stores.multi_access',
-            'reports.view',
-            'reports.export',
             'inventory.reorder.view',
             'inventory.expiring.view',
             'transfers.view',
             'transfers.details.view',
             'transfers.create',
+            'transfers.receive',
             'adjustments.view',
             'adjustments.details.view',
             'adjustments.create',
@@ -322,7 +322,6 @@ JOIN (
     (
         lower(t.code) = 'standard'
         AND p.feature_code NOT IN (
-            'reports.export',
             'orders.view',
             'orders.details.view',
             'orders.create',

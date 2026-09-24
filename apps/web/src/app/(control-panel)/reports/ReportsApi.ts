@@ -70,6 +70,19 @@ const ReportsApi = api.injectEndpoints({
 				}
 				return { url: '/api/audit-logs', params };
 			}
+		}),
+		getAccountantPack: build.query<
+			{
+				range?: { start: string; end: string };
+				files?: { filename: string; content: string }[];
+				counts?: { sales: number; purchases: number; expenses: number };
+			},
+			ReportDateRangeParams | undefined
+		>({
+			query: (arg) => ({
+				url: '/api/dashboard/accountant-pack',
+				params: arg?.startDate && arg?.endDate ? { startDate: arg.startDate, endDate: arg.endDate } : undefined
+			})
 		})
 	}),
 	overrideExisting: false
@@ -85,7 +98,8 @@ export const {
 	useGetPurchasesSuppliersSummaryQuery,
 	useGetTransfersSummaryQuery,
 	useGetAdjustmentsSummaryQuery,
-	useGetAuditLogsForRangeQuery
+	useGetAuditLogsForRangeQuery,
+	useLazyGetAccountantPackQuery
 } = ReportsApi;
 
 export default ReportsApi;

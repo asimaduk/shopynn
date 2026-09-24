@@ -26,8 +26,8 @@ const FREE_TIER_FEATURES = new Set([
 
 /** Not on Basic/Starter — requires Standard/Business or Premium/Scale. */
 const BASIC_EXCLUDED = new Set([
-    'stores.multi_access', 'reports.view', 'reports.export', 'inventory.reorder.view',
-    'inventory.expiring.view', 'transfers.view', 'transfers.details.view', 'transfers.create', 'adjustments.view',
+    'stores.multi_access', 'inventory.reorder.view',
+    'inventory.expiring.view', 'transfers.view', 'transfers.details.view', 'transfers.create', 'transfers.receive', 'adjustments.view',
     'adjustments.details.view', 'adjustments.create', 'roles.view', 'roles.create', 'roles.update', 'roles.delete', 'permissions.view',
     'users.roles.view', 'locations.view', 'locations.create', 'locations.update', 'stock_counts.view', 'stock_counts.details.view',
     'stock_counts.create', 'notifications.view', 'notifications.mark_read', 'notifications.settings.view',
@@ -42,7 +42,7 @@ const BASIC_EXCLUDED = new Set([
 
 /** Not on Standard/Business — requires Premium/Scale. */
 const STANDARD_EXCLUDED = new Set([
-    'reports.export', 'orders.view', 'orders.details.view', 'orders.create', 'orders.update', 'orders.cancel',
+    'orders.view', 'orders.details.view', 'orders.create', 'orders.update', 'orders.cancel',
     'orders.export', 'orders.store.manage', 'orders.store.view', 'orders.analytics.view', 'orders.automation.manage',
     'orders.multi_store.manage', 'orders.delivery.manage', 'data_export.run', 'data_export.view',
     'audit_logs.view', 'audit_logs.details.view', 'audit.view', 'merchants.view', 'merchants.operate', 'tenants.directory.view',

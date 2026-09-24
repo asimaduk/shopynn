@@ -293,6 +293,13 @@ const navigationConfig: FuseNavItemType[] = [
 		// auth: authRoles.admin,
 		children: [
 			{
+				id: 'setups.goLive',
+				title: 'Go live checklist',
+				type: 'item',
+				icon: 'heroicons-outline:rocket-launch',
+				url: '/setup/go-live'
+			},
+			{
 				id: 'setups.locations',
 				title: 'Locations / Towns',
 				type: 'item',

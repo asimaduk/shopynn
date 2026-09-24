@@ -1610,6 +1610,20 @@ export const createSaleService = async (payload) => {
             );
         }
 
+        // Simple loyalty: 1 point per GHS 10 collected (cash/MoMo/card portion of amount_paid).
+        const loyaltyEarnBase = toMoney(credit.amountPaid);
+        if (customer_id && loyaltyEarnBase >= 10) {
+            const points = Math.floor(loyaltyEarnBase / 10);
+            if (points > 0) {
+                await client.query(
+                    `UPDATE customers
+                     SET loyalty_points = COALESCE(loyalty_points, 0) + $1, updated_at = $2
+                     WHERE id = $3 AND tenant_id = $4`,
+                    [points, new Date(), customer_id, tenant_id]
+                );
+            }
+        }
+
         await client.query('COMMIT');
         return {
             id: result.rows[0].id,
@@ -1792,6 +1806,19 @@ export const recordSalePaymentService = async (user, saleId, body = {}) => {
                 tenantId,
             ]
         );
+
+        // Loyalty on collections: 1 pt per GHS 10 of this payment (skip store-credit applications).
+        if (sale.customer_id && resolvedMethod !== "store_credit" && payAmount >= 10) {
+            const points = Math.floor(payAmount / 10);
+            if (points > 0) {
+                await client.query(
+                    `UPDATE customers
+                     SET loyalty_points = COALESCE(loyalty_points, 0) + $1, updated_at = $2
+                     WHERE id = $3 AND tenant_id = $4`,
+                    [points, new Date(), sale.customer_id, tenantId]
+                );
+            }
+        }
 
         await client.query("COMMIT");
 

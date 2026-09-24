@@ -33,7 +33,7 @@ import { allocateNextInvoiceNumber } from '@/utils/invoiceNumbering';
 import { store } from 'src/store/store';
 
 import { useAppDispatch, useAppSelector } from 'src/store/hooks';
-import { addItem } from '../pending/pendingSalesSlice';
+import { addItem, removeItem } from '../pending/pendingSalesSlice';
 import useUser from '@auth/useUser';
 
 import { addHeldItem, setProducts, setCategories, setCustomers, selectProducts, selectCategories, selectCustomers } from './newSaleSlice';
@@ -532,62 +532,58 @@ function NewSale() {
         };
 
         //check if internet available, post
-        if(navigator.onLine) {
-            setProcessing(true)
+        const isMomoPay =
+            String(paymentData.paymentType || '').toLowerCase() === 'momo' ||
+            paymentData.payment_method === 'momo';
+        if (!navigator.onLine && isMomoPay) {
+            toast.error('MoMo needs network. Use cash or store credit while offline, or reconnect.');
+            return;
+        }
+
+        // Pending-first: queue locally, then upload when online.
+        dispatch(addItem(pendingRecord));
+
+        if (navigator.onLine) {
+            setProcessing(true);
             createSale(payload)
-                .then((res)=> {
+                .then((res) => {
                     if ('error' in res && res.error) {
                         const err = res.error as any;
                         const message = getSaleApiErrorMessage(err);
                         if (isPriceMismatchError(err) || String(message).toLowerCase().includes('mismatch')) {
+                            dispatch(removeItem({ id }));
                             toast.error(message);
                             return;
                         }
-                        dispatch(addItem({
-                            ...pendingRecord,
-                            attempts: 1,
-                            last_attempt_at: nowIso,
-                            last_error_code: getErrorCode(err) || null,
-                            last_error_message: message || null
-                        }));
                         toast.error(message || 'Sale could not be uploaded. Saved to pending sales.');
                         afterSaleSaved();
                         return;
                     }
-                    if(res.data) {
-                        toast.success('Sale uploaded successfully.')
+                    if (res.data) {
+                        dispatch(removeItem({ id }));
+                        toast.success('Sale uploaded successfully.');
                         const saleId = (res.data as { id?: string })?.id;
                         afterSaleSaved(saleId);
-                    }
-                    else {
-                        dispatch(addItem(pendingRecord));
+                    } else {
                         toast.success('Record saved in pending sales.');
                         afterSaleSaved();
                     }
 
-                    refetch()
+                    refetch();
                 })
-                .catch(err=> {
+                .catch((err) => {
                     const message = getSaleApiErrorMessage(err);
                     if (isPriceMismatchError(err) || String(message).toLowerCase().includes('mismatch')) {
+                        dispatch(removeItem({ id }));
                         toast.error(message);
                         return;
                     }
-                    dispatch(addItem({
-                        ...pendingRecord,
-                        attempts: 1,
-                        last_attempt_at: nowIso,
-                        last_error_code: getErrorCode(err) || null,
-                        last_error_message: message || null
-                    }));
                     toast.error(message || 'Sale could not be uploaded. Saved to pending sales.');
                     afterSaleSaved();
                 })
-                .finally(()=> setProcessing(false))
-        }
-        else {
-            dispatch(addItem(pendingRecord));
-            toast.success('Record saved in pending sales.');
+                .finally(() => setProcessing(false));
+        } else {
+            toast.success('Offline — sale queued. It will sync when you reconnect.');
             afterSaleSaved();
         }
 

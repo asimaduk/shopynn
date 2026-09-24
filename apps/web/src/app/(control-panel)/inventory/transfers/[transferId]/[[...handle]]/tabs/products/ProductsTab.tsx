@@ -9,41 +9,37 @@ function ProductsTab({ transfer }) {
 			<table className="simple dense">
 				<thead>
 					<tr>
-						{/* <th>
-							<Typography className="font-semibold">Image</Typography>
-						</th> */}
 						<th>
 							<Typography className="font-semibold">Name</Typography>
 						</th>
-						{/* <th>
-							<Typography className="font-semibold">Price</Typography>
-						</th> */}
 						<th>
-							<Typography className="font-semibold">Quantity</Typography>
+							<Typography className="font-semibold">Sent</Typography>
+						</th>
+						<th>
+							<Typography className="font-semibold">Received</Typography>
 						</th>
 					</tr>
 				</thead>
 				<tbody>
 					{transfer?.products?.map((product) => (
-						<tr key={product.name}>
+						<tr key={product.detail_id || product.product_id || product.name}>
 							<td>
 								<Typography
-									// component={Link}
-									// to={`/inventory/products/${product.id}`}
 									className="truncate"
 									style={{
-										color: 'inherit',
-										// textDecoration: 'underline'
+										color: 'inherit'
 									}}
 								>
 									{product.name}
 								</Typography>
 							</td>
-							{/* <td className="w-16 text-right">
-								<span className="truncate">GHS {product.unit_price}</span>
-							</td> */}
-							<td className="w-16 text-right">
+							<td>
 								<span className="truncate">{product.quantity}</span>
+							</td>
+							<td>
+								<span className="truncate">
+									{product.quantity_received != null ? product.quantity_received : '—'}
+								</span>
 							</td>
 						</tr>
 					))}

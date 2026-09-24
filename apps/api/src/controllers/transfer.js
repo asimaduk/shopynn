@@ -1,5 +1,12 @@
 import { handleResponse } from "../util/handleresponse.js";
-import { createTransferService, getAllTransfersService, getAllTransferDetailsService, getTransfersSummaryService, getTransferDetailsByIdService } from "../models/transfer.js";
+import {
+    createTransferService,
+    getAllTransfersService,
+    getAllTransferDetailsService,
+    getTransfersSummaryService,
+    getTransferDetailsByIdService,
+    receiveTransferService,
+} from "../models/transfer.js";
 import { createAuditLogService } from "../models/auditLog.js";
 
 export const createTransfer = async (req, res, next) => {
@@ -18,16 +25,42 @@ export const createTransfer = async (req, res, next) => {
                     destination_warehouse_id: req.body.destination_warehouse_id,
                     number_of_items: newTransfer.number_of_items,
                     notes: req.body.note ?? req.body.notes ?? null,
+                    status: newTransfer.status,
                 }),
                 ip_address: req.ip,
             });
         }
 
-        handleResponse(res, 201, "Transfer creation success.", newTransfer);
+        handleResponse(res, 201, "Transfer sent — waiting for destination to receive.", newTransfer);
     } catch (error) {
         next(error);
     }
-}
+};
+
+export const receiveTransfer = async (req, res, next) => {
+    try {
+        const received = await receiveTransferService(req.user, req.params.id, req.body);
+
+        if (req.user && received?.id) {
+            await createAuditLogService({
+                user_id: req.user.id,
+                tenant_id: req.user.tenant_id,
+                action: "TRANSFER_RECEIVE",
+                entity_type: "transfer",
+                entity_id: received.id,
+                details: JSON.stringify({
+                    all_received: Boolean(req.body?.all_received ?? req.body?.allReceived),
+                    shortfalls: received.shortfalls || [],
+                }),
+                ip_address: req.ip,
+            });
+        }
+
+        handleResponse(res, 200, "Transfer received.", received);
+    } catch (error) {
+        next(error);
+    }
+};
 
 export const getAllTransfers = async (req, res, next) => {
     try {
@@ -36,7 +69,7 @@ export const getAllTransfers = async (req, res, next) => {
     } catch (error) {
         next(error);
     }
-}
+};
 
 export const getTransfersSummary = async (req, res, next) => {
     try {
@@ -45,7 +78,7 @@ export const getTransfersSummary = async (req, res, next) => {
     } catch (error) {
         next(error);
     }
-}
+};
 
 export const getAllTransferDetails = async (req, res, next) => {
     try {
@@ -54,7 +87,7 @@ export const getAllTransferDetails = async (req, res, next) => {
     } catch (error) {
         next(error);
     }
-}
+};
 
 export const getTransferById = async (req, res, next) => {
     try {
@@ -64,5 +97,4 @@ export const getTransferById = async (req, res, next) => {
     } catch (error) {
         next(error);
     }
-}
-
+};

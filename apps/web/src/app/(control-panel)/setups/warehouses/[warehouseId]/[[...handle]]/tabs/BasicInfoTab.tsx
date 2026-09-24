@@ -273,7 +273,8 @@ function BasicInfoTab({ locations = [] }: BasicInfoTabProps) {
 								))}
 							</Select>
 							<Typography variant="caption" color="text.secondary" className="mt-1 px-1">
-								Thermal requires paid assisted go-live or GHS 150 printer setup (pay Shopynn only).
+								Self-serve thermal is free. If you requested assisted go-live or printer setup,
+								pay Shopynn first (never cash to an agent).
 							</Typography>
 						</FormControl>
 					)}

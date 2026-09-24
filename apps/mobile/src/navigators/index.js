@@ -16,6 +16,7 @@ import MainNavigator from './main';
 import SubscriptionNavigator from './subscription';
 import { SET_USER, SET_LOGGED_IN } from '../store/actions/user';
 import { products as productsApi } from '../services/api';
+import { syncPendingSales } from '../utils/syncPendingSales';
 import useInactivityTimer from '../hooks/useInactivityTimer';
 import ConfirmDialog from '../components/ConfirmDialog';
 
@@ -125,6 +126,11 @@ const ApplicationNavigator = () => {
         let lastConnected = null;
         let debounceTimer = null;
 
+        const flushPending = () => {
+            syncPendingSales().catch(() => {});
+            productsApi.list().catch(() => {});
+        };
+
         const unsubscribe = NetInfo.addEventListener((state) => {
             const connected = !!state?.isConnected;
             if (lastConnected === null) {
@@ -134,17 +140,24 @@ const ApplicationNavigator = () => {
             // Transition: offline -> online
             if (!lastConnected && connected) {
                 if (debounceTimer) clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(() => {
-                    // Warm/update product cache in background (best-effort).
-                    productsApi.list().catch(() => {});
-                }, 800);
+                debounceTimer = setTimeout(flushPending, 800);
             }
             lastConnected = connected;
         });
 
+        const onAppState = (next) => {
+            if (next === 'active') {
+                NetInfo.fetch().then((state) => {
+                    if (state?.isConnected) flushPending();
+                });
+            }
+        };
+        const appSub = AppState.addEventListener('change', onAppState);
+
         return () => {
             if (debounceTimer) clearTimeout(debounceTimer);
             unsubscribe && unsubscribe();
+            appSub?.remove?.();
         };
     }, []);
 

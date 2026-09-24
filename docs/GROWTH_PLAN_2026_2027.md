@@ -30,7 +30,7 @@ True extras (sold separately): data migration **3,000** · extra training day **
 
 Assisted fee is paid by the shop that wants help — it funds delivery (including any site visit). Go-live travel is **not** a separate Shopynn OpEx line.
 
-**Thermal printer setup alone:** **GHS 150** (included in assisted go-live). On agent onboard, Shopynn sends the shop a **welcome SMS** with official fees so agents cannot inflate charges off-platform.
+**Thermal printer setup alone:** **GHS 150** when the shop **requests help** (included in assisted go-live). Self-serve DIY thermal is free. The app locks thermal only while an assistance quote is pending unpaid. Welcome SMS lists official fees so agents cannot inflate charges off-platform.
 
 ---
 
@@ -264,8 +264,10 @@ Already reflected in product/docs direction from this workstream:
 - Subscription residual rate **10%** (`SUBSCRIPTION_RESIDUAL_COMMISSION_RATE`).  
 - Starter assisted go-live **GHS 500**.  
 - Catalog / docs / serving-agent UI aligned to 10% residual.  
-- DB migrations when deploying: residual tag + starter assist fee  
-  (`20260924_subscription_residual_10.sql`, `20260924_starter_assist_500.sql`).
+- Thermal: DIY free; lock only while unpaid assistance quote is pending.  
+- Competitive pack (Starter/Business): reports export, accountant CSV pack, loyalty points (1 / GHS 10), go-live checklist, offline pending-first till.  
+- DB migrations when deploying: residual, starter assist, printer addon, reports export, loyalty  
+  (`20260924_*.sql`).
 
 ---
 

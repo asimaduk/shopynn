@@ -7,9 +7,16 @@ import useTheme from '../../hooks/useTheme';
 
 const TransferItem = ({ item, onPress }) => {
     const { colors } = useTheme();
-    const status = item.status ?? 'Completed';
+    const statusRaw = String(item.status ?? item.status_label ?? '').toLowerCase();
+    const status =
+        item.status_label ||
+        (statusRaw === 'pending'
+            ? 'Pending'
+            : statusRaw === 'received' || statusRaw === 'completed'
+              ? 'Received'
+              : item.status || 'Pending');
     const statusColor =
-        status === 'Completed'
+        status === 'Received' || status === 'Completed'
             ? config.GREEN_COLOR || colors.success
             : status === 'Pending'
               ? colors.warning || '#f59e0b'

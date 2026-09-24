@@ -125,6 +125,15 @@ const CustomerDetails = ({ navigation, route }) => {
     const canEdit = item.source !== 'account';
     const details = [
         { label: 'Record type', value: source.detail, icon: 'tag' },
+        { label: 'Loyalty points', value: String(Number(item.loyalty_points) || 0), icon: 'star' },
+        {
+            label: 'Store credit',
+            value:
+                Number(item.store_credit_balance) > 0
+                    ? `GHS ${Number(item.store_credit_balance).toFixed(2)}`
+                    : '—',
+            icon: 'wallet',
+        },
         { label: 'Location', value: item.address || item.location || '—', icon: 'map-pin' },
         { label: 'Phone', value: item.phone || '—', icon: 'phone' },
         { label: 'Email', value: item.email || '—', icon: 'mail' },

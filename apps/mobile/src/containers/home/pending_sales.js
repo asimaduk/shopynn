@@ -10,22 +10,11 @@ import PendingSaleItem from './pending_sale_item';
 import AppText from '../../components/text';
 import config from '../../config';
 import useTheme from '../../hooks/useTheme';
-import { sales as salesApi } from '../../services/api';
 import {
     SECURE_PENDING_SALES_KEY as PENDING_SALES_KEY,
     readSecureList,
-    writeSecureList,
 } from '../../utils/secureOfflineStorage';
-
-const safeString = (v) => (typeof v === 'string' ? v : v == null ? '' : String(v));
-const getErrorCode = (err) => safeString(err?.response?.data?.code || err?.response?.data?.error?.code || err?.response?.data?.data?.code).toUpperCase();
-const getErrorMessage = (err) =>
-    safeString(
-        err?.response?.data?.message ||
-            err?.response?.data?.error ||
-            err?.message ||
-            'Upload failed.'
-    );
+import { syncPendingSales } from '../../utils/syncPendingSales';
 
 const PendingSales = ({ navigation }) => {
     const { colors } = useTheme();
@@ -34,7 +23,7 @@ const PendingSales = ({ navigation }) => {
 
     const backPress = () => {
         navigation.goBack();
-    }
+    };
 
     const loadPendingSales = useCallback(async () => {
         try {
@@ -48,30 +37,9 @@ const PendingSales = ({ navigation }) => {
     const retryPendingSales = useCallback(async () => {
         setLoading(true);
         try {
-            const list = await readSecureList(PENDING_SALES_KEY);
-            if (!Array.isArray(list) || list.length === 0) {
-                setPendingSales([]);
-                setLoading(false);
-                return;
-            }
-            const stillPending = [];
-            const nowIso = new Date().toISOString();
-            for (const item of list) {
-                try {
-                    await salesApi.create(item.payload);
-                } catch (err) {
-                    stillPending.push({
-                        ...item,
-                        attempts: (Number(item?.attempts) || 0) + 1,
-                        last_attempt_at: nowIso,
-                        last_error_code: getErrorCode(err) || item?.last_error_code || null,
-                        last_error_message: getErrorMessage(err) || item?.last_error_message || null,
-                    });
-                }
-            }
-            await writeSecureList(PENDING_SALES_KEY, stillPending);
-            setPendingSales(stillPending);
-            if (stillPending.length === 0) {
+            const result = await syncPendingSales();
+            await loadPendingSales();
+            if (result.remaining === 0 && result.uploaded > 0) {
                 Alert.alert('Pending sales', 'All pending sales have been uploaded successfully.');
             }
         } catch (e) {
@@ -126,7 +94,7 @@ const PendingSales = ({ navigation }) => {
                             item={item}
                             index={index}
                             formatter={formatter}
-                            onPress={() => navigation.navigate("SaleDetails", { mode: "pending-upload", item })}
+                            onPress={() => navigation.navigate('SaleDetails', { mode: 'pending-upload', item })}
                         />
                     )}
                     ListEmptyComponent={() => (
@@ -154,7 +122,7 @@ const PendingSales = ({ navigation }) => {
                 />
             )}
         </SafeAreaView>
-    )
-}
+    );
+};
 
 export default PendingSales;

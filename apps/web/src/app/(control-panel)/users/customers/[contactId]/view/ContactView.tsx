@@ -122,6 +122,19 @@ function ContactView() {
 						) : contact.source === 'pos' ? (
 							<Chip label="POS / admin record" variant="outlined" />
 						) : null}
+						{contact.source !== 'account' && Number(contact.loyalty_points) > 0 ? (
+							<Chip
+								label={`${Number(contact.loyalty_points)} loyalty pts`}
+								color="success"
+								variant="outlined"
+							/>
+						) : null}
+						{contact.source !== 'account' && Number(contact.store_credit_balance) > 0 ? (
+							<Chip
+								label={`Credit GHS ${Number(contact.store_credit_balance).toFixed(2)}`}
+								variant="outlined"
+							/>
+						) : null}
 					</div>
 
 					{/* <div className="flex flex-wrap items-center mt-2">

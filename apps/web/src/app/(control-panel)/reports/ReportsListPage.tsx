@@ -2,9 +2,11 @@
 
 import { useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardActionArea from '@mui/material/CardActionArea';
 import Chip from '@mui/material/Chip';
+import CircularProgress from '@mui/material/CircularProgress';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import Paper from '@mui/material/Paper';
@@ -14,8 +16,21 @@ import { alpha, useTheme } from '@mui/material/styles';
 import PlanFeatureGate from '@auth/PlanFeatureGate';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import useUser from '@auth/useUser';
+import { hasFeatureAndPermission } from '@auth/permissions';
 import Link from 'next/link';
+import toast from 'react-hot-toast';
 import { getVisibleReportSections, ReportNavItem } from './reportSections';
+import { useLazyGetAccountantPackQuery } from './ReportsApi';
+
+function downloadCsvFile(filename: string, content: string) {
+	const blob = new Blob([content], { type: 'text/csv;charset=utf-8' });
+	const url = URL.createObjectURL(blob);
+	const a = document.createElement('a');
+	a.href = url;
+	a.download = filename;
+	a.click();
+	URL.revokeObjectURL(url);
+}
 
 function ReportCardLink(props: { report: ReportNavItem; sectionColor: string }) {
 	const { report, sectionColor } = props;
@@ -92,6 +107,34 @@ export default function ReportsListPage() {
 	const theme = useTheme();
 	const { data: user } = useUser();
 	const [searchQuery, setSearchQuery] = useState('');
+	const [fetchAccountantPack, { isFetching: packing }] = useLazyGetAccountantPackQuery();
+
+	const canAccountantPack = hasFeatureAndPermission(user, 'reports.export', undefined, 'reports.export');
+
+	const handleAccountantPack = async () => {
+		const end = new Date();
+		const start = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+		try {
+			const res = await fetchAccountantPack({
+				startDate: start.toISOString(),
+				endDate: end.toISOString()
+			}).unwrap();
+			const files = res?.files || [];
+			if (!files.length) {
+				toast.error('No files returned.');
+				return;
+			}
+			for (const f of files) {
+				downloadCsvFile(f.filename, f.content);
+			}
+			const c = res.counts;
+			toast.success(
+				`Downloaded sales (${c?.sales ?? 0}), purchases (${c?.purchases ?? 0}), expenses (${c?.expenses ?? 0}).`
+			);
+		} catch (e: any) {
+			toast.error(e?.data?.message || e?.message || 'Could not build accountant pack.');
+		}
+	};
 
 	const visibleSections = useMemo(() => getVisibleReportSections(user), [user]);
 
@@ -154,16 +197,38 @@ export default function ReportsListPage() {
 									mobile app catalog.
 								</Typography>
 							</Box>
-							<Chip
-								size="medium"
-								label={`${totalReports} report${totalReports === 1 ? '' : 's'}`}
-								sx={{
-									alignSelf: 'flex-start',
-									fontWeight: 600,
-									bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.15 : 0.85),
-									border: `1px solid ${alpha(theme.palette.divider, 0.5)}`
-								}}
-							/>
+							<Box className="flex flex-col items-stretch sm:items-end gap-2 shrink-0">
+								<Chip
+									size="medium"
+									label={`${totalReports} report${totalReports === 1 ? '' : 's'}`}
+									sx={{
+										alignSelf: 'flex-start',
+										fontWeight: 600,
+										bgcolor: alpha(
+											theme.palette.background.paper,
+											theme.palette.mode === 'dark' ? 0.15 : 0.85
+										),
+										border: `1px solid ${alpha(theme.palette.divider, 0.5)}`
+									}}
+								/>
+								{canAccountantPack ? (
+									<Button
+										variant="contained"
+										size="small"
+										disabled={packing}
+										onClick={() => void handleAccountantPack()}
+										startIcon={
+											packing ? (
+												<CircularProgress size={16} color="inherit" />
+											) : (
+												<FuseSvgIcon size={18}>heroicons-outline:arrow-down-tray</FuseSvgIcon>
+											)
+										}
+									>
+										Download for accountant
+									</Button>
+								) : null}
+							</Box>
 						</Box>
 
 						<TextField

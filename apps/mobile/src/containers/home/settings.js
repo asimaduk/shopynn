@@ -40,6 +40,7 @@ const SETTINGS_ITEMS = [
     { section: 'Operations', title: 'Online Orders', subtitle: 'Process incoming customer orders', screen: 'Orders', icon: 'shopping-basket', iconColor: '#8b5cf6' },
     { section: 'Operations', title: 'Order Payments', subtitle: 'Admin view for order payment records', screen: 'OrderPayments', icon: 'banknote', iconColor: '#16a34a' },
     { section: 'Operations', title: 'Order Settlements', subtitle: 'Digital order revenue and payout balance', screen: 'OrderSettlements', icon: 'landmark', iconColor: '#2563eb' },
+    { section: 'Operations', title: 'Go live checklist', subtitle: 'Empty shop → first sale in ~15 min', screen: 'GoLiveWizard', icon: 'rocket', iconColor: '#0ea5e9' },
     { section: 'Operations', title: 'Pending Sales', subtitle: 'Review and approve sales', screen: 'PendingSales', icon: 'clipboard-list', iconColor: '#f00' },
     { section: 'Operations', title: 'Warehouses / Stores', subtitle: 'Manage storage locations', screen: 'Warehouses', icon: 'store', iconColor: '#10b981' },
     { section: 'Operations', title: 'Product Transfers', subtitle: 'Transfer products between locations', screen: 'ProductTransfers', icon: 'arrow-right-left', iconColor: config.THEME_COLOR },
@@ -579,6 +580,30 @@ const Settings = ({ navigation, route }) => {
                                     <View style={[styles.divider, { backgroundColor: colors.divider }]} />
                                 )}
                             </>
+                        )}
+
+                        <TouchableOpacity
+                            activeOpacity={0.6}
+                            onPress={() => navigation.navigate('GoLiveWizard')}
+                            style={styles.menuItem}
+                        >
+                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                <Lucide name="rocket" color="#0ea5e9" size={20} />
+                            </View>
+                            <View style={styles.menuContent}>
+                                <AppText label={'Go live checklist'} variant={2} color={colors.text} fontSize={15} />
+                                <AppText
+                                    label={'Empty shop → first sale in ~15 min'}
+                                    variant={2}
+                                    color={colors.textTertiary}
+                                    fontSize={12}
+                                    style={{ marginTop: 2 }}
+                                />
+                            </View>
+                            <Lucide name="chevron-right" color={colors.textTertiary} size={18} />
+                        </TouchableOpacity>
+                        {(canPendingSales || canWarehouses || canTransfers || canAdjustments || canStockCount) && (
+                            <View style={[styles.divider, { backgroundColor: colors.divider }]} />
                         )}
 
                         {canPendingSales && (

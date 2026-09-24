@@ -1,6 +1,7 @@
 import { createProductService, deleteProductService, getAllProductsService, getProductsByCategoryService, getProductByIdService, getProductBySlugService, updateProductImagesService, updateProductService, toggleProductStatusService, changeProductPriceService, getAllTransfersService, createTransferService, getTransferByIdService, getAllProductsCountService, getProductsForExportService, getCatalogService, getCatalogProductByIdService } from "../models/product.js";
-import { handleResponse } from "../util/handleresponse.js";
+import { receiveTransferService } from "../models/transfer.js";
 import { createAuditLogService } from "../models/auditLog.js";
+import { handleResponse } from "../util/handleresponse.js";
 
 export const createProduct = async (req, res, next) => {
     try {
@@ -84,7 +85,7 @@ export const getAllTransfers = async (req, res, next) => {
 export const createTransfer = async (req, res, next) => {
     try {
         const newPurchase = await createTransferService(req.body);
-        handleResponse(res, 201, "Transfer creation success.", newPurchase);
+        handleResponse(res, 201, "Transfer sent — waiting for destination to receive.", newPurchase);
     } catch (error) {
         // console.log('create err',typeof error);
         if(typeof error == 'object' && error.constraint === 'transfers_invoice_number_key') {
@@ -96,6 +97,29 @@ export const createTransfer = async (req, res, next) => {
         }
     }
 }
+
+export const receiveTransfer = async (req, res, next) => {
+    try {
+        const received = await receiveTransferService(req.user, req.params.id, req.body);
+        if (req.user && received?.id) {
+            await createAuditLogService({
+                user_id: req.user.id,
+                tenant_id: req.user.tenant_id,
+                action: "TRANSFER_RECEIVE",
+                entity_type: "transfer",
+                entity_id: received.id,
+                details: JSON.stringify({
+                    all_received: Boolean(req.body?.all_received ?? req.body?.allReceived),
+                    shortfalls: received.shortfalls || [],
+                }),
+                ip_address: req.ip,
+            });
+        }
+        handleResponse(res, 200, "Transfer received.", received);
+    } catch (error) {
+        next(error);
+    }
+};
 
 export const getProductById = async (req, res, next) => {
     try {

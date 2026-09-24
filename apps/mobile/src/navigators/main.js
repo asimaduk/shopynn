@@ -53,6 +53,7 @@ import ProductCategories from '../containers/settings/product_categories';
 import NewTransfer from '../containers/home/new_transfer';
 import NewAdjustments from '../containers/home/new_adjustments';
 import PendingSales from '../containers/home/pending_sales';
+import GoLiveWizard from '../containers/settings/go_live_wizard';
 import PendingMomoPayments from '../containers/home/pending_momo_payments';
 import CategoryForm from '../containers/settings/category_form';
 import ProductsByCategory from '../containers/home/products_by_category';
@@ -476,6 +477,7 @@ function MainNavigator({ user, onNavigationStateChange }) {
                 <Stack.Screen name="NewTransfer" component={NewTransfer} options={{ headerShown: false }} />
                 <Stack.Screen name="NewAdjustments" component={NewAdjustments} options={{ headerShown: false }} />
                 <Stack.Screen name="PendingSales" component={PendingSales} options={{ headerShown: false }} />
+                <Stack.Screen name="GoLiveWizard" component={GoLiveWizard} options={{ headerShown: false }} />
                 <Stack.Screen name="PendingMomoPayments" component={PendingMomoPayments} options={{ headerShown: false }} />
                 <Stack.Screen name="CategoryForm" component={CategoryForm} options={{ headerShown: false }} />
                 <Stack.Screen name="ProductsByCategory" component={ProductsByCategory} options={{ headerShown: false }} />

@@ -73,6 +73,7 @@ export const getAllCustomersService = async (user, requestQuery = {}) => {
             c.is_active,
             c.customer_group,
             COALESCE(c.store_credit_balance, 0)::numeric AS store_credit_balance,
+            COALESCE(c.loyalty_points, 0)::int AS loyalty_points,
             'pos'::text AS source,
             NULL::varchar AS user_id
         FROM customers c
@@ -90,6 +91,7 @@ export const getAllCustomersService = async (user, requestQuery = {}) => {
             u.is_active,
             NULL::varchar AS customer_group,
             0::numeric AS store_credit_balance,
+            0::int AS loyalty_points,
             'account'::text AS source,
             u.id AS user_id
         FROM customer_profiles cp
@@ -121,6 +123,7 @@ export const getAllCustomersService = async (user, requestQuery = {}) => {
             u.is_active,
             NULL::varchar AS customer_group,
             0::numeric AS store_credit_balance,
+            0::int AS loyalty_points,
             'account'::text AS source,
             u.id AS user_id
         FROM customer_profiles cp
@@ -156,6 +159,7 @@ export const getCustomerByIdService = async (tenantId, id) => {
 	const pos = await pool.query(
 		`SELECT id, name, email, address, notes, phone, customer_group, is_active, created_at,
                 COALESCE(store_credit_balance, 0)::numeric AS store_credit_balance,
+                COALESCE(loyalty_points, 0)::int AS loyalty_points,
                 'pos'::text AS source, NULL::varchar AS user_id
          FROM customers
          WHERE id = $1 AND tenant_id = $2`,
@@ -165,6 +169,7 @@ export const getCustomerByIdService = async (tenantId, id) => {
 		return {
 			...pos.rows[0],
 			store_credit_balance: Number(pos.rows[0].store_credit_balance) || 0,
+			loyalty_points: Number(pos.rows[0].loyalty_points) || 0,
 		};
 	}
 
@@ -185,7 +190,9 @@ export const getCustomerByIdService = async (tenantId, id) => {
          WHERE cp.id = $1 AND cp.tenant_id = $2 AND cp.profile_type = 'customer'`,
 		[id, tenantId]
 	);
-	return acc.rows[0] ?? null;
+	return acc.rows[0]
+		? { ...acc.rows[0], store_credit_balance: 0, loyalty_points: 0 }
+		: null;
 };
 
 export const createCustomerService = async (payload) => {

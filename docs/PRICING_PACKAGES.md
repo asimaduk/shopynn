@@ -39,14 +39,17 @@ Includes product import (CSV) and opening stock setup for a typical shop.
 
 ### Unlocking thermal printer in the app
 
-Setting a store to **Thermal receipt** is blocked until Shopynn has received payment for either:
+Thermal print is a **core feature** — self-serve shops may enable it free when they set it up themselves.
 
-1. **Assisted go-live** (onboarding line on a paid quote), which includes printer help, or  
-2. **Printer setup alone** (`addon_printer_setup`, GHS 150) via an add-on quote paid to Shopynn.
+Setting a store to **Thermal receipt** is blocked **only if** the shop has a **pending** paid-assistance quote (assisted go-live or printer-setup add-on) that is not yet paid. After payment (or if they never requested help), thermal is allowed.
 
-API: `GET /api/tenants/me/printer-setup-entitlement` · warehouse create/update returns `403` + `PRINTER_SETUP_PAYMENT_REQUIRED` if locked.
+| Situation | Thermal |
+|-----------|---------|
+| Self-serve DIY, no assistance quote | Allowed |
+| Pending assisted go-live or printer add-on | Locked until paid |
+| Paid assisted go-live or printer add-on | Allowed |
 
-Agents must not collect cash for this — owner pays Shopynn; welcome SMS lists official fees.
+API: `GET /api/tenants/me/printer-setup-entitlement` · warehouse create/update returns `403` + `PRINTER_SETUP_PAYMENT_REQUIRED` when locked.
 
 ## Notes
 

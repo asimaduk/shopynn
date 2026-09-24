@@ -1,5 +1,8 @@
 import pool from "../config/db.js";
 import { v4 as uuidv4 } from 'uuid';
+import {
+    createTransferService as createTransferCore,
+} from "./transfer.js";
 import { deleteS3Objects } from "../util/s3Delete.js";
 import { normalizeProductRow, toNum } from "../util/productNormalize.js";
 
@@ -364,28 +367,105 @@ export const getProductsByCategoryService = async (user, category_id, queryParam
     return cleaned;
 }
 
-export const getAllTransfersService = async (user, queryParams) => {  
-    // console.log('x queryParams',queryParams);
-    let query = `SELECT 
-        trn.id, trn.notes, trn.number_of_items, trn.created_at, wh.name AS source, wh2.name AS destination, u.first_name, u.last_name FROM transfers trn 
-        LEFT JOIN warehouses wh ON trn.source_warehouse_id = wh.id 
-        LEFT JOIN warehouses wh2 ON trn.destination_warehouse_id = wh2.id 
+export const getAllTransfersService = async (user, queryParams) => {
+    const params = [user.tenant_id];
+    let query = `
+        SELECT
+            trn.id,
+            trn.notes,
+            trn.number_of_items,
+            trn.status,
+            trn.sent_date,
+            trn.received_date,
+            trn.created_at,
+            wh.name AS source,
+            wh2.name AS destination,
+            u.first_name,
+            u.last_name,
+            trim(concat_ws(' ', coalesce(u.first_name, ''), coalesce(u.last_name, ''))) AS attendant,
+            ru.first_name AS receiver_first_name,
+            ru.last_name AS receiver_last_name,
+            trim(concat_ws(' ', coalesce(ru.first_name, ''), coalesce(ru.last_name, ''))) AS received_by
+        FROM transfers trn
+        LEFT JOIN warehouses wh ON trn.source_warehouse_id = wh.id
+        LEFT JOIN warehouses wh2 ON trn.destination_warehouse_id = wh2.id
         LEFT JOIN users u ON trn.creator_id = u.id
-        WHERE trn.tenant_id = '${user.tenant_id}'
-    `
-    
-    if(queryParams && queryParams.startDate) {
-            query += ` AND trn.created_at BETWEEN '${queryParams.startDate}' AND '${queryParams.endDate}'`
+        LEFT JOIN users ru ON trn.receiver_id = ru.id
+        WHERE trn.tenant_id = $1
+    `;
+
+    if (queryParams && queryParams.startDate) {
+        params.push(queryParams.startDate, queryParams.endDate);
+        query += ` AND trn.created_at BETWEEN $2 AND $3`;
     }
 
-    query += ' GROUP BY trn.id, wh.name, wh2.name, u.first_name, u.last_name ORDER BY trn.updated_at DESC'
-    
-    
-    // console.log('q is',query);
-    
-    const result = await pool.query(query);
-    return result.rows; 
-}
+    query += ' ORDER BY trn.created_at DESC';
+
+    const result = await pool.query(query, params);
+    return result.rows.map((row) => ({
+        ...row,
+        status_label:
+            row.status === 'received' ? 'Received' : row.status === 'pending' ? 'Pending' : row.status,
+    }));
+};
+
+export const getTransferByIdService = async (user, id) => {
+    const result = await pool.query(
+        `SELECT
+            trn.id,
+            trn.notes,
+            trn.number_of_items,
+            trn.status,
+            trn.sent_date,
+            trn.received_date,
+            trn.created_at,
+            trn.creator_id,
+            trn.receiver_id,
+            wh.name AS source,
+            wh2.name AS destination,
+            u.first_name,
+            u.last_name,
+            ru.first_name AS receiver_first_name,
+            ru.last_name AS receiver_last_name
+         FROM transfers trn
+         LEFT JOIN warehouses wh ON trn.source_warehouse_id = wh.id
+         LEFT JOIN warehouses wh2 ON trn.destination_warehouse_id = wh2.id
+         LEFT JOIN users u ON trn.creator_id = u.id
+         LEFT JOIN users ru ON trn.receiver_id = ru.id
+         WHERE trn.tenant_id = $1
+           AND trn.id = $2
+         LIMIT 1`,
+        [user.tenant_id, id]
+    );
+
+    if (!result.rowCount) return null;
+
+    const transfer = result.rows[0];
+    const lines = await pool.query(
+        `SELECT
+            tfd.id AS detail_id,
+            tfd.product_id,
+            tfd.quantity,
+            tfd.quantity_received,
+            pd.name
+         FROM transferdetails tfd
+         LEFT JOIN products pd ON tfd.product_id = pd.id
+         WHERE tfd.transfer_id = $1
+         ORDER BY pd.name ASC`,
+        [id]
+    );
+
+    return {
+        ...transfer,
+        status_label:
+            transfer.status === 'received'
+                ? 'Received'
+                : transfer.status === 'pending'
+                  ? 'Pending'
+                  : transfer.status,
+        products: lines.rows,
+    };
+};
 
 export const getProductByIdService = async (id) => {
     const productResult = await pool.query(
@@ -449,39 +529,6 @@ export const getProductBySlugService = async (slug) => {
     return row ? normalizeProductRow(row) : null;
 }
 
-
-export const getTransferByIdService = async (user, id) => {    
-    let query = `SELECT 
-        trn.id, trn.notes, trn.number_of_items, trn.created_at, wh.name AS source, wh2.name AS destination, u.first_name, u.last_name FROM transfers trn 
-        LEFT JOIN warehouses wh ON trn.source_warehouse_id = wh.id 
-        LEFT JOIN warehouses wh2 ON trn.destination_warehouse_id = wh2.id 
-        LEFT JOIN users u ON trn.creator_id = u.id
-        WHERE trn.tenant_id = '${user.tenant_id}'
-        AND trn.id = '${id}'
-        GROUP BY trn.id, wh.name, wh2.name, u.first_name, u.last_name ORDER BY trn.updated_at DESC`
-    
-    
-    // console.log('trans q is',query);
-    
-    const result = await pool.query(query);
-    if(result.rowCount) {
-        const transfer = result.rows[0];
-        let query2 = `SELECT tfd.quantity, pd.name FROM transferdetails tfd LEFT JOIN products pd ON tfd.product_id = pd.id WHERE tfd.transfer_id = '${id}'`;
-        // console.log('query2',query2);
-        const result2 = await pool.query(query2);
-        if(result2.rowCount) {
-            return {
-                products: result2.rows,
-                ...transfer
-            }
-        }
-        // console.log('q2 res count',result2.rows);
-        
-        return null;
-    }
-
-    return null; 
-}
 
 export const createProductService = async (payload) => {
     console.log(' create product payload',payload);
@@ -715,62 +762,6 @@ export const deleteProductService = async (id) => {
 }
 
 export const createTransferService = async (payload) => {
-    const client = await pool.connect();
-
-    try {
-        // console.log('pr pal',payload);
-        
-        await client.query('BEGIN');
-        const { tenant_id, source_warehouse_id, destination_warehouse_id, products, note, creator_id } = payload;
-        
-        if(!products) {
-            throw new Error("Products list cannot be empty.");
-        }
-
-        const number_of_items = products.reduce((accumulator, currentItem) => accumulator + Number(currentItem.quantity), 0);
-
-        const id = uuidv4();
-        const result = await client.query(`
-            INSERT INTO transfers (id, number_of_items, tenant_id, source_warehouse_id, destination_warehouse_id, creator_id, notes, created_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-            [id, number_of_items, tenant_id, source_warehouse_id, destination_warehouse_id, creator_id, note, new Date()]
-        );
-
-        for (const prod of products) {
-            const r1 = await client.query("SELECT id, quantity_available FROM inventories where product_id = $1 AND warehouse_id=$2", [prod.id, source_warehouse_id]);
-            if(r1.rowCount) {
-                // console.log('source found. reduct qty by',prod.quantity);
-                
-                await client.query("UPDATE inventories SET quantity_available = quantity_available - $1, updated_at=$2 WHERE id=$3 RETURNING *",[prod.quantity, new Date(), r1.rows[0].id]);
-
-                const r2 = await client.query("SELECT id, quantity_available FROM inventories where product_id = $1 AND warehouse_id=$2", [prod.id, destination_warehouse_id]);
-                if(r2.rowCount) {
-                    // console.log('destination found. increase qty by',prod.quantity);
-
-                    await client.query("UPDATE inventories SET quantity_available = quantity_available + $1, updated_at=$2 WHERE id=$3 RETURNING *",[prod.quantity, new Date(), r2.rows[0].id]);
-                }
-                else {
-                    // console.log('product inv not found creating new');
-                    
-                    const newId = uuidv4();
-                    await client.query("INSERT INTO inventories (id, quantity_available, minimum_stock_level, product_id, warehouse_id, creator_id, tenant_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",[newId, prod.quantity, 10, prod.id, destination_warehouse_id, creator_id, tenant_id, new Date()]);
-                }
-            }
-            // const rp = await client.query("UPDATE products SET inventory = inventory + $1, updated_at=$2 WHERE id=$3 RETURNING *",[prod.quantity, new Date(), prod.id]);
-            // // console.log('X prod. update rp',rp.rows);
-
-            const _newId = uuidv4();
-            await client.query("INSERT INTO transferdetails (id, transfer_id, product_id, quantity, tenant_id, created_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",[_newId, result.rows[0].id, prod.id, prod.quantity, tenant_id, new Date()]);
-        }
-
-        await client.query('COMMIT');
-        // console.log('committed');
-        // return result.rows[0];
-        return {status : 201}
-    } catch (error) {
-        await client.query('ROLLBACK');
-        throw error;
-    } finally {
-        client.release();
-    }
-}
+    const created = await createTransferCore(payload);
+    return { status: 201, ...created };
+};

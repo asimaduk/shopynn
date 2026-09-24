@@ -15,6 +15,7 @@ Marketing names: **Starter** (Basic), **Business** (Standard), **Scale** (Premiu
 - Core single-store operations: **Inventory, Products, Sales, Purchases, Customers, Suppliers**
 - Receipt sharing, customer/supplier create & edit
 - Payments + subscription viewing
+- **Reports view + CSV/Excel export** (incl. accountant pack)
 - Best for: a single branch getting started with day-to-day operations
 
 ### Business (Standard)
@@ -25,7 +26,7 @@ Marketing names: **Starter** (Basic), **Business** (Standard), **Scale** (Premiu
   - **Admin tools** (Users, Roles & Permissions, Locations)
   - **Inventory insights** (Reorder + Expiring)
   - **Purchase order workflow**
-  - **Reports (view)**
+  - **Reports (view + export)**
   - **Notifications** (inbox, preferences, push)
 - Best for: businesses running staff and/or multiple branches
 
@@ -33,7 +34,7 @@ Marketing names: **Starter** (Basic), **Business** (Standard), **Scale** (Premiu
 
 - Everything in Business, plus:
   - **Orders / customer ordering** (Scale-only)
-  - **Exports & data export** (including reports export)
+  - **Full data export / backup** (`data_export`)
   - **Audit logs**
   - **Advanced order analytics/automation**
 - Best for: full platform usage and customer ordering workflows

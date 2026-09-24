@@ -19,6 +19,7 @@ import { sales as salesApi, warehouses as warehousesApi, customers as customersA
 import { MOMO_NETWORK_OPTIONS, getMomoNetworkIcon, validateMomoNumberForProvider, isTelecelMomoProvider } from '../../utils/momoNetworks';
 import { hasPermission, hasFeature, getScreenPlanAccess, navigateToScreenOrUpgrade } from '../../utils/permissions';
 import { getPrintAgentPrintUrl } from '../../utils/printAgent';
+import NetInfo from '@react-native-community/netinfo';
 import {
     SECURE_PENDING_SALES_KEY as PENDING_SALES_KEY,
     SECURE_HELD_SALES_KEY as HELD_SALES_KEY,
@@ -163,6 +164,7 @@ const NewSale = ({ navigation, route }) => {
     const [showPaymentOptions, setShowPaymentOptions] = useState(false);
     const [showInvoiceShare, setShowInvoiceShare] = useState(false);
     const [showVoiceAdd, setShowVoiceAdd] = useState(false);
+    const [isOffline, setIsOffline] = useState(false);
     const [completedSaleForInvoice, setCompletedSaleForInvoice] = useState(null);
     const [selectedPaymentOption, setSelectedPaymentOption] = useState({
         method: 'cash',
@@ -348,6 +350,18 @@ const NewSale = ({ navigation, route }) => {
         // Intentionally only react to barcode param — avoid re-firing when callback identity changes.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [route.params?.scannedBarcode]);
+
+    useEffect(() => {
+        const unsub = NetInfo.addEventListener((state) => {
+            const connected = !!(state?.isConnected && state?.isInternetReachable !== false);
+            setIsOffline(!connected);
+        });
+        NetInfo.fetch().then((state) => {
+            const connected = !!(state?.isConnected && state?.isInternetReachable !== false);
+            setIsOffline(!connected);
+        });
+        return () => unsub && unsub();
+    }, []);
 
     useEffect(() => {
         const pendingSale = route.params?.restorePendingSale;
@@ -1214,7 +1228,109 @@ const NewSale = ({ navigation, route }) => {
                 }`,
             };
             salePayloadForRetry = payload;
-            const created = await salesApi.create(payload);
+
+            const netState = await NetInfo.fetch();
+            const offlineNow = !(netState?.isConnected && netState?.isInternetReachable !== false);
+            if (selectedPaymentOption?.method === 'momo' && offlineNow) {
+                Alert.alert(
+                    'Offline',
+                    'MoMo needs network. Use cash or store credit while offline, or reconnect.',
+                );
+                return;
+            }
+
+            const pendingId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+            const normalizedPendingItem = {
+                id: pendingId,
+                customer: selectedCustomer?.name || 'Walk-in',
+                amount: saleTotal,
+                date: new Date().toLocaleString(),
+                created_at: new Date().toISOString(),
+                store: selectedStore ? { id: selectedStore.id, name: selectedStore.name } : null,
+                customer_obj: selectedCustomer
+                    ? { id: selectedCustomer.id, name: selectedCustomer.name }
+                    : null,
+                paymentOption: selectedPaymentOption
+                    ? {
+                          method: selectedPaymentOption.method,
+                          amountTendered:
+                              selectedPaymentOption.amountTendered ?? selectedPaymentOption.balance ?? '',
+                          momoNumber: selectedPaymentOption.momoNumber,
+                      }
+                    : null,
+                warehouse_id: resolvedWarehouseId,
+                orders: orders.map((o) => ({
+                    name: o.name || o.product_name || 'Item',
+                    quantity: Number(o.order_quantity) || 0,
+                })),
+                orders_full: orders,
+                attempts: 0,
+                last_error_code: null,
+                last_error_message: null,
+                last_attempt_at: null,
+                payload,
+            };
+
+            // Pending-first: queue locally, then upload when online.
+            {
+                const list = await readSecureList(PENDING_SALES_KEY);
+                list.push(normalizedPendingItem);
+                await writeSecureList(PENDING_SALES_KEY, list);
+            }
+
+            let created = null;
+            if (offlineNow) {
+                Toast.show({
+                    type: 'info',
+                    text1: 'Offline — sale queued',
+                    text2: 'It will sync when you reconnect.',
+                });
+            } else {
+                try {
+                    created = await salesApi.create(payload);
+                    const remaining = (await readSecureList(PENDING_SALES_KEY)).filter(
+                        (i) => i?.id !== pendingId,
+                    );
+                    await writeSecureList(PENDING_SALES_KEY, remaining);
+                } catch (createErr) {
+                    if (isPriceMismatchError(createErr)) {
+                        const remaining = (await readSecureList(PENDING_SALES_KEY)).filter(
+                            (i) => i?.id !== pendingId,
+                        );
+                        await writeSecureList(PENDING_SALES_KEY, remaining);
+                        throw createErr;
+                    }
+                    const nowIso = new Date().toISOString();
+                    const list = await readSecureList(PENDING_SALES_KEY);
+                    const next = list.map((i) =>
+                        i?.id === pendingId
+                            ? {
+                                  ...i,
+                                  attempts: 1,
+                                  last_attempt_at: nowIso,
+                                  last_error_code:
+                                      String(
+                                          createErr?.response?.data?.code ||
+                                              createErr?.response?.data?.error?.code ||
+                                              '',
+                                      ).toUpperCase() || null,
+                                  last_error_message:
+                                      createErr?.response?.data?.message ||
+                                      createErr?.message ||
+                                      'Upload failed.',
+                              }
+                            : i,
+                    );
+                    await writeSecureList(PENDING_SALES_KEY, next);
+                    Alert.alert(
+                        'Saved for later',
+                        (createErr?.response?.data?.message ||
+                            createErr?.message ||
+                            'Could not complete sale.') +
+                            '\n\nThe sale has been saved to Pending Sales for retry.',
+                    );
+                }
+            }
 
             let warehouseRecordForPrinting = selectedStore;
             if (resolvedWarehouseId != null && Array.isArray(stores)) {
@@ -1351,76 +1467,10 @@ const NewSale = ({ navigation, route }) => {
                 Alert.alert('Price mismatch', getSaleApiErrorMessage(e));
                 return;
             }
-            try {
-                const pendingItem = {
-                    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-                    customer: selectedCustomer?.name || 'Walk-in',
-                    amount: saleTotal,
-                    date: new Date().toLocaleString(),
-                    attendant: null,
-                    created_at: new Date().toISOString(),
-                    store: selectedStore || null,
-                    customer_obj: selectedCustomer || null,
-                    paymentOption: selectedPaymentOption || null,
-                    warehouse_id: resolvedWarehouseId,
-                    orders: orders.map((o) => ({
-                        name: o.name || o.product_name || 'Item',
-                        quantity: Number(o.order_quantity) || 0,
-                    })),
-                    // Full order objects allow reconciliation/editing later.
-                    orders_full: orders,
-                    // Sync metadata for reconciliation UI.
-                    attempts: 0,
-                    last_error_code: null,
-                    last_error_message: null,
-                    last_attempt_at: null,
-                    payload: salePayloadForRetry,
-                };
-                // Keep only fields required for retry/edit/reconciliation.
-                const normalizedPendingItem = {
-                    id: pendingItem.id,
-                    customer: pendingItem.customer,
-                    amount: pendingItem.amount,
-                    date: pendingItem.date,
-                    created_at: pendingItem.created_at,
-                    store: pendingItem.store ? { id: pendingItem.store.id, name: pendingItem.store.name } : null,
-                    customer_obj: pendingItem.customer_obj
-                        ? { id: pendingItem.customer_obj.id, name: pendingItem.customer_obj.name }
-                        : null,
-                    paymentOption: pendingItem.paymentOption
-                        ? {
-                            method: pendingItem.paymentOption.method,
-                            amountTendered:
-                                pendingItem.paymentOption.amountTendered ??
-                                pendingItem.paymentOption.balance ??
-                                '',
-                            momoNumber: pendingItem.paymentOption.momoNumber,
-                        }
-                        : null,
-                    warehouse_id: pendingItem.warehouse_id,
-                    orders: pendingItem.orders,
-                    orders_full: pendingItem.orders_full,
-                    attempts: pendingItem.attempts,
-                    last_error_code: pendingItem.last_error_code,
-                    last_error_message: pendingItem.last_error_message,
-                    last_attempt_at: pendingItem.last_attempt_at,
-                    payload: pendingItem.payload,
-                };
-                const list = await readSecureList(PENDING_SALES_KEY);
-                list.push(normalizedPendingItem);
-                await writeSecureList(PENDING_SALES_KEY, list);
-                Alert.alert(
-                    'Saved for later',
-                    (e?.response?.data?.message || e?.message || 'Could not complete sale.') +
-                        '\n\nThe sale has been saved to Pending Sales for retry.',
-                );
-            } catch (storageError) {
-                const msg =
-                    e?.response?.data?.message ||
-                    e?.message ||
-                    'Could not complete sale, and saving locally also failed.';
-                Alert.alert('Error', msg);
-            }
+            Alert.alert(
+                'Sale',
+                e?.response?.data?.message || e?.message || 'Could not complete sale. Check Pending Sales if it was queued.',
+            );
         }
     }
 
@@ -1477,6 +1527,27 @@ const NewSale = ({ navigation, route }) => {
                         </TouchableOpacity>
                     </View>
                 </ScreenHeader>
+
+                {isOffline ? (
+                    <View
+                        style={{
+                            marginHorizontal: 16,
+                            marginBottom: 8,
+                            paddingVertical: 8,
+                            paddingHorizontal: 12,
+                            borderRadius: 8,
+                            backgroundColor: '#f59e0b22',
+                            borderWidth: 1,
+                            borderColor: '#f59e0b66',
+                        }}
+                    >
+                        <AppText
+                            label="Offline — sales will sync later. Cash/credit OK; MoMo needs network."
+                            fontSize={12}
+                            color="#b45309"
+                        />
+                    </View>
+                ) : null}
 
                 {momoCartLocked ? (
                     <View

@@ -316,9 +316,29 @@ export const tenantHasPaidOnboardingBundleService = async (tenantId) => {
 };
 
 /**
- * Thermal printer setup unlock: paid assisted go-live line OR paid addon_printer_setup.
+ * Thermal is free for self-serve DIY.
+ * Lock only when the shop has requested paid assistance (pending quote with
+ * assisted go-live or printer-setup add-on) and has not paid that assistance yet.
  */
-export const tenantHasPrinterSetupEntitlementService = async (tenantId) => {
+export const tenantHasPendingPrinterAssistanceService = async (tenantId) => {
+    if (!tenantId) return false;
+    const r = await pool.query(
+        `SELECT 1
+         FROM onboarding_quotes q
+         INNER JOIN onboarding_quote_lines l ON l.quote_id = q.id
+         WHERE q.tenant_id = $1
+           AND q.status = $2
+           AND (
+             l.line_type = 'onboarding'
+             OR l.code = $3
+           )
+         LIMIT 1`,
+        [tenantId, QUOTE_STATUS.PENDING_PAYMENT, PRINTER_SETUP_ADDON_CODE]
+    );
+    return r.rowCount > 0;
+};
+
+export const tenantHasPaidPrinterAssistanceService = async (tenantId) => {
     if (!tenantId) return false;
     const r = await pool.query(
         `SELECT 1
@@ -336,16 +356,35 @@ export const tenantHasPrinterSetupEntitlementService = async (tenantId) => {
     return r.rowCount > 0;
 };
 
+/** @deprecated Prefer tenantHasPrinterSetupEntitlementService (DIY-friendly). */
+export const tenantHasPrinterSetupEntitlementService = async (tenantId) => {
+    if (!tenantId) return false;
+    if (await tenantHasPaidPrinterAssistanceService(tenantId)) return true;
+    if (await tenantHasPendingPrinterAssistanceService(tenantId)) return false;
+    return true; // no assistance requested — self-serve thermal OK
+};
+
 export const getPrinterSetupEntitlementForTenantService = async (tenantId) => {
-    const entitled = await tenantHasPrinterSetupEntitlementService(tenantId);
     const printer_setup_ghs = await getPrinterSetupFeeService();
+    const paid = await tenantHasPaidPrinterAssistanceService(tenantId);
+    const pending = !paid && (await tenantHasPendingPrinterAssistanceService(tenantId));
+    const entitled = paid || !pending;
+
+    let unlock = "self_serve";
+    if (paid) unlock = "paid_assisted_or_printer_addon";
+    else if (pending) unlock = null;
+
     return {
         entitled,
-        unlock: entitled ? "paid_assisted_or_printer_addon" : null,
+        pending_assistance: pending,
+        paid_assistance: paid,
+        unlock,
         printer_setup_ghs,
         message: entitled
-            ? "Thermal printer setup is unlocked for this business."
-            : `Thermal printer setup requires payment: assisted go-live (includes printer) or printer setup alone (GHS ${printer_setup_ghs}). Pay Shopynn only — never cash to an agent.`,
+            ? paid
+                ? "Thermal printer is unlocked (assistance paid)."
+                : "Thermal printer is available for self-serve setup."
+            : `Assistance was requested — pay Shopynn first (assisted go-live includes printer, or printer setup alone GHS ${printer_setup_ghs}). Never pay an agent cash for this fee.`,
         code: entitled ? null : "PRINTER_SETUP_PAYMENT_REQUIRED",
     };
 };

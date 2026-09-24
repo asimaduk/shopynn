@@ -56,13 +56,12 @@ const FREE_TIER_FEATURES = new Set([
 /** Not on Basic/Starter — requires Standard/Business or Premium/Scale. */
 const BASIC_EXCLUDED = new Set([
 	'stores.multi_access',
-	'reports.view',
-	'reports.export',
 	'inventory.reorder.view',
 	'inventory.expiring.view',
 	'transfers.view',
 	'transfers.details.view',
 	'transfers.create',
+	'transfers.receive',
 	'adjustments.view',
 	'adjustments.details.view',
 	'adjustments.create',
@@ -119,7 +118,6 @@ const BASIC_EXCLUDED = new Set([
 
 /** Not on Standard/Business — requires Premium/Scale. */
 const STANDARD_EXCLUDED = new Set([
-	'reports.export',
 	'orders.view',
 	'orders.details.view',
 	'orders.create',

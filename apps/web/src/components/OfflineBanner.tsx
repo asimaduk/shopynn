@@ -1,19 +1,42 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Alert from '@mui/material/Alert';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
+import { useAppDispatch, useAppSelector } from 'src/store/hooks';
+import { useCreateSaleMutation } from 'src/app/(control-panel)/trading/TradingApi';
+import { uploadAllPendingSales } from 'src/app/(control-panel)/trading/pending/pendingBatchUpload';
+import { selectPendingSales } from 'src/app/(control-panel)/trading/pending/pendingSalesSlice';
 
 /**
- * Sticky banner when the browser reports no network. New Sale and other flows can keep using cached RTK data.
+ * Sticky banner when offline. On reconnect, auto-flushes pending sales.
  */
 export default function OfflineBanner() {
 	const [offline, setOffline] = useState(
 		() => typeof navigator !== 'undefined' && !navigator.onLine
 	);
+	const dispatch = useAppDispatch();
+	const pendingSales = useAppSelector(selectPendingSales);
+	const [createSale] = useCreateSaleMutation();
+	const pendingRef = useRef(pendingSales);
+	const createSaleRef = useRef(createSale);
+	const dispatchRef = useRef(dispatch);
+	pendingRef.current = pendingSales;
+	createSaleRef.current = createSale;
+	dispatchRef.current = dispatch;
 
 	useEffect(() => {
-		const on = () => setOffline(false);
+		const flush = () => {
+			if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+			const snapshot = [...pendingRef.current];
+			if (!snapshot.length) return;
+			void uploadAllPendingSales(snapshot, createSaleRef.current, dispatchRef.current);
+		};
+
+		const on = () => {
+			setOffline(false);
+			flush();
+		};
 		const off = () => setOffline(true);
 		window.addEventListener('online', on);
 		window.addEventListener('offline', off);
@@ -40,7 +63,7 @@ export default function OfflineBanner() {
 				'& .MuiAlert-message': { fontWeight: 600 }
 			}}
 		>
-			You’re offline — POS can use the last saved product catalog. Sales will queue until you reconnect.
+			You’re offline — sales will sync when you’re back online. Cash / credit OK; MoMo needs network.
 		</Alert>
 	);
 }

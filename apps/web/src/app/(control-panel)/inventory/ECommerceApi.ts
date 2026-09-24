@@ -241,6 +241,16 @@ const ECommerceApi = api
 				}),
 				// invalidatesTags: ['eCommerce_products', 'eCommerce_product']
 			}),
+			receiveTransfer: build.mutation<
+				any,
+				{ id: string; all_received?: boolean; lines?: { detail_id?: string; product_id?: string; quantity_received: number }[] }
+			>({
+				query: ({ id, ...body }) => ({
+					url: `/api/products/transfers/${id}/receive`,
+					method: 'POST',
+					body
+				})
+			}),
 			getTransferById: build.query<GetECommerceTransferApiResponse, GetECommerceTransferApiArg>({
 				query: (id) => ({
 					url: `/api/products/transfers/${id}`
@@ -369,7 +379,22 @@ export type EcommerceTransfer = {
 	number_of_items: number;
 	created_at: string;
 	attendant: string;
-}
+	status?: string;
+	status_label?: string;
+	sent_date?: string;
+	received_date?: string;
+	first_name?: string;
+	last_name?: string;
+	receiver_first_name?: string;
+	receiver_last_name?: string;
+	products?: {
+		detail_id?: string;
+		product_id?: string;
+		name: string;
+		quantity: number;
+		quantity_received?: number | null;
+	}[];
+};
 
 export type EcommerceProduct = {
 	id: string;
@@ -503,6 +528,7 @@ export const {
 	useGetProductTransfersByDateQuery,
 	useGetProductTransfersQuery,
 	useCreateTransferMutation,
+	useReceiveTransferMutation,
 	useGetTransferByIdQuery,
 	useGetECommerceProductsCountQuery,
 	useGetECommerceProductsWithPaginationQuery

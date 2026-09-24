@@ -1,5 +1,6 @@
 import express from "express";
 import { getDashboard, getProfitAndLoss, getCashFlow, exportReportPdf, exportReportExcel } from "../controllers/dashboard.js";
+import { getAccountantPack } from "../controllers/accountantPack.js";
 import auth from "../middleware/auth.js";
 import requireActiveSubscription from "../middleware/requireActiveSubscription.js";
 import requireFeature from "../middleware/requireFeature.js";
@@ -7,6 +8,14 @@ import { requirePermission } from "../middleware/requirePermission.js";
 
 const router = express.Router();
 
+router.get(
+    "/accountant-pack",
+    auth,
+    requireActiveSubscription,
+    requireFeature("reports.export"),
+    requirePermission("reports.export"),
+    getAccountantPack
+);
 router.get(
     "/profit-and-loss",
     auth,
