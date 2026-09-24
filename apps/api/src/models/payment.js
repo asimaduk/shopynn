@@ -79,6 +79,7 @@ export const getPaymentsHistoryService = async (user, requestQuery = {}) => {
     }
 
     const orderOnlyRaw = requestQuery.order_only ?? requestQuery.orderOnly;
+    const posOnlyRaw = requestQuery.pos_only ?? requestQuery.posOnly ?? requestQuery.payment_source;
     const method = requestQuery.method ?? requestQuery.payment_method_type ?? requestQuery.paymentMethodType;
     if (method) {
         conditions.push(`lower(coalesce(p.payment_method_type, '')) = $${paramIndex}`);
@@ -88,7 +89,7 @@ export const getPaymentsHistoryService = async (user, requestQuery = {}) => {
 
     const storeId = requestQuery.store_id ?? requestQuery.warehouse_id ?? requestQuery.warehouseId;
     if (storeId) {
-        conditions.push(`o.warehouse_id = $${paramIndex}`);
+        conditions.push(`COALESCE(o.warehouse_id, s.warehouse_id) = $${paramIndex}`);
         params.push(storeId);
         paramIndex += 1;
     }
@@ -103,7 +104,9 @@ export const getPaymentsHistoryService = async (user, requestQuery = {}) => {
     const customerSearch = requestQuery.customer ?? requestQuery.customer_name ?? requestQuery.customerName;
     if (customerSearch) {
         conditions.push(
-            `(lower(coalesce(cu.first_name, '') || ' ' || coalesce(cu.last_name, '')) LIKE $${paramIndex} OR lower(coalesce(cu.email, '')) LIKE $${paramIndex})`
+            `(lower(coalesce(cu.first_name, '') || ' ' || coalesce(cu.last_name, '')) LIKE $${paramIndex}
+              OR lower(coalesce(cu.email, '')) LIKE $${paramIndex}
+              OR lower(coalesce(sc.name, '')) LIKE $${paramIndex})`
         );
         params.push(`%${String(customerSearch).trim().toLowerCase()}%`);
         paramIndex += 1;
@@ -113,6 +116,18 @@ export const getPaymentsHistoryService = async (user, requestQuery = {}) => {
     if (orderSearch) {
         conditions.push(`(lower(coalesce(o.order_number, '')) LIKE $${paramIndex} OR lower(coalesce(p.order_id, '')) LIKE $${paramIndex})`);
         params.push(`%${String(orderSearch).trim().toLowerCase()}%`);
+        paramIndex += 1;
+    }
+
+    const saleSearch = requestQuery.sale ?? requestQuery.invoice ?? requestQuery.q ?? requestQuery.search;
+    if (saleSearch) {
+        conditions.push(
+            `(lower(coalesce(s.invoice_number, '')) LIKE $${paramIndex}
+              OR lower(coalesce(p.sale_id::text, '')) LIKE $${paramIndex}
+              OR lower(coalesce(p.transaction_ref, '')) LIKE $${paramIndex}
+              OR lower(coalesce(p.payment_number, '')) LIKE $${paramIndex})`
+        );
+        params.push(`%${String(saleSearch).trim().toLowerCase()}%`);
         paramIndex += 1;
     }
 
@@ -132,21 +147,37 @@ export const getPaymentsHistoryService = async (user, requestQuery = {}) => {
         conditions.push(`p.order_id IS NOT NULL`);
     }
 
+    const posOnly = String(posOnlyRaw || "").trim().toLowerCase();
+    if (posOnly === "true" || posOnly === "1" || posOnly === "pos_sale") {
+        conditions.push(`coalesce(p.payment_source, '') = 'pos_sale'`);
+        // Default POS MoMo history to mobile money unless caller asks for another method
+        if (!method) {
+            conditions.push(`lower(coalesce(p.payment_method_type, '')) = 'mobile_money'`);
+        }
+    }
+
     const where = conditions.join(" AND ");
     const query = `
-        SELECT p.id, p.amount, p.subscription_id, p.customer_id, p.order_id, p.payment_method_type, p.payment_number, p.transaction_ref, p.status, p.created_at,
-               o.order_number, o.warehouse_id, w.name AS warehouse_name,
+        SELECT p.id, p.amount, p.face_amount, p.fee_amount, p.subscription_id, p.customer_id, p.order_id, p.sale_id,
+               p.payment_method_type, p.payment_number, p.transaction_ref, p.status, p.payment_source, p.created_at,
+               o.order_number, o.warehouse_id, COALESCE(w.name, sw.name) AS warehouse_name,
+               s.invoice_number AS sale_invoice_number, s.id AS sale_row_id,
                p.creator_id,
                u.first_name AS creator_first_name, u.last_name AS creator_last_name,
-               cu.id AS customer_user_id, cu.first_name AS customer_first_name, cu.last_name AS customer_last_name, cu.email AS customer_email
+               cu.id AS customer_user_id, cu.first_name AS customer_first_name, cu.last_name AS customer_last_name, cu.email AS customer_email,
+               sc.name AS sale_customer_name
         FROM payments p
         LEFT JOIN orders o ON p.order_id = o.id
+        LEFT JOIN sales s ON p.sale_id = s.id
         LEFT JOIN warehouses w ON o.warehouse_id = w.id
+        LEFT JOIN warehouses sw ON s.warehouse_id = sw.id
         LEFT JOIN users u ON p.creator_id = u.id
         LEFT JOIN customer_profiles cp ON o.customer_profile_id = cp.id
         LEFT JOIN users cu ON cp.user_id = cu.id
+        LEFT JOIN customers sc ON s.customer_id = sc.id
         WHERE ${where}
         ORDER BY ${sortBy} ${sortDir}
+        LIMIT 500
     `;
     const result = await pool.query(query, params);
     return result.rows;
@@ -194,12 +225,17 @@ export const getPaymentByIdService = async (id, tenant_id) => {
         `SELECT p.*, u.first_name AS creator_first_name, u.last_name AS creator_last_name,
                 o.order_number, o.status AS order_status, o.payment_status AS order_payment_status,
                 o.created_at AS ordered_at,
-                o.warehouse_id, w.name AS warehouse_name,
+                o.warehouse_id, COALESCE(w.name, sw.name) AS warehouse_name,
+                s.invoice_number AS sale_invoice_number, s.id AS sale_row_id,
+                sc.name AS sale_customer_name,
                 cu.id AS customer_user_id, cu.first_name AS customer_first_name, cu.last_name AS customer_last_name, cu.email AS customer_email
          FROM payments p
          LEFT JOIN users u ON p.creator_id = u.id
          LEFT JOIN orders o ON p.order_id = o.id
+         LEFT JOIN sales s ON p.sale_id = s.id
          LEFT JOIN warehouses w ON o.warehouse_id = w.id
+         LEFT JOIN warehouses sw ON s.warehouse_id = sw.id
+         LEFT JOIN customers sc ON s.customer_id = sc.id
          LEFT JOIN customer_profiles cp ON o.customer_profile_id = cp.id
          LEFT JOIN users cu ON cp.user_id = cu.id
          WHERE p.id = $1 AND p.tenant_id = $2`,

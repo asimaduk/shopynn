@@ -210,6 +210,14 @@ export const getUserByIdService = async (id) => {
                     }
                 }
 
+                const saleCheck = await pool.query(
+                    `SELECT EXISTS (
+                        SELECT 1 FROM sales WHERE tenant_id = $1
+                     ) AS has_first_sale`,
+                    [userRes.rows[0].tenant_id]
+                );
+                const has_first_sale = Boolean(saleCheck.rows[0]?.has_first_sale);
+
                 company = {
                     name: tenantRes.rows[0].name || null,
                     address: tenantRes.rows[0].address || null,
@@ -219,6 +227,8 @@ export const getUserByIdService = async (id) => {
                     industry,
                     industry_id: tenantRes.rows[0].industry_id ?? null,
                     logo: tenantRes.rows[0].logo || null,
+                    /** Used to hide Go live checklist after the shop's first sale. */
+                    has_first_sale,
                     subscription,
                     plan_usage: planUsage,
                     settings: {

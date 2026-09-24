@@ -95,6 +95,7 @@ import Subscription from '../containers/settings/subscription';
 import Payment from '../containers/settings/payment';
 import PaymentHistory from '../containers/settings/payment_history';
 import OrderPayments from '../containers/settings/order_payments';
+import PosSalePayments from '../containers/settings/pos_sale_payments';
 import OrderSettlements from '../containers/settings/order_settlements';
 import OrderPaymentDetails from '../containers/settings/order_payment_details';
 import PaymentWebView from '../containers/settings/payment_webview';
@@ -459,6 +460,7 @@ function MainNavigator({ user, onNavigationStateChange }) {
                 <Stack.Screen name="Payment" component={Payment} options={{ headerShown: false }} />
                 <Stack.Screen name="PaymentHistory" component={PaymentHistory} options={{ headerShown: false }} />
                 <Stack.Screen name="OrderPayments" component={OrderPayments} options={{ headerShown: false }} />
+                <Stack.Screen name="PosSalePayments" component={PosSalePayments} options={{ headerShown: false }} />
                 <Stack.Screen name="OrderSettlements" component={OrderSettlements} options={{ headerShown: false }} />
                 <Stack.Screen name="OrderPaymentDetails" component={OrderPaymentDetails} options={{ headerShown: false }} />
                 <Stack.Screen name="PaymentWebView" component={PaymentWebView} options={{ headerShown: false }} />

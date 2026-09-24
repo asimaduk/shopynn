@@ -44,6 +44,8 @@ export type User = {
 		industry?: string | null;
 		industry_id?: string | null;
 		logo?: string | null;
+		/** True after the tenant has recorded at least one sale — hides Go live checklist. */
+		has_first_sale?: boolean;
 		settings?: {
 			bulk_discount?: {
 				enabled?: boolean;

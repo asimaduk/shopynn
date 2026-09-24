@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSelector } from 'react-redux';
 import AppText from '../../components/text';
 import ScreenHeader from '../../components/screen_header';
@@ -56,18 +55,18 @@ const DataExportBackup = ({ navigation }) => {
             hasFeature(user, ['products.export'], subscriptionFeatures) ||
             hasFeature(user, ['data_export.view'], subscriptionFeatures));
 
-    const [busy, setBusy] = useState(null); // 'csv' | 'prefs' | null
+    const [busy, setBusy] = useState(false);
     const [lastExportCount, setLastExportCount] = useState(null);
 
     const handleExportProducts = async () => {
         if (!canRun) {
             Alert.alert(
                 'Upgrade required',
-                'Product export needs the Data export feature on your plan (or products.export permission).',
+                'Product export needs the Product export feature on your plan.',
             );
             return;
         }
-        setBusy('csv');
+        setBusy(true);
         try {
             const rows = await productsApi.export();
             if (!rows.length) {
@@ -87,45 +86,18 @@ const DataExportBackup = ({ navigation }) => {
                 e?.response?.data?.message || e?.message || 'Could not export products. Check your connection and permissions.',
             );
         } finally {
-            setBusy(null);
-        }
-    };
-
-    const handleBackupPrefs = async () => {
-        if (!canRun) {
-            Alert.alert('Not available', 'You need export permission on your plan to create a preferences backup.');
-            return;
-        }
-        setBusy('prefs');
-        try {
-            const keys = await AsyncStorage.getAllKeys();
-            const pairs = await AsyncStorage.multiGet(keys);
-            const payload = {
-                type: 'shopynn-app-preferences',
-                version: 1,
-                exported_at: new Date().toISOString(),
-                note: 'Device app preferences only — not a full business data backup.',
-                data: Object.fromEntries(pairs),
-            };
-            await Share.share({
-                message: JSON.stringify(payload, null, 2),
-                title: 'Shopynn app preferences backup',
-            });
-        } catch (e) {
-            Alert.alert('Backup failed', e?.message || 'Could not create preferences backup.');
-        } finally {
-            setBusy(null);
+            setBusy(false);
         }
     };
 
     if (!canView) {
         return (
             <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.safe, { backgroundColor: colors.background }]}>
-                <ScreenHeader onPress={() => navigation.goBack()} label="Export & Backup" />
+                <ScreenHeader onPress={() => navigation.goBack()} label="Export products" />
                 <View style={styles.centered}>
                     <Lucide name="lock" color={colors.textTertiary} size={36} />
                     <AppText
-                        label="You don’t have access to data export."
+                        label="You don’t have access to product export."
                         fontSize={15}
                         color={colors.textSecondary}
                         style={{ marginTop: 12, textAlign: 'center' }}
@@ -137,22 +109,22 @@ const DataExportBackup = ({ navigation }) => {
 
     return (
         <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.safe, { backgroundColor: colors.background }]}>
-            <ScreenHeader onPress={() => navigation.goBack()} label="Export & Backup" />
+            <ScreenHeader onPress={() => navigation.goBack()} label="Export products" />
             <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
                 <AppText
-                    label="Export live product data from your Shopynn account, or save this device’s app preferences."
+                    label="Download your live product catalog as a spreadsheet you can open in Excel or Google Sheets."
                     fontSize={13}
                     color={colors.textSecondary}
-                    style={{ marginBottom: 14 }}
+                    style={{ marginBottom: 16 }}
                 />
 
                 <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                     <View style={[styles.iconWrap, { backgroundColor: `${config.THEME_COLOR}18` }]}>
                         <Lucide name="file-spreadsheet" color={config.THEME_COLOR} size={26} />
                     </View>
-                    <AppText label="Export products" variant={1} fontSize={16} color={colors.text} />
+                    <AppText label="Product catalog CSV" variant={1} fontSize={16} color={colors.text} />
                     <AppText
-                        label="Download a CSV of all products (name, SKU, prices, stock, reorder levels)."
+                        label="Includes name, SKU, unit, prices, cost, stock on hand, and reorder levels for every product."
                         fontSize={13}
                         color={colors.textSecondary}
                         style={{ marginTop: 6 }}
@@ -168,14 +140,14 @@ const DataExportBackup = ({ navigation }) => {
                     <TouchableOpacity
                         activeOpacity={0.85}
                         onPress={handleExportProducts}
-                        disabled={!!busy || !canRun}
+                        disabled={busy || !canRun}
                         style={[
                             styles.primaryBtn,
                             { backgroundColor: config.THEME_COLOR },
                             (!canRun || busy) && styles.disabledBtn,
                         ]}
                     >
-                        {busy === 'csv' ? (
+                        {busy ? (
                             <ActivityIndicator color="#fff" />
                         ) : (
                             <>
@@ -186,7 +158,7 @@ const DataExportBackup = ({ navigation }) => {
                     </TouchableOpacity>
                     {!canRun ? (
                         <AppText
-                            label="Requires Data export on your plan."
+                            label="Requires Product export on your plan."
                             fontSize={12}
                             color={colors.textTertiary}
                             style={{ marginTop: 10 }}
@@ -194,48 +166,10 @@ const DataExportBackup = ({ navigation }) => {
                     ) : null}
                 </View>
 
-                <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <View style={[styles.iconWrap, { backgroundColor: '#f59e0b18' }]}>
-                        <Lucide name="smartphone" color="#f59e0b" size={26} />
-                    </View>
-                    <AppText label="App preferences" variant={1} fontSize={16} color={colors.text} />
-                    <AppText
-                        label="Share a JSON file of settings stored on this phone (theme, print agent, etc.). This is not a full inventory or sales backup."
-                        fontSize={13}
-                        color={colors.textSecondary}
-                        style={{ marginTop: 6 }}
-                    />
-                    <TouchableOpacity
-                        activeOpacity={0.85}
-                        onPress={handleBackupPrefs}
-                        disabled={!!busy || !canRun}
-                        style={[
-                            styles.primaryBtn,
-                            { backgroundColor: '#f59e0b' },
-                            (!canRun || busy) && styles.disabledBtn,
-                        ]}
-                    >
-                        {busy === 'prefs' ? (
-                            <ActivityIndicator color="#fff" />
-                        ) : (
-                            <>
-                                <Lucide name="share-2" color="#fff" size={18} />
-                                <AppText
-                                    label="Share preferences"
-                                    variant={1}
-                                    color="#fff"
-                                    fontSize={15}
-                                    style={{ marginLeft: 8 }}
-                                />
-                            </>
-                        )}
-                    </TouchableOpacity>
-                </View>
-
                 <View style={[styles.noteCard, { backgroundColor: colors.surfaceSecondary || colors.surface, borderColor: colors.border }]}>
                     <Lucide name="info" color={colors.textTertiary} size={18} />
                     <AppText
-                        label="Full business restore (sales, purchases, stock) is not available on mobile yet. Use product export for analysis or archives."
+                        label="This exports your product catalog only. Sales, purchases, and a full business restore are not available yet."
                         fontSize={12}
                         color={colors.textSecondary}
                         style={{ marginLeft: 10, flex: 1 }}

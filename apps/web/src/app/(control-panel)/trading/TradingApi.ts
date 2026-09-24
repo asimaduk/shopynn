@@ -1,7 +1,7 @@
 import { apiService as api } from 'src/store/apiService';
 import { PartialDeep } from 'type-fest';
 
-export const addTagTypes = ['eCommerce_products', 'eCommerce_product', 'eCommerce_orders', 'eCommerce_order'] as const;
+export const addTagTypes = ['eCommerce_products', 'eCommerce_product', 'eCommerce_orders', 'eCommerce_order', 'GoLiveNav'] as const;
 
 const TradingApi = api
 	.enhanceEndpoints({
@@ -51,7 +51,7 @@ const TradingApi = api
 					method: 'POST',
 					body: newSale//ProductModel(newProduct)
 				}),
-				// invalidatesTags: ['eCommerce_products', 'eCommerce_product']
+				invalidatesTags: ['GoLiveNav']
 			}),
 			recordSalePayment: build.mutation<any, { saleId: string; body: Record<string, unknown> }>({
 				query: ({ saleId, body }) => ({

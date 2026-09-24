@@ -25,6 +25,7 @@ import {
 } from '../../utils/secureOfflineStorage';
 import { clearTokens } from '../../utils/secureStorage';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import { tenants as tenantsApi } from '../../services/api';
 
 const TAB_BAR_HEIGHT = 60;
 
@@ -37,32 +38,33 @@ const resolveProfileImageUri = (raw) => {
 
 const SETTINGS_ITEMS = [
     { section: 'Account', title: 'Profile', subtitle: 'Manage your personal information', screen: 'Profile', icon: 'user', iconColor: config.THEME_COLOR },
-    { section: 'Operations', title: 'Online Orders', subtitle: 'Process incoming customer orders', screen: 'Orders', icon: 'shopping-basket', iconColor: '#8b5cf6' },
-    { section: 'Operations', title: 'Order Payments', subtitle: 'Admin view for order payment records', screen: 'OrderPayments', icon: 'banknote', iconColor: '#16a34a' },
-    { section: 'Operations', title: 'Order Settlements', subtitle: 'Digital order revenue and payout balance', screen: 'OrderSettlements', icon: 'landmark', iconColor: '#2563eb' },
-    { section: 'Operations', title: 'Go live checklist', subtitle: 'Empty shop → first sale in ~15 min', screen: 'GoLiveWizard', icon: 'rocket', iconColor: '#0ea5e9' },
-    { section: 'Operations', title: 'Pending Sales', subtitle: 'Review and approve sales', screen: 'PendingSales', icon: 'clipboard-list', iconColor: '#f00' },
-    { section: 'Operations', title: 'Warehouses / Stores', subtitle: 'Manage storage locations', screen: 'Warehouses', icon: 'store', iconColor: '#10b981' },
-    { section: 'Operations', title: 'Product Transfers', subtitle: 'Transfer products between locations', screen: 'ProductTransfers', icon: 'arrow-right-left', iconColor: config.THEME_COLOR },
-    { section: 'Operations', title: 'Adjust Quantities', subtitle: 'Update stock quantities', screen: 'AdjustedQuantities', icon: 'arrow-down-1-0', iconColor: '#f59e0b' },
-    { section: 'Operations', title: 'Stock count / Audit', subtitle: 'Count actual stock and create adjustments', screen: 'StockCountHistory', icon: 'clipboard-check', iconColor: '#0284c7' },
-    // { section: 'Operations', title: 'Returns', subtitle: 'Sales & purchase returns', screen: 'Returns', icon: 'rotate-ccw', iconColor: '#ef4444' },
-    { section: 'Administration', title: 'System users', subtitle: 'Create, edit, disable users and assign roles', screen: 'Users', icon: 'user-cog', iconColor: '#6366f1' },
-    { section: 'Administration', title: 'Roles & Permissions', subtitle: 'Create and manage role permission sets', screen: 'Roles', icon: 'shield', iconColor: '#0ea5e9' },
-    { section: 'Data Management', title: 'Customers', subtitle: 'Manage customer database', screen: 'Customers', icon: 'users', iconColor: config.THEME_COLOR },
-    { section: 'Data Management', title: 'Suppliers', subtitle: 'Manage supplier information', screen: 'Suppliers', icon: 'truck', iconColor: '#f59e0b' },
-    { section: 'Data Management', title: 'Product Categories', subtitle: 'Organize products by category', screen: 'ProductCategories', icon: 'grid-3x3', iconColor: '#10b981' },
-    { section: 'Data Management', title: 'Expenditures', subtitle: 'Track business expenses', screen: 'Expenditures', icon: 'wallet', iconColor: '#ef4444' },
-    { section: 'Reports & Analytics', title: 'Reports', subtitle: 'View business reports and analytics', screen: 'Reports', icon: 'activity', iconColor: config.THEME_COLOR },
-    { section: 'Reports & Analytics', title: 'Transactions', subtitle: 'View all product transactions', screen: 'ProductTransactions', icon: 'database', iconColor: '#6b7280' },
-    { section: 'App Settings', title: 'Invoice & Receipt', subtitle: 'Invoice/receipt details and thermal print agent', screen: 'InvoiceReceiptSettings', icon: 'file-text', iconColor: config.THEME_COLOR },
-    { section: 'App Settings', title: 'Print agent', subtitle: 'LAN IP of the PC with Shopynn Print (thermal)', screen: 'InvoiceReceiptSettings', icon: 'printer', iconColor: '#64748b' },
-    { section: 'App Settings', title: 'Notifications', subtitle: 'Configure notification preferences', screen: 'NotificationsSetup', icon: 'bell', iconColor: '#f59e0b' },
-    { section: 'App Settings', title: 'Clients', subtitle: 'Partner merchants, onboarding & commissions', screen: 'MerchantPortal', icon: 'handshake', iconColor: '#6366f1' },
-    { section: 'App Settings', title: 'Tenant directory', subtitle: 'All businesses, subscriptions, and payments (admin)', screen: 'TenantsDirectory', icon: 'building-2', iconColor: '#0ea5e9' },
-    { section: 'App Settings', title: 'Billing catalog', subtitle: 'Plans, onboarding fees, and add-on prices (admin)', screen: 'BillingCatalog', icon: 'circle-dollar-sign', iconColor: '#059669' },
-    { section: 'App Settings', title: 'About this app', subtitle: 'App version and information', screen: 'AboutApp', icon: 'info', iconColor: config.THEME_COLOR },
-    { section: 'App Settings', title: 'Share app', subtitle: 'Share Shopynn with others', action: 'share', icon: 'share-2', iconColor: '#10b981' },
+    { section: 'Trading', title: 'Pending Sales', subtitle: 'Review and approve sales', screen: 'PendingSales', icon: 'clipboard-list', iconColor: '#f00' },
+    { section: 'Trading', title: 'Pending MoMo', subtitle: 'Parked POS MoMo — check status & complete', screen: 'PendingMomoPayments', icon: 'smartphone', iconColor: '#d97706' },
+    { section: 'Trading', title: 'POS MoMo payments', subtitle: 'MoMo charges for counter sales', screen: 'PosSalePayments', icon: 'banknote', iconColor: '#7c3aed' },
+    { section: 'Trading', title: 'Online Orders', subtitle: 'Process incoming customer orders', screen: 'Orders', icon: 'shopping-basket', iconColor: '#8b5cf6' },
+    { section: 'Trading', title: 'Order Payments', subtitle: 'Admin view for order payment records', screen: 'OrderPayments', icon: 'banknote', iconColor: '#16a34a' },
+    { section: 'Trading', title: 'Order Settlements', subtitle: 'Digital order revenue and payout balance', screen: 'OrderSettlements', icon: 'landmark', iconColor: '#2563eb' },
+    { section: 'Inventory', title: 'Product Categories', subtitle: 'Organize products by category', screen: 'ProductCategories', icon: 'grid-3x3', iconColor: '#10b981' },
+    { section: 'Inventory', title: 'Item Transfers', subtitle: 'Transfer items between locations', screen: 'ProductTransfers', icon: 'arrow-right-left', iconColor: config.THEME_COLOR },
+    { section: 'Inventory', title: 'Adjust Quantities', subtitle: 'Update stock quantities', screen: 'AdjustedQuantities', icon: 'arrow-down-1-0', iconColor: '#f59e0b' },
+    { section: 'Inventory', title: 'Stock count / Audit', subtitle: 'Count actual stock and create adjustments', screen: 'StockCountHistory', icon: 'clipboard-check', iconColor: '#0284c7' },
+    { section: 'Inventory', title: 'Transactions', subtitle: 'View all product transactions', screen: 'ProductTransactions', icon: 'database', iconColor: '#6b7280' },
+    { section: 'People', title: 'Customers', subtitle: 'Manage customer database', screen: 'Customers', icon: 'users', iconColor: config.THEME_COLOR },
+    { section: 'People', title: 'Users', subtitle: 'Create, edit, disable users and assign roles', screen: 'Users', icon: 'user-cog', iconColor: '#6366f1' },
+    { section: 'Expenses', title: 'Expenses', subtitle: 'Track business expenses', screen: 'Expenditures', icon: 'wallet', iconColor: '#ef4444' },
+    { section: 'Setups', title: 'Go live checklist', subtitle: 'Empty shop → first sale in ~15 min', screen: 'GoLiveWizard', icon: 'rocket', iconColor: '#0ea5e9' },
+    { section: 'Setups', title: 'Stores / Branches', subtitle: 'Manage storage locations', screen: 'Warehouses', icon: 'store', iconColor: '#10b981' },
+    { section: 'Setups', title: 'Suppliers', subtitle: 'Manage supplier information', screen: 'Suppliers', icon: 'truck', iconColor: '#f59e0b' },
+    { section: 'Setups', title: 'Invoice & Receipt', subtitle: 'Invoice/receipt details and thermal print agent', screen: 'InvoiceReceiptSettings', icon: 'file-text', iconColor: config.THEME_COLOR },
+    { section: 'Setups', title: 'Export products', subtitle: 'Download your catalog as CSV', screen: 'DataExportBackup', icon: 'file-spreadsheet', iconColor: '#10b981' },
+    { section: 'Admin', title: 'Roles & Permissions', subtitle: 'Create and manage role permission sets', screen: 'Roles', icon: 'shield', iconColor: '#0ea5e9' },
+    { section: 'Admin', title: 'Notifications', subtitle: 'Configure notification preferences', screen: 'NotificationsSetup', icon: 'bell', iconColor: '#f59e0b' },
+    { section: 'Reports', title: 'Reports', subtitle: 'View business reports and analytics', screen: 'Reports', icon: 'activity', iconColor: config.THEME_COLOR },
+    { section: 'Platform', title: 'Merchants', subtitle: 'Partner merchants, onboarding & commissions', screen: 'MerchantPortal', icon: 'handshake', iconColor: '#6366f1' },
+    { section: 'Platform', title: 'Tenant directory', subtitle: 'All businesses, subscriptions, and payments (admin)', screen: 'TenantsDirectory', icon: 'building-2', iconColor: '#0ea5e9' },
+    { section: 'Platform', title: 'Billing catalog', subtitle: 'Plans, onboarding fees, and add-on prices (admin)', screen: 'BillingCatalog', icon: 'circle-dollar-sign', iconColor: '#059669' },
+    { section: 'App', title: 'About this app', subtitle: 'App version and information', screen: 'AboutApp', icon: 'info', iconColor: config.THEME_COLOR },
+    { section: 'App', title: 'Share app', subtitle: 'Share Shopynn with others', action: 'share', icon: 'share-2', iconColor: '#10b981' },
     { section: 'Account', title: 'Sign Out', subtitle: 'Sign out of your account', action: 'signout', icon: 'log-out', iconColor: '#f00' },
 ];
 
@@ -81,11 +83,16 @@ const Settings = ({ navigation, route }) => {
     const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
     const [signingOut, setSigningOut] = useState(false);
     const [pendingSalesCount, setPendingSalesCount] = useState(0);
+    const [showGoLive, setShowGoLive] = useState(
+        () => Boolean(user?.company) && !Boolean(user?.company?.has_first_sale),
+    );
     const profileImageUri = resolveProfileImageUri(
         user?.profile_image ?? user?.profileImage ?? user?.avatar ?? user?.settings?.profile?.image_url,
     );
 
-    const settingsItemsForSearch = useMemo(() => [...SETTINGS_ITEMS], []);
+    const settingsItemsForSearch = useMemo(() => {
+        return SETTINGS_ITEMS.filter((item) => item.screen !== 'GoLiveWizard' || showGoLive);
+    }, [showGoLive]);
 
     const filteredItems = useMemo(() => {
         if (!searchQuery.trim()) return [];
@@ -117,12 +124,6 @@ const Settings = ({ navigation, route }) => {
         setShowSearchInput(false);
     };
 
-    const isAdmin =
-        typeof user?.roles === 'string' &&
-        user.roles
-            .split(',')
-            .map(role => role.trim().toLowerCase())
-            .includes('admin') || user?.settings?.roles?.some(role => role.name.toLowerCase() === 'admin');
     const isCustomer = Boolean(
         (typeof user?.roles === 'string' &&
             user.roles
@@ -134,6 +135,7 @@ const Settings = ({ navigation, route }) => {
 
     const canPendingSales = canAccessScreen(user, 'PendingSales', subscriptionFeatures);
     const canPendingMomo = canAccessScreen(user, 'PendingMomoPayments', subscriptionFeatures);
+    const canPosSalePayments = canAccessScreen(user, 'PosSalePayments', subscriptionFeatures);
     const warehousesAccess = getScreenPlanAccess(user, 'Warehouses', subscriptionFeatures, subscriptionPlan);
     const transfersAccess = getScreenPlanAccess(user, 'ProductTransfers', subscriptionFeatures, subscriptionPlan);
     const ordersAccess = getScreenPlanAccess(user, 'Orders', subscriptionFeatures, subscriptionPlan);
@@ -178,13 +180,19 @@ const Settings = ({ navigation, route }) => {
     const canOrderSettlements = orderSettlementsAccess.show;
     const canTenantsDirectory = tenantsDirectoryAccess.show;
     const canBillingCatalog = billingCatalogAccess.show;
-    const showAppSettingsSection =
-        notificationsSetupAccess.show ||
-        canCustomerOrderNotifications ||
-        canAbout ||
-        tenantsDirectoryAccess.show ||
-        billingCatalogAccess.show ||
-        canMerchantPortalFromSettings;
+    const showTradingSection =
+        canPendingSales || canPendingMomo || canPosSalePayments || canOrders || canOrderPayments || canOrderSettlements;
+    const showInventorySection =
+        canCategories || canTransfers || canAdjustments || canStockCount || canTransactions;
+    const showPeopleSection = canCustomers || canUsers;
+    const showExpensesSection = canExpenditures;
+    const showSetupsSection =
+        showGoLive || canWarehouses || canSuppliers || canInvoiceReceipt || canDataExport;
+    const showAdminSection = canRoles || canNotificationsSetup;
+    const showReportsSection = canReports;
+    const showPlatformSection =
+        canMerchantPortalFromSettings || canTenantsDirectory || canBillingCatalog;
+    const showAppSection = true; // About (gated) + Share
 
     const renderPlanGateTrailing = (access) => {
         if (!access?.locked) {
@@ -205,6 +213,18 @@ const Settings = ({ navigation, route }) => {
         );
     };
 
+    /** Render visible menu rows with dividers between them. */
+    const renderMenuRows = (rows) => {
+        const visible = rows.filter((row) => row.show);
+        if (!visible.length) return null;
+        return visible.map((row, index) => (
+            <React.Fragment key={row.key}>
+                {index > 0 ? <View style={[styles.divider, { backgroundColor: colors.divider }]} /> : null}
+                {row.node}
+            </React.Fragment>
+        ));
+    };
+
     useFocusEffect(
         React.useCallback(() => {
             let mounted = true;
@@ -216,10 +236,19 @@ const Settings = ({ navigation, route }) => {
                 .catch(() => {
                     if (mounted) setPendingSalesCount(0);
                 });
+            tenantsApi
+                .goLiveNav()
+                .then((nav) => {
+                    if (!mounted) return;
+                    setShowGoLive(Boolean(nav?.show_go_live));
+                })
+                .catch(() => {
+                    if (mounted && user?.company?.has_first_sale) setShowGoLive(false);
+                });
             return () => {
                 mounted = false;
             };
-        }, []),
+        }, [user?.company?.has_first_sale]),
     );
 
     useEffect(() => {
@@ -499,317 +528,417 @@ const Settings = ({ navigation, route }) => {
                     </View>
                 </View>
 
-                {/* Operations Section */}
-                {(canPendingSales || canPendingMomo || canWarehouses || canTransfers || canOrders || canOrderPayments || canOrderSettlements || canAdjustments || canStockCount) && (
+                {/* Trading — sales / online (matches web sidebar) */}
+                {showTradingSection && (
                     <View style={styles.section}>
-                        <AppText label={'Operations'} variant={1} fontSize={14} color={colors.textTertiary} style={styles.sectionTitle} />
-                    <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                        {canOrders && (
-                            <>
-                                <TouchableOpacity
-                                    activeOpacity={.6}
-                                    onPress={() => navigateToScreenOrUpgrade(navigation, user, 'Orders', subscriptionFeatures, undefined, subscriptionPlan)}
-                                    style={styles.menuItem}
-                                >
-                                    <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                        <Lucide name="shopping-basket" color="#8b5cf6" size={20} />
-                                    </View>
-                                    <View style={styles.menuContent}>
-                                        <AppText label={'Online Orders'} variant={2} color={colors.text} fontSize={15} />
-                                        <AppText label={'Process incoming customer orders'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
-                                    </View>
-                                    {renderPlanGateTrailing(ordersAccess)}
-                                </TouchableOpacity>
-                                {(canOrderPayments || canOrderSettlements || canPendingSales || canWarehouses || canTransfers || canAdjustments || canStockCount) && (
-                                    <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-                                )}
-                            </>
-                        )}
-
-                        {canOrderPayments && (
-                            <>
-                                <TouchableOpacity
-                                    activeOpacity={0.6}
-                                    onPress={() => navigateToScreenOrUpgrade(navigation, user, 'OrderPayments', subscriptionFeatures, undefined, subscriptionPlan)}
-                                    style={styles.menuItem}
-                                >
-                                    <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                        <Lucide name="banknote" color="#16a34a" size={20} />
-                                    </View>
-                                    <View style={styles.menuContent}>
-                                        <AppText label={'Order Payments'} variant={2} color={colors.text} fontSize={15} />
-                                        <AppText
-                                            label={'Admin view for customer order payments'}
-                                            variant={2}
-                                            color={colors.textTertiary}
-                                            fontSize={12}
-                                            style={{ marginTop: 2 }}
-                                        />
-                                    </View>
-                                    {renderPlanGateTrailing(orderPaymentsAccess)}
-                                </TouchableOpacity>
-                                {(canOrderSettlements || canPendingSales || canWarehouses || canTransfers || canAdjustments || canStockCount) && (
-                                    <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-                                )}
-                            </>
-                        )}
-
-                        {canOrderSettlements && (
-                            <>
-                                <TouchableOpacity
-                                    activeOpacity={0.6}
-                                    onPress={() => navigateToScreenOrUpgrade(navigation, user, 'OrderSettlements', subscriptionFeatures, undefined, subscriptionPlan)}
-                                    style={styles.menuItem}
-                                >
-                                    <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                        <Lucide name="landmark" color="#2563eb" size={20} />
-                                    </View>
-                                    <View style={styles.menuContent}>
-                                        <AppText label={'Order Settlements'} variant={2} color={colors.text} fontSize={15} />
-                                        <AppText
-                                            label={'Digital order revenue and payout balance'}
-                                            variant={2}
-                                            color={colors.textTertiary}
-                                            fontSize={12}
-                                            style={{ marginTop: 2 }}
-                                        />
-                                    </View>
-                                    {renderPlanGateTrailing(orderSettlementsAccess)}
-                                </TouchableOpacity>
-                                {(canPendingSales || canWarehouses || canTransfers || canAdjustments || canStockCount) && (
-                                    <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-                                )}
-                            </>
-                        )}
-
-                        <TouchableOpacity
-                            activeOpacity={0.6}
-                            onPress={() => navigation.navigate('GoLiveWizard')}
-                            style={styles.menuItem}
-                        >
-                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                <Lucide name="rocket" color="#0ea5e9" size={20} />
-                            </View>
-                            <View style={styles.menuContent}>
-                                <AppText label={'Go live checklist'} variant={2} color={colors.text} fontSize={15} />
-                                <AppText
-                                    label={'Empty shop → first sale in ~15 min'}
-                                    variant={2}
-                                    color={colors.textTertiary}
-                                    fontSize={12}
-                                    style={{ marginTop: 2 }}
-                                />
-                            </View>
-                            <Lucide name="chevron-right" color={colors.textTertiary} size={18} />
-                        </TouchableOpacity>
-                        {(canPendingSales || canWarehouses || canTransfers || canAdjustments || canStockCount) && (
-                            <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-                        )}
-
-                        {canPendingSales && (
-                            <>
-                                <TouchableOpacity
-                                    activeOpacity={.6}
-                                    onPress={() => navigation.navigate("PendingSales")}
-                                    style={styles.menuItem}
-                                >
-                                    <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                        <Lucide name="clipboard-list" color="#f00" size={20} />
-                                    </View>
-                                    <View style={styles.menuContent}>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                            <AppText label={'Pending Sales'} variant={2} color={colors.text} fontSize={15} />
-                                            {pendingSalesCount > 0 && (
-                                                <View style={styles.badge}>
-                                                    <AppText
-                                                        label={String(pendingSalesCount)}
-                                                        color={colors.textInverse}
-                                                        fontSize={10}
-                                                        variant={1}
-                                                    />
-                                                </View>
-                                            )}
-                                        </View>
-                                        <AppText label={'Review and approve sales'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
-                                    </View>
-                                    <Lucide name="chevron-right" color={colors.border} size={18} />
-                                </TouchableOpacity>
-                                {(canPendingMomo || canWarehouses || canTransfers || canAdjustments || canStockCount) && (
-                                    <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-                                )}
-                            </>
-                        )}
-
-                        {canPendingMomo && (
-                            <>
-                                <TouchableOpacity
-                                    activeOpacity={0.6}
-                                    onPress={() => navigation.navigate('PendingMomoPayments')}
-                                    style={styles.menuItem}
-                                >
-                                    <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                        <Lucide name="smartphone" color="#d97706" size={20} />
-                                    </View>
-                                    <View style={styles.menuContent}>
-                                        <AppText label={'Pending MoMo'} variant={2} color={colors.text} fontSize={15} />
-                                        <AppText
-                                            label={'Parked POS MoMo — check status & complete'}
-                                            variant={2}
-                                            color={colors.textTertiary}
-                                            fontSize={12}
-                                            style={{ marginTop: 2 }}
-                                        />
-                                    </View>
-                                    <Lucide name="chevron-right" color={colors.border} size={18} />
-                                </TouchableOpacity>
-                                {(canWarehouses || canTransfers || canAdjustments || canStockCount) && (
-                                    <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-                                )}
-                            </>
-                        )}
-
-                        {canWarehouses && (
-                            <>
-                                <TouchableOpacity
-                                    activeOpacity={.6}
-                                    onPress={() => navigateToScreenOrUpgrade(navigation, user, 'Warehouses', subscriptionFeatures, undefined, subscriptionPlan)}
-                                    style={styles.menuItem}
-                                >
-                                    <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                        <Lucide name="store" color="#10b981" size={20} />
-                                    </View>
-                                    <View style={styles.menuContent}>
-                                        <AppText label={'Warehouses / Stores / Branches'} variant={2} color={colors.text} fontSize={15} />
-                                        <AppText label={'Manage storage locations'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
-                                    </View>
-                                    {renderPlanGateTrailing(warehousesAccess)}
-                                </TouchableOpacity>
-                                {(canTransfers || canOrders || canAdjustments || canStockCount) && (
-                                    <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-                                )}
-                            </>
-                        )}
-
-                        {canTransfers && (
-                            <>
-                                <TouchableOpacity
-                                    activeOpacity={.6}
-                                    onPress={() => navigateToScreenOrUpgrade(navigation, user, 'ProductTransfers', subscriptionFeatures, undefined, subscriptionPlan)}
-                                    style={styles.menuItem}
-                                >
-                                    <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                        <Lucide name="arrow-right-left" color={config.THEME_COLOR} size={20} />
-                                    </View>
-                                    <View style={styles.menuContent}>
-                                        <AppText label={'Item Transfers'} variant={2} color={colors.text} fontSize={15} />
-                                        <AppText label={'Transfer items between locations'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
-                                    </View>
-                                    {renderPlanGateTrailing(transfersAccess)}
-                                </TouchableOpacity>
-                                {(canOrders || canAdjustments || canStockCount) && (
-                                    <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-                                )}
-                            </>
-                        )}
-
-                        {canAdjustments && (
-                            <>
-                                <TouchableOpacity
-                                    activeOpacity={.6}
-                                    onPress={() => navigateToScreenOrUpgrade(navigation, user, 'AdjustedQuantities', subscriptionFeatures, undefined, subscriptionPlan)}
-                                    style={styles.menuItem}
-                                >
-                                    <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                        <Lucide name="arrow-down-1-0" color="#f59e0b" size={20} />
-                                    </View>
-                                    <View style={styles.menuContent}>
-                                        <AppText label={'Adjust Quantities'} variant={2} color={colors.text} fontSize={15} />
-                                        <AppText label={'Update stock quantities'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
-                                    </View>
-                                    {renderPlanGateTrailing(adjustmentsAccess)}
-                                </TouchableOpacity>
-                                {canStockCount && <View style={[styles.divider, { backgroundColor: colors.divider }]} />}
-                            </>
-                        )}
-
-                        {canStockCount && (
-                            <TouchableOpacity
-                                activeOpacity={.6}
-                                onPress={() => navigateToScreenOrUpgrade(navigation, user, 'StockCountHistory', subscriptionFeatures, undefined, subscriptionPlan)}
-                                style={styles.menuItem}
-                            >
-                                <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                    <Lucide name="clipboard-check" color="#0284c7" size={20} />
-                                </View>
-                                <View style={styles.menuContent}>
-                                    <AppText label={'Stock count / Audit'} variant={2} color={colors.text} fontSize={15} />
-                                    <AppText label={'Count actual stock and create adjustments'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
-                                </View>
-                                {renderPlanGateTrailing(stockCountAccess)}
-                            </TouchableOpacity>
-                        )}
-                        {/* <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-                        <TouchableOpacity activeOpacity={.6} onPress={() => navigation.navigate("Returns")} style={styles.menuItem}>
-                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                <Lucide name="rotate-ccw" color="#ef4444" size={20} />
-                            </View>
-                            <View style={styles.menuContent}>
-                                <AppText label={'Returns'} variant={2} color={colors.text} fontSize={15} />
-                                <AppText label={'Sales & purchase returns'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
-                            </View>
-                            <Lucide name="chevron-right" color={colors.border} size={18} />
-                        </TouchableOpacity> */}
-                    </View>
-                    </View>
-                )}
-
-                {/* Administration Section */}
-                {(isAdmin || canUsers || canRoles) && (
-                    <View style={styles.section}>
-                        <AppText label={'Administration'} variant={1} fontSize={14} color={colors.textTertiary} style={styles.sectionTitle} />
+                        <AppText label={'Trading'} variant={1} fontSize={14} color={colors.textTertiary} style={styles.sectionTitle} />
                         <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                            {canUsers && (
-                                <TouchableOpacity activeOpacity={.6} onPress={() => navigateToScreenOrUpgrade(navigation, user, 'Users', subscriptionFeatures, undefined, subscriptionPlan)} style={styles.menuItem}>
-                                    <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                        <Lucide name="user-cog" color="#6366f1" size={20} />
-                                    </View>
-                                    <View style={styles.menuContent}>
-                                        <AppText label={'System users'} variant={2} color={colors.text} fontSize={15} />
-                                        <AppText label={'Create, edit, disable users and assign roles'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
-                                    </View>
-                                    {renderPlanGateTrailing(usersAccess)}
-                                </TouchableOpacity>
-                            )}
-                            {canUsers && canRoles && <View style={[styles.divider, { backgroundColor: colors.divider }]} />}
-                            {canRoles && (
-                                <TouchableOpacity activeOpacity={.6} onPress={() => navigateToScreenOrUpgrade(navigation, user, 'Roles', subscriptionFeatures, undefined, subscriptionPlan)} style={styles.menuItem}>
-                                    <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                        <Lucide name="shield" color="#0ea5e9" size={20} />
-                                    </View>
-                                    <View style={styles.menuContent}>
-                                        <AppText label={'Roles & Permissions'} variant={2} color={colors.text} fontSize={15} />
-                                        <AppText label={'Create and manage role permission sets'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
-                                    </View>
-                                    {renderPlanGateTrailing(rolesAccess)}
-                                </TouchableOpacity>
-                            )}
+                            {renderMenuRows([
+                                {
+                                    key: 'pending-sales',
+                                    show: canPendingSales,
+                                    node: (
+                                        <TouchableOpacity
+                                            activeOpacity={0.6}
+                                            onPress={() => navigation.navigate('PendingSales')}
+                                            style={styles.menuItem}
+                                        >
+                                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                                <Lucide name="clipboard-list" color="#f00" size={20} />
+                                            </View>
+                                            <View style={styles.menuContent}>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                    <AppText label={'Pending Sales'} variant={2} color={colors.text} fontSize={15} />
+                                                    {pendingSalesCount > 0 && (
+                                                        <View style={styles.badge}>
+                                                            <AppText
+                                                                label={String(pendingSalesCount)}
+                                                                color={colors.textInverse}
+                                                                fontSize={10}
+                                                                variant={1}
+                                                            />
+                                                        </View>
+                                                    )}
+                                                </View>
+                                                <AppText label={'Review and approve sales'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
+                                            </View>
+                                            <Lucide name="chevron-right" color={colors.border} size={18} />
+                                        </TouchableOpacity>
+                                    ),
+                                },
+                                {
+                                    key: 'pending-momo',
+                                    show: canPendingMomo,
+                                    node: (
+                                        <TouchableOpacity
+                                            activeOpacity={0.6}
+                                            onPress={() => navigation.navigate('PendingMomoPayments')}
+                                            style={styles.menuItem}
+                                        >
+                                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                                <Lucide name="smartphone" color="#d97706" size={20} />
+                                            </View>
+                                            <View style={styles.menuContent}>
+                                                <AppText label={'Pending MoMo'} variant={2} color={colors.text} fontSize={15} />
+                                                <AppText
+                                                    label={'Parked POS MoMo — check status & complete'}
+                                                    variant={2}
+                                                    color={colors.textTertiary}
+                                                    fontSize={12}
+                                                    style={{ marginTop: 2 }}
+                                                />
+                                            </View>
+                                            <Lucide name="chevron-right" color={colors.border} size={18} />
+                                        </TouchableOpacity>
+                                    ),
+                                },
+                                {
+                                    key: 'pos-sale-payments',
+                                    show: canPosSalePayments,
+                                    node: (
+                                        <TouchableOpacity
+                                            activeOpacity={0.6}
+                                            onPress={() => navigation.navigate('PosSalePayments')}
+                                            style={styles.menuItem}
+                                        >
+                                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                                <Lucide name="banknote" color="#7c3aed" size={20} />
+                                            </View>
+                                            <View style={styles.menuContent}>
+                                                <AppText label={'POS MoMo payments'} variant={2} color={colors.text} fontSize={15} />
+                                                <AppText
+                                                    label={'MoMo charges for counter sales'}
+                                                    variant={2}
+                                                    color={colors.textTertiary}
+                                                    fontSize={12}
+                                                    style={{ marginTop: 2 }}
+                                                />
+                                            </View>
+                                            <Lucide name="chevron-right" color={colors.border} size={18} />
+                                        </TouchableOpacity>
+                                    ),
+                                },
+                                {
+                                    key: 'orders',
+                                    show: canOrders,
+                                    node: (
+                                        <TouchableOpacity
+                                            activeOpacity={0.6}
+                                            onPress={() =>
+                                                navigateToScreenOrUpgrade(
+                                                    navigation,
+                                                    user,
+                                                    'Orders',
+                                                    subscriptionFeatures,
+                                                    undefined,
+                                                    subscriptionPlan,
+                                                )
+                                            }
+                                            style={styles.menuItem}
+                                        >
+                                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                                <Lucide name="shopping-basket" color="#8b5cf6" size={20} />
+                                            </View>
+                                            <View style={styles.menuContent}>
+                                                <AppText label={'Online Orders'} variant={2} color={colors.text} fontSize={15} />
+                                                <AppText label={'Process incoming customer orders'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
+                                            </View>
+                                            {renderPlanGateTrailing(ordersAccess)}
+                                        </TouchableOpacity>
+                                    ),
+                                },
+                                {
+                                    key: 'order-payments',
+                                    show: canOrderPayments,
+                                    node: (
+                                        <TouchableOpacity
+                                            activeOpacity={0.6}
+                                            onPress={() =>
+                                                navigateToScreenOrUpgrade(
+                                                    navigation,
+                                                    user,
+                                                    'OrderPayments',
+                                                    subscriptionFeatures,
+                                                    undefined,
+                                                    subscriptionPlan,
+                                                )
+                                            }
+                                            style={styles.menuItem}
+                                        >
+                                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                                <Lucide name="banknote" color="#16a34a" size={20} />
+                                            </View>
+                                            <View style={styles.menuContent}>
+                                                <AppText label={'Order Payments'} variant={2} color={colors.text} fontSize={15} />
+                                                <AppText
+                                                    label={'Admin view for customer order payments'}
+                                                    variant={2}
+                                                    color={colors.textTertiary}
+                                                    fontSize={12}
+                                                    style={{ marginTop: 2 }}
+                                                />
+                                            </View>
+                                            {renderPlanGateTrailing(orderPaymentsAccess)}
+                                        </TouchableOpacity>
+                                    ),
+                                },
+                                {
+                                    key: 'order-settlements',
+                                    show: canOrderSettlements,
+                                    node: (
+                                        <TouchableOpacity
+                                            activeOpacity={0.6}
+                                            onPress={() =>
+                                                navigateToScreenOrUpgrade(
+                                                    navigation,
+                                                    user,
+                                                    'OrderSettlements',
+                                                    subscriptionFeatures,
+                                                    undefined,
+                                                    subscriptionPlan,
+                                                )
+                                            }
+                                            style={styles.menuItem}
+                                        >
+                                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                                <Lucide name="landmark" color="#2563eb" size={20} />
+                                            </View>
+                                            <View style={styles.menuContent}>
+                                                <AppText label={'Order Settlements'} variant={2} color={colors.text} fontSize={15} />
+                                                <AppText
+                                                    label={'Digital order revenue and payout balance'}
+                                                    variant={2}
+                                                    color={colors.textTertiary}
+                                                    fontSize={12}
+                                                    style={{ marginTop: 2 }}
+                                                />
+                                            </View>
+                                            {renderPlanGateTrailing(orderSettlementsAccess)}
+                                        </TouchableOpacity>
+                                    ),
+                                },
+                            ])}
                         </View>
                     </View>
                 )}
 
-                {/* Invoice & Data */}
-                {(canInvoiceReceipt || canDataExport) && (
-                <View style={styles.section}>
-                    <AppText label={'Invoice & Data'} variant={1} fontSize={14} color={colors.textTertiary} style={styles.sectionTitle} />
-                    <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                        {canInvoiceReceipt && (
+                {/* Inventory */}
+                {showInventorySection && (
+                    <View style={styles.section}>
+                        <AppText label={'Inventory'} variant={1} fontSize={14} color={colors.textTertiary} style={styles.sectionTitle} />
+                        <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                            {renderMenuRows([
+                                {
+                                    key: 'categories',
+                                    show: canCategories,
+                                    node: (
+                                        <TouchableOpacity activeOpacity={0.6} onPress={() => navigation.navigate('ProductCategories')} style={styles.menuItem}>
+                                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                                <Lucide name="grid-3x3" color="#10b981" size={20} />
+                                            </View>
+                                            <View style={styles.menuContent}>
+                                                <AppText label={'Product Categories'} variant={2} color={colors.text} fontSize={15} />
+                                                <AppText label={'Organize products by category'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
+                                            </View>
+                                            <Lucide name="chevron-right" color={colors.border} size={18} />
+                                        </TouchableOpacity>
+                                    ),
+                                },
+                                {
+                                    key: 'transfers',
+                                    show: canTransfers,
+                                    node: (
+                                        <TouchableOpacity
+                                            activeOpacity={0.6}
+                                            onPress={() =>
+                                                navigateToScreenOrUpgrade(
+                                                    navigation,
+                                                    user,
+                                                    'ProductTransfers',
+                                                    subscriptionFeatures,
+                                                    undefined,
+                                                    subscriptionPlan,
+                                                )
+                                            }
+                                            style={styles.menuItem}
+                                        >
+                                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                                <Lucide name="arrow-right-left" color={config.THEME_COLOR} size={20} />
+                                            </View>
+                                            <View style={styles.menuContent}>
+                                                <AppText label={'Item Transfers'} variant={2} color={colors.text} fontSize={15} />
+                                                <AppText label={'Transfer items between locations'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
+                                            </View>
+                                            {renderPlanGateTrailing(transfersAccess)}
+                                        </TouchableOpacity>
+                                    ),
+                                },
+                                {
+                                    key: 'adjustments',
+                                    show: canAdjustments,
+                                    node: (
+                                        <TouchableOpacity
+                                            activeOpacity={0.6}
+                                            onPress={() =>
+                                                navigateToScreenOrUpgrade(
+                                                    navigation,
+                                                    user,
+                                                    'AdjustedQuantities',
+                                                    subscriptionFeatures,
+                                                    undefined,
+                                                    subscriptionPlan,
+                                                )
+                                            }
+                                            style={styles.menuItem}
+                                        >
+                                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                                <Lucide name="arrow-down-1-0" color="#f59e0b" size={20} />
+                                            </View>
+                                            <View style={styles.menuContent}>
+                                                <AppText label={'Adjust Quantities'} variant={2} color={colors.text} fontSize={15} />
+                                                <AppText label={'Update stock quantities'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
+                                            </View>
+                                            {renderPlanGateTrailing(adjustmentsAccess)}
+                                        </TouchableOpacity>
+                                    ),
+                                },
+                                {
+                                    key: 'stock-count',
+                                    show: canStockCount,
+                                    node: (
+                                        <TouchableOpacity
+                                            activeOpacity={0.6}
+                                            onPress={() =>
+                                                navigateToScreenOrUpgrade(
+                                                    navigation,
+                                                    user,
+                                                    'StockCountHistory',
+                                                    subscriptionFeatures,
+                                                    undefined,
+                                                    subscriptionPlan,
+                                                )
+                                            }
+                                            style={styles.menuItem}
+                                        >
+                                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                                <Lucide name="clipboard-check" color="#0284c7" size={20} />
+                                            </View>
+                                            <View style={styles.menuContent}>
+                                                <AppText label={'Stock count / Audit'} variant={2} color={colors.text} fontSize={15} />
+                                                <AppText label={'Count actual stock and create adjustments'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
+                                            </View>
+                                            {renderPlanGateTrailing(stockCountAccess)}
+                                        </TouchableOpacity>
+                                    ),
+                                },
+                                {
+                                    key: 'transactions',
+                                    show: canTransactions,
+                                    node: (
+                                        <TouchableOpacity activeOpacity={0.6} onPress={() => navigation.navigate('ProductTransactions')} style={styles.menuItem}>
+                                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                                <Lucide name="database" color="#6b7280" size={20} />
+                                            </View>
+                                            <View style={styles.menuContent}>
+                                                <AppText label={'Transactions'} variant={2} color={colors.text} fontSize={15} />
+                                                <AppText label={'View all product transactions'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
+                                            </View>
+                                            <Lucide name="chevron-right" color={colors.border} size={18} />
+                                        </TouchableOpacity>
+                                    ),
+                                },
+                            ])}
+                        </View>
+                    </View>
+                )}
+
+                {/* People */}
+                {showPeopleSection && (
+                    <View style={styles.section}>
+                        <AppText label={'People'} variant={1} fontSize={14} color={colors.textTertiary} style={styles.sectionTitle} />
+                        <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                            {renderMenuRows([
+                                {
+                                    key: 'customers',
+                                    show: canCustomers,
+                                    node: (
+                                        <TouchableOpacity activeOpacity={0.6} onPress={() => navigation.navigate('Customers')} style={styles.menuItem}>
+                                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                                <Lucide name="users" color={config.THEME_COLOR} size={20} />
+                                            </View>
+                                            <View style={styles.menuContent}>
+                                                <AppText label={'Customers'} variant={2} color={colors.text} fontSize={15} />
+                                                <AppText label={'Manage customer database'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
+                                            </View>
+                                            <Lucide name="chevron-right" color={colors.border} size={18} />
+                                        </TouchableOpacity>
+                                    ),
+                                },
+                                {
+                                    key: 'users',
+                                    show: canUsers,
+                                    node: (
+                                        <TouchableOpacity
+                                            activeOpacity={0.6}
+                                            onPress={() =>
+                                                navigateToScreenOrUpgrade(
+                                                    navigation,
+                                                    user,
+                                                    'Users',
+                                                    subscriptionFeatures,
+                                                    undefined,
+                                                    subscriptionPlan,
+                                                )
+                                            }
+                                            style={styles.menuItem}
+                                        >
+                                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                                <Lucide name="user-cog" color="#6366f1" size={20} />
+                                            </View>
+                                            <View style={styles.menuContent}>
+                                                <AppText label={'Users'} variant={2} color={colors.text} fontSize={15} />
+                                                <AppText label={'Create, edit, disable users and assign roles'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
+                                            </View>
+                                            {renderPlanGateTrailing(usersAccess)}
+                                        </TouchableOpacity>
+                                    ),
+                                },
+                            ])}
+                        </View>
+                    </View>
+                )}
+
+                {/* Expenses */}
+                {showExpensesSection && (
+                    <View style={styles.section}>
+                        <AppText label={'Expenses'} variant={1} fontSize={14} color={colors.textTertiary} style={styles.sectionTitle} />
+                        <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                            <TouchableOpacity activeOpacity={0.6} onPress={() => navigation.navigate('Expenditures')} style={styles.menuItem}>
+                                <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                    <Lucide name="wallet" color="#ef4444" size={20} />
+                                </View>
+                                <View style={styles.menuContent}>
+                                    <AppText label={'Expenses'} variant={2} color={colors.text} fontSize={15} />
+                                    <AppText label={'Track business expenses'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
+                                </View>
+                                <Lucide name="chevron-right" color={colors.border} size={18} />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                )}
+
+                {/* Reports (near dashboard on web) */}
+                {showReportsSection && (
+                    <View style={styles.section}>
+                        <AppText label={'Reports'} variant={1} fontSize={14} color={colors.textTertiary} style={styles.sectionTitle} />
+                        <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                             <TouchableOpacity
                                 activeOpacity={0.6}
                                 onPress={() =>
                                     navigateToScreenOrUpgrade(
                                         navigation,
                                         user,
-                                        'InvoiceReceiptSettings',
+                                        'Reports',
                                         subscriptionFeatures,
                                         undefined,
                                         subscriptionPlan,
@@ -817,123 +946,6 @@ const Settings = ({ navigation, route }) => {
                                 }
                                 style={styles.menuItem}
                             >
-                                <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                    <Lucide name="file-text" color={config.THEME_COLOR} size={20} />
-                                </View>
-                                <View style={styles.menuContent}>
-                                    <AppText label={'Invoice & Receipt'} variant={2} color={colors.text} fontSize={15} />
-                                    <AppText
-                                        label={'Invoice/receipt details and thermal print agent'}
-                                        variant={2}
-                                        color={colors.textTertiary}
-                                        fontSize={12}
-                                        style={{ marginTop: 2 }}
-                                    />
-                                </View>
-                                {renderPlanGateTrailing(invoiceReceiptAccess)}
-                            </TouchableOpacity>
-                        )}
-                        {canInvoiceReceipt && canDataExport && (
-                            <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-                        )}
-                        {canDataExport && (
-                            <TouchableOpacity
-                                activeOpacity={.6}
-                                onPress={() => navigateToScreenOrUpgrade(navigation, user, 'DataExportBackup', subscriptionFeatures, undefined, subscriptionPlan)}
-                                style={styles.menuItem}
-                            >
-                                <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}><Lucide name="database" color="#10b981" size={20} /></View>
-                                <View style={styles.menuContent}>
-                                    <AppText label={'Export & Backup'} variant={2} color={colors.text} fontSize={15} />
-                                    <AppText label={'Export products CSV and app preferences'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
-                                </View>
-                                {renderPlanGateTrailing(dataExportAccess)}
-                            </TouchableOpacity>
-                        )}
-                    </View>
-                </View>
-                )}
-
-                {/* Data Management Section */}
-                {(canCustomers || canSuppliers || canCategories || canExpenditures) && (
-                    <View style={styles.section}>
-                        <AppText label={'Data Management'} variant={1} fontSize={14} color={colors.textTertiary} style={styles.sectionTitle} />
-                    <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                        {canCustomers && (
-                            <>
-                                <TouchableOpacity activeOpacity={.6} onPress={() => navigation.navigate("Customers")} style={styles.menuItem}>
-                                    <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                        <Lucide name="users" color={config.THEME_COLOR} size={20} />
-                                    </View>
-                                    <View style={styles.menuContent}>
-                                        <AppText label={'Customers'} variant={2} color={colors.text} fontSize={15} />
-                                        <AppText label={'Manage customer database'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
-                                    </View>
-                                    <Lucide name="chevron-right" color={colors.border} size={18} />
-                                </TouchableOpacity>
-                                {(canSuppliers || canCategories || canExpenditures) && (
-                                    <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-                                )}
-                            </>
-                        )}
-
-                        {canSuppliers && (
-                            <>
-                                <TouchableOpacity activeOpacity={.6} onPress={() => navigation.navigate("Suppliers")} style={styles.menuItem}>
-                                    <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                        <Lucide name="truck" color="#f59e0b" size={20} />
-                                    </View>
-                                    <View style={styles.menuContent}>
-                                        <AppText label={'Suppliers'} variant={2} color={colors.text} fontSize={15} />
-                                        <AppText label={'Manage supplier information'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
-                                    </View>
-                                    <Lucide name="chevron-right" color={colors.border} size={18} />
-                                </TouchableOpacity>
-                                {(canCategories || canExpenditures) && (
-                                    <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-                                )}
-                            </>
-                        )}
-
-                        {canCategories && (
-                            <>
-                                <TouchableOpacity activeOpacity={.6} onPress={() => navigation.navigate("ProductCategories")} style={styles.menuItem}>
-                                    <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                        <Lucide name="grid-3x3" color="#10b981" size={20} />
-                                    </View>
-                                    <View style={styles.menuContent}>
-                                        <AppText label={'Product Categories'} variant={2} color={colors.text} fontSize={15} />
-                                        <AppText label={'Organize products by category'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
-                                    </View>
-                                    <Lucide name="chevron-right" color={colors.border} size={18} />
-                                </TouchableOpacity>
-                                {canExpenditures && <View style={[styles.divider, { backgroundColor: colors.divider }]} />}
-                            </>
-                        )}
-
-                        {canExpenditures && (
-                            <TouchableOpacity activeOpacity={.6} onPress={() => navigation.navigate("Expenditures")} style={styles.menuItem}>
-                                <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                    <Lucide name="wallet" color="#ef4444" size={20} />
-                                </View>
-                                <View style={styles.menuContent}>
-                                    <AppText label={'Expenditures'} variant={2} color={colors.text} fontSize={15} />
-                                    <AppText label={'Track business expenses'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
-                                </View>
-                                <Lucide name="chevron-right" color={colors.border} size={18} />
-                            </TouchableOpacity>
-                        )}
-                    </View>
-                    </View>
-                )}
-
-                {/* Reports & Analytics Section */}
-                {(canReports || canTransactions) && (
-                    <View style={styles.section}>
-                        <AppText label={'Reports & Analytics'} variant={1} fontSize={14} color={colors.textTertiary} style={styles.sectionTitle} />
-                    <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                        {canReports && (
-                            <TouchableOpacity activeOpacity={.6} onPress={() => navigateToScreenOrUpgrade(navigation, user, 'Reports', subscriptionFeatures, undefined, subscriptionPlan)} style={styles.menuItem}>
                                 <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
                                     <Lucide name="activity" color={config.THEME_COLOR} size={20} />
                                 </View>
@@ -943,21 +955,222 @@ const Settings = ({ navigation, route }) => {
                                 </View>
                                 {renderPlanGateTrailing(reportsAccess)}
                             </TouchableOpacity>
-                        )}
-                        {canReports && canTransactions && <View style={[styles.divider, { backgroundColor: colors.divider }]} />}
-                        {canTransactions && (
-                            <TouchableOpacity activeOpacity={.6} onPress={() => navigation.navigate("ProductTransactions")} style={styles.menuItem}>
-                                <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                    <Lucide name="database" color="#6b7280" size={20} />
-                                </View>
-                                <View style={styles.menuContent}>
-                                    <AppText label={'Transactions'} variant={2} color={colors.text} fontSize={15} />
-                                    <AppText label={'View all product transactions'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
-                                </View>
-                                <Lucide name="chevron-right" color={colors.border} size={18} />
-                            </TouchableOpacity>
-                        )}
+                        </View>
                     </View>
+                )}
+
+                {/* Setups */}
+                {showSetupsSection && (
+                    <View style={styles.section}>
+                        <AppText label={'Setups'} variant={1} fontSize={14} color={colors.textTertiary} style={styles.sectionTitle} />
+                        <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                            {renderMenuRows([
+                                {
+                                    key: 'go-live',
+                                    show: showGoLive,
+                                    node: (
+                                        <TouchableOpacity
+                                            activeOpacity={0.6}
+                                            onPress={() => navigation.navigate('GoLiveWizard')}
+                                            style={styles.menuItem}
+                                        >
+                                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                                <Lucide name="rocket" color="#0ea5e9" size={20} />
+                                            </View>
+                                            <View style={styles.menuContent}>
+                                                <AppText label={'Go live checklist'} variant={2} color={colors.text} fontSize={15} />
+                                                <AppText
+                                                    label={'Empty shop → first sale in ~15 min'}
+                                                    variant={2}
+                                                    color={colors.textTertiary}
+                                                    fontSize={12}
+                                                    style={{ marginTop: 2 }}
+                                                />
+                                            </View>
+                                            <Lucide name="chevron-right" color={colors.textTertiary} size={18} />
+                                        </TouchableOpacity>
+                                    ),
+                                },
+                                {
+                                    key: 'warehouses',
+                                    show: canWarehouses,
+                                    node: (
+                                        <TouchableOpacity
+                                            activeOpacity={0.6}
+                                            onPress={() =>
+                                                navigateToScreenOrUpgrade(
+                                                    navigation,
+                                                    user,
+                                                    'Warehouses',
+                                                    subscriptionFeatures,
+                                                    undefined,
+                                                    subscriptionPlan,
+                                                )
+                                            }
+                                            style={styles.menuItem}
+                                        >
+                                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                                <Lucide name="store" color="#10b981" size={20} />
+                                            </View>
+                                            <View style={styles.menuContent}>
+                                                <AppText label={'Stores / Branches'} variant={2} color={colors.text} fontSize={15} />
+                                                <AppText label={'Manage storage locations'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
+                                            </View>
+                                            {renderPlanGateTrailing(warehousesAccess)}
+                                        </TouchableOpacity>
+                                    ),
+                                },
+                                {
+                                    key: 'suppliers',
+                                    show: canSuppliers,
+                                    node: (
+                                        <TouchableOpacity activeOpacity={0.6} onPress={() => navigation.navigate('Suppliers')} style={styles.menuItem}>
+                                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                                <Lucide name="truck" color="#f59e0b" size={20} />
+                                            </View>
+                                            <View style={styles.menuContent}>
+                                                <AppText label={'Suppliers'} variant={2} color={colors.text} fontSize={15} />
+                                                <AppText label={'Manage supplier information'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
+                                            </View>
+                                            <Lucide name="chevron-right" color={colors.border} size={18} />
+                                        </TouchableOpacity>
+                                    ),
+                                },
+                                {
+                                    key: 'invoice-receipt',
+                                    show: canInvoiceReceipt,
+                                    node: (
+                                        <TouchableOpacity
+                                            activeOpacity={0.6}
+                                            onPress={() =>
+                                                navigateToScreenOrUpgrade(
+                                                    navigation,
+                                                    user,
+                                                    'InvoiceReceiptSettings',
+                                                    subscriptionFeatures,
+                                                    undefined,
+                                                    subscriptionPlan,
+                                                )
+                                            }
+                                            style={styles.menuItem}
+                                        >
+                                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                                <Lucide name="file-text" color={config.THEME_COLOR} size={20} />
+                                            </View>
+                                            <View style={styles.menuContent}>
+                                                <AppText label={'Invoice & Receipt'} variant={2} color={colors.text} fontSize={15} />
+                                                <AppText
+                                                    label={'Invoice/receipt details and thermal print agent'}
+                                                    variant={2}
+                                                    color={colors.textTertiary}
+                                                    fontSize={12}
+                                                    style={{ marginTop: 2 }}
+                                                />
+                                            </View>
+                                            {renderPlanGateTrailing(invoiceReceiptAccess)}
+                                        </TouchableOpacity>
+                                    ),
+                                },
+                                {
+                                    key: 'data-export',
+                                    show: canDataExport,
+                                    node: (
+                                        <TouchableOpacity
+                                            activeOpacity={0.6}
+                                            onPress={() =>
+                                                navigateToScreenOrUpgrade(
+                                                    navigation,
+                                                    user,
+                                                    'DataExportBackup',
+                                                    subscriptionFeatures,
+                                                    undefined,
+                                                    subscriptionPlan,
+                                                )
+                                            }
+                                            style={styles.menuItem}
+                                        >
+                                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                                <Lucide name="database" color="#10b981" size={20} />
+                                            </View>
+                                            <View style={styles.menuContent}>
+                                                <AppText label={'Export products'} variant={2} color={colors.text} fontSize={15} />
+                                                <AppText label={'Download your catalog as CSV'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
+                                            </View>
+                                            {renderPlanGateTrailing(dataExportAccess)}
+                                        </TouchableOpacity>
+                                    ),
+                                },
+                            ])}
+                        </View>
+                    </View>
+                )}
+
+                {/* Admin */}
+                {showAdminSection && (
+                    <View style={styles.section}>
+                        <AppText label={'Admin'} variant={1} fontSize={14} color={colors.textTertiary} style={styles.sectionTitle} />
+                        <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                            {renderMenuRows([
+                                {
+                                    key: 'roles',
+                                    show: canRoles,
+                                    node: (
+                                        <TouchableOpacity
+                                            activeOpacity={0.6}
+                                            onPress={() =>
+                                                navigateToScreenOrUpgrade(
+                                                    navigation,
+                                                    user,
+                                                    'Roles',
+                                                    subscriptionFeatures,
+                                                    undefined,
+                                                    subscriptionPlan,
+                                                )
+                                            }
+                                            style={styles.menuItem}
+                                        >
+                                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                                <Lucide name="shield" color="#0ea5e9" size={20} />
+                                            </View>
+                                            <View style={styles.menuContent}>
+                                                <AppText label={'Roles & Permissions'} variant={2} color={colors.text} fontSize={15} />
+                                                <AppText label={'Create and manage role permission sets'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
+                                            </View>
+                                            {renderPlanGateTrailing(rolesAccess)}
+                                        </TouchableOpacity>
+                                    ),
+                                },
+                                {
+                                    key: 'notifications',
+                                    show: canNotificationsSetup,
+                                    node: (
+                                        <TouchableOpacity
+                                            activeOpacity={0.6}
+                                            onPress={() =>
+                                                navigateToScreenOrUpgrade(
+                                                    navigation,
+                                                    user,
+                                                    'NotificationsSetup',
+                                                    subscriptionFeatures,
+                                                    undefined,
+                                                    subscriptionPlan,
+                                                )
+                                            }
+                                            style={styles.menuItem}
+                                        >
+                                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                                <Lucide name="bell" color="#f59e0b" size={20} />
+                                            </View>
+                                            <View style={styles.menuContent}>
+                                                <AppText label={'Notifications'} variant={2} color={colors.text} fontSize={15} />
+                                                <AppText label={'Configure notification preferences'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
+                                            </View>
+                                            {renderPlanGateTrailing(notificationsSetupAccess)}
+                                        </TouchableOpacity>
+                                    ),
+                                },
+                            ])}
+                        </View>
                     </View>
                 )}
 
@@ -989,145 +1202,153 @@ const Settings = ({ navigation, route }) => {
                     </View>
                 )}
 
-                {/* App Settings Section */}
-                {showAppSettingsSection && (
+                {/* Platform */}
+                {showPlatformSection && (
                     <View style={styles.section}>
-                        <AppText label={'App Settings'} variant={1} fontSize={14} color={colors.textTertiary} style={styles.sectionTitle} />
-                    <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                        {canNotificationsSetup && (
-                            <>
-                                <TouchableOpacity activeOpacity={.6} onPress={() => navigateToScreenOrUpgrade(navigation, user, 'NotificationsSetup', subscriptionFeatures, undefined, subscriptionPlan)} style={styles.menuItem}>
-                                    <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                        <Lucide name="bell" color="#f59e0b" size={20} />
-                                    </View>
-                                    <View style={styles.menuContent}>
-                                        <AppText label={'Notifications'} variant={2} color={colors.text} fontSize={15} />
-                                        <AppText label={'Configure notification preferences'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
-                                    </View>
-                                    {renderPlanGateTrailing(notificationsSetupAccess)}
-                                </TouchableOpacity>
-                                {(canTenantsDirectory ||
-                                    canBillingCatalog ||
-                                    canAbout ||
-                                    canMerchantPortalFromSettings) && (
-                                    <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-                                )}
-                            </>
-                        )}
-
-                        {canMerchantPortalFromSettings && (
-                            <>
-                                <TouchableOpacity
-                                    activeOpacity={0.6}
-                                    onPress={() => navigation.navigate('MerchantPortal')}
-                                    style={styles.menuItem}
-                                >
-                                    <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                        <Lucide name="handshake" color="#6366f1" size={20} />
-                                    </View>
-                                    <View style={styles.menuContent}>
-                                        <AppText label={'Merchants'} variant={2} color={colors.text} fontSize={15} />
-                                        <AppText
-                                            label={'Partner merchants, onboarding & commissions'}
-                                            variant={2}
-                                            color={colors.textTertiary}
-                                            fontSize={12}
-                                            style={{ marginTop: 2 }}
-                                        />
-                                    </View>
-                                    <Lucide name="chevron-right" color={colors.border} size={18} />
-                                </TouchableOpacity>
-                                {(canTenantsDirectory || canBillingCatalog) && (
-                                    <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-                                )}
-                            </>
-                        )}
-
-                        {canTenantsDirectory && (
-                            <>
-                                <TouchableOpacity activeOpacity={.6} onPress={() => navigateToScreenOrUpgrade(navigation, user, 'TenantsDirectory', subscriptionFeatures, undefined, subscriptionPlan)} style={styles.menuItem}>
-                                    <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                        <Lucide name="building-2" color="#0ea5e9" size={20} />
-                                    </View>
-                                    <View style={styles.menuContent}>
-                                        <AppText label={'Tenant directory'} variant={2} color={colors.text} fontSize={15} />
-                                        <AppText
-                                            label={'Businesses, subscriptions, recent payments'}
-                                            variant={2}
-                                            color={colors.textTertiary}
-                                            fontSize={12}
-                                            style={{ marginTop: 2 }}
-                                        />
-                                    </View>
-                                    {renderPlanGateTrailing(tenantsDirectoryAccess)}
-                                </TouchableOpacity>
-                                {canBillingCatalog && (
-                                    <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-                                )}
-                            </>
-                        )}
-
-                        {canBillingCatalog && (
-                            <TouchableOpacity
-                                activeOpacity={0.6}
-                                onPress={() => navigateToScreenOrUpgrade(navigation, user, 'BillingCatalog', subscriptionFeatures, undefined, subscriptionPlan)}
-                                style={styles.menuItem}>
-                                <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                    <Lucide name="circle-dollar-sign" color="#059669" size={20} />
-                                </View>
-                                <View style={styles.menuContent}>
-                                    <AppText label="Billing catalog" variant={2} color={colors.text} fontSize={15} />
-                                    <AppText
-                                        label="Plans, onboarding fees, and add-on prices"
-                                        variant={2}
-                                        color={colors.textTertiary}
-                                        fontSize={12}
-                                        style={{ marginTop: 2 }}
-                                    />
-                                </View>
-                                {renderPlanGateTrailing(billingCatalogAccess)}
-                            </TouchableOpacity>
-                        )}
-
-                        {canAbout && (canTenantsDirectory || canBillingCatalog || canMerchantPortalFromSettings || canOrderPayments || canNotificationsSetup) && (
-                            <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-                        )}
-
-                        {canAbout && (
-                            <TouchableOpacity activeOpacity={.6} onPress={() => navigation.navigate("AboutApp")} style={styles.menuItem}>
-                                <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                    <Lucide name="info" color={config.THEME_COLOR} size={20} />
-                                </View>
-                                <View style={styles.menuContent}>
-                                    <AppText label={'About this app'} variant={2} color={colors.text} fontSize={15} />
-                                    <AppText label={'App version and information'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
-                                </View>
-                                <Lucide name="chevron-right" color={colors.border} size={18} />
-                            </TouchableOpacity>
-                        )}
-
-                        {(canNotificationsSetup ||
-                            canOrderPayments ||
-                            canAbout ||
-                            canTenantsDirectory ||
-                            canBillingCatalog ||
-                            canMerchantPortalFromSettings) && (
-                            <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-                        )}
-                        <TouchableOpacity
-                            activeOpacity={.6}
-                            onPress={handleShareApp}
-                            style={styles.menuItem}>
-                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                <Lucide name="share-2" color="#10b981" size={20} />
-                            </View>
-                            <View style={styles.menuContent}>
-                                <AppText label={'Share app'} variant={2} color={colors.text} fontSize={15} />
-                                <AppText label={'Share Shopynn with others'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
-                            </View>
-                            <Lucide name="chevron-right" color={colors.border} size={18} />
-                        </TouchableOpacity>
+                        <AppText label={'Platform'} variant={1} fontSize={14} color={colors.textTertiary} style={styles.sectionTitle} />
+                        <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                            {renderMenuRows([
+                                {
+                                    key: 'merchants',
+                                    show: canMerchantPortalFromSettings,
+                                    node: (
+                                        <TouchableOpacity
+                                            activeOpacity={0.6}
+                                            onPress={() => navigation.navigate('MerchantPortal')}
+                                            style={styles.menuItem}
+                                        >
+                                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                                <Lucide name="handshake" color="#6366f1" size={20} />
+                                            </View>
+                                            <View style={styles.menuContent}>
+                                                <AppText label={'Merchants'} variant={2} color={colors.text} fontSize={15} />
+                                                <AppText
+                                                    label={'Partner merchants, onboarding & commissions'}
+                                                    variant={2}
+                                                    color={colors.textTertiary}
+                                                    fontSize={12}
+                                                    style={{ marginTop: 2 }}
+                                                />
+                                            </View>
+                                            <Lucide name="chevron-right" color={colors.border} size={18} />
+                                        </TouchableOpacity>
+                                    ),
+                                },
+                                {
+                                    key: 'tenants',
+                                    show: canTenantsDirectory,
+                                    node: (
+                                        <TouchableOpacity
+                                            activeOpacity={0.6}
+                                            onPress={() =>
+                                                navigateToScreenOrUpgrade(
+                                                    navigation,
+                                                    user,
+                                                    'TenantsDirectory',
+                                                    subscriptionFeatures,
+                                                    undefined,
+                                                    subscriptionPlan,
+                                                )
+                                            }
+                                            style={styles.menuItem}
+                                        >
+                                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                                <Lucide name="building-2" color="#0ea5e9" size={20} />
+                                            </View>
+                                            <View style={styles.menuContent}>
+                                                <AppText label={'Tenant directory'} variant={2} color={colors.text} fontSize={15} />
+                                                <AppText
+                                                    label={'Businesses, subscriptions, recent payments'}
+                                                    variant={2}
+                                                    color={colors.textTertiary}
+                                                    fontSize={12}
+                                                    style={{ marginTop: 2 }}
+                                                />
+                                            </View>
+                                            {renderPlanGateTrailing(tenantsDirectoryAccess)}
+                                        </TouchableOpacity>
+                                    ),
+                                },
+                                {
+                                    key: 'billing-catalog',
+                                    show: canBillingCatalog,
+                                    node: (
+                                        <TouchableOpacity
+                                            activeOpacity={0.6}
+                                            onPress={() =>
+                                                navigateToScreenOrUpgrade(
+                                                    navigation,
+                                                    user,
+                                                    'BillingCatalog',
+                                                    subscriptionFeatures,
+                                                    undefined,
+                                                    subscriptionPlan,
+                                                )
+                                            }
+                                            style={styles.menuItem}
+                                        >
+                                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                                <Lucide name="circle-dollar-sign" color="#059669" size={20} />
+                                            </View>
+                                            <View style={styles.menuContent}>
+                                                <AppText label="Billing catalog" variant={2} color={colors.text} fontSize={15} />
+                                                <AppText
+                                                    label="Plans, onboarding fees, and add-on prices"
+                                                    variant={2}
+                                                    color={colors.textTertiary}
+                                                    fontSize={12}
+                                                    style={{ marginTop: 2 }}
+                                                />
+                                            </View>
+                                            {renderPlanGateTrailing(billingCatalogAccess)}
+                                        </TouchableOpacity>
+                                    ),
+                                },
+                            ])}
+                        </View>
                     </View>
+                )}
+
+                {/* App */}
+                {showAppSection && (
+                    <View style={styles.section}>
+                        <AppText label={'App'} variant={1} fontSize={14} color={colors.textTertiary} style={styles.sectionTitle} />
+                        <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                            {renderMenuRows([
+                                {
+                                    key: 'about',
+                                    show: canAbout,
+                                    node: (
+                                        <TouchableOpacity activeOpacity={0.6} onPress={() => navigation.navigate('AboutApp')} style={styles.menuItem}>
+                                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                                <Lucide name="info" color={config.THEME_COLOR} size={20} />
+                                            </View>
+                                            <View style={styles.menuContent}>
+                                                <AppText label={'About this app'} variant={2} color={colors.text} fontSize={15} />
+                                                <AppText label={'App version and information'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
+                                            </View>
+                                            <Lucide name="chevron-right" color={colors.border} size={18} />
+                                        </TouchableOpacity>
+                                    ),
+                                },
+                                {
+                                    key: 'share',
+                                    show: true,
+                                    node: (
+                                        <TouchableOpacity activeOpacity={0.6} onPress={handleShareApp} style={styles.menuItem}>
+                                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                                <Lucide name="share-2" color="#10b981" size={20} />
+                                            </View>
+                                            <View style={styles.menuContent}>
+                                                <AppText label={'Share app'} variant={2} color={colors.text} fontSize={15} />
+                                                <AppText label={'Share Shopynn with others'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
+                                            </View>
+                                            <Lucide name="chevron-right" color={colors.border} size={18} />
+                                        </TouchableOpacity>
+                                    ),
+                                },
+                            ])}
+                        </View>
                     </View>
                 )}
 

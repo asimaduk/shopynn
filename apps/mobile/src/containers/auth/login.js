@@ -272,6 +272,7 @@ const Login = ({ navigation, route }) => {
                                     }
                                   : null,
                               plan_usage: me.company.plan_usage ?? null,
+                              has_first_sale: Boolean(me.company.has_first_sale),
                           }
                         : undefined,
                     postLoginScreen,

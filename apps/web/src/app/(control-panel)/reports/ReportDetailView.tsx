@@ -3,13 +3,11 @@
 import { useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import Chip from '@mui/material/Chip';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
+import Divider from '@mui/material/Divider';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
@@ -22,12 +20,17 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
 import { alpha, useTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import FuseLoading from '@fuse/core/FuseLoading';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import useNavigate from '@fuse/hooks/useNavigate';
 import PermissionGate from '@auth/PermissionGate';
+import { motion } from 'motion/react';
+import PageBreadcrumb from 'src/components/PageBreadcrumb';
 import {
 	useGetAdjustmentsSummaryQuery,
 	useGetAuditLogsForRangeQuery,
@@ -202,11 +205,24 @@ function datePresetLabel(preset: DatePresetId): string {
 	return DATE_PRESET_OPTIONS.find((o) => o.id === preset)?.label ?? preset;
 }
 
+/** Shorter labels for segmented control density */
+const SEGMENT_LABELS: Partial<Record<DatePresetId, string>> = {
+	all_time: 'All',
+	today: 'Today',
+	yesterday: 'Yday',
+	last_7_days: '7d',
+	last_30_days: '30d',
+	this_month: 'Month',
+	last_month: 'Prev mo',
+	custom: 'Custom'
+};
+
 export default function ReportDetailView(props: ReportDetailViewProps) {
 	const { reportId, title } = props;
 	const theme = useTheme();
 	const accent = getReportAccentColor(reportId);
 	const navigate = useNavigate();
+	const isXs = useMediaQuery(theme.breakpoints.down('sm'));
 	const [preset, setPreset] = useState<DatePresetId>('all_time');
 	const [customOpen, setCustomOpen] = useState(false);
 	const [customStart, setCustomStart] = useState('');
@@ -256,6 +272,46 @@ export default function ReportDetailView(props: ReportDetailViewProps) {
 				: datePresetLabel(preset)
 		: 'Current inventory snapshot';
 
+	const handlePresetChange = (_: React.MouseEvent<HTMLElement>, next: DatePresetId | null) => {
+		if (!next) return;
+		if (next === 'custom') {
+			setCustomOpen(true);
+			return;
+		}
+		setPreset(next);
+	};
+
+	const todayIso = useMemo(() => {
+		const d = new Date();
+		const y = d.getFullYear();
+		const m = String(d.getMonth() + 1).padStart(2, '0');
+		const day = String(d.getDate()).padStart(2, '0');
+		return `${y}-${m}-${day}`;
+	}, []);
+
+	const customRangeInvalid =
+		!customStart ||
+		!customEnd ||
+		customStart > customEnd ||
+		customStart > todayIso ||
+		customEnd > todayIso;
+
+	const handleCustomStartChange = (value: string) => {
+		const next = value && value > todayIso ? todayIso : value;
+		setCustomStart(next);
+		if (next && customEnd && customEnd < next) {
+			setCustomEnd(next);
+		}
+	};
+
+	const handleCustomEndChange = (value: string) => {
+		let next = value && value > todayIso ? todayIso : value;
+		if (next && customStart && next < customStart) {
+			next = customStart;
+		}
+		setCustomEnd(next);
+	};
+
 	return (
 		<PermissionGate
 			requiredPermissions={[...perm]}
@@ -263,135 +319,140 @@ export default function ReportDetailView(props: ReportDetailViewProps) {
 				<Typography className="text-secondary p-8">You do not have permission to view this report.</Typography>
 			}
 		>
-			<Box className="w-full max-w-6xl mx-auto px-4 sm:px-6 pb-12">
-				{/* Hero */}
-				<Paper
-					elevation={0}
-					className="overflow-hidden rounded-2xl mb-6 sm:mb-8"
-					sx={{
-						background:
-							theme.palette.mode === 'dark'
-								? `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.2)} 0%, ${alpha(accent, 0.12)} 100%)`
-								: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(accent, 0.08)} 100%)`,
-						border: `1px solid ${alpha(accent, 0.22)}`
-					}}
-				>
-					<Box className="px-5 py-6 sm:px-8 sm:py-8">
-						<Box className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-							<Box className="flex flex-col sm:flex-row sm:items-start gap-4 min-w-0">
-								<Button
-									variant="outlined"
-									color="inherit"
-									onClick={() => navigate('/reports')}
-									startIcon={<FuseSvgIcon size={20}>heroicons-outline:arrow-left</FuseSvgIcon>}
-									sx={{
-										borderRadius: 2,
-										borderColor: alpha(theme.palette.divider, 0.9),
-										bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.15 : 0.85),
-										flexShrink: 0
+			<Box className="w-full h-full flex flex-col px-4 pb-12">
+				{/* Header — same pattern as Sales / Purchases */}
+				<div className="flex grow-0 flex-1 w-full flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-6 sm:py-8">
+					<motion.span
+						initial={{ x: -20 }}
+						animate={{ x: 0, transition: { delay: 0.2 } }}
+					>
+						<div>
+							<PageBreadcrumb className="mb-2" />
+							<Typography className="text-4xl font-extrabold leading-none tracking-tight break-words">
+								{title}
+							</Typography>
+							<Typography variant="body1" color="text.secondary" className="mt-1 font-medium">
+								{rangeSummary}
+							</Typography>
+						</div>
+					</motion.span>
+					<div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
+						<Button
+							variant="outlined"
+							color="inherit"
+							size="medium"
+							onClick={() => navigate('/reports')}
+							startIcon={<FuseSvgIcon size={18}>heroicons-outline:arrow-left</FuseSvgIcon>}
+							sx={{ textTransform: 'none', fontWeight: 600 }}
+						>
+							All reports
+						</Button>
+						<Button
+							variant="outlined"
+							color="inherit"
+							size="medium"
+							disabled={!rows.length}
+							onClick={handleExportCsv}
+							startIcon={<FuseSvgIcon size={18}>heroicons-outline:arrow-down-tray</FuseSvgIcon>}
+							sx={{ textTransform: 'none', fontWeight: 600 }}
+						>
+							Export CSV
+						</Button>
+					</div>
+				</div>
+
+				{/* Date toolbar */}
+				{showDateControls && (
+					<Box className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-5">
+						{isXs ? (
+							<FormControl size="small" sx={{ minWidth: '100%', flex: 1 }}>
+								<InputLabel id="report-date-preset">Date range</InputLabel>
+								<Select<DatePresetId>
+									labelId="report-date-preset"
+									label="Date range"
+									value={preset}
+									onChange={(e) => {
+										const v = e.target.value as DatePresetId;
+										if (v === 'custom') {
+											setCustomOpen(true);
+											return;
+										}
+										setPreset(v);
 									}}
 								>
-									Reports
-								</Button>
-								<Box className="min-w-0">
-									<Typography
-										variant="overline"
-										className="tracking-widest font-semibold block mb-1"
-										sx={{ color: accent }}
-									>
-										Report detail
-									</Typography>
-									<Typography variant="h4" className="font-bold tracking-tight break-words">
-										{title}
-									</Typography>
-									<Typography className="text-secondary mt-2 text-sm sm:text-base max-w-xl">
-										Adjust the date range when available, review KPIs, then explore the table below. Export
-										as CSV for spreadsheets.
-									</Typography>
-								</Box>
-							</Box>
-							<Chip
-								size="medium"
-								label={rangeSummary}
+									{DATE_PRESET_OPTIONS.map((o) => (
+										<MenuItem key={o.id} value={o.id}>
+											{o.label}
+										</MenuItem>
+									))}
+								</Select>
+							</FormControl>
+						) : (
+							<ToggleButtonGroup
+								size="small"
+								exclusive
+								value={preset}
+								onChange={handlePresetChange}
 								sx={{
-									alignSelf: 'flex-start',
-									fontWeight: 600,
-									border: `1px solid ${alpha(accent, 0.35)}`,
-									bgcolor: alpha(accent, theme.palette.mode === 'dark' ? 0.15 : 0.1),
-									color: 'text.primary'
+									flexWrap: 'wrap',
+									'& .MuiToggleButton-root': {
+										textTransform: 'none',
+										px: 1.25,
+										py: 0.5,
+										fontSize: '0.75rem',
+										fontWeight: 600,
+										borderColor: theme.palette.divider
+									}
 								}}
-							/>
-						</Box>
-
-						{/* Toolbar */}
-						<Box
-							className="mt-6 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 sm:gap-4 pt-6"
-							sx={{ borderTop: `1px solid ${alpha(theme.palette.divider, 0.6)}` }}
-						>
-							{showDateControls && (
-								<FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 220 } }}>
-									<InputLabel id="report-date-preset">Date range</InputLabel>
-									<Select<DatePresetId>
-										labelId="report-date-preset"
-										label="Date range"
-										value={preset}
-										onChange={(e) => {
-											const v = e.target.value as DatePresetId;
-											if (v === 'custom') {
-												setCustomOpen(true);
-												return;
-											}
-											setPreset(v);
-										}}
-										sx={{ borderRadius: 2 }}
-									>
-										{DATE_PRESET_OPTIONS.map((o) => (
-											<MenuItem key={o.id} value={o.id}>
-												{o.label}
-											</MenuItem>
-										))}
-									</Select>
-								</FormControl>
-							)}
-							<Button
-								variant="contained"
-								color="secondary"
-								size="medium"
-								disabled={!rows.length}
-								onClick={handleExportCsv}
-								startIcon={<FuseSvgIcon size={20}>heroicons-outline:arrow-down-tray</FuseSvgIcon>}
-								sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
 							>
-								Export CSV
-							</Button>
-						</Box>
+								{DATE_PRESET_OPTIONS.map((o) => (
+									<ToggleButton key={o.id} value={o.id}>
+										{SEGMENT_LABELS[o.id] ?? o.label}
+									</ToggleButton>
+								))}
+							</ToggleButtonGroup>
+						)}
 					</Box>
-				</Paper>
+				)}
 
 				<Dialog
 					open={customOpen}
 					onClose={() => setCustomOpen(false)}
 					maxWidth="xs"
 					fullWidth
-					PaperProps={{ sx: { borderRadius: 3 } }}
+					PaperProps={{ sx: { borderRadius: 2 } }}
 				>
 					<DialogTitle className="font-semibold pb-2">Custom date range</DialogTitle>
-					<DialogContent className="flex flex-col gap-20 pt-2">
+					<DialogContent className="flex flex-col gap-4 pt-2">
 						<TextField
 							label="Start"
 							type="date"
 							value={customStart}
-							onChange={(e) => setCustomStart(e.target.value)}
-							slotProps={{ inputLabel: { shrink: true } }}
+							onChange={(e) => handleCustomStartChange(e.target.value)}
+							slotProps={{
+								inputLabel: { shrink: true },
+								htmlInput: {
+									max: customEnd && customEnd < todayIso ? customEnd : todayIso
+								}
+							}}
 							fullWidth
+							helperText="Cannot be after end or today"
 						/>
 						<TextField
 							label="End"
 							type="date"
 							value={customEnd}
-							onChange={(e) => setCustomEnd(e.target.value)}
-							slotProps={{ inputLabel: { shrink: true } }}
+							onChange={(e) => handleCustomEndChange(e.target.value)}
+							slotProps={{
+								inputLabel: { shrink: true },
+								htmlInput: {
+									min: customStart || undefined,
+									max: todayIso
+								}
+							}}
 							fullWidth
+							helperText="Cannot be before start or after today"
+							error={Boolean(customStart && customEnd && customStart > customEnd)}
 						/>
 					</DialogContent>
 					<DialogActions className="px-6 pb-5 gap-2">
@@ -401,13 +462,13 @@ export default function ReportDetailView(props: ReportDetailViewProps) {
 						<Button
 							variant="contained"
 							onClick={() => {
-								if (customStart && customEnd) {
+								if (!customRangeInvalid) {
 									setPreset('custom');
 									setCustomOpen(false);
 								}
 							}}
-							disabled={!customStart || !customEnd}
-							sx={{ borderRadius: 2, textTransform: 'none' }}
+							disabled={customRangeInvalid}
+							sx={{ textTransform: 'none' }}
 						>
 							Apply range
 						</Button>
@@ -415,7 +476,11 @@ export default function ReportDetailView(props: ReportDetailViewProps) {
 				</Dialog>
 
 				{loading && (
-					<Paper elevation={0} className="rounded-2xl border border-dashed flex items-center justify-center min-h-[280px]">
+					<Paper
+						elevation={0}
+						className="rounded-lg border border-dashed flex items-center justify-center min-h-[220px]"
+						sx={{ borderColor: 'divider' }}
+					>
 						<FuseLoading />
 					</Paper>
 				)}
@@ -423,10 +488,13 @@ export default function ReportDetailView(props: ReportDetailViewProps) {
 				{isError && (
 					<Paper
 						elevation={0}
-						className="rounded-2xl p-6 mb-6"
-						sx={{ backgroundColor: alpha(theme.palette.error.main, 0.1), border: `1px solid ${alpha(theme.palette.error.main, 0.25)}` }}
+						className="rounded-lg p-4 mb-4"
+						sx={{
+							backgroundColor: alpha(theme.palette.error.main, 0.08),
+							border: `1px solid ${alpha(theme.palette.error.main, 0.25)}`
+						}}
 					>
-						<Typography color="error" className="font-medium">
+						<Typography color="error" className="font-medium text-sm">
 							Could not load this report. Check your permissions and try again.
 						</Typography>
 					</Paper>
@@ -434,123 +502,122 @@ export default function ReportDetailView(props: ReportDetailViewProps) {
 
 				{!loading && (
 					<>
+						{/* KPI strip — no cards */}
 						{cards.length > 0 && (
-							<div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5 mb-8">
-								{cards.map((c) => (
-									<Card
-										key={c.label}
-										elevation={0}
-										className="overflow-hidden transition-shadow duration-200"
-										sx={{
-											border: `1px solid ${theme.palette.divider}`,
-											borderRadius: 2,
-											'&:hover': {
-												boxShadow: `0 8px 24px -8px ${alpha(accent, 0.35)}`,
-												borderColor: alpha(accent, 0.35)
-											}
-										}}
-									>
-										<Box sx={{ borderLeft: `4px solid ${c.color ?? accent}` }}>
-											<CardContent className="p-20">
-												<Typography variant="caption" className="text-secondary font-semibold uppercase tracking-wide">
-													{c.label}
-												</Typography>
-												<Typography variant="h5" className="font-bold mt-8 break-words" sx={{ color: c.color ?? accent }}>
-													{c.value}
-												</Typography>
-											</CardContent>
-										</Box>
-									</Card>
-								))}
-							</div>
-						)}
-
-						<Paper
-							elevation={0}
-							className="rounded-2xl overflow-hidden"
-							sx={{
-								border: `1px solid ${theme.palette.divider}`,
-								background:
-									theme.palette.mode === 'dark'
-										? alpha(theme.palette.background.paper, 0.5)
-										: theme.palette.background.paper
-							}}
-						>
-							<Box
-								className="px-5 py-4 sm:px-6 flex items-center justify-between gap-4"
+							<Paper
+								elevation={0}
+								className="mb-4 overflow-hidden"
 								sx={{
-									borderBottom: `1px solid ${theme.palette.divider}`,
-									background: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.12 : 0.06)
+									border: `1px solid ${theme.palette.divider}`,
+									borderRadius: 1.5
 								}}
 							>
-								<Typography variant="subtitle1" className="font-bold">
-									Data
+								<Box className="flex flex-wrap">
+									{cards.map((c, i) => (
+										<Box
+											key={c.label}
+											className="flex flex-col px-4 py-3 min-w-[140px] flex-1"
+											sx={{
+												borderLeft:
+													i > 0 ? `1px solid ${theme.palette.divider}` : undefined
+											}}
+										>
+											<Typography
+												variant="caption"
+												className="text-secondary font-semibold uppercase tracking-wide"
+											>
+												{c.label}
+											</Typography>
+											<Typography
+												variant="h6"
+												className="font-bold mt-0.5 break-words tabular-nums"
+												sx={{ color: c.color ?? accent, fontSize: '1.15rem' }}
+											>
+												{c.value}
+											</Typography>
+										</Box>
+									))}
+								</Box>
+							</Paper>
+						)}
+
+						{/* Table panel */}
+						<Paper
+							elevation={0}
+							className="overflow-hidden"
+							sx={{
+								border: `1px solid ${theme.palette.divider}`,
+								borderRadius: 1.5
+							}}
+						>
+							<Box className="px-3 sm:px-4 py-2 flex items-center justify-between gap-3">
+								<Typography variant="body2" className="font-semibold">
+									Results
 								</Typography>
 								<Typography variant="caption" className="text-secondary tabular-nums">
 									{rows.length} row{rows.length === 1 ? '' : 's'}
 								</Typography>
 							</Box>
-							<TableContainer sx={{ maxHeight: { xs: 'none', md: 560 } }}>
-								<Table size="small" stickyHeader>
-									<TableHead>
-										<TableRow>
-											{tableColumns.map((col) => (
-												<TableCell
-													key={col}
-													sx={{
-														fontWeight: 700,
-														fontSize: '0.75rem',
-														textTransform: 'uppercase',
-														letterSpacing: '0.06em',
-														bgcolor: alpha(theme.palette.background.default, 0.65),
-														borderBottom: `2px solid ${alpha(accent, 0.22)}`
-													}}
-												>
-													{col}
-												</TableCell>
-											))}
-										</TableRow>
-									</TableHead>
-									<TableBody>
-										{rows.map((row, idx) => (
-											<TableRow
-												key={idx}
-												hover
-												sx={{
-													'&:nth-of-type(even)': {
-														bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.04 : 0.03)
-													}
-												}}
-											>
+							<Divider />
+							{rows.length === 0 ? (
+								<Box className="py-12 px-6 text-center">
+									<FuseSvgIcon sx={{ color: 'text.secondary', opacity: 0.55, mb: 1 }} size={26}>
+										heroicons-outline:table-cells
+									</FuseSvgIcon>
+									<Typography className="font-semibold text-sm">No rows for this range</Typography>
+									<Typography className="text-secondary text-xs mt-1 max-w-sm mx-auto">
+										{showDateControls
+											? 'Widen the date range or pick a different preset.'
+											: 'No data available yet.'}
+									</Typography>
+								</Box>
+							) : (
+								<TableContainer sx={{ maxHeight: { xs: 'none', md: 560 } }}>
+									<Table size="small" stickyHeader>
+										<TableHead>
+											<TableRow>
 												{tableColumns.map((col) => (
-													<TableCell key={col} sx={{ py: 1.75, fontSize: '0.875rem' }}>
-														{String(row[col] ?? '')}
+													<TableCell
+														key={col}
+														sx={{
+															fontWeight: 700,
+															fontSize: '0.7rem',
+															textTransform: 'uppercase',
+															letterSpacing: '0.05em',
+															bgcolor: theme.palette.background.paper,
+															borderBottom: `1px solid ${theme.palette.divider}`,
+															py: 1
+														}}
+													>
+														{col}
 													</TableCell>
 												))}
 											</TableRow>
-										))}
-									</TableBody>
-								</Table>
-							</TableContainer>
-							{rows.length === 0 && (
-								<Box className="py-16 px-6 text-center">
-									<Box
-										className="inline-flex rounded-full items-center justify-center mb-4"
-										sx={{
-											width: 56,
-											height: 56,
-											bgcolor: alpha(accent, 0.1)
-										}}
-									>
-										<FuseSvgIcon sx={{ color: 'text.secondary', opacity: 0.7 }} size={28}>
-											heroicons-outline:table-cells
-										</FuseSvgIcon>
-									</Box>
-									<Typography className="font-semibold">No rows for this range</Typography>
-									<Typography className="text-secondary text-sm mt-2 max-w-sm mx-auto">
-										Try widening the date range or pick a different preset.
-									</Typography>
-								</Box>
+										</TableHead>
+										<TableBody>
+											{rows.map((row, idx) => (
+												<TableRow
+													key={idx}
+													hover
+													sx={{
+														'&:nth-of-type(even)': {
+															bgcolor: alpha(
+																theme.palette.action.hover,
+																theme.palette.mode === 'dark' ? 0.04 : 0.4
+															)
+														}
+													}}
+												>
+													{tableColumns.map((col) => (
+														<TableCell key={col} sx={{ py: 1.25, fontSize: '0.8125rem' }}>
+															{String(row[col] ?? '')}
+														</TableCell>
+													))}
+												</TableRow>
+											))}
+										</TableBody>
+									</Table>
+								</TableContainer>
 							)}
 						</Paper>
 					</>

@@ -59,12 +59,12 @@ const SettingsAppNavigation: FuseNavItemType = {
 		{
 			id: 'apps.settings.export',
 			icon: 'heroicons-outline:arrow-down-tray',
-			title: 'Data Export & Backup',
+			title: 'Export products',
 			type: 'item',
 			url: '/apps/settings/data-export',
 			requiredPermissions: ['data_export.view'],
 			featureFlag: 'dataExportBackup',
-			subtitle: 'Export and backup business data'
+			subtitle: 'Download your product catalog as CSV'
 		},
 	]
 };

@@ -4,7 +4,7 @@ const RAILWAY_API = 'https://shopynn-production.up.railway.app/api';
 const PRODUCTION_TEST_API = RAILWAY_API;
 // Emulator/simulator: adb reverse / iOS localhost → host API.
 // Physical device: use your machine LAN IP, e.g. http://192.168.x.x:4001/api
-const LOCAL_DEV_API = RAILWAY_API;
+const LOCAL_DEV_API = 'http://127.0.0.1:4001/api';
 const BASE_API = __DEV__ ? LOCAL_DEV_API : PRODUCTION_TEST_API;
 
 export default {

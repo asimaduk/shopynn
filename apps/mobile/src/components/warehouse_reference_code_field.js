@@ -3,6 +3,7 @@ import { View, TextInput, TouchableOpacity, Alert, Linking, Share } from 'react-
 import Clipboard from '@react-native-clipboard/clipboard';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from './text';
+import config from '../config';
 import { storefrontStoreUrl, storefrontShareMessage } from '../utils/storefrontLinks';
 import { buildWhatsAppUrl } from '../utils/invoice';
 

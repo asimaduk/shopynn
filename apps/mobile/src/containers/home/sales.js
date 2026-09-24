@@ -103,6 +103,8 @@ const Sales = ({ navigation }) => {
     const [selectedDateRange, setSelectedDateRange] = useState('all_time');
     const [customStartDate, setCustomStartDate] = useState(new Date());
     const [customEndDate, setCustomEndDate] = useState(new Date());
+    const [appliedCustomStartDate, setAppliedCustomStartDate] = useState(new Date());
+    const [appliedCustomEndDate, setAppliedCustomEndDate] = useState(new Date());
     const [showStartPicker, setShowStartPicker] = useState(false);
     const [showEndPicker, setShowEndPicker] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -176,11 +178,11 @@ const Sales = ({ navigation }) => {
             case 'last_month':
                 return { start: lastMonthStart, end: new Date(lastMonthEnd.getTime() + 24 * 60 * 60 * 1000) };
             case 'custom':
-                return { start: customStartDate, end: new Date(customEndDate.getTime() + 24 * 60 * 60 * 1000) };
+                return { start: appliedCustomStartDate, end: new Date(appliedCustomEndDate.getTime() + 24 * 60 * 60 * 1000) };
             default:
                 return null; // all_time
         }
-    }, [selectedDateRange, customStartDate, customEndDate]);
+    }, [selectedDateRange, appliedCustomStartDate, appliedCustomEndDate]);
 
     const buildListParams = useCallback((offset = 0) => {
         const bounds = getDateRangeBounds();
@@ -249,6 +251,8 @@ const Sales = ({ navigation }) => {
     const handleDateRangeSelect = (value) => {
         if (value === 'custom') {
             setShowDateFilter(false);
+            setCustomStartDate(appliedCustomStartDate);
+            setCustomEndDate(appliedCustomEndDate);
             setShowCustomDatePicker(true);
         } else {
             setSelectedDateRange(value);
@@ -256,7 +260,23 @@ const Sales = ({ navigation }) => {
         }
     };
 
+    const getToday = () => {
+        const now = new Date();
+        return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    };
+
+    const clampToToday = (date) => {
+        const today = getToday();
+        return date > today ? today : date;
+    };
+
     const handleApplyCustomRange = () => {
+        const end = clampToToday(customEndDate);
+        const start = customStartDate > end ? end : customStartDate;
+        setCustomStartDate(start);
+        setCustomEndDate(end);
+        setAppliedCustomStartDate(start);
+        setAppliedCustomEndDate(end);
         setSelectedDateRange('custom');
         setShowCustomDatePicker(false);
     };
@@ -268,7 +288,7 @@ const Sales = ({ navigation }) => {
 
     const getDateRangeLabel = () => {
         if (selectedDateRange === 'custom') {
-            return `${formatDate(customStartDate)} - ${formatDate(customEndDate)}`;
+            return `${formatDate(appliedCustomStartDate)} - ${formatDate(appliedCustomEndDate)}`;
         }
         const range = dateRanges.find((r) => r.value === selectedDateRange);
         return range ? range.label : 'All Time';
@@ -276,13 +296,13 @@ const Sales = ({ navigation }) => {
 
     const onStartDateChange = (event, selectedDate) => {
         if (selectedDate) {
-            setCustomStartDate(selectedDate);
+            setCustomStartDate(clampToToday(selectedDate));
         }
     };
 
     const onEndDateChange = (event, selectedDate) => {
         if (selectedDate) {
-            setCustomEndDate(selectedDate);
+            setCustomEndDate(clampToToday(selectedDate));
         }
     };
 
@@ -654,7 +674,7 @@ const Sales = ({ navigation }) => {
                             mode="date"
                             display="spinner"
                             onChange={onStartDateChange}
-                            maximumDate={customEndDate}
+                            maximumDate={clampToToday(customEndDate)}
                             style={{ width: '100%', height: 200 }}
                         />
                         <TouchableOpacity
@@ -675,7 +695,7 @@ const Sales = ({ navigation }) => {
                     mode="date"
                     display="default"
                     onChange={onStartDateChange}
-                    maximumDate={customEndDate}
+                    maximumDate={clampToToday(customEndDate)}
                 />
             )}
             {Platform.OS === 'ios' && showEndPicker && (
@@ -686,16 +706,18 @@ const Sales = ({ navigation }) => {
                     onRequestClose={() => setShowEndPicker(false)}>
                     <View style={{ padding: 20, backgroundColor: colors.surface }}>
                         <DateTimePicker
-                            value={customEndDate}
+                            value={clampToToday(customEndDate)}
                             mode="date"
                             display="spinner"
                             onChange={onEndDateChange}
                             minimumDate={customStartDate}
+                            maximumDate={getToday()}
                             style={{ width: '100%', height: 200 }}
                         />
                         <TouchableOpacity
                             activeOpacity={0.8}
                             onPress={() => {
+                                setCustomEndDate(clampToToday(customEndDate));
                                 setShowEndPicker(false);
                                 setTimeout(() => setShowCustomDatePicker(true), 100);
                             }}
@@ -707,11 +729,12 @@ const Sales = ({ navigation }) => {
             )}
             {Platform.OS === 'android' && showEndPicker && (
                 <DateTimePicker
-                    value={customEndDate}
+                    value={clampToToday(customEndDate)}
                     mode="date"
                     display="default"
                     onChange={onEndDateChange}
                     minimumDate={customStartDate}
+                    maximumDate={getToday()}
                 />
             )}
 
@@ -785,6 +808,7 @@ const styles = StyleSheet.create({
     actionRow: {
         flexDirection: 'row',
         alignItems: 'center',
+        gap: 10,
     },
     searchBar: {
         flex: 1,
@@ -793,7 +817,6 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         paddingHorizontal: 12,
         height: 45,
-        marginRight: 10,
     },
     searchInput: {
         flex: 1,
@@ -808,7 +831,6 @@ const styles = StyleSheet.create({
         borderRadius: 45,
         justifyContent: 'center',
         alignItems: 'center',
-        // marginRight: 10,
     },
     filterButton: {
         width: 45,

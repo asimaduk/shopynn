@@ -110,6 +110,8 @@ const ProductTransactions = ({ navigation, route }) => {
     const [selectedDateRange, setSelectedDateRange] = useState(null);
     const [customStartDate, setCustomStartDate] = useState(new Date());
     const [customEndDate, setCustomEndDate] = useState(new Date());
+    const [appliedCustomStartDate, setAppliedCustomStartDate] = useState(new Date());
+    const [appliedCustomEndDate, setAppliedCustomEndDate] = useState(new Date());
     const [showStartPicker, setShowStartPicker] = useState(false);
     const [showEndPicker, setShowEndPicker] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -125,8 +127,8 @@ const ProductTransactions = ({ navigation, route }) => {
     const isRecentMode = !selectedDateRange || selectedDateRange === 'recent';
     const { startDate: startDateVal, endDate: endDateVal } = getDateRangeBounds(
         selectedDateRange,
-        customStartDate,
-        customEndDate
+        appliedCustomStartDate,
+        appliedCustomEndDate
     );
     const startDateStr = startDateVal instanceof Date ? startDateVal.toISOString().split('T')[0] : startDateVal;
     const endDateStr = endDateVal instanceof Date ? endDateVal.toISOString().split('T')[0] : endDateVal;
@@ -210,6 +212,8 @@ const ProductTransactions = ({ navigation, route }) => {
     const handleDateRangeSelect = (value) => {
         if (value === 'custom') {
             setShowDateFilter(false);
+            setCustomStartDate(appliedCustomStartDate);
+            setCustomEndDate(appliedCustomEndDate);
             setShowCustomDatePicker(true);
         } else if (value === 'recent') {
             setSelectedDateRange(null);
@@ -220,7 +224,23 @@ const ProductTransactions = ({ navigation, route }) => {
         }
     };
 
+    const getToday = () => {
+        const now = new Date();
+        return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    };
+
+    const clampToToday = (date) => {
+        const today = getToday();
+        return date > today ? today : date;
+    };
+
     const handleApplyCustomRange = () => {
+        const end = clampToToday(customEndDate);
+        const start = customStartDate > end ? end : customStartDate;
+        setCustomStartDate(start);
+        setCustomEndDate(end);
+        setAppliedCustomStartDate(start);
+        setAppliedCustomEndDate(end);
         setSelectedDateRange('custom');
         setShowCustomDatePicker(false);
     };
@@ -235,7 +255,7 @@ const ProductTransactions = ({ navigation, route }) => {
             return 'Recent';
         }
         if (selectedDateRange === 'custom') {
-            return `${formatDate(customStartDate)} - ${formatDate(customEndDate)}`;
+            return `${formatDate(appliedCustomStartDate)} - ${formatDate(appliedCustomEndDate)}`;
         }
         const range = dateRanges.find((r) => r.value === selectedDateRange);
         return range ? range.label : 'Recent';
@@ -247,10 +267,10 @@ const ProductTransactions = ({ navigation, route }) => {
             setShowStartPicker(false);
             setTimeout(() => setShowCustomDatePicker(true), 50);
             if (!selectedDate) return;
-            setCustomStartDate(selectedDate);
+            setCustomStartDate(clampToToday(selectedDate));
             return;
         }
-        if (selectedDate) setCustomStartDate(selectedDate);
+        if (selectedDate) setCustomStartDate(clampToToday(selectedDate));
     };
 
     const onEndDateChange = (event, selectedDate) => {
@@ -258,10 +278,10 @@ const ProductTransactions = ({ navigation, route }) => {
             setShowEndPicker(false);
             setTimeout(() => setShowCustomDatePicker(true), 50);
             if (!selectedDate) return;
-            setCustomEndDate(selectedDate);
+            setCustomEndDate(clampToToday(selectedDate));
             return;
         }
-        if (selectedDate) setCustomEndDate(selectedDate);
+        if (selectedDate) setCustomEndDate(clampToToday(selectedDate));
     };
 
     const generateCSV = () => {
@@ -884,7 +904,7 @@ const ProductTransactions = ({ navigation, route }) => {
                             mode="date"
                             display="spinner"
                             onChange={onStartDateChange}
-                            maximumDate={customEndDate}
+                            maximumDate={clampToToday(customEndDate)}
                             style={{ width: '100%', height: 200 }}
                         />
                         <TouchableOpacity
@@ -905,7 +925,7 @@ const ProductTransactions = ({ navigation, route }) => {
                     mode="date"
                     display="default"
                     onChange={onStartDateChange}
-                    maximumDate={customEndDate}
+                    maximumDate={clampToToday(customEndDate)}
                 />
             )}
             {Platform.OS === 'ios' && showEndPicker && (
@@ -916,16 +936,18 @@ const ProductTransactions = ({ navigation, route }) => {
                     onRequestClose={() => setShowEndPicker(false)}>
                     <View style={{ padding: 20, backgroundColor: colors.surface }}>
                         <DateTimePicker
-                            value={customEndDate}
+                            value={clampToToday(customEndDate)}
                             mode="date"
                             display="spinner"
                             onChange={onEndDateChange}
                             minimumDate={customStartDate}
+                            maximumDate={getToday()}
                             style={{ width: '100%', height: 200 }}
                         />
                         <TouchableOpacity
                             activeOpacity={0.8}
                             onPress={() => {
+                                setCustomEndDate(clampToToday(customEndDate));
                                 setShowEndPicker(false);
                                 setTimeout(() => setShowCustomDatePicker(true), 100);
                             }}
@@ -937,11 +959,12 @@ const ProductTransactions = ({ navigation, route }) => {
             )}
             {Platform.OS === 'android' && showEndPicker && (
                 <DateTimePicker
-                    value={customEndDate}
+                    value={clampToToday(customEndDate)}
                     mode="date"
                     display="default"
                     onChange={onEndDateChange}
                     minimumDate={customStartDate}
+                    maximumDate={getToday()}
                 />
             )}
 

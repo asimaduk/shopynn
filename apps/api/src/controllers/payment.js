@@ -30,6 +30,25 @@ export const getPaymentsHistory = async (req, res, next) => {
     }
 };
 
+/** POS MoMo gateway payments (linked or unlinked) — parallel to order payment history. */
+export const getPosSalePayments = async (req, res, next) => {
+    try {
+        const methodRaw = req.query.method ?? req.query.payment_method_type;
+        const method =
+            methodRaw && String(methodRaw).trim().toLowerCase() !== "all"
+                ? String(methodRaw).trim().toLowerCase()
+                : "mobile_money";
+        const history = await getPaymentsHistoryService(req.user, {
+            ...req.query,
+            pos_only: true,
+            method,
+        });
+        handleResponse(res, 200, "POS MoMo payments.", history);
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const getPaymentsByTenantId = async (req, res, next) => {
     try {
         if (req.params.tenantId !== req.user?.tenant_id) {

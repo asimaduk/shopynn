@@ -9,7 +9,7 @@ import { FuseNavItemType } from "@fuse/core/FuseNavigation/types/FuseNavItemType
 import navigationConfig from "src/configs/navigationConfig";
 import { resolveNavItemAccess } from "@auth/permissions";
 import { getMinimumTierForFeatures, getTierBadgeLetter, normalizeFeatureCode } from "src/configs/subscriptionFeatureTiers";
-// import { isFeatureEnabled } from "src/configs/featureFlags";
+import { useGetGoLiveNavQuery } from "src/app/(control-panel)/billing/SubscriptionApi";
 
 /** Drop parents (group/collapse/etc.) when every child is denied — section headers with no links. */
 function pruneNavWithoutVisibleChildren(
@@ -34,6 +34,18 @@ function pruneNavWithoutVisibleChildren(
 function useNavigation() {
   const { data: user } = useUser();
   const { languageId } = useI18n();
+  const { data: goLiveNav } = useGetGoLiveNavQuery(undefined, {
+    skip: !user?.id || !user?.company,
+    refetchOnFocus: true,
+  });
+
+  const showGoLive = useMemo(() => {
+    // Only for tenant shops; hide once any sale exists (session or live probe).
+    if (!user?.company) return false;
+    if (user.company.has_first_sale || goLiveNav?.has_first_sale) return false;
+    if (goLiveNav && goLiveNav.show_go_live === false) return false;
+    return true;
+  }, [user?.company, goLiveNav]);
 
   const navigation = useMemo(() => {
     const isLinkedMerchantUser = Boolean(user?.merchant_id);
@@ -46,14 +58,11 @@ function useNavigation() {
             : {};
         /** Merchants see their portal as “Clients / Users” (same as MerchantsPage). */
         const merchantsNavTitle =
-          item.id === "adminTools.merchants" && isLinkedMerchantUser
+          (item.id === "platform.merchants" || item.id === "adminTools.merchants") &&
+          isLinkedMerchantUser
             ? { title: "Clients / Shops" }
             : {};
 
-        // console.log('title', item?.title);
-        // console.log('requiredPermissions', item?.requiredPermissions);
-        // console.log('featureFlag', item?.featureFlag);
-        // console.log('requiredFeatures', item?.requiredFeatures);
         const navAccess = resolveNavItemAccess(user, item);
         const requiredFeatures = (Array.isArray(item.requiredFeatures)
           ? item.requiredFeatures
@@ -66,30 +75,37 @@ function useNavigation() {
             ? getMinimumTierForFeatures(requiredFeatures)
             : null;
 
-		return {
-			...item,
-			...titleFromI18n,
-			...merchantsNavTitle,
-			hasPermission: navAccess.visible && !navAccess.locked,
-			lockedByPlan: navAccess.locked,
-			url: navAccess.locked ? navAccess.upgradeUrl : item.url,
-			badge:
-				navAccess.locked && tierCode
-					? {
-							title: getTierBadgeLetter(tierCode),
-							bg: '#EEF2FF',
-							fg: '#4338CA'
-						}
-					: item.badge,
-			...(item?.children
-				? { children: setAdditionalData(item?.children) }
-				: {}),
-		};
+        const goLiveHidden =
+          item.id === "setups.goLive" && !showGoLive
+            ? { hasPermission: false, lockedByPlan: false }
+            : null;
+
+        return {
+          ...item,
+          ...titleFromI18n,
+          ...merchantsNavTitle,
+          hasPermission: goLiveHidden
+            ? false
+            : navAccess.visible && !navAccess.locked,
+          lockedByPlan: goLiveHidden ? false : navAccess.locked,
+          url: navAccess.locked && !goLiveHidden ? navAccess.upgradeUrl : item.url,
+          badge:
+            navAccess.locked && tierCode && !goLiveHidden
+              ? {
+                  title: getTierBadgeLetter(tierCode),
+                  bg: "#EEF2FF",
+                  fg: "#4338CA",
+                }
+              : item.badge,
+          ...(item?.children
+            ? { children: setAdditionalData(item?.children) }
+            : {}),
+        };
       });
     }
 
     return pruneNavWithoutVisibleChildren(setAdditionalData(navigationConfig));
-  }, [user, languageId]);
+  }, [user, languageId, showGoLive]);
 
   const flattenNavigation = useMemo(() => {
     return FuseNavigationHelper.flattenNavigation(navigation);

@@ -9,6 +9,7 @@ import {
 } from "../models/tenant.js";
 import { assignServingMerchantService } from "../models/merchant.js";
 import { getPrinterSetupEntitlementForTenantService } from "../models/onboardingQuote.js";
+import pool from "../config/db.js";
 
 export const createTenant = async (req, res, next) => {
     try {
@@ -141,6 +142,33 @@ export const getMyPrinterSetupEntitlement = async (req, res, next) => {
         if (!tenant_id) return handleResponse(res, 400, "User has no tenant.", null);
         const entitlement = await getPrinterSetupEntitlementForTenantService(tenant_id);
         handleResponse(res, 200, entitlement.message, entitlement);
+    } catch (error) {
+        next(error);
+    }
+};
+
+/** GET /tenants/me/go-live-nav — show Go live checklist until the tenant records a first sale. */
+export const getMyGoLiveNav = async (req, res, next) => {
+    try {
+        if (!req.user) return handleResponse(res, 401, "Authentication required.", null);
+        const tenant_id = req.user.tenant_id;
+        if (!tenant_id) {
+            return handleResponse(res, 200, "Go live nav.", {
+                show_go_live: false,
+                has_first_sale: true,
+            });
+        }
+        const saleCheck = await pool.query(
+            `SELECT EXISTS (
+                SELECT 1 FROM sales WHERE tenant_id = $1
+             ) AS has_first_sale`,
+            [tenant_id]
+        );
+        const has_first_sale = Boolean(saleCheck.rows[0]?.has_first_sale);
+        handleResponse(res, 200, "Go live nav.", {
+            show_go_live: !has_first_sale,
+            has_first_sale,
+        });
     } catch (error) {
         next(error);
     }

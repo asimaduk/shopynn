@@ -46,7 +46,7 @@ const STATIC_PLANS = [
       "Up to 10 branches · up to 25 users",
       "Everything in Business",
       "Customer online orders & fulfilment",
-      "Report export · data export & backup",
+      "Report export · product catalog CSV",
       "Audit logs · priority WhatsApp support",
     ],
     cta: "Start now",

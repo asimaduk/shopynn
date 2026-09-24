@@ -5,8 +5,8 @@ import en from './navigation-i18n/en';
 i18n.addResourceBundle('en', 'navigation', en);
 
 /**
- * Sidebar navigation – ordered for workflow-first UX:
- * Dashboards → Trading → Inventory → Expenses → Customers → Setups → Admin Tools
+ * Sidebar navigation – workflow-first for shop owners:
+ * Dashboard → Trading → Inventory → People → Expenses → Setups → Admin → Platform
  */
 const navigationConfig: FuseNavItemType[] = [
 	{
@@ -25,16 +25,134 @@ const navigationConfig: FuseNavItemType[] = [
 				url: '/dashboards/analytics',
 				requiredPermissions: ['dashboard.view'],
 				requiredFeatures: ['dashboard.view']
+			},
+			{
+				id: 'dashboards.reports',
+				title: 'Reports',
+				type: 'item',
+				icon: 'heroicons-outline:document-chart-bar',
+				url: '/reports',
+				requiredPermissions: ['reports.view'],
+				requiredFeatures: ['reports.view']
+			}
+		]
+	},
+	{
+		id: 'trading',
+		title: 'Trading',
+		subtitle: 'Sales & purchases',
+		type: 'group',
+		icon: 'heroicons-outline:shopping-cart',
+		children: [
+			{
+				id: 'trading.new-sale',
+				title: 'New Sale',
+				type: 'item',
+				icon: 'heroicons-outline:plus-circle',
+				url: '/trading/newsale',
+				requiredPermissions: ['sales.create'],
+				requiredFeatures: ['sales.create']
+			},
+			{
+				id: 'trading.local-sales',
+				title: 'Pending Sales',
+				type: 'item',
+				icon: 'heroicons-outline:clock',
+				url: '/trading/pending',
+				requiredPermissions: ['sales.pending.view'],
+				requiredFeatures: ['sales.pending.view']
+			},
+			{
+				id: 'trading.pos-momo-payments',
+				title: 'Pending MoMo',
+				type: 'item',
+				icon: 'heroicons-outline:device-phone-mobile',
+				url: '/trading/pos-momo-payments',
+				requiredPermissions: ['sales.create'],
+				requiredFeatures: ['sales.create']
+			},
+			{
+				id: 'trading.pos-sale-payments',
+				title: 'POS MoMo payments',
+				type: 'item',
+				icon: 'heroicons-outline:banknotes',
+				url: '/trading/pos-sale-payments',
+				requiredPermissions: ['sales.view'],
+				requiredFeatures: ['sales.view']
+			},
+			{
+				id: 'trading.sales-list',
+				title: 'Sales List',
+				type: 'item',
+				icon: 'heroicons-outline:queue-list',
+				url: '/trading/sales',
+				// exact so /trading/sales/returns does not also highlight Sales List
+				exact: true,
+				requiredPermissions: ['sales.view'],
+				requiredFeatures: ['sales.view']
+			},
+			{
+				id: 'trading.sales-returns',
+				title: 'Sales Returns',
+				type: 'item',
+				icon: 'heroicons-outline:arrow-uturn-left',
+				url: '/trading/sales/returns',
+				requiredPermissions: ['returns.view'],
+				requiredFeatures: ['returns.view']
+			},
+			{
+				id: 'trading.new-purchase',
+				title: 'New Purchase',
+				type: 'item',
+				icon: 'heroicons-outline:arrow-down-tray',
+				url: '/trading/newpurchase',
+				requiredPermissions: ['purchases.create'],
+				requiredFeatures: ['purchases.create']
+			},
+			{
+				id: 'trading.purchases-list',
+				title: 'Purchases List',
+				type: 'item',
+				icon: 'heroicons-outline:rectangle-stack',
+				url: '/trading/purchases',
+				requiredPermissions: ['purchases.view'],
+				requiredFeatures: ['purchases.view']
+			},
+			{
+				id: 'trading.store-orders',
+				title: 'Online Orders',
+				type: 'item',
+				icon: 'heroicons-outline:shopping-bag',
+				url: '/trading/store-orders',
+				requiredPermissions: ['orders.store.view'],
+				requiredFeatures: ['orders.store.view']
+			},
+			{
+				id: 'trading.order-payments',
+				title: 'Order Payments',
+				type: 'item',
+				icon: 'heroicons-outline:banknotes',
+				url: '/trading/order-payments',
+				requiredPermissions: ['payments.view'],
+				requiredFeatures: ['payments.view']
+			},
+			{
+				id: 'trading.order-settlements',
+				title: 'Order Settlements',
+				type: 'item',
+				icon: 'heroicons-outline:building-library',
+				url: '/trading/order-settlements',
+				requiredPermissions: ['payments.view'],
+				requiredFeatures: ['payments.view']
 			}
 		]
 	},
 	{
 		id: 'inventory',
 		title: 'Inventory',
-		subtitle: 'Items, categories, stock & transfers',
+		subtitle: 'Items, stock & movements',
 		type: 'group',
 		icon: 'heroicons-outline:cube',
-		// auth: authRoles.admin,
 		children: [
 			{
 				id: 'inventory.products',
@@ -53,15 +171,6 @@ const navigationConfig: FuseNavItemType[] = [
 				url: '/inventory/categories',
 				requiredPermissions: ['categories.view'],
 				requiredFeatures: ['categories.view']
-			},
-			{
-				id: 'inventory.transactions',
-				title: 'Transactions',
-				type: 'item',
-				icon: 'heroicons-outline:arrow-path',
-				url: '/inventory/transactions',
-				requiredPermissions: ['products.transactions.view'],
-				requiredFeatures: ['products.transactions.view']
 			},
 			{
 				id: 'inventory.transfers',
@@ -107,127 +216,43 @@ const navigationConfig: FuseNavItemType[] = [
 				url: '/inventory/expiring',
 				requiredPermissions: ['inventory.expiring.view'],
 				requiredFeatures: ['inventory.expiring.view']
+			},
+			{
+				id: 'inventory.transactions',
+				title: 'Transactions',
+				type: 'item',
+				icon: 'heroicons-outline:arrow-path',
+				url: '/inventory/transactions',
+				requiredPermissions: ['products.transactions.view'],
+				requiredFeatures: ['products.transactions.view']
 			}
 		]
 	},
 	{
-		id: 'trading',
-		title: 'Trading',
-		subtitle: 'Sales & purchases',
+		id: 'people',
+		title: 'People',
+		subtitle: 'Customers & staff',
 		type: 'group',
-		icon: 'heroicons-outline:shopping-cart',
+		icon: 'heroicons-outline:user-group',
 		children: [
 			{
-				id: 'trading.new-sale',
-				title: 'New Sale',
+				id: 'people.customers',
+				title: 'Customers',
 				type: 'item',
-				icon: 'heroicons-outline:plus-circle',
-				url: '/trading/newsale',
-				requiredPermissions: ['sales.create'],
-				requiredFeatures: ['sales.create']
+				icon: 'heroicons-outline:users',
+				url: '/users/customers',
+				requiredPermissions: ['customers.view'],
+				requiredFeatures: ['customers.view']
 			},
 			{
-				id: 'trading.local-sales',
-				title: 'Pending Sales',
+				id: 'people.users',
+				title: 'Users',
 				type: 'item',
-				icon: 'heroicons-outline:clock',
-				url: '/trading/pending',
-				requiredPermissions: ['sales.pending.view'],
-				requiredFeatures: ['sales.pending.view']
-			},
-			{
-				id: 'trading.pos-momo-payments',
-				title: 'Pending MoMo',
-				type: 'item',
-				icon: 'heroicons-outline:device-phone-mobile',
-				url: '/trading/pos-momo-payments',
-				requiredPermissions: ['sales.create'],
-				requiredFeatures: ['sales.create']
-			},
-			{
-				id: 'trading.sales-list',
-				title: 'Sales List',
-				type: 'item',
-				icon: 'heroicons-outline:queue-list',
-				url: '/trading/sales',
-				requiredPermissions: ['sales.view'],
-				requiredFeatures: ['sales.view']
-			},
-			{
-				id: 'trading.sales-returns',
-				title: 'Sales Returns',
-				type: 'item',
-				icon: 'heroicons-outline:arrow-uturn-left',
-				url: '/trading/sales/returns',
-				requiredPermissions: ['returns.view'],
-				requiredFeatures: ['returns.view']
-			},
-			{
-				id: 'trading.new-purchase',
-				title: 'New Purchase',
-				type: 'item',
-				icon: 'heroicons-outline:arrow-down-tray',
-				url: '/trading/newpurchase',
-				// auth: authRoles.admin,
-				requiredPermissions: ['purchases.create'],
-				requiredFeatures: ['purchases.create']
-			},
-			{
-				id: 'trading.purchases-list',
-				title: 'Purchases List',
-				type: 'item',
-				icon: 'heroicons-outline:rectangle-stack',
-				url: '/trading/purchases',
-				// auth: authRoles.admin,
-				requiredPermissions: ['purchases.view'],
-				requiredFeatures: ['purchases.view']
-			},
-			{
-				id: 'trading.store-orders',
-				title: 'Online Orders',
-				type: 'item',
-				icon: 'heroicons-outline:shopping-bag',
-				url: '/trading/store-orders',
-				requiredPermissions: ['orders.store.view'],
-				requiredFeatures: ['orders.store.view']
-			},
-			{
-				id: 'trading.order-payments',
-				title: 'Order Payments',
-				type: 'item',
-				icon: 'heroicons-outline:banknotes',
-				url: '/trading/order-payments',
-				requiredPermissions: ['payments.view'],
-				requiredFeatures: ['payments.view']
-			},
-			{
-				id: 'trading.order-settlements',
-				title: 'Order Settlements',
-				type: 'item',
-				icon: 'heroicons-outline:building-library',
-				url: '/trading/order-settlements',
-				requiredPermissions: ['payments.view'],
-				requiredFeatures: ['payments.view']
-			},
-			// {
-			// 	id: 'trading.purchases-returns',
-			// 	title: 'Purchase Returns',
-			// 	type: 'item',
-			// 	icon: 'heroicons-outline:arrow-uturn-left',
-			// 	url: '/trading/purchases/returns',
-			// 	auth: authRoles.admin,
-			// 	requiredPermissions: ['returns.view']
-			// },
-			// {
-			// 	id: 'trading.purchase-orders',
-			// 	title: 'Purchase Orders',
-			// 	type: 'item',
-			// 	icon: 'heroicons-outline:clipboard-document-list',
-			// 	url: '/trading/purchase-orders',
-			// 	auth: authRoles.admin,
-			// 	requiredPermissions: ['purchase_orders.view', 'purchases.view'],
-			// 	featureFlag: 'purchaseOrders'
-			// }
+				icon: 'heroicons-outline:user-circle',
+				url: '/users/staff',
+				requiredPermissions: ['users.view'],
+				requiredFeatures: ['users.view']
+			}
 		]
 	},
 	{
@@ -249,48 +274,11 @@ const navigationConfig: FuseNavItemType[] = [
 		]
 	},
 	{
-		id: 'usage',
-		title: 'User Management',
-		subtitle: 'Customers & users',
-		type: 'group',
-		icon: 'heroicons-outline:user-group',
-		children: [
-			{
-				id: 'usage.customers',
-				title: 'Customers',
-				type: 'item',
-				icon: 'heroicons-outline:users',
-				url: '/users/customers',
-				requiredPermissions: ['customers.view'],
-				requiredFeatures: ['customers.view']
-			},
-			{
-				id: 'usage.users',
-				title: 'Users',
-				type: 'item',
-				icon: 'heroicons-outline:user-circle',
-				url: '/users/staff',
-				requiredPermissions: ['users.view'],
-				requiredFeatures: ['users.view']
-			},
-			{
-				id: 'usage.suppliers',
-				title: 'Suppliers',
-				type: 'item',
-				icon: 'heroicons-outline:rectangle-group',
-				url: '/setups/suppliers',
-				requiredPermissions: ['suppliers.view'],
-				requiredFeatures: ['suppliers.view']
-			}
-		]
-	},
-	{
 		id: 'setups',
 		title: 'Setups',
-		subtitle: 'Locations, stores / warehouses',
+		subtitle: 'Locations, stores & documents',
 		type: 'group',
 		icon: 'heroicons-outline:cog-6-tooth',
-		// auth: authRoles.admin,
 		children: [
 			{
 				id: 'setups.goLive',
@@ -316,35 +304,43 @@ const navigationConfig: FuseNavItemType[] = [
 				url: '/setups/warehouses',
 				requiredPermissions: ['warehouses.view'],
 				requiredFeatures: ['stores.multi_access']
+			},
+			{
+				id: 'setups.suppliers',
+				title: 'Suppliers',
+				type: 'item',
+				icon: 'heroicons-outline:rectangle-group',
+				url: '/setups/suppliers',
+				requiredPermissions: ['suppliers.view'],
+				requiredFeatures: ['suppliers.view']
+			},
+			{
+				id: 'setups.invoiceReceipt',
+				title: 'Invoice & Receipt',
+				type: 'item',
+				icon: 'heroicons-outline:document-text',
+				url: '/apps/settings/receipt-settings',
+				requiredPermissions: ['receipt_settings.view', 'settings.view']
+			},
+			{
+				id: 'setups.dataExport',
+				title: 'Export products',
+				type: 'item',
+				icon: 'heroicons-outline:arrow-down-tray',
+				url: '/apps/settings/data-export',
+				requiredPermissions: ['data_export.view'],
+				requiredFeatures: ['data_export.view'],
+				featureFlag: 'dataExportBackup'
 			}
 		]
 	},
 	{
 		id: 'adminTools',
-		title: 'Admin Management',
-		subtitle: 'System settings & administration',
+		title: 'Admin',
+		subtitle: 'Roles & alerts',
 		type: 'group',
 		icon: 'heroicons-outline:wrench-screwdriver',
-		// auth: authRoles.admin,
 		children: [
-			{
-				id: 'adminTools.reports',
-				title: 'Reports',
-				type: 'item',
-				icon: 'heroicons-outline:document-chart-bar',
-				url: '/reports',
-				requiredPermissions: ['reports.view'],
-				requiredFeatures: ['reports.view']
-			},
-			{
-				id: 'adminTools.notifications',
-				title: 'Notifications',
-				type: 'item',
-				icon: 'heroicons-outline:bell',
-				url: '/notifications',
-				requiredPermissions: ['notifications.view'],
-				requiredFeatures: ['notifications.view']
-			},
 			{
 				id: 'adminTools.rolesPermissions',
 				title: 'Roles & permissions',
@@ -355,15 +351,26 @@ const navigationConfig: FuseNavItemType[] = [
 				requiredFeatures: ['roles.view', 'users.roles.view', 'users.view']
 			},
 			{
-				id: 'adminTools.invoiceReceipt',
-				title: 'Invoice & Receipt',
+				id: 'adminTools.notifications',
+				title: 'Notifications',
 				type: 'item',
-				icon: 'heroicons-outline:document-text',
-				url: '/apps/settings/receipt-settings',
-				requiredPermissions: ['receipt_settings.view', 'settings.view']
-			},
+				icon: 'heroicons-outline:bell',
+				url: '/notifications',
+				requiredPermissions: ['notifications.view'],
+				requiredFeatures: ['notifications.view']
+			}
+		]
+	},
+	{
+		id: 'platform',
+		title: 'Platform',
+		subtitle: 'Tenants, billing & marketing',
+		type: 'group',
+		icon: 'heroicons-outline:building-office-2',
+		requiredPermissions: ['tenants.directory.view', 'merchants.view', 'merchants.operate', 'newsletter.subscribers.view', 'newsletter.campaigns.view', 'contact_requests.view', 'site_chat.sessions.view', 'broadcasts.send'],
+		children: [
 			{
-				id: 'adminTools.merchants',
+				id: 'platform.merchants',
 				title: 'Merchants',
 				type: 'item',
 				icon: 'heroicons-outline:building-office-2',
@@ -372,18 +379,17 @@ const navigationConfig: FuseNavItemType[] = [
 				requiredFeatures: ['merchants.operate']
 			},
 			{
-				id: 'adminTools.tenantsDirectory',
+				id: 'platform.tenantsDirectory',
 				title: 'Tenants',
 				type: 'item',
 				icon: 'heroicons-outline:building-library',
 				url: '/tenants-directory',
-				// Withdrawals nest under this path; exact so both aren't active together.
 				exact: true,
 				requiredPermissions: ['tenants.directory.view'],
 				requiredFeatures: ['tenants.directory.view']
 			},
 			{
-				id: 'adminTools.withdrawalRequests',
+				id: 'platform.withdrawalRequests',
 				title: 'Withdrawal requests',
 				type: 'item',
 				icon: 'heroicons-outline:banknotes',
@@ -392,7 +398,7 @@ const navigationConfig: FuseNavItemType[] = [
 				requiredFeatures: ['tenants.directory.view']
 			},
 			{
-				id: 'adminTools.platformMomoCharge',
+				id: 'platform.platformMomoCharge',
 				title: 'MoMo platform charge',
 				type: 'item',
 				icon: 'heroicons-outline:calculator',
@@ -401,7 +407,25 @@ const navigationConfig: FuseNavItemType[] = [
 				requiredFeatures: ['tenants.directory.view']
 			},
 			{
-				id: 'adminTools.newsletterSubscribers',
+				id: 'platform.mobileAppVersions',
+				title: 'Mobile app versions',
+				type: 'item',
+				icon: 'heroicons-outline:device-phone-mobile',
+				url: '/tenants-directory/mobile-app-versions',
+				requiredPermissions: ['tenants.directory.view'],
+				requiredFeatures: ['tenants.directory.view']
+			},
+			{
+				id: 'platform.billingCatalog',
+				title: 'Billing catalog',
+				type: 'item',
+				icon: 'heroicons-outline:currency-dollar',
+				url: '/billing-catalog',
+				requiredPermissions: ['tenants.directory.view'],
+				requiredFeatures: ['tenants.directory.view']
+			},
+			{
+				id: 'platform.newsletterSubscribers',
 				title: 'Newsletter subscribers',
 				type: 'item',
 				icon: 'heroicons-outline:envelope',
@@ -410,7 +434,7 @@ const navigationConfig: FuseNavItemType[] = [
 				requiredFeatures: ['newsletter.subscribers.view']
 			},
 			{
-				id: 'adminTools.newsletters',
+				id: 'platform.newsletters',
 				title: 'Newsletters',
 				type: 'item',
 				icon: 'heroicons-outline:newspaper',
@@ -419,7 +443,7 @@ const navigationConfig: FuseNavItemType[] = [
 				requiredFeatures: ['newsletter.campaigns.view']
 			},
 			{
-				id: 'adminTools.broadcast',
+				id: 'platform.broadcast',
 				title: 'Broadcast',
 				type: 'item',
 				icon: 'heroicons-outline:megaphone',
@@ -428,7 +452,7 @@ const navigationConfig: FuseNavItemType[] = [
 				requiredFeatures: ['tenants.directory.view', 'broadcasts.send']
 			},
 			{
-				id: 'adminTools.contactRequests',
+				id: 'platform.contactRequests',
 				title: 'Talk to us',
 				type: 'item',
 				icon: 'heroicons-outline:chat-bubble-left-right',
@@ -437,33 +461,13 @@ const navigationConfig: FuseNavItemType[] = [
 				requiredFeatures: ['contact_requests.view']
 			},
 			{
-				id: 'adminTools.siteChats',
+				id: 'platform.siteChats',
 				title: 'Live chat',
 				type: 'item',
 				icon: 'heroicons-outline:chat-bubble-oval-left-ellipsis',
 				url: '/marketing/site-chats',
 				requiredPermissions: ['site_chat.sessions.view'],
 				requiredFeatures: ['site_chat.sessions.view']
-			}
-		]
-	},
-	{
-		id: 'billingCatalog',
-		title: 'Billing catalog',
-		subtitle: 'Plans, prices & onboarding fees',
-		type: 'group',
-		icon: 'heroicons-outline:currency-dollar',
-		requiredPermissions: ['tenants.directory.view'],
-		requiredFeatures: ['tenants.directory.view'],
-		children: [
-			{
-				id: 'billingCatalog.admin',
-				title: 'Catalog',
-				type: 'item',
-				icon: 'heroicons-outline:currency-dollar',
-				url: '/billing-catalog',
-				requiredPermissions: ['tenants.directory.view'],
-				requiredFeatures: ['tenants.directory.view']
 			}
 		]
 	}

@@ -94,7 +94,7 @@ export const CHOOSEABLE_SUBSCRIPTION_PLANS: readonly ChooseablePlan[] = [
 			'Customer online orders (store queue, fulfilment & delivery)',
 			'Audit logs',
 			'Order payment history · order & report export',
-			'Data export & backup',
+			'Product export',
 			'Order analytics & automation',
 			'Multi-store order routing'
 		]

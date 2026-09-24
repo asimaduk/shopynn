@@ -41,8 +41,12 @@ const CreateWarehouse = ({ navigation }) => {
     const [hasChanges, setHasChanges] = useState(false);
     const [showLocationPicker, setShowLocationPicker] = useState(false);
     const [locationOptions, setLocationOptions] = useState([]);
+    const [loadingLocations, setLoadingLocations] = useState(false);
+    const [locationsError, setLocationsError] = useState('');
 
     const fetchLocations = useCallback(async () => {
+        setLoadingLocations(true);
+        setLocationsError('');
         try {
             const raw = await locationsApi.list();
             const list = normalizeList(raw) || [];
@@ -50,8 +54,11 @@ const CreateWarehouse = ({ navigation }) => {
                 .map((item) => ({ id: item.id, name: item.name ?? item.label ?? String(item.id ?? '') }))
                 .filter((o) => o.name);
             setLocationOptions(options);
-        } catch (_) {
+        } catch (e) {
             setLocationOptions([]);
+            setLocationsError(e?.response?.data?.message || e?.message || 'Could not load locations.');
+        } finally {
+            setLoadingLocations(false);
         }
     }, []);
 
@@ -199,7 +206,10 @@ const CreateWarehouse = ({ navigation }) => {
                             </View>
                             <TouchableOpacity
                                 activeOpacity={0.7}
-                                onPress={() => setShowLocationPicker(true)}
+                                onPress={() => {
+                                    setShowLocationPicker(true);
+                                    fetchLocations();
+                                }}
                                 style={[styles.textInput, styles.dropdownTouchable, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }, errors.location && [styles.inputError, { borderColor: colors.error, backgroundColor: colors.errorLight }]]}>
                                 <AppText
                                     label={formData.location || 'Select location'}
@@ -310,7 +320,41 @@ const CreateWarehouse = ({ navigation }) => {
                     handleClose={() => setShowLocationPicker(false)}
                     onRequestClose={() => setShowLocationPicker(false)}>
                     <ScrollView style={[styles.modalList, { backgroundColor: colors.surface }]} keyboardShouldPersistTaps="handled">
-                        {locationOptions.map((opt) => (
+                        {loadingLocations ? (
+                            <View style={{ paddingVertical: 28, alignItems: 'center' }}>
+                                <ActivityIndicator size="small" color={config.THEME_COLOR} />
+                                <AppText
+                                    label="Loading locations…"
+                                    fontSize={13}
+                                    color={colors.textTertiary}
+                                    style={{ marginTop: 10 }}
+                                />
+                            </View>
+                        ) : null}
+                        {!loadingLocations && locationsError ? (
+                            <View style={{ padding: 16, alignItems: 'center' }}>
+                                <AppText label={locationsError} fontSize={13} color={colors.error} style={{ textAlign: 'center' }} />
+                                <TouchableOpacity
+                                    activeOpacity={0.7}
+                                    onPress={fetchLocations}
+                                    style={{ marginTop: 12, paddingVertical: 8, paddingHorizontal: 14 }}
+                                >
+                                    <AppText label="Retry" fontSize={14} variant={1} color={config.THEME_COLOR} />
+                                </TouchableOpacity>
+                            </View>
+                        ) : null}
+                        {!loadingLocations && !locationsError && locationOptions.length === 0 ? (
+                            <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 }}>
+                                <AppText
+                                    label="No locations yet. Add one to assign this warehouse."
+                                    fontSize={13}
+                                    color={colors.textTertiary}
+                                    style={{ textAlign: 'center', marginBottom: 8 }}
+                                />
+                            </View>
+                        ) : null}
+                        {!loadingLocations &&
+                            locationOptions.map((opt) => (
                             <TouchableOpacity
                                 key={opt.id ?? opt.name}
                                 activeOpacity={0.7}
@@ -333,7 +377,7 @@ const CreateWarehouse = ({ navigation }) => {
                                 navigation.navigate('CreateLocation');
                             }}
                             style={[styles.modalRow, styles.addLocationRow, { backgroundColor: colors.primaryShade, borderColor: colors.border }]}>
-                            <Lucide name="plus-circle" size={20} color={config.THEME_COLOR} />
+                            <Lucide name="circle-plus" size={20} color={config.THEME_COLOR} />
                             <AppText label="Add location" fontSize={16} variant={1} style={{ marginLeft: 12 }} color={config.THEME_COLOR} />
                         </TouchableOpacity>
                     </ScrollView>

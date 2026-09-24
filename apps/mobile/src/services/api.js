@@ -561,6 +561,7 @@ export const payments = {
     posAbandon: (body) => axios.post('/payments/pos-abandon', body).then((res) => getData(res)),
     posPark: (body) => axios.post('/payments/pos-park', body).then((res) => getData(res)),
     posPending: (params) => axios.get('/payments/pos-pending', { params }).then((res) => getData(res)),
+    posSale: (params) => axios.get('/payments/pos-sale', { params }).then((res) => getData(res)),
     byCustomer: (customerId, params) =>
         axios.get(`/payments/customer/${customerId}`, { params }).then((res) => getData(res)),
     verify: (reference) => axios.get('/payments/verify', { params: { reference } }).then((res) => getData(res)),
@@ -585,6 +586,8 @@ export const tenants = {
     updateMyCompanyInfo: (body) => axios.put('/tenants/update-my-company-info', body).then((res) => getData(res)),
     getPrinterSetupEntitlement: () =>
         axios.get('/tenants/me/printer-setup-entitlement').then((res) => getData(res)),
+    /** Show Go live checklist until the tenant has recorded a first sale. */
+    goLiveNav: () => axios.get('/tenants/me/go-live-nav').then((res) => getData(res)),
     /** Platform admin directory — requires tenants.directory.view */
     directoryList: (params) => axios.get('/tenants/admin/list', { params }).then((res) => getData(res)),
     directoryDetail: (id) => axios.get(`/tenants/admin/${id}`).then((res) => getData(res)),

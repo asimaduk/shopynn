@@ -83,9 +83,9 @@ const FEATURE_PREFIX_COPY: Record<string, UpgradeCopy> = {
 		bullets: ['Payment records', 'Order settlement', 'Scale operations']
 	},
 	'data_export.': {
-		featureTitle: 'Data export',
-		description: 'Export your business data for backup or analysis.',
-		bullets: ['CSV exports', 'Reports export', 'Compliance backups']
+		featureTitle: 'Product export',
+		description: 'Download your product catalog as CSV for analysis or archives.',
+		bullets: ['Product catalog CSV', 'SKU, prices & stock', 'Works on web and mobile']
 	},
 	'merchants.': {
 		featureTitle: 'Merchant / agent tools',
@@ -112,9 +112,11 @@ const NAV_ID_COPY: Record<string, UpgradeCopy> = {
 	'inventory.expiring': FEATURE_PREFIX_COPY['inventory.expiring'],
 	'trading.store-orders': FEATURE_PREFIX_COPY['orders.'],
 	'trading.order-payments': FEATURE_PREFIX_COPY['payments.view'],
+	'dashboards.reports': FEATURE_PREFIX_COPY['reports.'],
 	'adminTools.reports': FEATURE_PREFIX_COPY['reports.'],
 	'adminTools.notifications': FEATURE_PREFIX_COPY['notifications.'],
 	'adminTools.rolesPermissions': FEATURE_PREFIX_COPY['roles.'],
+	'people.users': FEATURE_PREFIX_COPY['users.'],
 	'usage.users': FEATURE_PREFIX_COPY['users.'],
 	'setups.locations': FEATURE_PREFIX_COPY['locations.'],
 	'setups.stores': FEATURE_PREFIX_COPY['stores.multi_access']

@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogContent, Divider, Paper, Stack, TextField, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
@@ -45,8 +45,12 @@ const ReceiptRow = ({ label, value }: { label: string; value: string }) => (
 
 export default function OrderPaymentDetailsPage() {
 	const theme = useTheme();
+	const pathname = usePathname();
 	const params = useParams<{ id: string }>();
 	const paymentId = String(params?.id || '');
+	const isPosSalePayment = pathname?.includes('/pos-sale-payments');
+	const listHref = isPosSalePayment ? '/trading/pos-sale-payments' : '/trading/order-payments';
+	const listLabel = isPosSalePayment ? 'Back to POS MoMo payments' : 'Back to order payments';
 	const { data, isLoading, refetch } = useGetPaymentReceiptQuery(paymentId, { skip: !paymentId });
 	const [reason, setReason] = useState('');
 	const [error, setError] = useState('');
@@ -156,7 +160,7 @@ export default function OrderPaymentDetailsPage() {
 	const summaryItems = [
 		{ label: 'Amount', value: formatMoney(data?.amount), icon: 'heroicons-outline:banknotes' },
 		{ label: 'Method', value: formatMethod(data?.payment_method_type), icon: 'heroicons-outline:credit-card' },
-		{ label: 'Order', value: data?.order_number || data?.order_id || '—', icon: 'heroicons-outline:receipt-percent' },
+		{ label: isPosSalePayment ? 'Sale' : 'Order', value: data?.sale_invoice_number || data?.order_number || data?.sale_id || data?.order_id || '—', icon: 'heroicons-outline:receipt-percent' },
 		{ label: 'Created', value: formatDateTime(data?.created_at), icon: 'heroicons-outline:calendar-days' }
 	];
 
@@ -195,8 +199,8 @@ export default function OrderPaymentDetailsPage() {
 						>
 							Print
 						</Button>
-						<Link href="/trading/order-payments" className="text-blue-600 hover:underline font-semibold">
-							Back to order payments
+						<Link href={listHref} className="text-blue-600 hover:underline font-semibold">
+							{listLabel}
 						</Link>
 					</Stack>
 				</Stack>
@@ -349,8 +353,15 @@ export default function OrderPaymentDetailsPage() {
 										ORDER & CUSTOMER
 									</Typography>
 									<Stack spacing={0.6} sx={{ mt: 0.7 }}>
-										<ReceiptRow label="Order" value={data?.order_number || data?.order_id || '—'} />
-										<ReceiptRow label="Ordered At" value={formatDateTime(data?.ordered_at)} />
+										<ReceiptRow
+											label={isPosSalePayment ? 'Sale' : 'Order'}
+											value={data?.sale_invoice_number || data?.order_number || data?.sale_id || data?.order_id || '—'}
+										/>
+										{isPosSalePayment ? (
+											<ReceiptRow label="Customer" value={data?.sale_customer_name || '—'} />
+										) : (
+											<ReceiptRow label="Ordered At" value={formatDateTime(data?.ordered_at)} />
+										)}
 										<ReceiptRow label="Customer" value={[data?.customer_first_name, data?.customer_last_name].filter(Boolean).join(' ') || data?.customer_email || '—'} />
 										<ReceiptRow label="Recorded By" value={[data?.creator_first_name, data?.creator_last_name].filter(Boolean).join(' ') || 'System'} />
 									</Stack>

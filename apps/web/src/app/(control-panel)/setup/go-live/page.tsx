@@ -10,6 +10,9 @@ import Typography from '@mui/material/Typography';
 import { alpha, useTheme } from '@mui/material/styles';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import useUser from '@auth/useUser';
+import { useGetGoLiveNavQuery } from 'src/app/(control-panel)/billing/SubscriptionApi';
 import {
 	GO_LIVE_STEPS,
 	readGoLiveDone,
@@ -19,6 +22,11 @@ import {
 
 export default function GoLiveWizardPage() {
 	const theme = useTheme();
+	const router = useRouter();
+	const { data: user } = useUser();
+	const { data: goLiveNav, isSuccess } = useGetGoLiveNavQuery(undefined, {
+		skip: !user?.id
+	});
 	const [done, setDone] = useState<Record<GoLiveStepId, boolean>>({
 		store: false,
 		products: false,
@@ -29,6 +37,13 @@ export default function GoLiveWizardPage() {
 	useEffect(() => {
 		setDone(readGoLiveDone());
 	}, []);
+
+	useEffect(() => {
+		if (!isSuccess) return;
+		if (goLiveNav?.has_first_sale || user?.company?.has_first_sale) {
+			router.replace('/dashboards/analytics');
+		}
+	}, [isSuccess, goLiveNav?.has_first_sale, user?.company?.has_first_sale, router]);
 
 	const toggle = useCallback((id: GoLiveStepId) => {
 		setDone((prev) => {
@@ -43,6 +58,10 @@ export default function GoLiveWizardPage() {
 		[done]
 	);
 	const allDone = completedCount === GO_LIVE_STEPS.length;
+
+	if (user?.company?.has_first_sale || goLiveNav?.has_first_sale) {
+		return null;
+	}
 
 	return (
 		<Box className="w-full max-w-3xl mx-auto px-4 sm:px-6 py-8 pb-16">

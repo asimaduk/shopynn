@@ -44,10 +44,14 @@ export type PaymentRecord = {
 	warehouse_name?: string;
 };
 
-const subscriptionTagTypes = ['payoutProfile', 'settlements', 'posPendingMomo'] as const;
+const subscriptionTagTypes = ['payoutProfile', 'settlements', 'posPendingMomo', 'GoLiveNav', 'appVersions'] as const;
 
 const SubscriptionApi = api.enhanceEndpoints({ addTagTypes: subscriptionTagTypes }).injectEndpoints({
 	endpoints: (build) => ({
+		getGoLiveNav: build.query<{ show_go_live: boolean; has_first_sale: boolean }, void>({
+			query: () => ({ url: '/api/tenants/me/go-live-nav' }),
+			providesTags: ['GoLiveNav']
+		}),
 		getCurrentSubscription: build.query<SubscriptionCurrent | null, void | { payments_limit?: number }>({
 			query: (arg) => ({
 				url: '/api/subscriptions/current',
@@ -108,6 +112,10 @@ const SubscriptionApi = api.enhanceEndpoints({ addTagTypes: subscriptionTagTypes
 			transformResponse: (raw: any) => (Array.isArray(raw) ? raw : raw?.items ?? raw?.list ?? raw?.data ?? []),
 			providesTags: ['posPendingMomo']
 		}),
+		getPosSalePayments: build.query<PaymentRecord[], Record<string, any> | void>({
+			query: (params) => ({ url: '/api/payments/pos-sale', params: params || undefined }),
+			transformResponse: (raw: any) => (Array.isArray(raw) ? raw : raw?.items ?? raw?.list ?? raw?.data ?? [])
+		}),
 		onboardSubscription: build.mutation<any, { subscription_type: number }>({
 			query: (body) => ({ url: '/api/subscriptions/onboard', method: 'POST', body })
 		}),
@@ -119,6 +127,34 @@ const SubscriptionApi = api.enhanceEndpoints({ addTagTypes: subscriptionTagTypes
 			void
 		>({
 			query: () => ({ url: '/api/platform-settings/momo-payment-charge' })
+		}),
+		getAppVersions: build.query<
+			Array<{
+				id: string;
+				platform: string;
+				latest_version: string;
+				min_supported_version: string;
+				force_update: boolean;
+				status: string;
+				store_url?: string | null;
+				release_notes?: string | null;
+				created_at?: string;
+				updated_at?: string;
+			}>,
+			{ platform?: string; status?: string } | void
+		>({
+			query: (params) => ({ url: '/api/app-versions', params: params || undefined }),
+			transformResponse: (raw: any) =>
+				Array.isArray(raw) ? raw : raw?.items ?? raw?.list ?? raw?.data ?? [],
+			providesTags: ['appVersions']
+		}),
+		createAppVersion: build.mutation<any, Record<string, unknown>>({
+			query: (body) => ({ url: '/api/app-versions', method: 'POST', body }),
+			invalidatesTags: ['appVersions']
+		}),
+		updateAppVersion: build.mutation<any, { id: string; body: Record<string, unknown> }>({
+			query: ({ id, body }) => ({ url: `/api/app-versions/${id}`, method: 'PUT', body }),
+			invalidatesTags: ['appVersions']
 		}),
 		updateMomoPaymentCharge: build.mutation<
 			{ enabled: boolean; percent: number; min_percent: number },
@@ -192,8 +228,12 @@ export const {
 	useParkPosMomoPaymentMutation,
 	useGetPendingPosMomoPaymentsQuery,
 	useLazyGetPendingPosMomoPaymentsQuery,
+	useGetPosSalePaymentsQuery,
 	useGetMomoPaymentChargeQuery,
 	useUpdateMomoPaymentChargeMutation,
+	useGetAppVersionsQuery,
+	useCreateAppVersionMutation,
+	useUpdateAppVersionMutation,
 	useGetMySettlementSummaryQuery,
 	useGetMySettlementsQuery,
 	useGetMyPayoutProfileQuery,
@@ -201,7 +241,8 @@ export const {
 	useLazyResolvePayoutAccountQuery,
 	useUpdateMyPayoutProfileMutation,
 	useRequestMyWithdrawalMutation,
-	useRetryMyWithdrawalMutation
+	useRetryMyWithdrawalMutation,
+	useGetGoLiveNavQuery
 } = SubscriptionApi;
 
 export default SubscriptionApi;

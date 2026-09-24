@@ -11,6 +11,7 @@ import {
     updateTenant,
     updateMyCompanyInfo,
     getMyPrinterSetupEntitlement,
+    getMyGoLiveNav,
     listTenantsDirectory,
     getTenantDirectoryDetail,
     assignTenantServingMerchant,
@@ -44,6 +45,12 @@ router.get(
     auth,
     requireActiveSubscription,
     getMyPrinterSetupEntitlement
+);
+router.get(
+    "/me/go-live-nav",
+    auth,
+    requireActiveSubscription,
+    getMyGoLiveNav
 );
 router.get(
     "/me/settlements/summary",

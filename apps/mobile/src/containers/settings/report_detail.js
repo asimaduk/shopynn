@@ -605,6 +605,12 @@ const ReportDetail = ({ navigation, route }) => {
     const handleDateRangeSelect = (value) => {
         if (value === 'custom') {
             setShowDateFilter(false);
+            const end = clampToToday(appliedCustomRange.end);
+            const start = appliedCustomRange.start > end ? end : appliedCustomRange.start;
+            setCustomStartDate(start);
+            setCustomEndDate(end);
+            setPickerStartDate(start);
+            setPickerEndDate(end);
             setShowCustomDatePicker(true);
         } else {
             setSelectedDateRange(value);
@@ -612,8 +618,22 @@ const ReportDetail = ({ navigation, route }) => {
         }
     };
 
+    const getToday = () => {
+        const now = new Date();
+        return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    };
+
+    const clampToToday = (date) => {
+        const today = getToday();
+        return date > today ? today : date;
+    };
+
     const handleApplyCustomRange = () => {
-        setAppliedCustomRange({ start: customStartDate, end: customEndDate });
+        const end = clampToToday(customEndDate);
+        const start = customStartDate > end ? end : customStartDate;
+        setCustomStartDate(start);
+        setCustomEndDate(end);
+        setAppliedCustomRange({ start, end });
         setSelectedDateRange('custom');
         setShowCustomDatePicker(false);
     };
@@ -625,7 +645,7 @@ const ReportDetail = ({ navigation, route }) => {
 
     const getDateRangeLabel = () => {
         if (selectedDateRange === 'custom') {
-            return `${formatDate(customStartDate)} - ${formatDate(customEndDate)}`;
+            return `${formatDate(appliedCustomRange.start)} - ${formatDate(appliedCustomRange.end)}`;
         }
         const range = dateRanges.find((r) => r.value === selectedDateRange);
         return range ? range.label : 'All Time';
@@ -650,12 +670,12 @@ const ReportDetail = ({ navigation, route }) => {
                 setTimeout(() => setShowCustomDatePicker(true), 100);
                 return;
             }
-            if (selectedDate) setCustomStartDate(selectedDate);
+            if (selectedDate) setCustomStartDate(clampToToday(selectedDate));
             setTimeout(() => setShowCustomDatePicker(true), 100);
             return;
         }
         // iOS spinner fires on every wheel tick — keep it in draft only.
-        if (selectedDate) setPickerStartDate(selectedDate);
+        if (selectedDate) setPickerStartDate(clampToToday(selectedDate));
     };
 
     const onEndDateChange = (event, selectedDate) => {
@@ -665,11 +685,11 @@ const ReportDetail = ({ navigation, route }) => {
                 setTimeout(() => setShowCustomDatePicker(true), 100);
                 return;
             }
-            if (selectedDate) setCustomEndDate(selectedDate);
+            if (selectedDate) setCustomEndDate(clampToToday(selectedDate));
             setTimeout(() => setShowCustomDatePicker(true), 100);
             return;
         }
-        if (selectedDate) setPickerEndDate(selectedDate);
+        if (selectedDate) setPickerEndDate(clampToToday(selectedDate));
     };
 
     const data = reportData;// || SAMPLE[reportId] || SAMPLE['stock-summary'];
@@ -1283,13 +1303,13 @@ const ReportDetail = ({ navigation, route }) => {
                             mode="date"
                             display="spinner"
                             onChange={onStartDateChange}
-                            maximumDate={customEndDate}
+                            maximumDate={clampToToday(customEndDate)}
                             style={{ width: '100%', height: 200 }}
                         />
                         <TouchableOpacity
                             activeOpacity={0.8}
                             onPress={() => {
-                                setCustomStartDate(pickerStartDate);
+                                setCustomStartDate(clampToToday(pickerStartDate));
                                 setShowStartPicker(false);
                                 setTimeout(() => setShowCustomDatePicker(true), 100);
                             }}
@@ -1305,7 +1325,7 @@ const ReportDetail = ({ navigation, route }) => {
                     mode="date"
                     display="default"
                     onChange={onStartDateChange}
-                    maximumDate={customEndDate}
+                    maximumDate={clampToToday(customEndDate)}
                 />
             )}
             {Platform.OS === 'ios' && showEndPicker && (
@@ -1316,17 +1336,18 @@ const ReportDetail = ({ navigation, route }) => {
                     onRequestClose={() => setShowEndPicker(false)}>
                     <View style={{ padding: 20, backgroundColor: colors.surface }}>
                         <DateTimePicker
-                            value={pickerEndDate}
+                            value={clampToToday(pickerEndDate)}
                             mode="date"
                             display="spinner"
                             onChange={onEndDateChange}
                             minimumDate={customStartDate}
+                            maximumDate={getToday()}
                             style={{ width: '100%', height: 200 }}
                         />
                         <TouchableOpacity
                             activeOpacity={0.8}
                             onPress={() => {
-                                setCustomEndDate(pickerEndDate);
+                                setCustomEndDate(clampToToday(pickerEndDate));
                                 setShowEndPicker(false);
                                 setTimeout(() => setShowCustomDatePicker(true), 100);
                             }}
@@ -1338,11 +1359,12 @@ const ReportDetail = ({ navigation, route }) => {
             )}
             {Platform.OS === 'android' && showEndPicker && (
                 <DateTimePicker
-                    value={customEndDate}
+                    value={clampToToday(customEndDate)}
                     mode="date"
                     display="default"
                     onChange={onEndDateChange}
                     minimumDate={customStartDate}
+                    maximumDate={getToday()}
                 />
             )}
 

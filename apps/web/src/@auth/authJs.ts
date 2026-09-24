@@ -205,6 +205,7 @@ const config = {
 									industry: __data.company.industry ?? null,
 									industry_id: __data.company.industry_id ?? null,
 									logo: __data.company.logo ?? null,
+									has_first_sale: Boolean(__data.company.has_first_sale),
 									settings: __data.company.settings ?? null,
 									plan_usage: planUsageFromApi ?? undefined,
 									subscription: subscriptionFromApi

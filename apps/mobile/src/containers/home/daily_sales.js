@@ -187,11 +187,23 @@ const DailySales = ({ navigation }) => {
 
     const getCustomRangeLabel = () => `${formatDate(customStartDate)} - ${formatDate(customEndDate)}`;
 
+    const getToday = () => {
+        const now = new Date();
+        return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    };
+
+    const clampToToday = (date) => {
+        const today = getToday();
+        return date > today ? today : date;
+    };
+
     const handlePeriodPress = (p) => {
         if (p.days === 'custom') {
-            // Open modal with draft initialized to applied range
-            setDraftStartDate(customStartDate);
-            setDraftEndDate(customEndDate);
+            // Open modal with draft initialized to applied range (clamped)
+            const end = clampToToday(customEndDate);
+            const start = customStartDate > end ? end : customStartDate;
+            setDraftStartDate(start);
+            setDraftEndDate(end);
             setShowCustomDateModal(true);
         } else {
             setPeriod(p.days);
@@ -199,14 +211,11 @@ const DailySales = ({ navigation }) => {
     };
 
     const handleApplyCustomRange = () => {
-        // Normalize to full-day bounds (start-of-day → end-of-day)
-        let start = draftStartDate;
-        let end = draftEndDate;
- 
-        if (start.getTime() > end.getTime()) {
-            end = new Date(start.getTime());
-        }
-        // console.log('handleApplyCustomRange', start, end);
+        // Normalize to full-day bounds; clamp end to today; ensure start ≤ end
+        const end = clampToToday(draftEndDate);
+        const start = draftStartDate > end ? end : draftStartDate;
+        setDraftStartDate(start);
+        setDraftEndDate(end);
         setCustomStartDate(start);
         setCustomEndDate(end);
         setPeriod('custom');
@@ -214,12 +223,12 @@ const DailySales = ({ navigation }) => {
     };
 
     const onStartDateChange = (event, selectedDate) => {
-        if (selectedDate) setDraftStartDate(selectedDate);
+        if (selectedDate) setDraftStartDate(clampToToday(selectedDate));
         if (Platform.OS === 'android') setShowStartPicker(false);
     };
 
     const onEndDateChange = (event, selectedDate) => {
-        if (selectedDate) setDraftEndDate(selectedDate);
+        if (selectedDate) setDraftEndDate(clampToToday(selectedDate));
         if (Platform.OS === 'android') setShowEndPicker(false);
     };
 
@@ -466,7 +475,7 @@ const DailySales = ({ navigation }) => {
                             mode="date"
                             display="spinner"
                             onChange={onStartDateChange}
-                            maximumDate={draftEndDate}
+                            maximumDate={clampToToday(draftEndDate)}
                             style={{ width: '100%', height: 200 }}
                         />
                         <TouchableOpacity
@@ -487,7 +496,7 @@ const DailySales = ({ navigation }) => {
                     mode="date"
                     display="default"
                     onChange={onStartDateChange}
-                    maximumDate={draftEndDate}
+                    maximumDate={clampToToday(draftEndDate)}
                 />
             )}
             {Platform.OS === 'ios' && showEndPicker && (
@@ -498,16 +507,18 @@ const DailySales = ({ navigation }) => {
                     onRequestClose={() => setShowEndPicker(false)}>
                     <View style={{ padding: 20, backgroundColor: colors.surface }}>
                         <DateTimePicker
-                            value={draftEndDate}
+                            value={clampToToday(draftEndDate)}
                             mode="date"
                             display="spinner"
                             onChange={onEndDateChange}
                             minimumDate={draftStartDate}
+                            maximumDate={getToday()}
                             style={{ width: '100%', height: 200 }}
                         />
                         <TouchableOpacity
                             activeOpacity={0.8}
                             onPress={() => {
+                                setDraftEndDate(clampToToday(draftEndDate));
                                 setShowEndPicker(false);
                                 setTimeout(() => setShowCustomDateModal(true), 100);
                             }}
@@ -519,11 +530,12 @@ const DailySales = ({ navigation }) => {
             )}
             {Platform.OS === 'android' && showEndPicker && (
                 <DateTimePicker
-                    value={draftEndDate}
+                    value={clampToToday(draftEndDate)}
                     mode="date"
                     display="default"
                     onChange={onEndDateChange}
                     minimumDate={draftStartDate}
+                    maximumDate={getToday()}
                 />
             )}
         </SafeAreaView>
