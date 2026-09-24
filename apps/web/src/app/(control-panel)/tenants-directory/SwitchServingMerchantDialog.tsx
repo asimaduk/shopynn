@@ -77,13 +77,13 @@ export default function SwitchServingMerchantDialog({
 				<Typography variant="body2" color="text.secondary">
 					{tenantName ? (
 						<>
-							Choose who earns the <strong>5% subscription residual</strong> for{' '}
+							Choose who earns the <strong>10% subscription residual</strong> for{' '}
 							<strong>{tenantName}</strong>. Clear the agent to end residual (Shopynn support
 							takes over).
 						</>
 					) : (
 						<>
-							Choose who earns the <strong>5% subscription residual</strong> for this shop. Clear
+							Choose who earns the <strong>10% subscription residual</strong> for this shop. Clear
 							to end residual.
 						</>
 					)}

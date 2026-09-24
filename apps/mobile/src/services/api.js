@@ -582,6 +582,8 @@ export const tenants = {
     /** Public self-serve shop signup: tenant + subscription + owner user */
     setup: (body) => axios.post('/tenants/setup', body).then((res) => getData(res)),
     updateMyCompanyInfo: (body) => axios.put('/tenants/update-my-company-info', body).then((res) => getData(res)),
+    getPrinterSetupEntitlement: () =>
+        axios.get('/tenants/me/printer-setup-entitlement').then((res) => getData(res)),
     /** Platform admin directory — requires tenants.directory.view */
     directoryList: (params) => axios.get('/tenants/admin/list', { params }).then((res) => getData(res)),
     directoryDetail: (id) => axios.get(`/tenants/admin/${id}`).then((res) => getData(res)),

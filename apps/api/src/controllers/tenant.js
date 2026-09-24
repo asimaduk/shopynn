@@ -8,6 +8,7 @@ import {
     getTenantDirectoryDetailService,
 } from "../models/tenant.js";
 import { assignServingMerchantService } from "../models/merchant.js";
+import { getPrinterSetupEntitlementForTenantService } from "../models/onboardingQuote.js";
 
 export const createTenant = async (req, res, next) => {
     try {
@@ -128,6 +129,19 @@ export const updateMyCompanyInfo = async (req, res, next) => {
             return handleResponse(res, 404, error.message, null);
         }
         if (error.code === "23505") return handleResponse(res, 400, "Duplicate phone or invalid input.", null);
+        next(error);
+    }
+};
+
+/** GET /tenants/me/printer-setup-entitlement — whether thermal setup is unlocked (paid go-live or printer addon). */
+export const getMyPrinterSetupEntitlement = async (req, res, next) => {
+    try {
+        if (!req.user) return handleResponse(res, 401, "Authentication required.", null);
+        const tenant_id = req.user.tenant_id;
+        if (!tenant_id) return handleResponse(res, 400, "User has no tenant.", null);
+        const entitlement = await getPrinterSetupEntitlementForTenantService(tenant_id);
+        handleResponse(res, 200, entitlement.message, entitlement);
+    } catch (error) {
         next(error);
     }
 };

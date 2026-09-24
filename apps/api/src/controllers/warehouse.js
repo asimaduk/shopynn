@@ -1,11 +1,29 @@
 import { createWarehouseService, getAllWarehousesService, getWarehouseByIdService, updateWarehouseService } from "../models/warehouse.js";
 import { handleResponse } from "../util/handleresponse.js";
 import { hasFeature } from "../middleware/requireFeature.js";
+import { getPrinterSetupEntitlementForTenantService } from "../models/onboardingQuote.js";
 
 const CUSTOMER_SIGNUP_CODES_FEATURE = "orders.create";
 
 function allowCustomerSignupCodes(req) {
     return hasFeature(req, CUSTOMER_SIGNUP_CODES_FEATURE);
+}
+
+function wantsThermalPrinter(body) {
+    const raw = body?.printer_type;
+    if (raw == null) return false;
+    return String(raw).trim().toLowerCase() === "thermal";
+}
+
+async function assertThermalPrinterAllowed(req, res) {
+    const tenantId = req.body?.tenant_id ?? req.user?.tenant_id;
+    const entitlement = await getPrinterSetupEntitlementForTenantService(tenantId);
+    if (entitlement.entitled) return null;
+    handleResponse(res, 403, entitlement.message, {
+        code: entitlement.code || "PRINTER_SETUP_PAYMENT_REQUIRED",
+        printer_setup_ghs: entitlement.printer_setup_ghs,
+    });
+    return entitlement;
 }
 
 export const createWarehouse = async (req, res, next) => {
@@ -20,6 +38,10 @@ export const createWarehouse = async (req, res, next) => {
                 code: "FEATURE_NOT_AVAILABLE",
                 requiredFeatures: [CUSTOMER_SIGNUP_CODES_FEATURE],
             });
+        }
+        if (wantsThermalPrinter(body)) {
+            const blocked = await assertThermalPrinterAllowed(req, res);
+            if (blocked) return;
         }
         const newWarehouse = await createWarehouseService(body, {
             allowReferenceCodes: allowCustomerSignupCodes(req),
@@ -64,6 +86,15 @@ export const updateWarehouse = async (req, res, next) => {
                 code: "FEATURE_NOT_AVAILABLE",
                 requiredFeatures: [CUSTOMER_SIGNUP_CODES_FEATURE],
             });
+        }
+        if (wantsThermalPrinter(req.body)) {
+            const existing = await getWarehouseByIdService(req.params.id);
+            const alreadyThermal =
+                existing && String(existing.printer_type || "").toLowerCase() === "thermal";
+            if (!alreadyThermal) {
+                const blocked = await assertThermalPrinterAllowed(req, res);
+                if (blocked) return;
+            }
         }
         const updatedWarehouse = await updateWarehouseService(req.body, {
             allowReferenceCodes: allowCustomerSignupCodes(req),

@@ -16,8 +16,13 @@ export const TIER_TO_SUBSCRIPTION_TYPE = {
 /** Fallback amounts if DB catalog is empty (matches seed migration). */
 export const FALLBACK_CATALOG_AMOUNTS = {
     subscription_monthly: { free: 0, basic: 149, standard: 349, premium: 649 },
-    onboarding: { basic: 700, standard: 1300, premium: 2000 },
+    onboarding: { basic: 500, standard: 1300, premium: 2000 },
+    /** Standalone thermal printer pairing help (not full go-live). */
+    printer_setup: 150,
 };
+
+/** Catalog code for standalone printer setup add-on. */
+export const PRINTER_SETUP_ADDON_CODE = "addon_printer_setup";
 
 /**
  * Canonical catalog seed rows (same as migrations/20260526 + 20260909_reseed).
@@ -42,7 +47,7 @@ export const DEFAULT_BILLING_CATALOG_SEED = [
         label: "Starter monthly",
         description: "Monthly subscription",
         amount_ghs: 149,
-        commission_eligible: "subscription_residual_5",
+        commission_eligible: "subscription_residual_10",
         is_active: true,
         sort_order: 10,
     },
@@ -53,7 +58,7 @@ export const DEFAULT_BILLING_CATALOG_SEED = [
         label: "Business monthly",
         description: "Monthly subscription",
         amount_ghs: 349,
-        commission_eligible: "subscription_residual_5",
+        commission_eligible: "subscription_residual_10",
         is_active: true,
         sort_order: 20,
     },
@@ -64,7 +69,7 @@ export const DEFAULT_BILLING_CATALOG_SEED = [
         label: "Scale monthly",
         description: "Monthly subscription",
         amount_ghs: 649,
-        commission_eligible: "subscription_residual_5",
+        commission_eligible: "subscription_residual_10",
         is_active: true,
         sort_order: 30,
     },
@@ -75,7 +80,7 @@ export const DEFAULT_BILLING_CATALOG_SEED = [
         label: "Basic assisted go-live",
         description:
             "Setup & training including product import and opening stock for a typical single shop.",
-        amount_ghs: 700,
+        amount_ghs: 500,
         commission_eligible: "onboarding_15",
         is_active: true,
         sort_order: 11,
@@ -149,15 +154,27 @@ export const DEFAULT_BILLING_CATALOG_SEED = [
         is_active: true,
         sort_order: 130,
     },
+    {
+        code: "addon_printer_setup",
+        item_type: "addon",
+        plan_tier: null,
+        label: "Thermal printer setup",
+        description:
+            "Standalone help pairing a receipt/thermal printer and test print. Included free when the shop pays for assisted go-live.",
+        amount_ghs: 150,
+        commission_eligible: "none",
+        is_active: true,
+        sort_order: 140,
+    },
 ];
 
 /** One-time assisted onboarding line commission (15%). */
 export const ONBOARDING_COMMISSION_RATE = 0.15;
 /**
  * Residual commission on paid subscription months (including first), while a serving agent is assigned.
- * Replaces the former one-time 10% first-month special.
+ * Replaces the former one-time 10% first-month special / 5% residual.
  */
-export const SUBSCRIPTION_RESIDUAL_COMMISSION_RATE = 0.05;
+export const SUBSCRIPTION_RESIDUAL_COMMISSION_RATE = 0.1;
 /** @deprecated Use SUBSCRIPTION_RESIDUAL_COMMISSION_RATE — kept for older quote line tags. */
 export const SUBSCRIPTION_FIRST_MONTH_COMMISSION_RATE = SUBSCRIPTION_RESIDUAL_COMMISSION_RATE;
 export const ONBOARDING_COMMISSION_CLAWBACK_DAYS = 30;
@@ -169,8 +186,10 @@ export const COMMISSION_KIND = {
 
 export const COMMISSION_ELIGIBLE = {
     ONBOARDING_15: "onboarding_15",
+    SUBSCRIPTION_RESIDUAL_10: "subscription_residual_10",
+    /** Legacy catalog / quote snapshots — still residual-eligible at current rate. */
     SUBSCRIPTION_RESIDUAL_5: "subscription_residual_5",
-    /** Legacy quote snapshots — treated as residual 5%. */
+    /** Legacy quote snapshots — treated as residual at current rate. */
     SUBSCRIPTION_FIRST_MONTH_10: "subscription_first_month_10",
     NONE: "none",
 };

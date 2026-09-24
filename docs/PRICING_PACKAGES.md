@@ -26,7 +26,7 @@ Budget-friendly monthly tiers (Ghana), hosting included, WhatsApp support.
 
 Includes product import (CSV) and opening stock setup for a typical shop.
 
-- Basic assisted go-live: **GHS 700**
+- Basic assisted go-live: **GHS 500**
 - Standard assisted go-live: **GHS 1,300**
 - Premium assisted go-live: **GHS 2,000**
 - Self-serve (owner sets up alone): **GHS 0**
@@ -35,6 +35,18 @@ Includes product import (CSV) and opening stock setup for a typical shop.
 
 - Data migration from another system: catalog price (default **GHS 3,000**)
 - Extra training day: catalog price (default **GHS 1,000**)
+- Thermal printer setup alone: **GHS 150** (included free with assisted go-live)
+
+### Unlocking thermal printer in the app
+
+Setting a store to **Thermal receipt** is blocked until Shopynn has received payment for either:
+
+1. **Assisted go-live** (onboarding line on a paid quote), which includes printer help, or  
+2. **Printer setup alone** (`addon_printer_setup`, GHS 150) via an add-on quote paid to Shopynn.
+
+API: `GET /api/tenants/me/printer-setup-entitlement` · warehouse create/update returns `403` + `PRINTER_SETUP_PAYMENT_REQUIRED` if locked.
+
+Agents must not collect cash for this — owner pays Shopynn; welcome SMS lists official fees.
 
 ## Notes
 

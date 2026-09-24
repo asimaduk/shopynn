@@ -9,10 +9,12 @@ import {
     SUBSCRIPTION_TYPE_TO_TIER,
     COMMISSION_KIND,
     COMMISSION_ELIGIBLE,
+    PRINTER_SETUP_ADDON_CODE,
 } from "../constants/billingCatalog.js";
 import {
     resolveSubscriptionTypeConfigService,
     getOnboardingFeeForTypeService,
+    getPrinterSetupFeeService,
     resolveAddonItemsByCodesService,
 } from "./billingCatalog.js";
 import {
@@ -80,7 +82,7 @@ export const buildQuoteLinesForOnboardService = async (subscription_type, addon_
             line_type: "subscription_monthly",
             label: `${subConfig.name} — first month`,
             amount_ghs: subConfig.amount,
-            commission_eligible: COMMISSION_ELIGIBLE.SUBSCRIPTION_RESIDUAL_5,
+            commission_eligible: COMMISSION_ELIGIBLE.SUBSCRIPTION_RESIDUAL_10,
             sort_order: sort++,
         });
     }
@@ -228,6 +230,7 @@ export const merchantCanAccessTenantService = async (merchantId, tenantId) => {
 };
 
 const isSubscriptionResidualEligible = (tag) =>
+    tag === COMMISSION_ELIGIBLE.SUBSCRIPTION_RESIDUAL_10 ||
     tag === COMMISSION_ELIGIBLE.SUBSCRIPTION_RESIDUAL_5 ||
     tag === COMMISSION_ELIGIBLE.SUBSCRIPTION_FIRST_MONTH_10;
 
@@ -310,6 +313,41 @@ export const tenantHasPaidOnboardingBundleService = async (tenantId) => {
         [tenantId, QUOTE_STATUS.PAID, QUOTE_KIND.FULL_ONBOARD, QUOTE_KIND.UPGRADE_COLLECT]
     );
     return r.rowCount > 0;
+};
+
+/**
+ * Thermal printer setup unlock: paid assisted go-live line OR paid addon_printer_setup.
+ */
+export const tenantHasPrinterSetupEntitlementService = async (tenantId) => {
+    if (!tenantId) return false;
+    const r = await pool.query(
+        `SELECT 1
+         FROM onboarding_quotes q
+         INNER JOIN onboarding_quote_lines l ON l.quote_id = q.id
+         WHERE q.tenant_id = $1
+           AND q.status = $2
+           AND (
+             l.line_type = 'onboarding'
+             OR l.code = $3
+           )
+         LIMIT 1`,
+        [tenantId, QUOTE_STATUS.PAID, PRINTER_SETUP_ADDON_CODE]
+    );
+    return r.rowCount > 0;
+};
+
+export const getPrinterSetupEntitlementForTenantService = async (tenantId) => {
+    const entitled = await tenantHasPrinterSetupEntitlementService(tenantId);
+    const printer_setup_ghs = await getPrinterSetupFeeService();
+    return {
+        entitled,
+        unlock: entitled ? "paid_assisted_or_printer_addon" : null,
+        printer_setup_ghs,
+        message: entitled
+            ? "Thermal printer setup is unlocked for this business."
+            : `Thermal printer setup requires payment: assisted go-live (includes printer) or printer setup alone (GHS ${printer_setup_ghs}). Pay Shopynn only — never cash to an agent.`,
+        code: entitled ? null : "PRINTER_SETUP_PAYMENT_REQUIRED",
+    };
 };
 
 export const createUpgradeCollectQuoteForTenantService = async ({

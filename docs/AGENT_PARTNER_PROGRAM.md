@@ -24,7 +24,7 @@ You act as an **independent sales agent**. You introduce businesses you meet in 
 | **Business** | **349** | **Multi-branch, transfers, roles (expected most common)** |
 | Scale | 649 | Full platform + customer online ordering |
 
-**Optional assisted go-live (setup / training):** GHS 700 (Basic) · 1,300 (Standard) · 2,000 (Premium). Includes product import and opening stock. Self-serve shops pay **GHS 0** for setup. True extras (data migration from another system, extra training day) are sold separately.
+**Optional assisted go-live (setup / training):** GHS 500 (Basic) · 1,300 (Standard) · 2,000 (Premium). Includes product import and opening stock. Self-serve shops pay **GHS 0** for setup. True extras (data migration from another system, extra training day) are sold separately.
 
 Hosting is included in the monthly subscription. Support is via WhatsApp (business hours; priority on Premium).
 
@@ -55,14 +55,14 @@ Commission is calculated on **amounts actually received by Shopynn via Digital c
 | Fee type | Commission rate | When it applies |
 |----------|-----------------|-----------------|
 | **Assisted onboarding / go-live fee** | **15%** (one-time) | Only when the shop pays for assisted setup |
-| **Subscription (every paid month)** | **5% residual** | While you remain the shop’s **serving agent** (including first month) |
+| **Subscription (every paid month)** | **10% residual** | While you remain the shop’s **serving agent** (including first month) |
 
 Residual stops if Shopynn clears or reassigns the serving agent (e.g. you leave the program or fail to support the shop after notice).
 
 ### Example — Standard plan with assisted go-live
 
 - Assisted go-live: GHS 1,300 → commission **GHS 195** (15%)
-- Monthly subscription: GHS 349 → residual **GHS ~17.45** each paid month (5%)
+- Monthly subscription: GHS 349 → residual **GHS ~34.90** each paid month (10%)
 
 Self-serve shops (no assisted go-live fee) still pay subscription only; you earn residual if you remain their serving agent.
 
@@ -118,6 +118,18 @@ Commission may be **reduced or reversed** if:
 
 You may help the shop complete a digital channel payment on-site (e.g. on their phone), but payment must complete to **Shopynn’s Payment channels**, not your personal wallet.
 
+### Official fees (anti-overcharge)
+
+When you onboard a shop, Shopynn sends the owner a **welcome SMS** with official prices for their plan. Agents must not invent or collect extra “setup” cash.
+
+| Item | Official amount |
+|------|-----------------|
+| Monthly subscription | Per plan (Starter 149 · Business 349 · Scale 649) |
+| Assisted go-live | Per plan (500 · 1,300 · 2,000) — **includes** printer help |
+| Thermal printer setup alone | **GHS 150** (only if they skip full assisted go-live) |
+
+Shops are told: **pay Shopynn only**; refuse any agent who asks for more and contact Shopynn.
+
 ---
 
 ## 9. Suggested targets (penetration phase)
@@ -164,7 +176,7 @@ Quality and retention matter more than unsigned trials.
 
 ## 13. Summary
 
-You introduce shops to Shopynn; they pay **onboarding** and **first-month subscription** via **Digital channels**. You earn **15%** of the onboarding fee (once) and **10%** of the first subscription payment (once) per business you registered. Commission is paid after successful payment and may be adjusted if the business cancels early. You are an independent agent, not an employee.
+You introduce shops to Shopynn; they pay **onboarding** and **subscription** via **Digital channels**. You earn **15%** of the assisted onboarding fee (once) and **10% residual** on every paid subscription month while you remain the serving agent. Commission is paid after successful payment and may be adjusted if the business cancels early. You are an independent agent, not an employee.
 
 **Contact:** _________________________________  
 **WhatsApp / email:** _________________________________

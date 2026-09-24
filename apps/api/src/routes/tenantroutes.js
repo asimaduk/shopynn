@@ -10,6 +10,7 @@ import {
     setupTenant,
     updateTenant,
     updateMyCompanyInfo,
+    getMyPrinterSetupEntitlement,
     listTenantsDirectory,
     getTenantDirectoryDetail,
     assignTenantServingMerchant,
@@ -38,6 +39,12 @@ router.post("/setup", setupTenant);
 router.post("/", createTenant);
 router.get("/", getTenants);
 router.put("/update-my-company-info", auth, requireActiveSubscription, updateMyCompanyInfo);
+router.get(
+    "/me/printer-setup-entitlement",
+    auth,
+    requireActiveSubscription,
+    getMyPrinterSetupEntitlement
+);
 router.get(
     "/me/settlements/summary",
     auth,

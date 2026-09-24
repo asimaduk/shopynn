@@ -12,6 +12,7 @@ import {
     merchantCanAccessTenantService,
     getOnboardingQuoteByIdService,
 } from "./onboardingQuote.js";
+import { sendAgentOnboardWelcomeSmsService } from "../services/agentOnboardWelcomeSms.js";
 
 /** Tenant role reused for every field agent; only `merchants.operate` is attached (plus any you add manually). */
 export const FIELD_AGENT_ROLE_NAME = "Field agent";
@@ -110,6 +111,17 @@ export const onboardBusinessForMerchantService = async (merchantRow, payload) =>
          VALUES ($1, $2, $3, NULL, $4, $5, now())`,
         [uuidv4(), tenantId, merchantRow.id, "Initial onboard attribution", merchantRow.user_id || null]
     );
+
+    // Official fee disclosure — reduces agents collecting unofficial cash from shops.
+    sendAgentOnboardWelcomeSmsService({
+        subscription_type,
+        businessName: result.tenant?.name || payload.name || payload.organization,
+        ownerPhone: result.user?.phone || payload.owner_phone || payload.phone,
+        tenantPhone: result.tenant?.phone || payload.phone,
+        payloadPhone: payload.owner_phone || payload.phone,
+    }).catch((err) => {
+        console.warn("[agent onboard welcome SMS]", err?.message || err);
+    });
 
     return {
         ...result,
@@ -519,7 +531,7 @@ export const createResidualCommissionForSubscriptionPaymentService = async ({
             SUBSCRIPTION_RESIDUAL_COMMISSION_RATE * 100,
             commission_amount,
             COMMISSION_KIND.RESIDUAL,
-            "5% subscription residual",
+            "10% subscription residual",
         ]
     );
     return { id, commission_amount, merchant_id: servingMerchantId };

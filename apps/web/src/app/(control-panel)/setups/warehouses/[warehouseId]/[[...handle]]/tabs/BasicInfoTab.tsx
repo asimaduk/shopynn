@@ -272,6 +272,9 @@ function BasicInfoTab({ locations = [] }: BasicInfoTabProps) {
 									</MenuItem>
 								))}
 							</Select>
+							<Typography variant="caption" color="text.secondary" className="mt-1 px-1">
+								Thermal requires paid assisted go-live or GHS 150 printer setup (pay Shopynn only).
+							</Typography>
 						</FormControl>
 					)}
 				/>

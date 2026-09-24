@@ -4,6 +4,7 @@ import {
     SUBSCRIPTION_TYPE_TO_TIER,
     FALLBACK_CATALOG_AMOUNTS,
     DEFAULT_BILLING_CATALOG_SEED,
+    PRINTER_SETUP_ADDON_CODE,
 } from "../constants/billingCatalog.js";
 
 const SUBSCRIPTION_META = {
@@ -235,6 +236,12 @@ export const getOnboardingFeeForTypeService = async (subscription_type) => {
     const row = await getBillingCatalogItemByCodeService(code);
     if (row?.is_active) return row.amount_ghs;
     return FALLBACK_CATALOG_AMOUNTS.onboarding[tier] ?? 0;
+};
+
+export const getPrinterSetupFeeService = async () => {
+    const row = await getBillingCatalogItemByCodeService(PRINTER_SETUP_ADDON_CODE);
+    if (row?.is_active && row.amount_ghs != null) return Number(row.amount_ghs);
+    return FALLBACK_CATALOG_AMOUNTS.printer_setup ?? 150;
 };
 
 export const getActiveAddonItemsService = async () => {

@@ -806,7 +806,7 @@ export const syncSubscriptionPaymentAfterSuccess = async (transaction_ref, tenan
 
     const activated = await activatePendingSubscriptionService(subscriptionId, payment.tenant_id);
 
-    // Renewals / non-quote subscription payments → 5% residual to serving agent.
+    // Renewals / non-quote subscription payments → residual to serving agent.
     // Quote checkouts already include residual in the acquisition commission row.
     if (!payment.quote_id) {
         try {
