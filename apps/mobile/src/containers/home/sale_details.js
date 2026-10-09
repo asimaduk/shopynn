@@ -9,7 +9,7 @@ import ScreenHeader from '../../components/screen_header';
 import AppModal from '../../components/app_modal';
 import useTheme from '../../hooks/useTheme';
 import InvoiceShareSheet from '../../components/invoice_share_sheet';
-import { formatCurrency, formatQuantity, inferGhanaMomoNetwork } from '../../utils/format';
+import { formatCurrency, formatQuantity, formatPhone, inferGhanaMomoNetwork } from '../../utils/format';
 import { formatSalePaymentLabel, salePaymentIcon } from '../../utils/salePayment';
 import { sales as salesApi, payments as paymentsApi } from '../../services/api';
 import {
@@ -684,7 +684,7 @@ const SaleDetails = ({ navigation, route }) => {
                 {/* Customer info section */}
                 <DetailSection title="Customer Information">
                     <DetailRow icon="user" label="Customer Name" value={item.customer ? item.customer : 'Walk-in'} />
-                    <DetailRow icon="phone" label="Contact Number" value={item.customer_phone ? item.customer_phone : 'N/A'} />
+                    <DetailRow icon="phone" label="Contact Number" value={item.customer_phone ? formatPhone(item.customer_phone) : 'N/A'} />
                     <DetailRow icon="map-pin" label="Location" value={item.customer_address ? item.customer_address : 'N/A'} />
                     {item.customer_phone ? (
                         <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 }}>

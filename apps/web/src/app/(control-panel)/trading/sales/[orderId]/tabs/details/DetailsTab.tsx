@@ -15,6 +15,7 @@ import TableHead from '@mui/material/TableHead';
 import Button from '@mui/material/Button';
 import { useGetSaleQuery } from '../../../../TradingApi';
 import CollectPaymentDialog from './CollectPaymentDialog';
+import { displayEmail, formatPhone } from '@/utils/formatContact';
 import OrdersStatus from '../../../SalesStatus';
 import GoogleAddressMap from './GoogleAddressMap';
 import { formatGhsCurrency } from '../../../../../dashboards/analytics/daily-sales/formatGhsCurrency';
@@ -106,10 +107,10 @@ function DetailsTab() {
 										</div>
 									</td>
 									<td>
-										<Typography className="truncate">{order.customer_email || 'NA'}</Typography>
+										<Typography className="truncate">{displayEmail(order.customer_email) || 'NA'}</Typography>
 									</td>
 									<td>
-										<Typography className="truncate">{order.customer_phone || 'NA'}</Typography>
+										<Typography className="truncate">{formatPhone(order.customer_phone) || 'NA'}</Typography>
 									</td>
 									<td>
 										<span className="truncate">{order.customer?.company || 'NA'}</span>
