@@ -2592,7 +2592,7 @@ const styles = StyleSheet.create({
     summaryCard: { marginHorizontal: 12, marginTop: 8, padding: 14, borderRadius: 12, borderWidth: 1 },
     summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
     totalRow: { borderTopWidth: 1, marginTop: 8, paddingTop: 12 },
-    proceedBtn: { height: 52, marginHorizontal: 12, marginTop: 12, backgroundColor: config.THEME_COLOR, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+    proceedBtn: { height: 52, marginHorizontal: 12, marginTop: 12, backgroundColor: config.THEME_COLOR, borderRadius: 99, justifyContent: 'center', alignItems: 'center' },
     proceedBtnDisabled: { opacity: 0.8 },
     footerActions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12, marginHorizontal: 16, paddingBottom: 16 },
     footerBtn: { flexDirection: 'row', alignItems: 'center', padding: 8 },
@@ -2601,7 +2601,7 @@ const styles = StyleSheet.create({
     modalListWrap: { height: Math.min(height * 0.45, 320), marginTop: 10 },
     modalRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 4, borderBottomWidth: 1 },
     quantityInput: { height: 50, borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, fontFamily: 'FiraSans-Regular', fontSize: 16, marginBottom: 14 },
-    addQtyBtn: { height: 50, backgroundColor: config.THEME_COLOR, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+    addQtyBtn: { height: 50, backgroundColor: config.THEME_COLOR, borderRadius: 99, justifyContent: 'center', alignItems: 'center', marginBottom: 40 },
     addQtyBtnDisabled: {},
     menuModalContent: { padding: 14, borderTopLeftRadius: 20, borderTopRightRadius: 20 },
     menuOption: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14 },
@@ -2665,7 +2665,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 6,
     },
-    savePrintBtn: { height: 50, backgroundColor: config.THEME_COLOR, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginTop: 20 },
+    savePrintBtn: { height: 50, backgroundColor: config.THEME_COLOR, borderRadius: 99, justifyContent: 'center', alignItems: 'center', marginTop: 20 },
     cancelPaymentBtn: { alignItems: 'center', paddingVertical: 12 },
 });
 

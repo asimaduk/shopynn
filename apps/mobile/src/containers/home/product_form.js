@@ -1407,7 +1407,7 @@ const styles = StyleSheet.create({
         backgroundColor:config.THEME_COLOR,
         margin:10,
         marginTop:5,
-        borderRadius:10,
+        borderRadius:99,
         shadowColor:'#000',
         shadowOffset:{width:0,height:2},
         shadowOpacity:0.1,

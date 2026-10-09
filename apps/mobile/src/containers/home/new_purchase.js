@@ -996,7 +996,7 @@ const styles = StyleSheet.create({
     modalListWrap: { height: Math.min(height * 0.45, 320), marginTop: 10 },
     modalRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 4, borderBottomWidth: 1 },
     quantityInput: { height: 50, borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, fontFamily: 'FiraSans-Regular', fontSize: 16, marginBottom: 14 },
-    addQtyBtn: { height: 50, backgroundColor: config.THEME_COLOR, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+    addQtyBtn: { height: 50, backgroundColor: config.THEME_COLOR, borderRadius: 99, justifyContent: 'center', alignItems: 'center', marginBottom: 40 },
     addQtyBtnDisabled: {},
     menuModalContent: { padding: 14, borderTopLeftRadius: 20, borderTopRightRadius: 20 },
     menuOption: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14 },
