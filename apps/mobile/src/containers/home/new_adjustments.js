@@ -771,7 +771,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         height: 54,
         backgroundColor: config.THEME_COLOR,
-        borderRadius: 14,
+        borderRadius: 999,
         marginBottom: 8,
     },
     proceedBtnDisabled: { opacity: 0.45 },
@@ -828,7 +828,7 @@ const styles = StyleSheet.create({
     modalSubmitBtn: {
         height: 52,
         backgroundColor: config.THEME_COLOR,
-        borderRadius: 12,
+        borderRadius: 999,
         justifyContent: 'center',
         alignItems: 'center',
     },

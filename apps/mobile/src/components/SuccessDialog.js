@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
 	btn: {
 		width: '100%',
 		height: 48,
-		borderRadius: 12,
+		borderRadius: 999,
 		alignItems: 'center',
 		justifyContent: 'center',
 	},

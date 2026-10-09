@@ -368,19 +368,19 @@ const SaleDetails = ({ navigation, route }) => {
                             <TouchableOpacity
                                 activeOpacity={0.8}
                                 onPress={handleRetryPendingUpload}
-                                style={{ flex: 1, backgroundColor: config.THEME_COLOR, paddingVertical: 10, borderRadius: 10, alignItems: 'center' }}>
+                                style={{ flex: 1, backgroundColor: config.THEME_COLOR, paddingVertical: 10, borderRadius: 999, alignItems: 'center' }}>
                                 <AppText label="Retry now" variant={1} fontSize={13} color="#fff" />
                             </TouchableOpacity>
                             <TouchableOpacity
                                 activeOpacity={0.8}
                                 onPress={handleEditPendingSale}
-                                style={{ flex: 1, backgroundColor: colors.surfaceSecondary, paddingVertical: 10, borderRadius: 10, alignItems: 'center' }}>
+                                style={{ flex: 1, backgroundColor: colors.surfaceSecondary, paddingVertical: 10, borderRadius: 999, alignItems: 'center' }}>
                                 <AppText label="Edit" variant={1} fontSize={13} color={colors.text} />
                             </TouchableOpacity>
                             <TouchableOpacity
                                 activeOpacity={0.8}
                                 onPress={handleDeletePendingSale}
-                                style={{ backgroundColor: colors.errorLight, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, alignItems: 'center' }}>
+                                style={{ backgroundColor: colors.errorLight, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 999, alignItems: 'center' }}>
                                 <Lucide name="trash-2" size={16} color={colors.error} />
                             </TouchableOpacity>
                         </View>
@@ -484,7 +484,7 @@ const SaleDetails = ({ navigation, route }) => {
                                 marginTop: 12,
                                 backgroundColor: config.THEME_COLOR,
                                 paddingVertical: 12,
-                                borderRadius: 10,
+                                borderRadius: 999,
                                 alignItems: 'center',
                                 flexDirection: 'row',
                                 justifyContent: 'center',
@@ -701,7 +701,7 @@ const SaleDetails = ({ navigation, route }) => {
                     style={{
                         backgroundColor: config.THEME_COLOR,
                         paddingVertical: 12,
-                        borderRadius: 10,
+                        borderRadius: 999,
                         alignItems: 'center',
                         opacity: savingCollect ? 0.6 : 1,
                     }}
@@ -799,7 +799,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 14,
-        borderRadius: 10,
+        borderRadius: 999,
         marginBottom: 24,
     },
 });

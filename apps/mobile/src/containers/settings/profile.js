@@ -860,7 +860,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 20,
         height: 48,
-        borderRadius: 24,
+        borderRadius: 999,
         elevation: 2,
     }
 });

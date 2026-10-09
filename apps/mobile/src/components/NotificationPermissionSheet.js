@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
 		flexDirection: 'row',
 		alignItems: 'center',
 		justifyContent: 'center',
-		borderRadius: 12,
+		borderRadius: 999,
 		paddingVertical: 14,
 		marginBottom: 6,
 	},

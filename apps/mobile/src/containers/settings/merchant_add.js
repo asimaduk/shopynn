@@ -463,7 +463,7 @@ const MerchantAdd = ({ navigation }) => {
                             marginTop: 14,
                             backgroundColor: config.THEME_COLOR,
                             padding: 14,
-                            borderRadius: 5,
+                            borderRadius: 999,
                             alignItems: 'center',
                             opacity: submitting ? 0.65 : 1,
                         }}

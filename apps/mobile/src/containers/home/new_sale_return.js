@@ -349,7 +349,7 @@ const styles = StyleSheet.create({
     submit: {
         marginTop: 16,
         paddingVertical: 14,
-        borderRadius: 10,
+        borderRadius: 999,
         alignItems: 'center',
         flexDirection: 'row',
         justifyContent: 'center',

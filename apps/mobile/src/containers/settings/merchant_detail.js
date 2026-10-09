@@ -507,7 +507,7 @@ const MerchantDetail = ({ navigation, route }) => {
                                 style={{
                                     marginTop: 28,
                                     paddingVertical: 16,
-                                    borderRadius: 5,
+                                    borderRadius: 999,
                                     borderWidth: 1.5,
                                     borderColor: '#dc2626',
                                     backgroundColor: colors.surface,

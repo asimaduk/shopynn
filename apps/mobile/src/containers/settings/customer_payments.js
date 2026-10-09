@@ -863,7 +863,7 @@ const localStyles = StyleSheet.create({
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        borderRadius: 14,
+        borderRadius: 999,
         borderWidth: 1,
         paddingHorizontal: 12,
         paddingVertical: 10,
@@ -1029,7 +1029,7 @@ const localStyles = StyleSheet.create({
     applyDateButton: {
         backgroundColor: config.THEME_COLOR,
         paddingVertical: 14,
-        borderRadius: 8,
+        borderRadius: 999,
         alignItems: 'center',
         marginTop: 8,
     },

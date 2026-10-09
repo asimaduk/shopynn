@@ -1404,7 +1404,7 @@ const Settings = ({ navigation, route }) => {
                 visible={showSignOutConfirm}
                 icon="log-out"
                 title="Sign out?"
-                message="You'll need to sign in again to access your shop."
+                message={isCustomer ? "You'll need to sign in again to see your cart and orders." : "You'll need to sign in again to access your shop."}
                 cancelLabel="Stay signed in"
                 confirmLabel="Sign out"
                 destructive

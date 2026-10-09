@@ -848,7 +848,7 @@ const styles = StyleSheet.create({
     otpSendBtn: {
         alignSelf: 'flex-start',
         borderWidth: 1,
-        borderRadius: 8,
+        borderRadius: 999,
         paddingHorizontal: 12,
         paddingVertical: 8,
         marginBottom: 10,
@@ -870,7 +870,7 @@ const styles = StyleSheet.create({
     verifyOtpBtn: { marginTop: 0 },
     primaryBtn: {
         height: 46,
-        borderRadius: 8,
+        borderRadius: 999,
         backgroundColor: config.THEME_COLOR,
         alignItems: 'center',
         justifyContent: 'center',

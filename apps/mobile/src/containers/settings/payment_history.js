@@ -720,7 +720,7 @@ const localStyles = StyleSheet.create({
     },
     applyDateButton: {
         paddingVertical: 14,
-        borderRadius: 10,
+        borderRadius: 999,
         alignItems: 'center',
         marginTop: 10,
     },

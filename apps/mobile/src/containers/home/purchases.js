@@ -862,7 +862,7 @@ const styles = StyleSheet.create({
     applyDateButton: {
         backgroundColor: config.THEME_COLOR,
         paddingVertical: 14,
-        borderRadius: 8,
+        borderRadius: 999,
         alignItems: 'center',
         marginTop: 8,
     },
@@ -903,7 +903,7 @@ const styles = StyleSheet.create({
     applyButton: {
         backgroundColor: config.THEME_COLOR,
         paddingVertical: 14,
-        borderRadius: 12,
+        borderRadius: 999,
         alignItems: 'center',
         marginTop: 30,
     }

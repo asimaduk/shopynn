@@ -648,7 +648,7 @@ const styles = StyleSheet.create({
     primaryBtn: {
         flex: 1,
         paddingVertical: 13,
-        borderRadius: 10,
+        borderRadius: 999,
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: 46,
@@ -656,7 +656,7 @@ const styles = StyleSheet.create({
     secondaryBtn: {
         flex: 1,
         paddingVertical: 13,
-        borderRadius: 10,
+        borderRadius: 999,
         alignItems: 'center',
         borderWidth: 1,
         minHeight: 46,

@@ -1050,7 +1050,7 @@ const styles = StyleSheet.create({
     },
     primaryBtn: {
         height: 48,
-        borderRadius: 12,
+        borderRadius: 999,
         alignItems: 'center',
         justifyContent: 'center',
     },

@@ -1138,7 +1138,7 @@ const styles = StyleSheet.create({
     },
     applyDateButton: {
         paddingVertical: 14,
-        borderRadius: 8,
+        borderRadius: 999,
         alignItems: 'center',
         marginTop: 8,
     },

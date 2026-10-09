@@ -420,7 +420,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         height: 44,
-        borderRadius: 8,
+        borderRadius: 999,
     },
     row: {
         flexDirection: 'row',
@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
     importBtn: {
         marginVertical: 8,
         marginHorizontal: 10,
-        borderRadius: 10,
+        borderRadius: 999,
         height: 48,
         flexDirection: 'row',
         alignItems: 'center',

@@ -568,7 +568,7 @@ const TenantDirectoryDetail = ({ navigation, route }) => {
                                 onPress={onCreateSettlement}
                                 style={{
                                     backgroundColor: config.THEME_COLOR,
-                                    borderRadius: 10,
+                                    borderRadius: 999,
                                     paddingVertical: 12,
                                     alignItems: 'center',
                                     opacity: settlementBusy ? 0.6 : 1,

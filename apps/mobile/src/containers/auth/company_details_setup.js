@@ -560,7 +560,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         height: 56,
         backgroundColor: config.THEME_COLOR,
-        borderRadius: 5,
+        borderRadius: 999,
         marginTop: 12,
     },
     confirmIntro: {
@@ -580,13 +580,13 @@ const styles = StyleSheet.create({
     confirmBtnSecondary: {
         paddingVertical: 12,
         paddingHorizontal: 20,
-        borderRadius: 8,
+        borderRadius: 999,
         borderWidth: 1,
     },
     confirmBtnPrimary: {
         paddingVertical: 12,
         paddingHorizontal: 20,
-        borderRadius: 8,
+        borderRadius: 999,
     },
 });
 

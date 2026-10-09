@@ -623,13 +623,13 @@ const styles = StyleSheet.create({
         marginTop: 12,
         paddingVertical: 10,
         paddingHorizontal: 16,
-        borderRadius: 8,
+        borderRadius: 999,
         alignSelf: 'stretch',
         alignItems: 'center',
     },
     holdBtn: {
         borderWidth: 2,
-        borderRadius: 12,
+        borderRadius: 999,
         paddingVertical: 18,
         paddingHorizontal: 12,
         justifyContent: 'center',
@@ -646,7 +646,7 @@ const styles = StyleSheet.create({
     },
     primaryBtn: {
         height: 48,
-        borderRadius: 10,
+        borderRadius: 999,
         justifyContent: 'center',
         alignItems: 'center',
         marginTop: 12,
@@ -681,7 +681,7 @@ const styles = StyleSheet.create({
     secondaryBtn: {
         marginTop: 8,
         borderWidth: 1,
-        borderRadius: 8,
+        borderRadius: 999,
         paddingVertical: 8,
         alignItems: 'center',
     },

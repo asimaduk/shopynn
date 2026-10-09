@@ -443,7 +443,7 @@ const styles = StyleSheet.create({
         marginTop: 18,
         paddingHorizontal: 16,
         paddingVertical: 12,
-        borderRadius: 10,
+        borderRadius: 999,
     },
     pickerBody: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 },
     pickerRow: {

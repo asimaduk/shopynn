@@ -552,7 +552,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 14,
         paddingVertical: 10,
-        borderRadius: 8,
+        borderRadius: 999,
     },
     section: {
         borderRadius: 5,
@@ -609,7 +609,7 @@ const styles = StyleSheet.create({
     primaryPaymentBtn: {
         marginTop: 8,
         height: 48,
-        borderRadius: 10,
+        borderRadius: 999,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',

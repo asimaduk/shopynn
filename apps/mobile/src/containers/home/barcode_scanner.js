@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
     btn: {
         flex: 1,
         height: 50,
-        borderRadius: 10,
+        borderRadius: 999,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         height: 50,
         paddingHorizontal: 20,
-        borderRadius: 10,
+        borderRadius: 999,
         borderWidth: 1,
     },
     permissionContainer: {
@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
         marginTop: 24,
         paddingHorizontal: 24,
         paddingVertical: 14,
-        borderRadius: 10,
+        borderRadius: 999,
         justifyContent: 'center',
         alignItems: 'center',
     },

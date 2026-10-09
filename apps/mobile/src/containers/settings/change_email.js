@@ -346,7 +346,7 @@ const styles = StyleSheet.create({
     },
     secondaryBtn: {
         borderWidth: 1.5,
-        borderRadius: 8,
+        borderRadius: 999,
         paddingVertical: 12,
         alignItems: 'center',
         justifyContent: 'center',
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
     },
     primaryBtn: {
         backgroundColor: config.THEME_COLOR,
-        borderRadius: 8,
+        borderRadius: 999,
         paddingVertical: 14,
         flexDirection: 'row',
         alignItems: 'center',

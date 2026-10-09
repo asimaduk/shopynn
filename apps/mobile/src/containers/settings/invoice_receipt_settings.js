@@ -581,7 +581,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1.5,
-        borderRadius: 10,
+        borderRadius: 999,
         height: 46,
         marginTop: 14,
     },
@@ -590,7 +590,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         height: 50,
-        borderRadius: 10,
+        borderRadius: 999,
         marginTop: 4,
     },
 });

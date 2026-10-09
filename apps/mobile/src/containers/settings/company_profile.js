@@ -391,7 +391,7 @@ const CompanyProfile = ({ navigation }) => {
                             paddingHorizontal: 14,
                             paddingVertical: 8,
                             marginRight: 8,
-                            borderRadius: 8,
+                            borderRadius: 999,
                             backgroundColor: config.THEME_COLOR,
                             opacity: saving ? 0.6 : 1,
                             flexDirection: 'row',

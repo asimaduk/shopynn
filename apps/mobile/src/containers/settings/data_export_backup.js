@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         height: 46,
-        borderRadius: 10,
+        borderRadius: 999,
         marginTop: 14,
     },
     disabledBtn: { opacity: 0.5 },

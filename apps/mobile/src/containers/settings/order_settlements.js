@@ -710,7 +710,7 @@ const OrderSettlements = ({ navigation }) => {
                                             flex: 1,
                                             borderWidth: 1,
                                             borderColor: colors.border,
-                                            borderRadius: 10,
+                                            borderRadius: 999,
                                             paddingVertical: 12,
                                             alignItems: 'center',
                                             opacity: busy ? 0.6 : 1,
@@ -725,7 +725,7 @@ const OrderSettlements = ({ navigation }) => {
                                     style={{
                                         flex: 1,
                                         backgroundColor: config.THEME_COLOR,
-                                        borderRadius: 10,
+                                        borderRadius: 999,
                                         paddingVertical: 12,
                                         alignItems: 'center',
                                         opacity: busy ? 0.6 : 1,
@@ -754,7 +754,7 @@ const OrderSettlements = ({ navigation }) => {
                         style={{
                             borderWidth: 1,
                             borderColor: colors.border,
-                            borderRadius: 10,
+                            borderRadius: 999,
                             paddingVertical: 12,
                             alignItems: 'center',
                             opacity: busy || !profile ? 0.6 : 1,

@@ -184,7 +184,7 @@ const MerchantAddServices = ({ navigation, route }) => {
                         marginTop: 20,
                         backgroundColor: addonCodes.length ? config.THEME_COLOR : colors.border,
                         padding: 14,
-                        borderRadius: 6,
+                        borderRadius: 999,
                         alignItems: 'center',
                     }}
                 >

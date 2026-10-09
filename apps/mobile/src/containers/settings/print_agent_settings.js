@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1.5,
-        borderRadius: 10,
+        borderRadius: 999,
         height: 48,
         marginBottom: 10,
     },
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: 10,
+        borderRadius: 999,
         height: 50,
     },
 });

@@ -355,7 +355,7 @@ const TransferDetails = ({ navigation, route }) => {
                                 style={{
                                     marginTop: 8,
                                     backgroundColor: config.THEME_COLOR,
-                                    borderRadius: 10,
+                                    borderRadius: 999,
                                     paddingVertical: 14,
                                     alignItems: 'center',
                                     opacity: receiving ? 0.7 : 1,

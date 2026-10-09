@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
     primaryBtn: {
         width: '100%',
         paddingVertical: 14,
-        borderRadius: 8,
+        borderRadius: 999,
         alignItems: 'center',
         marginBottom: 12,
     },

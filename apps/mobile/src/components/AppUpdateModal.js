@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         height: 50,
-        borderRadius: 12,
+        borderRadius: 999,
         marginTop: 16,
     },
     skipBtn: {

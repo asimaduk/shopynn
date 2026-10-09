@@ -378,7 +378,7 @@ const UserDetails = ({ navigation, route }) => {
                             style={{
                                 paddingVertical: 8,
                                 paddingHorizontal: 16,
-                                borderRadius: 8,
+                                borderRadius: 999,
                                 backgroundColor: colors.error,
                                 opacity: deleting ? 0.7 : 1,
                                 flexDirection: 'row',

@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
     actionButton: {
         paddingHorizontal: 12,
         paddingVertical: 4,
-        borderRadius: 4,
+        borderRadius: 999,
     },
     emptyContainer: {
         flex: 1,

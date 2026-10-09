@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
 	btn: {
 		flex: 1,
 		height: 46,
-		borderRadius: 12,
+		borderRadius: 999,
 		alignItems: 'center',
 		justifyContent: 'center',
 	},

@@ -216,7 +216,7 @@ export default function WarehouseReferenceCodeField({
                             style={{
                                 height: 44,
                                 paddingHorizontal: 14,
-                                borderRadius: 8,
+                                borderRadius: 999,
                                 backgroundColor: colors.surfaceSecondary,
                                 alignItems: 'center',
                                 justifyContent: 'center',

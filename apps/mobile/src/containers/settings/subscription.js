@@ -566,7 +566,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         height: 52,
-        borderRadius: 12,
+        borderRadius: 999,
         marginBottom: 16,
     },
     infoBanner: {
@@ -600,7 +600,7 @@ const styles = StyleSheet.create({
     planActionBtn: {
         paddingHorizontal: 16,
         paddingVertical: 10,
-        borderRadius: 8,
+        borderRadius: 999,
         minWidth: 88,
         alignItems: 'center',
     },

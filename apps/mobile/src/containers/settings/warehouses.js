@@ -197,6 +197,6 @@ const styles = StyleSheet.create({
         marginTop: 18,
         paddingHorizontal: 16,
         paddingVertical: 12,
-        borderRadius: 10,
+        borderRadius: 999,
     },
 });

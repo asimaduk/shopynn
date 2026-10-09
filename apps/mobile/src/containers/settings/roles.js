@@ -840,7 +840,7 @@ const styles = StyleSheet.create({
         marginTop: 18,
         paddingHorizontal: 16,
         paddingVertical: 12,
-        borderRadius: 10,
+        borderRadius: 999,
     },
     editor: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16 },
     inputRow: {
@@ -897,7 +897,7 @@ const styles = StyleSheet.create({
     saveBtn: {
         paddingVertical: 10,
         paddingHorizontal: 16,
-        borderRadius: 8,
+        borderRadius: 999,
         minWidth: 96,
         alignItems: 'center',
     },

@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         height: 56,
         backgroundColor: config.THEME_COLOR || '#0A74DA',
-        borderRadius: 5,
+        borderRadius: 999,
     },
 });
 

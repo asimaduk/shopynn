@@ -223,7 +223,7 @@ const NotificationsSetup = ({ navigation, route }) => {
                                         alignSelf: 'flex-start',
                                         paddingHorizontal: 12,
                                         paddingVertical: 6,
-                                        borderRadius: 16,
+                                        borderRadius: 999,
                                         backgroundColor: checkingPermission ? colors.border : config.THEME_COLOR,
                                     }}
                                 >

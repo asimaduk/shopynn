@@ -595,7 +595,7 @@ const styles = StyleSheet.create({
     primaryBtn: {
         marginTop: 8,
         height: 48,
-        borderRadius: 10,
+        borderRadius: 999,
         backgroundColor: config.THEME_COLOR,
         alignItems: 'center',
         justifyContent: 'center',

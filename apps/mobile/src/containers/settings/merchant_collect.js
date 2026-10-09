@@ -209,7 +209,7 @@ const MerchantCollect = ({ navigation, route }) => {
                         marginTop: 16,
                         backgroundColor: config.THEME_COLOR,
                         padding: 14,
-                        borderRadius: 6,
+                        borderRadius: 999,
                         alignItems: 'center',
                     }}
                 >
@@ -264,7 +264,7 @@ const MerchantCollect = ({ navigation, route }) => {
                                 borderWidth: 1,
                                 borderColor: config.THEME_COLOR,
                                 padding: 12,
-                                borderRadius: 6,
+                                borderRadius: 999,
                                 alignItems: 'center',
                             }}
                         >
