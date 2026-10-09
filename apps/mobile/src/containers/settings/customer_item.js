@@ -4,6 +4,7 @@ import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
 import config from '../../config';
 import useTheme from '../../hooks/useTheme';
+import { formatPhone } from '../../utils/format';
 
 const sourceMeta = (source, colors) => {
     if (source === 'account') {
@@ -57,7 +58,7 @@ const CustomerItem = ({ item, onPress, onEdit }) => {
                         <View style={styles.metaRow}>
                             <Lucide name="phone" size={12} color={colors.textTertiary} />
                             <AppText
-                                label={phone}
+                                label={formatPhone(phone)}
                                 fontSize={12}
                                 color={colors.textSecondary}
                                 numberOfLines={1}

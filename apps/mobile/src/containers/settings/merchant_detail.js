@@ -19,6 +19,7 @@ import ScreenHeader from '../../components/screen_header';
 import useTheme from '../../hooks/useTheme';
 import { merchants as merchantsApi } from '../../services/api';
 import { hasPermission } from '../../utils/permissions';
+import { formatPhone } from '../../utils/format';
 
 function fmtMoney(v) {
     const n = Number(v);
@@ -216,7 +217,7 @@ const MerchantDetail = ({ navigation, route }) => {
                         <View style={{ flex: 2.2, paddingRight: 6 }}>
                             <AppText label={t.name || '—'} fontSize={13} color={colors.text} numberOfLines={2} />
                             <AppText
-                                label={[t.organization, t.phone].filter(Boolean).join(' · ') || '—'}
+                                label={[t.organization, formatPhone(t.phone)].filter(Boolean).join(' · ') || '—'}
                                 fontSize={10}
                                 color={colors.textTertiary}
                                 numberOfLines={2}
@@ -398,7 +399,7 @@ const MerchantDetail = ({ navigation, route }) => {
                                 <View style={{ flex: 1, minWidth: 0 }}>
                                     <AppText label={userDisplayName(m)} fontSize={18} color={colors.text} variant={1} />
                                     <AppText
-                                        label={[m.phone, m.email].filter(Boolean).join(' · ') || '—'}
+                                        label={[formatPhone(m.phone), m.email].filter(Boolean).join(' · ') || '—'}
                                         fontSize={13}
                                         color={colors.textSecondary}
                                         style={{ marginTop: 6 }}

@@ -22,6 +22,7 @@ import config from '../../config';
 import { merchants as merchantsApi, billing as billingApi } from '../../services/api';
 import Toast from 'react-native-toast-message';
 import { buildPlansFromCatalog, computeQuoteTotalFromSelection, filterSellableAddons } from '../../utils/billingCatalog';
+import { formatPhone } from '../../utils/format';
 
 /** Fallback when catalog API unavailable */
 const PLANS = [
@@ -789,7 +790,7 @@ const MerchantOnboard = ({ navigation }) => {
                         </View>
                         <SummaryLine label="Name" value={`${firstName} ${lastName}`.trim()} colors={colors} />
                         <SummaryLine label="Email" value={ownerEmail} colors={colors} />
-                        <SummaryLine label="Phone" value={ownerPhone} colors={colors} />
+                        <SummaryLine label="Phone" value={formatPhone(ownerPhone)} colors={colors} />
                     </View>
 
                     <View style={sectionCard}>

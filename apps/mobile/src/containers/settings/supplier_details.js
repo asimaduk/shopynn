@@ -17,6 +17,7 @@ import config from '../../config';
 import useTheme from '../../hooks/useTheme';
 import { suppliers as suppliersApi } from '../../services/api';
 import { useFocusEffect } from '@react-navigation/native';
+import { formatPhone } from '../../utils/format';
 
 const supplierInitials = (name) => {
     const parts = String(name || '')
@@ -96,7 +97,7 @@ const SupplierDetails = ({ navigation, route }) => {
     const name = item.name || item.company_name || 'Unnamed supplier';
     const details = [
         { label: 'Location', value: item.address || item.location || '—', icon: 'map-pin' },
-        { label: 'Phone', value: item.phone || '—', icon: 'phone' },
+        { label: 'Phone', value: item.phone ? formatPhone(item.phone) : '—', icon: 'phone' },
         { label: 'Contact person', value: item.manager || item.contact_person || '—', icon: 'user' },
         ...(item.email ? [{ label: 'Email', value: item.email, icon: 'mail' }] : []),
     ];

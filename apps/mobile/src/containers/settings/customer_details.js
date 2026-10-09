@@ -17,6 +17,7 @@ import config from '../../config';
 import useTheme from '../../hooks/useTheme';
 import { customers as customersApi } from '../../services/api';
 import { useFocusEffect } from '@react-navigation/native';
+import { formatPhone } from '../../utils/format';
 
 const customerInitials = (name) => {
     const parts = String(name || '')
@@ -135,7 +136,7 @@ const CustomerDetails = ({ navigation, route }) => {
             icon: 'wallet',
         },
         { label: 'Location', value: item.address || item.location || '—', icon: 'map-pin' },
-        { label: 'Phone', value: item.phone || '—', icon: 'phone' },
+        { label: 'Phone', value: item.phone ? formatPhone(item.phone) : '—', icon: 'phone' },
         { label: 'Email', value: item.email || '—', icon: 'mail' },
         { label: 'Notes', value: item.notes || '—', icon: 'sticky-note' },
     ];

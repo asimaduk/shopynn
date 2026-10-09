@@ -16,6 +16,7 @@ import ScreenHeader from '../../components/screen_header';
 import styles from './styles';
 import useTheme from '../../hooks/useTheme';
 import { tenants as tenantsApi } from '../../services/api';
+import { formatPhone } from '../../utils/format';
 
 function haystack(parts) {
     return parts
@@ -251,7 +252,7 @@ const TenantsDirectory = ({ navigation }) => {
                             </View>
                         </View>
                         <AppText
-                            label={[t.organization, t.phone].filter(Boolean).join(' · ') || '—'}
+                            label={[t.organization, formatPhone(t.phone)].filter(Boolean).join(' · ') || '—'}
                             variant={2}
                             color={colors.textTertiary}
                             fontSize={12}

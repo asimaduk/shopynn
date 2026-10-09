@@ -18,7 +18,7 @@ import config from '../../config';
 import ScreenHeader from '../../components/screen_header';
 import useTheme from '../../hooks/useTheme';
 import { tenants as tenantsApi } from '../../services/api';
-import { formatCurrency } from '../../utils/format';
+import { formatCurrency, formatPhone } from '../../utils/format';
 
 function fmtDate(iso) {
     if (!iso) return '—';
@@ -435,7 +435,7 @@ const TenantDirectoryDetail = ({ navigation, route }) => {
                         <View style={[cardStyle, { paddingHorizontal: 14 }]}>
                             <AppText label="Contact" variant={1} fontSize={15} color={colors.text} style={{ paddingTop: 14, paddingBottom: 4 }} />
                             <InfoRow icon="mail" label="Email" value={tenant.email} colors={colors} />
-                            <InfoRow icon="phone" label="Phone" value={tenant.phone} colors={colors} />
+                            <InfoRow icon="phone" label="Phone" value={tenant.phone ? formatPhone(tenant.phone) : tenant.phone} colors={colors} />
                             {tenant.address ? (
                                 <InfoRow icon="map-pin" label="Address" value={tenant.address} colors={colors} last />
                             ) : (

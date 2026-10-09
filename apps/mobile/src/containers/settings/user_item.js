@@ -5,6 +5,7 @@ import AppText from '../../components/text';
 import config from '../../config';
 import useTheme from '../../hooks/useTheme';
 import { ROLES } from '../../utils/permissions';
+import { formatPhone } from '../../utils/format';
 
 const normalizeRoleKey = (value) => String(value ?? '').trim().toLowerCase();
 
@@ -81,7 +82,7 @@ const UserItem = ({ item, onPress }) => {
                         <View style={styles.metaRow}>
                             <Lucide name="phone" size={12} color={colors.textTertiary} />
                             <AppText
-                                label={item.phone}
+                                label={formatPhone(item.phone)}
                                 fontSize={12}
                                 color={colors.textSecondary}
                                 numberOfLines={1}

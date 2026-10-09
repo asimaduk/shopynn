@@ -18,6 +18,7 @@ import config from '../../config';
 import useTheme from '../../hooks/useTheme';
 import { users as usersApi } from '../../services/api';
 import { SET_USER } from '../../store/actions/user';
+import { formatPhone } from '../../utils/format';
 
 /** Normalize to digits; Ghana local 0XXXXXXXXX / 9-digit → 233… */
 const normalizePhone = (raw) => {
@@ -207,7 +208,7 @@ const ChangePhone = ({ navigation, route }) => {
                         <View style={[styles.currentCard, { backgroundColor: colors.surface }]}>
                             <AppText label="Current phone" fontSize={12} color={colors.textTertiary} />
                             <AppText
-                                label={currentPhone}
+                                label={formatPhone(currentPhone)}
                                 fontSize={14}
                                 color={colors.text}
                                 variant={1}

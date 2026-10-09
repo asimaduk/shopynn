@@ -4,6 +4,7 @@ import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
 import config from '../../config';
 import useTheme from '../../hooks/useTheme';
+import { formatPhone } from '../../utils/format';
 
 const supplierInitials = (name) => {
     const parts = String(name || '')
@@ -41,7 +42,7 @@ const SupplierItem = ({ item, onPress }) => {
                     {phone ? (
                         <View style={styles.metaRow}>
                             <Lucide name="phone" size={12} color={colors.textTertiary} />
-                            <AppText label={phone} fontSize={12} color={colors.textSecondary} numberOfLines={1} style={styles.metaText} />
+                            <AppText label={formatPhone(phone)} fontSize={12} color={colors.textSecondary} numberOfLines={1} style={styles.metaText} />
                         </View>
                     ) : null}
                     {location ? (

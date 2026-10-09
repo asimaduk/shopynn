@@ -12,6 +12,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { users as usersApi } from '../../services/api';
 import AppModal from '../../components/app_modal';
 import { hasPermission } from '../../utils/permissions';
+import { formatPhone } from '../../utils/format';
 
 const UserDetails = ({ navigation, route }) => {
     const { colors } = useTheme();
@@ -243,7 +244,7 @@ const UserDetails = ({ navigation, route }) => {
 
                 <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 20, marginBottom: 20, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 }}>
                     <DetailRow label="Email" value={user.email} icon="mail" />
-                    <DetailRow label="Phone" value={user.phone} icon="phone" />
+                    <DetailRow label="Phone" value={user.phone ? formatPhone(user.phone) : user.phone} icon="phone" />
                     <DetailRow label="Roles" value={user.roles?.map(role => role.name || role.code || role.id).join(',')} icon="shield" />
                     <DetailRow label="Last login" value={user.lastLoginAt} icon="clock" />
                     <DetailRow label="Created" value={user.createdAt} icon="calendar" />
@@ -253,7 +254,6 @@ const UserDetails = ({ navigation, route }) => {
                             onPress={handleCall}
                             style={{
                                 marginTop: 12,
-                                alignSelf: 'flex-start',
                                 flexDirection: 'row',
                                 alignItems: 'center',
                                 paddingHorizontal: 14,

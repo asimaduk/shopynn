@@ -23,6 +23,7 @@ import useTheme from '../../hooks/useTheme';
 import { merchants as merchantsApi } from '../../services/api';
 import { isFreeTierTenant } from '../../utils/billingCatalog';
 import { hasPermission } from '../../utils/permissions';
+import { formatPhone } from '../../utils/format';
 
 function fmtMoney(v) {
     const n = Number(v);
@@ -269,7 +270,7 @@ const MerchantPortal = ({ navigation }) => {
             <View style={{ flex: 1, minWidth: 0 }}>
                 <AppText label={userDisplayName(row)} variant={1} color={colors.text} fontSize={16} />
                 <AppText
-                    label={[row.email, row.phone].filter(Boolean).join(' · ') || '—'}
+                    label={[row.email, formatPhone(row.phone)].filter(Boolean).join(' · ') || '—'}
                     variant={2}
                     color={colors.textTertiary}
                     fontSize={12}
@@ -385,7 +386,7 @@ const MerchantPortal = ({ navigation }) => {
                         <View style={{ flex: 2.2, paddingRight: 6 }}>
                             <AppText label={t.name || '—'} fontSize={13} color={colors.text} numberOfLines={2} />
                             <AppText
-                                label={[t.organization, t.phone].filter(Boolean).join(' · ') || '—'}
+                                label={[t.organization, formatPhone(t.phone)].filter(Boolean).join(' · ') || '—'}
                                 fontSize={10}
                                 color={colors.textTertiary}
                                 numberOfLines={2}

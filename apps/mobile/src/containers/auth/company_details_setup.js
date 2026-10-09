@@ -19,6 +19,7 @@ import useTheme from '../../hooks/useTheme';
 import { setCompanyDetails } from '../../store/actions/appSettings';
 import AppModal from '../../components/app_modal';
 import { tenants as tenantsApi, industries as industriesApi, normalizeList } from '../../services/api';
+import { formatPhone } from '../../utils/format';
 
 // Form state lives here so only this block re-renders on input; parent header stays stable
 const CompanyDetailsForm = React.memo(function CompanyDetailsForm({
@@ -301,7 +302,7 @@ const CompanyDetailsForm = React.memo(function CompanyDetailsForm({
                             colors={colors}
                         />
                         <ConfirmRow label="Address" value={validatedData.companyAddress} colors={colors} />
-                        <ConfirmRow label="Phone" value={validatedData.companyPhone} colors={colors} />
+                        <ConfirmRow label="Phone" value={formatPhone(validatedData.companyPhone)} colors={colors} />
                         <ConfirmRow label="Email" value={validatedData.companyEmail} colors={colors} />
                     </View>
                     <View style={styles.confirmActions}>
