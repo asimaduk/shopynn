@@ -34,6 +34,13 @@ const extractReferenceFromUrl = (url) => {
     return null;
 };
 
+const isGatewayUrl = (url) => {
+    const m = String(url || '').match(/^https?:\/\/([^/?#]+)/i);
+    return Boolean(m && /(^|\.)paystack\.(com|co)$/i.test(m[1]));
+};
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const PaymentWebView = ({ navigation, route }) => {
     const { colors } = useTheme();
     const dispatch = useDispatch();
@@ -54,6 +61,7 @@ const PaymentWebView = ({ navigation, route }) => {
     const [canGoBack, setCanGoBack] = useState(false);
     const webViewRef = React.useRef(null);
     const verifiedRef = useRef(false);
+    const callbackHandledRef = useRef(false);
 
     const defaultCheckoutUrl =
         checkoutUrl || `https://checkout.example.com/payment?amount=${amount}&plan=${planName}`;
@@ -100,6 +108,45 @@ const PaymentWebView = ({ navigation, route }) => {
         }
     };
 
+    /** Gateway redirected back to the callback URL: confirm with the API instead of loading that page. */
+    const handleGatewayCallback = async (ref) => {
+        if (callbackHandledRef.current) return;
+        callbackHandledRef.current = true;
+        setLoading(true);
+        for (let attempt = 0; attempt < 4 && !verifiedRef.current; attempt += 1) {
+            if (attempt > 0) await wait(2000);
+            await verifyOnce(ref);
+        }
+        setLoading(false);
+        if (verifiedRef.current) return;
+        Alert.alert(
+            'Payment processing',
+            'We could not confirm your payment yet. It will update on your order once the bank confirms.',
+            [
+                {
+                    text: 'OK',
+                    onPress: () => {
+                        if (orderId) {
+                            navigation.navigate('MyOrderDetails', { orderId });
+                        } else {
+                            navigation.goBack();
+                        }
+                    },
+                },
+            ],
+        );
+    };
+
+    const handleShouldStartLoad = (request) => {
+        const url = request?.url || '';
+        if (request?.isTopFrame === false || isGatewayUrl(url)) return true;
+        const ref = extractReferenceFromUrl(url) || (callbackHandledRef.current ? expectedRef : null);
+        if (!ref) return true;
+        if (expectedRef && String(ref).toLowerCase() !== String(expectedRef).toLowerCase()) return true;
+        handleGatewayCallback(ref);
+        return false;
+    };
+
     const handleNavigationStateChange = (navState) => {
         setCanGoBack(navState.canGoBack);
         setLoading(navState.loading);
@@ -131,6 +178,12 @@ const PaymentWebView = ({ navigation, route }) => {
     const handleError = (syntheticEvent) => {
         const { nativeEvent } = syntheticEvent;
         console.warn('WebView error: ', nativeEvent);
+        if (callbackHandledRef.current || verifiedRef.current) return;
+        const refInUrl = extractReferenceFromUrl(nativeEvent?.url);
+        if (refInUrl && !isGatewayUrl(nativeEvent?.url)) {
+            handleGatewayCallback(refInUrl);
+            return;
+        }
         Alert.alert(
             'Error',
             'Failed to load payment page. Please check your internet connection and try again.',
@@ -163,6 +216,7 @@ const PaymentWebView = ({ navigation, route }) => {
                 ref={webViewRef}
                 source={{ uri: defaultCheckoutUrl }}
                 style={styles.webview}
+                onShouldStartLoadWithRequest={handleShouldStartLoad}
                 onNavigationStateChange={handleNavigationStateChange}
                 onError={handleError}
                 onHttpError={handleError}
