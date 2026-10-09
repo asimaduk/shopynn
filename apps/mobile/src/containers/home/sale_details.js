@@ -599,6 +599,7 @@ const SaleDetails = ({ navigation, route }) => {
                 handleClose={() => !savingCollect && setShowCollectModal(false)}
                 onRequestClose={() => !savingCollect && setShowCollectModal(false)}
             >
+                <View style={styles.collectBody}>
                 <AppText label={`Balance due ${formatCurrency(balanceDue)}`} fontSize={13} color={colors.textSecondary} style={{ marginBottom: 12 }} />
                 {storeCreditBalance > 0.001 ? (
                     <AppText
@@ -708,6 +709,7 @@ const SaleDetails = ({ navigation, route }) => {
                 >
                     <AppText label={savingCollect ? 'Saving…' : 'Record payment'} variant={1} color="#fff" />
                 </TouchableOpacity>
+                </View>
             </AppModal>
 
             <InvoiceShareSheet
@@ -722,6 +724,7 @@ const SaleDetails = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
+    collectBody: { paddingHorizontal: 16, paddingTop: 14 },
     headerActionButton: {
         width: 40,
         height: 40,
