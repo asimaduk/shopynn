@@ -95,6 +95,7 @@ const Checkout = ({ navigation }) => {
     const [loading, setLoading] = useState(false);
     const [fulfillmentType, setFulfillmentType] = useState('');
     const [notes, setNotes] = useState('');
+    const [deliveryAddress, setDeliveryAddress] = useState('');
     const [storeMinAmount, setStoreMinAmount] = useState(0);
     const [paymentMode, setPaymentMode] = useState('full');
     const [payTiming, setPayTiming] = useState('now');
@@ -123,6 +124,7 @@ const Checkout = ({ navigation }) => {
     const canSubmit =
         !loading &&
         Boolean(fulfillmentType) &&
+        !(fulfillmentType === 'delivery' && !deliveryAddress.trim()) &&
         !(storeMinAmount > 0 && total < storeMinAmount);
 
     useEffect(() => {
@@ -171,6 +173,10 @@ const Checkout = ({ navigation }) => {
             Alert.alert('Fulfillment required', 'Please choose pickup or delivery before placing the order.');
             return;
         }
+        if (fulfillmentType === 'delivery' && !deliveryAddress.trim()) {
+            Alert.alert('Delivery address', 'Enter the address we should deliver to.');
+            return;
+        }
         if (!warehouseId) return;
         if (storeMinAmount > 0 && total < storeMinAmount) {
             Alert.alert(
@@ -196,6 +202,7 @@ const Checkout = ({ navigation }) => {
                 warehouse_id: warehouseId,
                 fulfillment_type: fulfillmentType,
                 notes,
+                delivery_address: fulfillmentType === 'delivery' ? deliveryAddress.trim() : undefined,
                 items: items.map((it) => ({
                     product_id: it.product_id,
                     quantity: Number(it.quantity || 0),
@@ -385,6 +392,29 @@ const Checkout = ({ navigation }) => {
                                 compact
                             />
                         </View>
+                        {fulfillmentType === 'delivery' ? (
+                            <View style={{ marginTop: 14 }}>
+                                <AppText label="Delivery address" variant={1} fontSize={13} color={colors.text} />
+                                <TextInput
+                                    value={deliveryAddress}
+                                    onChangeText={setDeliveryAddress}
+                                    placeholder="House number, street, area, landmark"
+                                    placeholderTextColor={colors.placeholder}
+                                    multiline
+                                    maxLength={500}
+                                    style={[
+                                        styles.input,
+                                        styles.notesInput,
+                                        {
+                                            borderColor: deliveryAddress.trim() ? colors.border : config.THEME_COLOR,
+                                            color: colors.text,
+                                            backgroundColor: colors.surface,
+                                            marginTop: 8,
+                                        },
+                                    ]}
+                                />
+                            </View>
+                        ) : null}
                     </View>
 
                     {allInstallmentEligible ? (
@@ -533,7 +563,9 @@ const Checkout = ({ navigation }) => {
                                 fulfillmentType
                                     ? fulfillmentType === 'pickup'
                                         ? 'Pickup'
-                                        : 'Delivery'
+                                        : deliveryAddress.trim()
+                                            ? 'Delivery'
+                                            : 'Add delivery address'
                                     : 'Choose fulfillment'
                             }
                             fontSize={12}

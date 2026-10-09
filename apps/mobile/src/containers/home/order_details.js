@@ -341,6 +341,31 @@ const OrderDetails = ({ navigation, route }) => {
                             </View>
                         </View>
 
+                        {!!String(order?.delivery_address || '').trim() || !!String(order?.notes || '').trim() ? (
+                            <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+                                <View style={styles.sectionHeadRow}>
+                                    <Lucide name="map-pin" size={14} color={colors.textSecondary} />
+                                    <AppText
+                                        label={fulfillmentType === 'delivery' ? 'Delivery details' : 'Order notes'}
+                                        variant={1}
+                                        color={colors.text}
+                                        style={{ marginLeft: 6 }}
+                                    />
+                                </View>
+                                {!!String(order?.delivery_address || '').trim() && (
+                                    <AppText label={String(order.delivery_address).trim()} color={colors.text} />
+                                )}
+                                {!!String(order?.notes || '').trim() && (
+                                    <AppText
+                                        label={`Note: ${String(order.notes).trim()}`}
+                                        color={colors.textSecondary}
+                                        fontSize={12}
+                                        style={{ marginTop: 4 }}
+                                    />
+                                )}
+                            </View>
+                        ) : null}
+
                         <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.surface }]}>
                             <View style={styles.sectionHeadRow}>
                                 <Lucide name="git-branch" size={14} color={colors.textSecondary} />

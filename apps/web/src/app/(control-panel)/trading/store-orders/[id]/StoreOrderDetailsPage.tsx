@@ -366,6 +366,14 @@ export default function StoreOrderDetailsPage() {
 															{formatStatusLabel(data?.fulfillment_type || 'pickup')}
 														</Typography>
 													</Grid>
+													{isDeliveryOrder ? (
+														<Grid item xs={12}>
+															<Typography variant="caption" className="text-secondary">Delivery address</Typography>
+															<Typography className="font-medium" sx={{ whiteSpace: 'pre-line' }}>
+																{String(data?.delivery_address || '').trim() || '—'}
+															</Typography>
+														</Grid>
+													) : null}
 													<Grid item xs={12}>
 														<Typography variant="caption" className="text-secondary">Order note</Typography>
 														<Typography className="font-medium">
