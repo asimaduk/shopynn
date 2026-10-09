@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { StyleSheet, View, TouchableOpacity, Alert, Switch, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, Switch, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AppText from '../../components/text';
 import config from '../../config';
@@ -13,6 +13,7 @@ import { useSelector } from 'react-redux';
 import { canAccessScreen, hasPermission, hasFeature } from '../../utils/permissions';
 import { useFocusEffect } from '@react-navigation/native';
 import FeatureUpgradePrompt from '../../components/FeatureUpgradePrompt';
+import AppAlert from '../../utils/appAlert';
 
 const Notifications = ({ navigation, route }) => {
     const { colors } = useTheme();
@@ -96,7 +97,7 @@ const Notifications = ({ navigation, route }) => {
                 setPushEnabled(next);
             } catch (e) {
                 const msg = e?.response?.data?.message || e?.message || 'Could not update settings';
-                Alert.alert('Error', msg);
+                AppAlert.alert('Error', msg);
             } finally {
                 setSavingPush(false);
             }
@@ -153,7 +154,7 @@ const Notifications = ({ navigation, route }) => {
             );
         };
 
-        Alert.alert(
+        AppAlert.alert(
             'Mark all as read',
             'Are you sure you want to mark all notifications as read?',
             [

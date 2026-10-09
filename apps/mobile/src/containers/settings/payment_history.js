@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { TextInput, TouchableOpacity, View, ScrollView, Platform, StyleSheet, Share, Alert, ActivityIndicator, RefreshControl } from 'react-native';
+import { TextInput, TouchableOpacity, View, ScrollView, Platform, StyleSheet, Share, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import ScreenHeader from '../../components/screen_header';
@@ -13,6 +13,7 @@ import useTheme from '../../hooks/useTheme';
 import { useSelector } from 'react-redux';
 import { subscriptions as subscriptionsApi } from '../../services/api';
 import { canManageSubscription } from '../../utils/permissions';
+import AppAlert from '../../utils/appAlert';
 
 const formatter = new Intl.NumberFormat('en-GH', {
     style: 'currency',
@@ -102,7 +103,7 @@ const PaymentHistory = ({ navigation }) => {
             setData(rows);
         } catch (error) {
             console.error('Error loading payment history:', error);
-            Alert.alert('Error', 'Failed to load payment history. Please try again.');
+            AppAlert.alert('Error', 'Failed to load payment history. Please try again.');
         } finally {
             setIsLoading(false);
         }
@@ -161,7 +162,7 @@ const PaymentHistory = ({ navigation }) => {
 
     const handleApplyCustomRange = async () => {
         if (draftStartDate > draftEndDate) {
-            Alert.alert('Invalid range', 'Start date must be on or before the end date.');
+            AppAlert.alert('Invalid range', 'Start date must be on or before the end date.');
             return;
         }
         setAppliedStartDate(draftStartDate);
@@ -353,7 +354,7 @@ const PaymentHistory = ({ navigation }) => {
         setShowExportFormatModal(false);
 
         if (filteredData.length === 0) {
-            Alert.alert('No Data', 'There are no payments to export.');
+            AppAlert.alert('No Data', 'There are no payments to export.');
             return;
         }
 
@@ -381,14 +382,14 @@ const PaymentHistory = ({ navigation }) => {
                         title: fileName,
                     });
 
-                    Alert.alert(
+                    AppAlert.alert(
                         'PDF Export',
                         'The HTML file has been shared. To convert to PDF:\n\n• iOS: Open in Safari, tap Share > Print > Save as PDF\n• Android: Open in browser, print > Save as PDF',
                         [{ text: 'OK' }]
                     );
                 }
             } catch (error) {
-                Alert.alert('Export Error', 'Could not export payment history. Please try again.');
+                AppAlert.alert('Export Error', 'Could not export payment history. Please try again.');
             } finally {
                 setExporting(false);
             }
@@ -397,7 +398,7 @@ const PaymentHistory = ({ navigation }) => {
 
     const handleExport = () => {
         if (filteredData.length === 0) {
-            Alert.alert('No Data', 'There are no payments to export.');
+            AppAlert.alert('No Data', 'There are no payments to export.');
             return;
         }
         setShowExportFormatModal(true);

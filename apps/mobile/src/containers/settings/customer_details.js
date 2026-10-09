@@ -1,14 +1,5 @@
 import React, { useState } from 'react';
-import {
-    View,
-    ScrollView,
-    TouchableOpacity,
-    Image,
-    ActivityIndicator,
-    Linking,
-    Alert,
-    StyleSheet,
-} from 'react-native';
+import { View, ScrollView, TouchableOpacity, Image, ActivityIndicator, Linking, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ScreenHeader from '../../components/screen_header';
 import AppText from '../../components/text';
@@ -18,6 +9,7 @@ import useTheme from '../../hooks/useTheme';
 import { customers as customersApi } from '../../services/api';
 import { useFocusEffect } from '@react-navigation/native';
 import { formatPhone } from '../../utils/format';
+import AppAlert from '../../utils/appAlert';
 
 const customerInitials = (name) => {
     const parts = String(name || '')
@@ -90,9 +82,9 @@ const CustomerDetails = ({ navigation, route }) => {
         try {
             const supported = await Linking.canOpenURL(url);
             if (supported) await Linking.openURL(url);
-            else Alert.alert('Call', 'This device cannot make phone calls.');
+            else AppAlert.alert('Call', 'This device cannot make phone calls.');
         } catch (err) {
-            Alert.alert('Error', err?.message || 'Failed to start the call.');
+            AppAlert.alert('Error', err?.message || 'Failed to start the call.');
         }
     };
 

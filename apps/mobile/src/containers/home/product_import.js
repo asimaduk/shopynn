@@ -1,12 +1,5 @@
 import React, { useState } from 'react';
-import {
-    View,
-    StyleSheet,
-    TouchableOpacity,
-    ActivityIndicator,
-    FlatList,
-    Alert,
-} from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ActivityIndicator, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import { pick } from '@react-native-documents/picker';
@@ -17,6 +10,7 @@ import AppText from '../../components/text';
 import config from '../../config';
 import useTheme from '../../hooks/useTheme';
 import { products as productsApi } from '../../services/api';
+import AppAlert from '../../utils/appAlert';
 
 const ProductImport = ({ navigation }) => {
     const { colors } = useTheme();
@@ -52,13 +46,13 @@ const ProductImport = ({ navigation }) => {
             });
             const uri = res.fileCopyUri || res.uri;
             if (!uri) {
-                Alert.alert('Error', 'Could not access selected file.');
+                AppAlert.alert('Error', 'Could not access selected file.');
                 return;
             }
             const allowed = ['.xlsx', '.xls', '.csv'];
             const lowerName = (res.name || '').toLowerCase();
             if (!allowed.some((ext) => lowerName.endsWith(ext))) {
-                Alert.alert('Unsupported file', 'Please select an Excel (.xlsx, .xls) or CSV file.');
+                AppAlert.alert('Unsupported file', 'Please select an Excel (.xlsx, .xls) or CSV file.');
                 return;
             }
             setFileName(res.name || 'Selected file');
@@ -70,7 +64,7 @@ const ProductImport = ({ navigation }) => {
             const sheet = workbook.Sheets[sheetName];
             const json = XLSX.utils.sheet_to_json(sheet, { defval: '' });
             if (!Array.isArray(json) || json.length === 0) {
-                Alert.alert('No data', 'No rows were found in the selected file.');
+                AppAlert.alert('No data', 'No rows were found in the selected file.');
                 setRows([]);
                 setSelectedIndexes([]);
                 return;
@@ -88,7 +82,7 @@ const ProductImport = ({ navigation }) => {
             setSelectedIndexes(mapped.map((_, idx) => idx)); // default select all
         } catch (err) {
             console.log(err);
-            Alert.alert('File error', err?.message || 'Could not read selected file.');
+            AppAlert.alert('File error', err?.message || 'Could not read selected file.');
         } finally {
             setLoading(false);
         }
@@ -96,7 +90,7 @@ const ProductImport = ({ navigation }) => {
 
     const handleImport = async () => {
         if (rows.length === 0 || selectedIndexes.length === 0) {
-            Alert.alert('Nothing to import', 'Select at least one product to import.');
+            AppAlert.alert('Nothing to import', 'Select at least one product to import.');
             return;
         }
         setLoading(true);
@@ -126,7 +120,7 @@ const ProductImport = ({ navigation }) => {
                 };
                 await productsApi.create(payload);
             }
-            Alert.alert('Imported', 'Selected products have been imported.', [
+            AppAlert.alert('Imported', 'Selected products have been imported.', [
                 { text: 'OK', onPress: () => navigation.goBack() },
             ]);
         } catch (err) {
@@ -134,7 +128,7 @@ const ProductImport = ({ navigation }) => {
                 err?.response?.data?.message ||
                 err?.message ||
                 'Failed to import products from file.';
-            Alert.alert('Error', msg);
+            AppAlert.alert('Error', msg);
         } finally {
             setLoading(false);
         }

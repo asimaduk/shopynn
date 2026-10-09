@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { StyleSheet, TouchableOpacity, View, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import { FlashList } from '@shopify/flash-list';
@@ -10,6 +10,7 @@ import ScreenHeader from '../../components/screen_header';
 import useTheme from '../../hooks/useTheme';
 import AppModal from '../../components/app_modal';
 import { products as productsApi, warehouses as warehousesApi, stockCounts as stockCountsApi, normalizeList } from '../../services/api';
+import AppAlert from '../../utils/appAlert';
 
 const StockCount = ({ navigation }) => {
     const { colors } = useTheme();
@@ -127,9 +128,9 @@ const StockCount = ({ navigation }) => {
 
     const handleSubmit = () => {
         const withActual = items.filter((i) => i.actualQty !== '' && i.actualQty !== null);
-        if (withActual.length === 0) { Alert.alert('Required', 'Enter actual count for at least one item.'); return; }
+        if (withActual.length === 0) { AppAlert.alert('Required', 'Enter actual count for at least one item.'); return; }
         const uniqueSubmitted = new Set(withActual.map((i) => i.id)).size;
-        Alert.alert(
+        AppAlert.alert(
             'Stock count',
             `Submit count for ${uniqueSubmitted} unique product${uniqueSubmitted === 1 ? '' : 's'}? Adjustments will be created for variances.`,
             [
@@ -150,7 +151,7 @@ const StockCount = ({ navigation }) => {
                                 counted_quantity: Number(i.actualQty) || 0,
                             })),
                         });
-                        Alert.alert('Success', 'Stock count submitted.', [
+                        AppAlert.alert('Success', 'Stock count submitted.', [
                             { text: 'OK', onPress: () => navigation.navigate('StockCountHistory') },
                         ]);
                     } catch (err) {
@@ -158,7 +159,7 @@ const StockCount = ({ navigation }) => {
                             err?.response?.data?.message ||
                             err?.message ||
                             'Failed to submit stock count.';
-                        Alert.alert('Error', msg);
+                        AppAlert.alert('Error', msg);
                     } finally {
                         setSubmitting(false);
                     }

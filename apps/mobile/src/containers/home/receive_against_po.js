@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { StyleSheet, TouchableOpacity, View, TextInput, ScrollView, Alert } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, TextInput, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
 import ScreenHeader from '../../components/screen_header';
 import config from '../../config';
 import useTheme from '../../hooks/useTheme';
+import AppAlert from '../../utils/appAlert';
 
 const ReceiveAgainstPO = ({ navigation, route }) => {
     const { colors } = useTheme();
@@ -23,10 +24,10 @@ const ReceiveAgainstPO = ({ navigation, route }) => {
     const submitReceive = () => {
         const received = lines.filter(l => (l.receivedQty || 0) > 0);
         if (received.length === 0) {
-            Alert.alert('Enter quantities', 'Enter received quantity for at least one line.');
+            AppAlert.alert('Enter quantities', 'Enter received quantity for at least one line.');
             return;
         }
-        Alert.alert('Goods received', 'Receipt recorded against this purchase order.', [
+        AppAlert.alert('Goods received', 'Receipt recorded against this purchase order.', [
             { text: 'OK', onPress: () => navigation.navigate('PurchaseOrders') },
         ]);
     };

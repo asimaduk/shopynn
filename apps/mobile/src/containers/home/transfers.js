@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { TextInput, TouchableOpacity, View, ScrollView, Platform, StyleSheet, Share, Alert, ActivityIndicator } from 'react-native';
+import { TextInput, TouchableOpacity, View, ScrollView, Platform, StyleSheet, Share, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import { useFocusEffect } from '@react-navigation/native';
@@ -15,6 +15,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import useTheme from '../../hooks/useTheme';
 import { transfers as transfersApi, normalizeList } from '../../services/api';
 import { canAccessScreen, hasFeature, hasPermission } from '../../utils/permissions';
+import AppAlert from '../../utils/appAlert';
 
 const dateRanges = [
     { id: '1', label: 'Today', value: 'today' },
@@ -416,7 +417,7 @@ const ProductTransfers = ({ navigation }) => {
         setShowExportFormatModal(false);
         
         if (filteredData.length === 0) {
-            Alert.alert('No Data', 'There are no transfers to export.');
+            AppAlert.alert('No Data', 'There are no transfers to export.');
             return;
         }
 
@@ -446,14 +447,14 @@ const ProductTransfers = ({ navigation }) => {
                     });
                     
                     // Show instruction for PDF conversion
-                    Alert.alert(
+                    AppAlert.alert(
                         'PDF Export',
                         'The HTML file has been shared. To convert to PDF:\n\n• iOS: Open in Safari, tap Share > Print > Save as PDF\n• Android: Open in browser, print > Save as PDF',
                         [{ text: 'OK' }]
                     );
                 }
             } catch (error) {
-                Alert.alert('Export Error', 'Could not export transfers. Please try again.');
+                AppAlert.alert('Export Error', 'Could not export transfers. Please try again.');
             } finally {
                 setExporting(false);
             }
@@ -462,7 +463,7 @@ const ProductTransfers = ({ navigation }) => {
 
     const handleExport = () => {
         if (filteredData.length === 0) {
-            Alert.alert('No Data', 'There are no transfers to export.');
+            AppAlert.alert('No Data', 'There are no transfers to export.');
             return;
         }
         setShowExportFormatModal(true);

@@ -1,21 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import {
-    View,
-    TextInput,
-    TouchableOpacity,
-    StyleSheet,
-    KeyboardAvoidingView,
-    Platform,
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    Text,
-    Dimensions,
-    StatusBar,
-    Image,
-    Animated,
-    Keyboard,
-} from 'react-native';
+import { View, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView, Text, Dimensions, StatusBar, Image, Animated, Keyboard } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { useDispatch } from 'react-redux';
@@ -48,6 +32,7 @@ import {
     isTenantSubscriptionActive,
     SUBSCRIPTION_RENEWAL_CODES as SUBSCRIPTION_ERROR_CODES,
 } from '../../utils/subscriptionAccess';
+import AppAlert from '../../utils/appAlert';
 
 /** Strip invisible paste junk iOS sometimes inserts into email fields. */
 const normalizeEmail = (value) =>
@@ -202,7 +187,7 @@ const Login = ({ navigation, route }) => {
         const bioPassword =
             credentialsPassword != null ? String(credentialsPassword).trim() : password.trim();
         if (biometricAvailable && !biometricEnabled) {
-            Alert.alert(
+            AppAlert.alert(
                 'Use ' + biometricLabel + ' next time?',
                 'You can sign in quickly with ' + biometricLabel + ' next time.',
                 [
@@ -227,7 +212,7 @@ const Login = ({ navigation, route }) => {
         const data = await usersApi.login(e, p);
         const token = data?.token ?? data?.data?.token;
         if (!token) {
-            Alert.alert('Login failed', 'Invalid response from server.');
+            AppAlert.alert('Login failed', 'Invalid response from server.');
             return;
         }
         await finishLoginWithToken(token, { email: e, password: p });
@@ -240,7 +225,7 @@ const Login = ({ navigation, route }) => {
             // Pass token explicitly so /users/me never races Keychain/AsyncStorage.
             const me = await usersApi.me(token);
             if (me?.reset_password) {
-                Alert.alert('Reset password', 'Please reset your password to continue.');
+                AppAlert.alert('Reset password', 'Please reset your password to continue.');
                 navigation.navigate('ResetPassword', { changePassword: true });
                 return;
             }
@@ -313,7 +298,7 @@ const Login = ({ navigation, route }) => {
                     postLoginScreen,
                 };
             } else {
-                Alert.alert('Login failed', 'Invalid response from server.');
+                AppAlert.alert('Login failed', 'Invalid response from server.');
                 return;
             }
 
@@ -392,7 +377,7 @@ const Login = ({ navigation, route }) => {
                 _?.response?.data?.message ||
                 _?.message ||
                 'Signed in, but could not load your profile. Check your connection and try again.';
-            Alert.alert('Login incomplete', msg);
+            AppAlert.alert('Login incomplete', msg);
             throw _;
         }
     };
@@ -402,7 +387,7 @@ const Login = ({ navigation, route }) => {
         const p = normalizePassword(password);
         setLoginError('');
         if (!e || !p) {
-            Alert.alert('Required', 'Please enter email and password.');
+            AppAlert.alert('Required', 'Please enter email and password.');
             return;
         }
         setLoading(true);
@@ -415,7 +400,7 @@ const Login = ({ navigation, route }) => {
                 apiPayload?.passwordExpired === true ||
                 String(apiPayload?.code || '').toUpperCase() === 'PASSWORD_EXPIRED';
             if (status === 403 && passwordExpired) {
-                Alert.alert(
+                AppAlert.alert(
                     'Password expired',
                     'Your password has expired. Use Forgot password to receive a reset link by email.',
                     [{ text: 'Continue', onPress: () => navigation.navigate('ForgotPassword') }]
@@ -426,7 +411,7 @@ const Login = ({ navigation, route }) => {
                 String(apiPayload?.code || '').toUpperCase() === 'ACCOUNT_INACTIVE' ||
                 apiPayload?.isActive === false;
             if (status === 403 && inactive) {
-                Alert.alert('Account inactive', 'Your account is inactive. Contact your administrator.');
+                AppAlert.alert('Account inactive', 'Your account is inactive. Contact your administrator.');
                 return;
             }
             const serverMsg =
@@ -436,7 +421,7 @@ const Login = ({ navigation, route }) => {
                 'Invalid email or password.';
             const detail = `${serverMsg}\nAPI: ${config.BASE_API}\nHTTP: ${status || 'network'}`;
             setLoginError(detail);
-            Alert.alert('Sign-in failed', detail);
+            AppAlert.alert('Sign-in failed', detail);
         } finally {
             setLoading(false);
         }
@@ -446,13 +431,13 @@ const Login = ({ navigation, route }) => {
 
     const sendPhoneOtp = async ({ isResend = false } = {}) => {
         if (!phone.trim()) {
-            Alert.alert('Required', 'Enter the mobile number you used on the store link.');
+            AppAlert.alert('Required', 'Enter the mobile number you used on the store link.');
             return;
         }
         if (isResend) {
             if (phoneResendCooldownSec > 0) return;
             if (phoneResendAttempts >= PHONE_OTP_MAX_RESENDS) {
-                Alert.alert(
+                AppAlert.alert(
                     'Resend limit reached',
                     `You can request up to ${PHONE_OTP_MAX_RESENDS} codes. Change the number or try again later.`
                 );
@@ -498,7 +483,7 @@ const Login = ({ navigation, route }) => {
             }
             const msg = err?.response?.data?.message || err?.message || 'Could not send code.';
             setLoginError(msg);
-            Alert.alert('Could not send code', msg);
+            AppAlert.alert('Could not send code', msg);
         } finally {
             setLoading(false);
         }
@@ -506,7 +491,7 @@ const Login = ({ navigation, route }) => {
 
     const verifyPhoneAndLogin = async () => {
         if (!phone.trim() || String(phoneOtp).trim().length < 6) {
-            Alert.alert('Required', 'Enter your phone number and the 6-digit code.');
+            AppAlert.alert('Required', 'Enter your phone number and the 6-digit code.');
             return;
         }
         setLoading(true);
@@ -516,14 +501,14 @@ const Login = ({ navigation, route }) => {
             const data = await usersApi.verifyPhoneLoginOtp(phone.trim(), String(phoneOtp).trim());
             const token = data?.token ?? data?.data?.token;
             if (!token) {
-                Alert.alert('Login failed', 'Invalid response from server.');
+                AppAlert.alert('Login failed', 'Invalid response from server.');
                 return;
             }
             await finishLoginWithToken(token, { skipBio: true });
         } catch (err) {
             const msg = err?.response?.data?.message || err?.message || 'Invalid code.';
             setLoginError(msg);
-            Alert.alert('Sign-in failed', msg);
+            AppAlert.alert('Sign-in failed', msg);
         } finally {
             setLoading(false);
         }
@@ -554,7 +539,7 @@ const Login = ({ navigation, route }) => {
         } catch (err) {
             const message = err?.message || `Sign in with ${provider} failed.`;
             if (!message.toLowerCase().includes('cancelled')) {
-                Alert.alert('Sign-in failed', message);
+                AppAlert.alert('Sign-in failed', message);
             }
         } finally {
             setLoading(false);
@@ -572,7 +557,7 @@ const Login = ({ navigation, route }) => {
             const e = (credentials.username || credentials.email || '').trim().toLowerCase();
             const p = credentials.password != null ? String(credentials.password) : '';
             if (!e || !p.trim()) {
-                Alert.alert('Login failed', 'Saved credentials are missing. Sign in with your password.');
+                AppAlert.alert('Login failed', 'Saved credentials are missing. Sign in with your password.');
                 return;
             }
             await signInWithPassword(e, p.trim());
@@ -583,7 +568,7 @@ const Login = ({ navigation, route }) => {
                 apiPayload?.passwordExpired === true ||
                 String(apiPayload?.code || '').toUpperCase() === 'PASSWORD_EXPIRED';
             if (status === 403 && passwordExpired) {
-                Alert.alert(
+                AppAlert.alert(
                     'Password expired',
                     'Your password has expired. Use Forgot password to receive a reset link by email.',
                     [{ text: 'Continue', onPress: () => navigation.navigate('ForgotPassword') }]
@@ -591,11 +576,11 @@ const Login = ({ navigation, route }) => {
                 return;
             }
             if (status === 401) {
-                Alert.alert('Login failed', 'Saved credentials are no longer valid. Sign in with your password.');
+                AppAlert.alert('Login failed', 'Saved credentials are no longer valid. Sign in with your password.');
                 return;
             }
             const msg = err?.response?.data?.message || err?.message || 'Could not sign in.';
-            Alert.alert('Sign-in failed', msg);
+            AppAlert.alert('Sign-in failed', msg);
         } finally {
             setLoading(false);
         }

@@ -1,15 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-    StyleSheet,
-    TouchableOpacity,
-    ScrollView,
-    View,
-    TextInput,
-    KeyboardAvoidingView,
-    Platform,
-    Alert,
-    ActivityIndicator,
-} from 'react-native';
+import { StyleSheet, TouchableOpacity, ScrollView, View, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
@@ -23,6 +13,7 @@ import { warehouses as warehousesApi, locations as locationsApi, normalizeList }
 import WarehouseReferenceCodeField, { validateReferenceCode } from '../../components/warehouse_reference_code_field';
 import CustomerSignupCodesUpgradeCard from '../../components/customer_signup_codes_upgrade_card';
 import { canManageCustomerSignupCodes } from '../../utils/permissions';
+import AppAlert from '../../utils/appAlert';
 
 const EditWarehouse = ({ navigation, route }) => {
     const { colors } = useTheme();
@@ -106,7 +97,7 @@ const EditWarehouse = ({ navigation, route }) => {
 
     const backPress = () => {
         if (hasChanges) {
-            Alert.alert(
+            AppAlert.alert(
                 'Unsaved Changes',
                 'You have unsaved changes. Are you sure you want to go back?',
                 [
@@ -152,7 +143,7 @@ const EditWarehouse = ({ navigation, route }) => {
 
     const handleSave = async () => {
         if (!validateForm()) {
-            Alert.alert('Validation Error', 'Please fix the errors before saving');
+            AppAlert.alert('Validation Error', 'Please fix the errors before saving');
             return;
         }
         setIsLoading(true);
@@ -170,12 +161,12 @@ const EditWarehouse = ({ navigation, route }) => {
                 payload.reference_code = formData.reference_code?.trim() || '';
             }
             await warehousesApi.update(warehouse.id, payload);
-            Alert.alert('Success', 'Warehouse updated successfully', [
+            AppAlert.alert('Success', 'Warehouse updated successfully', [
                 { text: 'OK', onPress: () => { setHasChanges(false); navigation.goBack(); } },
             ]);
         } catch (error) {
             const msg = error?.response?.data?.message || error?.message || 'Failed to update warehouse. Please try again.';
-            Alert.alert('Error', msg);
+            AppAlert.alert('Error', msg);
         } finally {
             setIsLoading(false);
         }

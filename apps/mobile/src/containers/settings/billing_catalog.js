@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, RefreshControl, Alert, StyleSheet, Switch } from 'react-native';
+import { View, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, RefreshControl, StyleSheet, Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
@@ -12,6 +12,7 @@ import useTheme from '../../hooks/useTheme';
 import { billing as billingApi } from '../../services/api';
 import { canAccessScreen } from '../../utils/permissions';
 import { isFoldedSetupAddon } from '../../utils/billingCatalog';
+import AppAlert from '../../utils/appAlert';
 
 function formatItemType(type) {
     const t = String(type || '').replace(/_/g, ' ');
@@ -108,7 +109,7 @@ const BillingCatalog = ({ navigation }) => {
                 err?.response?.data?.error ||
                 err?.message ||
                 'Failed to load billing catalog.';
-            Alert.alert('Billing catalog', msg);
+            AppAlert.alert('Billing catalog', msg);
             setItems([]);
         } finally {
             setLoading(false);
@@ -160,11 +161,11 @@ const BillingCatalog = ({ navigation }) => {
         if (!detailItem) return;
         const amount_ghs = Number(editAmount);
         if (!Number.isFinite(amount_ghs) || amount_ghs < 0) {
-            Alert.alert('Invalid amount', 'Enter a valid amount in GHS.');
+            AppAlert.alert('Invalid amount', 'Enter a valid amount in GHS.');
             return;
         }
         if (!editLabel.trim()) {
-            Alert.alert('Label required', 'Enter a label for this catalog item.');
+            AppAlert.alert('Label required', 'Enter a label for this catalog item.');
             return;
         }
 
@@ -179,7 +180,7 @@ const BillingCatalog = ({ navigation }) => {
             if (editMinAmount !== '') {
                 const min = Number(editMinAmount);
                 if (!Number.isFinite(min) || min < 0) {
-                    Alert.alert('Invalid minimum', 'Enter a valid minimum amount.');
+                    AppAlert.alert('Invalid minimum', 'Enter a valid minimum amount.');
                     return;
                 }
                 body.min_amount_ghs = min;
@@ -187,7 +188,7 @@ const BillingCatalog = ({ navigation }) => {
             if (editMaxAmount !== '') {
                 const max = Number(editMaxAmount);
                 if (!Number.isFinite(max) || max < 0) {
-                    Alert.alert('Invalid maximum', 'Enter a valid maximum amount.');
+                    AppAlert.alert('Invalid maximum', 'Enter a valid maximum amount.');
                     return;
                 }
                 body.max_amount_ghs = max;
@@ -201,14 +202,14 @@ const BillingCatalog = ({ navigation }) => {
             setEditOpen(false);
             setDetailOpen(false);
             setDetailItem(null);
-            Alert.alert('Saved', 'Catalog item updated.');
+            AppAlert.alert('Saved', 'Catalog item updated.');
         } catch (err) {
             const msg =
                 err?.response?.data?.message ||
                 err?.response?.data?.error ||
                 err?.message ||
                 'Could not save.';
-            Alert.alert('Save failed', msg);
+            AppAlert.alert('Save failed', msg);
         } finally {
             setSaving(false);
         }

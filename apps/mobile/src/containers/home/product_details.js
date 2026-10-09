@@ -1,17 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-    Image,
-    TouchableOpacity,
-    ScrollView,
-    View,
-    ActivityIndicator,
-    useWindowDimensions,
-    Alert,
-    Linking,
-    Share,
-    Modal,
-    Pressable,
-} from 'react-native';
+import { Image, TouchableOpacity, ScrollView, View, ActivityIndicator, useWindowDimensions, Linking, Share, Modal, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
@@ -26,6 +14,8 @@ import { formatQuantity } from '../../utils/format';
 import { getScreenPlanAccess, canManageCustomerSignupCodes } from '../../utils/permissions';
 import { buildWhatsAppUrl } from '../../utils/invoice';
 import { storefrontProductUrl, storefrontShareMessage } from '../../utils/storefrontLinks';
+import AppAlert from '../../utils/appAlert';
+import AppAlertHost from '../../components/AppAlertHost';
 
 const formatter = new Intl.NumberFormat('en-GH', {
     style: 'currency',
@@ -175,7 +165,7 @@ const ProductDetails = ({ navigation, route }) => {
         try {
             const code = await resolveStoreCodeForShare();
             if (!code) {
-                Alert.alert(
+                AppAlert.alert(
                     'Store code needed',
                     'Set a customer signup code on your store (Scale) before sharing a product order link.'
                 );
@@ -200,7 +190,7 @@ const ProductDetails = ({ navigation, route }) => {
             await Share.share({ message, title: product.name || 'Share product' });
         } catch (e) {
             if (e?.message !== 'User did not share') {
-                Alert.alert('Share failed', e?.message || 'Could not share link.');
+                AppAlert.alert('Share failed', e?.message || 'Could not share link.');
             }
         } finally {
             setSharing(false);
@@ -319,6 +309,7 @@ const ProductDetails = ({ navigation, route }) => {
                         </TouchableOpacity>
                     </Pressable>
                 </Pressable>
+                <AppAlertHost />
             </Modal>
 
             <ScrollView

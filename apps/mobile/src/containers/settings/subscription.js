@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useDispatch } from 'react-redux';
@@ -15,6 +15,7 @@ import { setSubscriptionActive } from '../../store/actions/appSettings';
 import { canManageSubscription } from '../../utils/permissions';
 import { SUBSCRIPTION_INACTIVE_MESSAGE } from '../../utils/subscriptionAccess';
 import { CHOOSEABLE_SUBSCRIPTION_PLANS, PLAN_RANK_BY_NAME, displayPlanName } from '../../constants/subscriptionPlans';
+import AppAlert from '../../utils/appAlert';
 
 const formatter = new Intl.NumberFormat('en-GH', {
     style: 'currency',
@@ -201,7 +202,7 @@ const Subscription = ({ navigation, route }) => {
                 err?.message ||
                 'Could not start subscription checkout. Please try again.';
             setChooseError(msg);
-            Alert.alert('Subscription', msg);
+            AppAlert.alert('Subscription', msg);
         } finally {
             setOnboarding(false);
         }

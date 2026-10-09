@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { StyleSheet, View, TouchableOpacity, Image, TextInput, Platform, ActivityIndicator, KeyboardAvoidingView, Dimensions, Alert } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, Image, TextInput, Platform, ActivityIndicator, KeyboardAvoidingView, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AppText from '../../components/text';
 import config from '../../config';
@@ -12,6 +12,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { products as productsApi, categories as categoriesApi, normalizeList } from '../../services/api';
 import { formatCurrency } from '../../utils/format';
 import { Share } from 'react-native';
+import AppAlert from '../../utils/appAlert';
 
 const { height } = Dimensions.get('screen');
 
@@ -143,7 +144,7 @@ const ProductsByCategory = ({ navigation, route }) => {
 
     const handleExportProducts = async () => {
       if (filteredProducts.length === 0) {
-        Alert.alert('No Data', 'There are no products to export.');
+        AppAlert.alert('No Data', 'There are no products to export.');
         return;
       }
 

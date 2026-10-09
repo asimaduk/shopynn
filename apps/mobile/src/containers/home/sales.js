@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { StyleSheet, TextInput, TouchableOpacity, View, KeyboardAvoidingView, Platform, ActivityIndicator, RefreshControl, ScrollView, Alert, DeviceEventEmitter } from 'react-native';
+import { StyleSheet, TextInput, TouchableOpacity, View, KeyboardAvoidingView, Platform, ActivityIndicator, RefreshControl, ScrollView, DeviceEventEmitter } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Lucide } from '@react-native-vector-icons/lucide';
@@ -15,6 +15,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import useTheme from '../../hooks/useTheme';
 import { canAccessScreen, hasPermission } from '../../utils/permissions';
 import { SALES_LIST_REFRESH_EVENT } from '../../utils/salesEvents';
+import AppAlert from '../../utils/appAlert';
 
 const PAGE_SIZE = 20;
 
@@ -129,7 +130,7 @@ const Sales = ({ navigation }) => {
     const handleResendInvoice = useCallback((sale) => {
         if (!sale?.id) return;
         const emailHint = sale.customer_email ? ` to ${sale.customer_email}` : '';
-        Alert.alert(
+        AppAlert.alert(
             'Resend invoice',
             `Email invoice #${sale.invoice_number}${emailHint}?`,
             [
@@ -140,10 +141,10 @@ const Sales = ({ navigation }) => {
                         setResendingSaleId(sale.id);
                         try {
                             const result = await salesApi.sendInvoice(sale.id, sale.customer_email ? { email: sale.customer_email } : {});
-                            Alert.alert('Sent', `Invoice resent to ${result?.sent_to || sale.customer_email || 'customer'}.`);
+                            AppAlert.alert('Sent', `Invoice resent to ${result?.sent_to || sale.customer_email || 'customer'}.`);
                         } catch (err) {
                             const msg = err?.response?.data?.message || err?.message || 'Could not resend invoice.';
-                            Alert.alert('Resend failed', msg);
+                            AppAlert.alert('Resend failed', msg);
                         } finally {
                             setResendingSaleId(null);
                         }

@@ -1,17 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import {
-    Image,
-    TouchableOpacity,
-    ScrollView,
-    View,
-    Dimensions,
-    Alert,
-    ActivityIndicator,
-    TextInput,
-    KeyboardAvoidingView,
-    Platform,
-    Switch,
-} from 'react-native';
+import { Image, TouchableOpacity, ScrollView, View, Dimensions, ActivityIndicator, TextInput, KeyboardAvoidingView, Platform, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
@@ -26,6 +14,7 @@ import { users as usersApi, tenants as tenantsApi, industries as industriesApi, 
 import { setCompanyDetails } from '../../store/actions/appSettings';
 import { SET_USER } from '../../store/actions/user';
 import { normalizeBulkDiscount, DEFAULT_BULK_DISCOUNT } from '../../utils/bulkDiscount';
+import AppAlert from '../../utils/appAlert';
 
 const { width } = Dimensions.get('screen');
 
@@ -172,7 +161,7 @@ const CompanyProfile = ({ navigation }) => {
             applyMeToForm(me, list);
         } catch (err) {
             const msg = err?.response?.data?.message || err?.message || 'Could not load company profile.';
-            Alert.alert('Error', msg);
+            AppAlert.alert('Error', msg);
         } finally {
             setLoading(false);
         }
@@ -192,7 +181,7 @@ const CompanyProfile = ({ navigation }) => {
             setShowFullImage(false);
             return;
         }
-        Alert.alert('Remove logo', 'Remove the company logo from your account?', [
+        AppAlert.alert('Remove logo', 'Remove the company logo from your account?', [
             { text: 'Cancel', style: 'cancel' },
             {
                 text: 'Remove',
@@ -205,7 +194,7 @@ const CompanyProfile = ({ navigation }) => {
                         setShowFullImage(false);
                     } catch (err) {
                         const msg = err?.response?.data?.message || err?.message || 'Could not remove logo.';
-                        Alert.alert('Error', msg);
+                        AppAlert.alert('Error', msg);
                     } finally {
                         setSaving(false);
                     }
@@ -237,7 +226,7 @@ const CompanyProfile = ({ navigation }) => {
     };
 
     const handleAddImage = () => {
-        Alert.alert('Company logo', 'Choose an option', [
+        AppAlert.alert('Company logo', 'Choose an option', [
             { text: 'Gallery', onPress: handleOpenGallery },
             { text: 'Camera', onPress: handleOpenCamera },
             { text: 'Cancel', style: 'cancel' },
@@ -262,23 +251,23 @@ const CompanyProfile = ({ navigation }) => {
         const industryForApi = resolveIndustryForApi();
 
         if (!name) {
-            Alert.alert('Required', 'Please enter your company name.');
+            AppAlert.alert('Required', 'Please enter your company name.');
             return;
         }
         if (!phone) {
-            Alert.alert('Required', 'Please enter your company phone.');
+            AppAlert.alert('Required', 'Please enter your company phone.');
             return;
         }
         if (!email) {
-            Alert.alert('Required', 'Please enter your company email.');
+            AppAlert.alert('Required', 'Please enter your company email.');
             return;
         }
         if (!address) {
-            Alert.alert('Required', 'Please enter your company address.');
+            AppAlert.alert('Required', 'Please enter your company address.');
             return;
         }
         if (!industryForApi) {
-            Alert.alert('Required', 'Please select your industry or company type.');
+            AppAlert.alert('Required', 'Please select your industry or company type.');
             return;
         }
 
@@ -346,10 +335,10 @@ const CompanyProfile = ({ navigation }) => {
                     },
                 },
             });
-            Alert.alert('Saved', 'Company profile was updated.');
+            AppAlert.alert('Saved', 'Company profile was updated.');
         } catch (err) {
             const msg = err?.response?.data?.message || err?.message || 'Could not save company profile.';
-            Alert.alert('Error', msg);
+            AppAlert.alert('Error', msg);
         } finally {
             setSaving(false);
         }

@@ -1,13 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    View,
-} from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import { useDispatch, useSelector } from 'react-redux';
@@ -23,6 +15,7 @@ import {
     normalizePrintAgentHost,
     normalizePrintAgentPort,
 } from '../../utils/printAgent';
+import AppAlert from '../../utils/appAlert';
 
 const PrintAgentSettings = ({ navigation }) => {
     const dispatch = useDispatch();
@@ -40,7 +33,7 @@ const PrintAgentSettings = ({ navigation }) => {
     const save = () => {
         const normalizedHost = normalizePrintAgentHost(host);
         if (!normalizedHost) {
-            Alert.alert('Host required', 'Enter the LAN IP of the computer running Shopynn Print.');
+            AppAlert.alert('Host required', 'Enter the LAN IP of the computer running Shopynn Print.');
             return;
         }
         dispatch(
@@ -49,7 +42,7 @@ const PrintAgentSettings = ({ navigation }) => {
                 port: normalizePrintAgentPort(port),
             }),
         );
-        Alert.alert('Saved', 'Print agent settings updated.');
+        AppAlert.alert('Saved', 'Print agent settings updated.');
     };
 
     const testConnection = async () => {
@@ -58,7 +51,7 @@ const PrintAgentSettings = ({ navigation }) => {
             printAgentPort: normalizePrintAgentPort(port),
         };
         if (!draft.printAgentHost) {
-            Alert.alert('Host required', 'Enter the LAN IP of the computer running Shopynn Print.');
+            AppAlert.alert('Host required', 'Enter the LAN IP of the computer running Shopynn Print.');
             return;
         }
         const url = getPrintAgentHealthUrl(draft);
@@ -70,13 +63,13 @@ const PrintAgentSettings = ({ navigation }) => {
             clearTimeout(timer);
             const data = await res.json().catch(() => ({}));
             if (!res.ok) {
-                Alert.alert('Not reachable', data.message || `HTTP ${res.status}`);
+                AppAlert.alert('Not reachable', data.message || `HTTP ${res.status}`);
                 return;
             }
             const printer = data.printer_connected ? 'Printer detected' : 'Agent OK — no USB printer detected yet';
-            Alert.alert('Connected', `${printer}\n${url.replace('/health', '')}`);
+            AppAlert.alert('Connected', `${printer}\n${url.replace('/health', '')}`);
         } catch (err) {
-            Alert.alert(
+            AppAlert.alert(
                 'Not reachable',
                 err?.name === 'AbortError'
                     ? 'Timed out. Check Wi‑Fi, firewall, and that Shopynn Print is running.'

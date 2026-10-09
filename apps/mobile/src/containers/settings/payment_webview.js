@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { View, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useDispatch } from 'react-redux';
 import AppText from '../../components/text';
@@ -8,6 +8,7 @@ import useTheme from '../../hooks/useTheme';
 import ScreenHeader from '../../components/screen_header';
 import { payments } from '../../services/api';
 import { setSubscriptionActive } from '../../store/actions/appSettings';
+import AppAlert from '../../utils/appAlert';
 
 const extractReferenceFromUrl = (url) => {
     if (!url || typeof url !== 'string') return null;
@@ -85,7 +86,7 @@ const PaymentWebView = ({ navigation, route }) => {
         if (isSubscription) {
             dispatch(setSubscriptionActive(true));
         }
-        Alert.alert(
+        AppAlert.alert(
             'Payment successful',
             isSubscription ? 'Your subscription payment was completed.' : 'Your payment was completed.',
             [
@@ -131,7 +132,7 @@ const PaymentWebView = ({ navigation, route }) => {
         }
         setLoading(false);
         if (verifiedRef.current) return;
-        Alert.alert(
+        AppAlert.alert(
             'Payment processing',
             'We could not confirm your payment yet. It will update on your order once the bank confirms.',
             [
@@ -183,7 +184,7 @@ const PaymentWebView = ({ navigation, route }) => {
         }
 
         if (urlLower.includes('cancel') || urlLower.includes('payment-failed') || urlLower.includes('failed')) {
-            Alert.alert('Payment cancelled', 'You can try again when ready.', [{ text: 'OK' }]);
+            AppAlert.alert('Payment cancelled', 'You can try again when ready.', [{ text: 'OK' }]);
         }
     };
 
@@ -196,7 +197,7 @@ const PaymentWebView = ({ navigation, route }) => {
             handleGatewayCallback(refInUrl);
             return;
         }
-        Alert.alert(
+        AppAlert.alert(
             'Error',
             'Failed to load payment page. Please check your internet connection and try again.',
             [

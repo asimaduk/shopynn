@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { TextInput, TouchableOpacity, View, ScrollView, Platform, StyleSheet, Share, Alert, ActivityIndicator } from 'react-native';
+import { TextInput, TouchableOpacity, View, ScrollView, Platform, StyleSheet, Share, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import ScreenHeader from '../../components/screen_header';
@@ -13,6 +13,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import useTheme from '../../hooks/useTheme';
 import { useFocusEffect } from '@react-navigation/native';
 import { payments as paymentsApi, normalizeList } from '../../services/api';
+import AppAlert from '../../utils/appAlert';
 
 const dateRanges = [
     { id: '1', label: 'Today', value: 'today' },
@@ -385,7 +386,7 @@ const CustomerPayments = ({ navigation, route }) => {
         setShowExportFormatModal(false);
 
         if (filteredData.length === 0) {
-            Alert.alert('No Data', 'There are no payments to export.');
+            AppAlert.alert('No Data', 'There are no payments to export.');
             return;
         }
 
@@ -413,14 +414,14 @@ const CustomerPayments = ({ navigation, route }) => {
                         title: fileName,
                     });
 
-                    Alert.alert(
+                    AppAlert.alert(
                         'PDF Export',
                         'The HTML file has been shared. To convert to PDF:\n\n• iOS: Open in Safari, tap Share > Print > Save as PDF\n• Android: Open in browser, print > Save as PDF',
                         [{ text: 'OK' }]
                     );
                 }
             } catch (error) {
-                Alert.alert('Export Error', 'Could not export payments. Please try again.');
+                AppAlert.alert('Export Error', 'Could not export payments. Please try again.');
             } finally {
                 setExporting(false);
             }
@@ -429,7 +430,7 @@ const CustomerPayments = ({ navigation, route }) => {
 
     const handleExport = () => {
         if (filteredData.length === 0) {
-            Alert.alert('No Data', 'There are no payments to export.');
+            AppAlert.alert('No Data', 'There are no payments to export.');
             return;
         }
         setShowExportFormatModal(true);

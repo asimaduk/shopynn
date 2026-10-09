@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ScreenHeader from '../../components/screen_header';
 import AppText from '../../components/text';
 import useTheme from '../../hooks/useTheme';
 import config from '../../config';
 import { payments } from '../../services/api';
+import AppAlert from '../../utils/appAlert';
 
 const canReverse = (payment) => {
 	const method = String(payment?.payment_method_type || '').toLowerCase();
@@ -39,10 +40,10 @@ export default function OrderPaymentDetails({ navigation, route }) {
 	const onReverse = async () => {
 		const trimmedReason = reason.trim();
 		if (!trimmedReason) {
-			Alert.alert('Reason required', 'Please provide a reason before reversing this payment.');
+			AppAlert.alert('Reason required', 'Please provide a reason before reversing this payment.');
 			return;
 		}
-		Alert.alert(
+		AppAlert.alert(
 			'Confirm reversal',
 			'Are you sure you want to reverse this cash payment?',
 			[
@@ -57,7 +58,7 @@ export default function OrderPaymentDetails({ navigation, route }) {
 							setReason('');
 							await load();
 						} catch (e) {
-							Alert.alert('Error', e?.response?.data?.message || e?.response?.data?.error || e?.message || 'Could not reverse payment.');
+							AppAlert.alert('Error', e?.response?.data?.message || e?.response?.data?.error || e?.message || 'Could not reverse payment.');
 						} finally {
 							setReversing(false);
 						}

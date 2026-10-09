@@ -1,11 +1,12 @@
 import React from 'react';
-import { View, TextInput, TouchableOpacity, Alert, Linking, Share } from 'react-native';
+import { View, TextInput, TouchableOpacity, Linking, Share } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from './text';
 import config from '../config';
 import { storefrontStoreUrl, storefrontShareMessage } from '../utils/storefrontLinks';
 import { buildWhatsAppUrl } from '../utils/invoice';
+import AppAlert from '../utils/appAlert';
 
 export const REFERENCE_CODE_MIN_LENGTH = 6;
 export const REFERENCE_CODE_MAX_LENGTH = 80;
@@ -73,27 +74,27 @@ export default function WarehouseReferenceCodeField({
     const handleCopy = () => {
         const code = normalizeReferenceCodeInput(value);
         if (!code) {
-            Alert.alert('Nothing to copy', 'Enter or generate a customer signup code first.');
+            AppAlert.alert('Nothing to copy', 'Enter or generate a customer signup code first.');
             return;
         }
         Clipboard.setString(code);
-        Alert.alert('Copied', 'Signup code copied to clipboard.');
+        AppAlert.alert('Copied', 'Signup code copied to clipboard.');
     };
 
     const handleCopyStoreLink = () => {
         const url = storefrontUrl();
         if (!url) {
-            Alert.alert('No code yet', 'Enter or generate a customer signup code first.');
+            AppAlert.alert('No code yet', 'Enter or generate a customer signup code first.');
             return;
         }
         Clipboard.setString(url);
-        Alert.alert('Copied', 'Order link copied. Paste it in WhatsApp or anywhere.');
+        AppAlert.alert('Copied', 'Order link copied. Paste it in WhatsApp or anywhere.');
     };
 
     const handleShareWhatsApp = async () => {
         const url = storefrontUrl();
         if (!url) {
-            Alert.alert('No code yet', 'Enter or generate a customer signup code first.');
+            AppAlert.alert('No code yet', 'Enter or generate a customer signup code first.');
             return;
         }
         const message = storefrontShareMessage({
@@ -114,7 +115,7 @@ export default function WarehouseReferenceCodeField({
             await Share.share({ message, title: 'Share store order link' });
         } catch (e) {
             if (e?.message !== 'User did not share') {
-                Alert.alert('Share failed', e?.message || 'Could not open share sheet.');
+                AppAlert.alert('Share failed', e?.message || 'Could not open share sheet.');
             }
         }
     };

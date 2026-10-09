@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, ActivityIndicator, TextInput, Alert, BackHandler } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ActivityIndicator, TextInput, BackHandler } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useDispatch } from 'react-redux';
@@ -11,6 +11,7 @@ import ScreenHeader from '../../components/screen_header';
 import { orders, payments } from '../../services/api';
 import { setSubscriptionActive } from '../../store/actions/appSettings';
 import { inferGhanaMomoNetwork } from '../../utils/format';
+import AppAlert from '../../utils/appAlert';
 
 const formatter = new Intl.NumberFormat('en-GH', {
     style: 'currency',
@@ -130,7 +131,7 @@ const MomoStatus = ({ navigation, route }) => {
     const handleSubmitVoucher = async () => {
         const otp = String(voucher || '').trim();
         if (!otp || !transactionRef) {
-            Alert.alert('Voucher required', 'Enter the Telecel Cash voucher from *110#.');
+            AppAlert.alert('Voucher required', 'Enter the Telecel Cash voucher from *110#.');
             return;
         }
         setSubmittingVoucher(true);
@@ -143,7 +144,7 @@ const MomoStatus = ({ navigation, route }) => {
             setVoucher('');
             await verifyPaymentStatus();
         } catch (error) {
-            Alert.alert(
+            AppAlert.alert(
                 'Voucher',
                 error?.response?.data?.message || error?.message || 'Could not submit voucher.',
             );

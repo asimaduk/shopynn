@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, Switch, View, ScrollView, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
+import { StyleSheet, Switch, View, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AppText from '../../components/text';
 import config from '../../config';
@@ -13,6 +13,7 @@ import {
     syncFcmTokenToServer,
     openNotificationSettings,
 } from '../../utils/pushNotifications';
+import AppAlert from '../../utils/appAlert';
 
 const DEFAULT_SETTINGS = {
     lowStock: true,
@@ -136,7 +137,7 @@ const NotificationsSetup = ({ navigation, route }) => {
             setPreferences((prev) => ({ ...prev, notifications: { ...prev?.notifications, ...body.notifications } }));
         } catch (e) {
             const msg = e?.response?.data?.message || e?.message || 'Failed to save preferences';
-            Alert.alert('Error', msg);
+            AppAlert.alert('Error', msg);
         } finally {
             setSaving(false);
         }

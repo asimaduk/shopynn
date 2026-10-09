@@ -1,16 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-    ActivityIndicator,
-    Alert,
-    PermissionsAndroid,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    View,
-} from 'react-native';
+import { ActivityIndicator, PermissionsAndroid, Platform, Pressable, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import AppModal from '../../components/app_modal';
 import AppText from '../../components/text';
@@ -30,6 +19,7 @@ import {
     whisperModelFileExists,
 } from '../../services/whisperVoicePos';
 import { parseVoiceOrderTranscript } from '../../utils/voiceOrderParse';
+import AppAlert from '../../utils/appAlert';
 
 const MAX_RECORD_MS = 20000;
 
@@ -133,7 +123,7 @@ export default function VoiceAddToSaleModal({ visible, onClose, onApply }) {
         const net = await NetInfo.fetch();
         const online = net.isConnected === true && net.isInternetReachable !== false;
         if (!online) {
-            Alert.alert(
+            AppAlert.alert(
                 'No connection',
                 'Connect to the internet to download the voice model (~150 MB, one time). You can still type your order below.',
             );
@@ -141,7 +131,7 @@ export default function VoiceAddToSaleModal({ visible, onClose, onApply }) {
             return;
         }
 
-        Alert.alert(
+        AppAlert.alert(
             'Download voice model?',
             'Hold-to-talk needs a one-time download (~150 MB, English). Wi‑Fi is recommended. After this, speech works offline.\n\nDownload now?',
             [
@@ -243,12 +233,12 @@ export default function VoiceAddToSaleModal({ visible, onClose, onApply }) {
             const code = e?.code || e?.message;
             if (code === 'WHISPER_NO_MODEL' || String(e?.message || '').includes('WHISPER_NO_MODEL')) {
                 checkVoiceModel();
-                Alert.alert(
+                AppAlert.alert(
                     'Voice model',
                     'Download the voice model to use hold-to-talk, or type your order below.',
                 );
             } else {
-                Alert.alert('Transcription failed', String(e?.message || e || 'Unknown error'));
+                AppAlert.alert('Transcription failed', String(e?.message || e || 'Unknown error'));
             }
         } finally {
             setTranscribing(false);
@@ -262,12 +252,12 @@ export default function VoiceAddToSaleModal({ visible, onClose, onApply }) {
         if (holdStartDisabled || isRecordingRef.current || recorderRef.current) return;
         const ok = await ensureAndroidMicPermission();
         if (!ok) {
-            Alert.alert('Microphone', 'Microphone permission is required to record.');
+            AppAlert.alert('Microphone', 'Microphone permission is required to record.');
             return;
         }
         const recorder = createVoicePosRecorder();
         if (!recorder) {
-            Alert.alert('Recording', 'Could not start the audio recorder.');
+            AppAlert.alert('Recording', 'Could not start the audio recorder.');
             return;
         }
         recorderRef.current = recorder;
@@ -282,7 +272,7 @@ export default function VoiceAddToSaleModal({ visible, onClose, onApply }) {
                 if (uri) await runTranscribe(uri);
             }, MAX_RECORD_MS);
         } catch (e) {
-            Alert.alert('Recording failed', String(e?.message || e));
+            AppAlert.alert('Recording failed', String(e?.message || e));
             isRecordingRef.current = false;
             setRecording(false);
             recorderRef.current = null;
@@ -310,12 +300,12 @@ export default function VoiceAddToSaleModal({ visible, onClose, onApply }) {
     const refreshLinesFromTranscript = useCallback(async () => {
         const t = String(transcript || '').trim();
         if (!t) {
-            Alert.alert('Transcript', 'Enter or record what the customer asked for.');
+            AppAlert.alert('Transcript', 'Enter or record what the customer asked for.');
             return;
         }
         const parsed = parseVoiceOrderTranscript(t);
         if (!parsed.length) {
-            Alert.alert('Parse', 'Could not parse any line items. Try phrases like "3 water and bread".');
+            AppAlert.alert('Parse', 'Could not parse any line items. Try phrases like "3 water and bread".');
             setLines([]);
             return;
         }
@@ -329,7 +319,7 @@ export default function VoiceAddToSaleModal({ visible, onClose, onApply }) {
     const handleApply = useCallback(() => {
         const unresolved = lines.filter((l) => l.selectedIdx === null);
         if (unresolved.length) {
-            Alert.alert('Confirm matches', 'Pick a product or None for each line.');
+            AppAlert.alert('Confirm matches', 'Pick a product or None for each line.');
             return;
         }
         const payload = [];
@@ -340,7 +330,7 @@ export default function VoiceAddToSaleModal({ visible, onClose, onApply }) {
             payload.push({ record: pick.item, qty: l.qty });
         }
         if (!payload.length) {
-            Alert.alert('Nothing to add', 'All lines were skipped or had no matches.');
+            AppAlert.alert('Nothing to add', 'All lines were skipped or had no matches.');
             return;
         }
         const ok = onApply(payload);

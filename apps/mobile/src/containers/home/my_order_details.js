@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Alert, Linking, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Lucide } from '@react-native-vector-icons/lucide';
@@ -10,6 +10,7 @@ import config from '../../config';
 import { orders } from '../../services/api';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { formatPhone, inferGhanaMomoNetwork } from '../../utils/format';
+import AppAlert from '../../utils/appAlert';
 
 const STATUS_STEPS = ['pending', 'confirmed', 'processing', 'ready', 'shipped', 'delivered', 'completed'];
 const formatStatusLabel = (value) =>
@@ -85,13 +86,13 @@ const MyOrderDetails = ({ navigation, route }) => {
             '';
         const sanitized = String(phone).trim();
         if (!sanitized) {
-            Alert.alert('Contact unavailable', 'No contact phone number is available for this order yet.');
+            AppAlert.alert('Contact unavailable', 'No contact phone number is available for this order yet.');
             return;
         }
         const telUrl = `tel:${sanitized}`;
         const supported = await Linking.canOpenURL(telUrl);
         if (!supported) {
-            Alert.alert('Unable to call', 'This device cannot place phone calls right now.');
+            AppAlert.alert('Unable to call', 'This device cannot place phone calls right now.');
             return;
         }
         Linking.openURL(telUrl);
@@ -147,11 +148,11 @@ const MyOrderDetails = ({ navigation, route }) => {
         if (!orderId) return;
         const pay = amount != null ? Number(amount) : Number(order?.total_amount || 0);
         if (!Number.isFinite(pay) || pay <= 0) {
-            Alert.alert('Amount required', 'Enter a payment amount greater than zero.');
+            AppAlert.alert('Amount required', 'Enter a payment amount greater than zero.');
             return;
         }
         if (isInstallment && pay > balanceDue + 0.02) {
-            Alert.alert('Amount too high', `Maximum payment is GHS ${balanceDue.toFixed(2)}.`);
+            AppAlert.alert('Amount too high', `Maximum payment is GHS ${balanceDue.toFixed(2)}.`);
             return;
         }
         navigation.navigate('Payment', {
@@ -172,7 +173,7 @@ const MyOrderDetails = ({ navigation, route }) => {
         const method = String(openPayment.payment_method_type || '').toLowerCase();
         const charge = Number(openPayment.amount || openPayment.face_amount || totalAmount);
         if (method === 'card') {
-            Alert.alert(
+            AppAlert.alert(
                 'Card payment pending',
                 'A card checkout was already started. You can check status or start a new payment.',
                 [

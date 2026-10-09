@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import { useFocusEffect } from '@react-navigation/native';
@@ -15,6 +15,7 @@ import {
     readSecureList,
 } from '../../utils/secureOfflineStorage';
 import { syncPendingSales } from '../../utils/syncPendingSales';
+import AppAlert from '../../utils/appAlert';
 
 const PendingSales = ({ navigation }) => {
     const { colors } = useTheme();
@@ -40,7 +41,7 @@ const PendingSales = ({ navigation }) => {
             const result = await syncPendingSales();
             await loadPendingSales();
             if (result.remaining === 0 && result.uploaded > 0) {
-                Alert.alert('Pending sales', 'All pending sales have been uploaded successfully.');
+                AppAlert.alert('Pending sales', 'All pending sales have been uploaded successfully.');
             }
         } catch (e) {
             await loadPendingSales();

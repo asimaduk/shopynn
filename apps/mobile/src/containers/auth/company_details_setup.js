@@ -1,15 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import {
-    View,
-    TextInput,
-    TouchableOpacity,
-    StyleSheet,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    Alert,
-    ActivityIndicator,
-} from 'react-native';
+import { View, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import { Lucide } from '@react-native-vector-icons/lucide';
@@ -20,6 +10,7 @@ import { setCompanyDetails } from '../../store/actions/appSettings';
 import AppModal from '../../components/app_modal';
 import { tenants as tenantsApi, industries as industriesApi, normalizeList } from '../../services/api';
 import { formatPhone } from '../../utils/format';
+import AppAlert from '../../utils/appAlert';
 
 // Form state lives here so only this block re-renders on input; parent header stays stable
 const CompanyDetailsForm = React.memo(function CompanyDetailsForm({
@@ -85,23 +76,23 @@ const CompanyDetailsForm = React.memo(function CompanyDetailsForm({
     const handleContinue = useCallback(() => {
         const { name, companyAddress, companyPhone, companyEmail, companyIndustry } = validatedData;
         if (!name) {
-            Alert.alert('Required', 'Please enter your company name.');
+            AppAlert.alert('Required', 'Please enter your company name.');
             return;
         }
         if (!companyAddress) {
-            Alert.alert('Required', 'Please enter your company address.');
+            AppAlert.alert('Required', 'Please enter your company address.');
             return;
         }
         if (!companyPhone) {
-            Alert.alert('Required', 'Please enter your company phone.');
+            AppAlert.alert('Required', 'Please enter your company phone.');
             return;
         }
         if (!companyEmail) {
-            Alert.alert('Required', 'Please enter your company email.');
+            AppAlert.alert('Required', 'Please enter your company email.');
             return;
         }
         if (!companyIndustry) {
-            Alert.alert('Required', 'Please select your industry or company type.');
+            AppAlert.alert('Required', 'Please select your industry or company type.');
             return;
         }
         setShowConfirmModal(true);
@@ -419,7 +410,7 @@ const CompanyDetailsSetup = ({ navigation }) => {
             }
             } catch (err) {
                 const msg = err?.response?.data?.message || err?.message || 'Could not save company details.';
-                Alert.alert('Error', msg);
+                AppAlert.alert('Error', msg);
                 throw err;
             }
         },

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Dimensions, StyleSheet, TouchableOpacity, ScrollView, View, TextInput, KeyboardAvoidingView, Platform, Image, Alert, ActivityIndicator } from 'react-native';
+import { Dimensions, StyleSheet, TouchableOpacity, ScrollView, View, TextInput, KeyboardAvoidingView, Platform, Image, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
@@ -10,6 +10,7 @@ import { FlashList } from '@shopify/flash-list';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import useTheme from '../../hooks/useTheme';
 import { products as productsApi, warehouses as warehousesApi, categories as categoriesApi, normalizeList } from '../../services/api';
+import AppAlert from '../../utils/appAlert';
 
 // const images = [];
 
@@ -233,7 +234,7 @@ const ProductForm = ({ navigation, route }) => {
             setImages(tmp);
             return;
         }
-        Alert.alert('', 'Are you sure you want to delete this image?', [
+        AppAlert.alert('', 'Are you sure you want to delete this image?', [
             { text: 'Cancel', style: 'cancel' },
             {
                 text: 'Delete',
@@ -272,7 +273,7 @@ const ProductForm = ({ navigation, route }) => {
                             err?.response?.data?.message ||
                             err?.message ||
                             'Could not remove image from server.';
-                        Alert.alert('Error', msg);
+                        AppAlert.alert('Error', msg);
                     } finally {
                         setImageDeleteLoading(false);
                     }
@@ -288,7 +289,7 @@ const ProductForm = ({ navigation, route }) => {
 
     const handleOpenGallery = async() => {
         if(images.length >= 5) {
-            Alert.alert('','Maximum 5 images allowed');
+            AppAlert.alert('','Maximum 5 images allowed');
             return;
         }
         const result = await launchImageLibrary({
@@ -306,7 +307,7 @@ const ProductForm = ({ navigation, route }) => {
 
     const handleOpenCamera = async() => {
         if(images.length >= 5) {
-            Alert.alert('','Maximum 5 images allowed');
+            AppAlert.alert('','Maximum 5 images allowed');
             return;
         }
         const result = await launchCamera({
@@ -324,10 +325,10 @@ const ProductForm = ({ navigation, route }) => {
 
     const handleAddImage = async () => {
         if(images.length >= 5) {
-            Alert.alert('','Maximum 5 images allowed');
+            AppAlert.alert('','Maximum 5 images allowed');
             return;
         }
-        Alert.alert('Add Image','Select an option',[
+        AppAlert.alert('Add Image','Select an option',[
             {text:'Cancel', style: 'cancel'},
             {text:'Gallery', onPress: handleOpenGallery},
             {text:'Camera', onPress: handleOpenCamera}
@@ -413,7 +414,7 @@ const ProductForm = ({ navigation, route }) => {
 
     const handleSave = async () => {
         if(!validateForm()) {
-            Alert.alert('Validation Error', 'Please fix the errors before saving');
+            AppAlert.alert('Validation Error', 'Please fix the errors before saving');
             return;
         }
         
@@ -466,13 +467,13 @@ const ProductForm = ({ navigation, route }) => {
                 await productsApi.create(productData);
             }
             
-            Alert.alert('Success', 'Product saved successfully', [
+            AppAlert.alert('Success', 'Product saved successfully', [
                 {text: 'OK', onPress: () => navigation.goBack()}
             ]);
         } catch (err) {
             console.log('err', err);
             const msg = err?.response?.data?.message || err?.message || 'Failed to save product.';
-            Alert.alert('Error', msg);
+            AppAlert.alert('Error', msg);
         } finally {
             setIsLoading(false);
         }
@@ -1067,7 +1068,7 @@ const ProductForm = ({ navigation, route }) => {
                                                         setSelectedCategories(newSelectedCategories);
                                                     } else {
                                                         if (Object.keys(selectedCategories).length >= 3) {
-                                                            Alert.alert('Not Allowed','You can only select up to 3 categories');
+                                                            AppAlert.alert('Not Allowed','You can only select up to 3 categories');
                                                             return;
                                                         } else {
                                                             const newSelectedCategories = { ...selectedCategories };

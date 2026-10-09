@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, Image, Keyboard } from 'react-native';
+import { View, ScrollView, StyleSheet, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Image, Keyboard } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
@@ -9,6 +9,7 @@ import ScreenHeader from '../../components/screen_header';
 import { useSelector } from 'react-redux';
 import { orders, payments, platformSettings } from '../../services/api';
 import { MOMO_NETWORK_OPTIONS, getMomoNetworkIcon } from '../../utils/momoNetworks';
+import AppAlert from '../../utils/appAlert';
 
 const formatter = new Intl.NumberFormat('en-GH', {
     style: 'currency',
@@ -86,11 +87,11 @@ const Payment = ({ navigation, route }) => {
     const validateMomoForm = () => {
         const phone = normalizeMomoNumber(momoNumber);
         if (!phone || phone.length < MOMO_NUMBER_MAX_LENGTH) {
-            Alert.alert('Required', `Please enter a valid ${MOMO_NUMBER_MAX_LENGTH}-digit mobile money number.`);
+            AppAlert.alert('Required', `Please enter a valid ${MOMO_NUMBER_MAX_LENGTH}-digit mobile money number.`);
             return null;
         }
         if (isTelecel && !String(telecelVoucher || '').trim()) {
-            Alert.alert(
+            AppAlert.alert(
                 'Voucher required',
                 'Dial *110# to generate a Telecel Cash voucher, then enter it here.',
             );
@@ -110,7 +111,7 @@ const Payment = ({ navigation, route }) => {
 
     const handleSubscriptionPayment = async () => {
         if (!subscriptionId) {
-            Alert.alert('Payment', 'Subscription reference is missing. Go back and choose a plan again.');
+            AppAlert.alert('Payment', 'Subscription reference is missing. Go back and choose a plan again.');
             return;
         }
         const paymentBodyBase = {
@@ -128,7 +129,7 @@ const Payment = ({ navigation, route }) => {
                 const checkoutUrl =
                     res?.redirect_url || res?.authorization_url || res?.data?.authorization_url;
                 if (!checkoutUrl) {
-                    Alert.alert('Payment', 'Could not start card checkout. Try again.');
+                    AppAlert.alert('Payment', 'Could not start card checkout. Try again.');
                     return;
                 }
                 if (!navigation.isFocused()) return;
@@ -162,7 +163,7 @@ const Payment = ({ navigation, route }) => {
                     voucher: momo.voucher,
                 });
             } catch (otpErr) {
-                Alert.alert(
+                AppAlert.alert(
                     'Voucher',
                     otpErr?.response?.data?.message ||
                         otpErr?.message ||
@@ -176,7 +177,7 @@ const Payment = ({ navigation, route }) => {
                     ? 'Telecel voucher submitted. Confirm status on the next screen.'
                     : 'Complete the payment prompt on your phone.');
             if (!navigation.isFocused()) return;
-            if (res?.status !== 'success') Alert.alert('Mobile money', msg);
+            if (res?.status !== 'success') AppAlert.alert('Mobile money', msg);
             navigation.navigate('MomoStatus', {
                 amount,
                 planName,
@@ -189,7 +190,7 @@ const Payment = ({ navigation, route }) => {
             });
         } catch (error) {
             if (!navigation.isFocused()) return;
-            Alert.alert(
+            AppAlert.alert(
                 'Payment failed',
                 error?.response?.data?.message || error?.message || 'Could not start payment.',
             );
@@ -207,7 +208,7 @@ const Payment = ({ navigation, route }) => {
         }
 
         if (!orderId) {
-            Alert.alert('Payment', 'Order reference is missing.');
+            AppAlert.alert('Payment', 'Order reference is missing.');
             return;
         }
 
@@ -220,7 +221,7 @@ const Payment = ({ navigation, route }) => {
             if (selectedMethod === 'card') {
                 const res = await initiateFn(orderId, { ...paymentBodyBase, payment_method: 'card' });
                 if (!res?.redirect_url) {
-                    Alert.alert('Payment', 'Could not start card checkout. Try again.');
+                    AppAlert.alert('Payment', 'Could not start card checkout. Try again.');
                     return;
                 }
                 if (!navigation.isFocused()) return;
@@ -252,7 +253,7 @@ const Payment = ({ navigation, route }) => {
                     voucher: momo.voucher,
                 });
             } catch (otpErr) {
-                Alert.alert(
+                AppAlert.alert(
                     'Voucher',
                     otpErr?.response?.data?.message ||
                         otpErr?.message ||
@@ -266,7 +267,7 @@ const Payment = ({ navigation, route }) => {
                     ? 'Telecel voucher submitted. Confirm status on the next screen.'
                     : 'Complete the payment prompt on your phone.');
             if (!navigation.isFocused()) return;
-            if (res?.status !== 'success') Alert.alert('Mobile money', msg);
+            if (res?.status !== 'success') AppAlert.alert('Mobile money', msg);
             navigation.replace('MomoStatus', {
                 amount: res?.charge_amount || chargeAmount || amount,
                 planName: planName || 'Order payment',
@@ -290,7 +291,7 @@ const Payment = ({ navigation, route }) => {
             });
         } catch (error) {
             if (!navigation.isFocused()) return;
-            Alert.alert('Payment failed', error?.response?.data?.message || error?.message || 'Could not start payment.');
+            AppAlert.alert('Payment failed', error?.response?.data?.message || error?.message || 'Could not start payment.');
         } finally {
             setSubmitting(false);
         }

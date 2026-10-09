@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, TouchableOpacity, ScrollView, View, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, Image } from 'react-native';
+import { StyleSheet, TouchableOpacity, ScrollView, View, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch } from 'react-redux';
 import { Lucide } from '@react-native-vector-icons/lucide';
@@ -9,6 +9,7 @@ import ScreenHeader from '../../components/screen_header';
 import useTheme from '../../hooks/useTheme';
 import { users as usersApi } from '../../services/api';
 import { SET_USER } from '../../store/actions/user';
+import AppAlert from '../../utils/appAlert';
 
 const InputField = ({
     label,
@@ -101,11 +102,11 @@ const ProfileForm = ({ navigation, route }) => {
 
     const handleSave = async () => {
         if (!form.firstName || !form.lastName) { // || !form.email
-            Alert.alert('Error', 'Please fill in all required fields');
+            AppAlert.alert('Error', 'Please fill in all required fields');
             return;
         }
         if (!meId) {
-            Alert.alert('Error', 'Could not identify your profile. Please try again.');
+            AppAlert.alert('Error', 'Could not identify your profile. Please try again.');
             return;
         }
         setSaving(true);
@@ -118,10 +119,10 @@ const ProfileForm = ({ navigation, route }) => {
                 phone: form.phone || undefined,
             });
             dispatch({ type: SET_USER, payload: { name, first_name: form.firstName, last_name: form.lastName, phone: form.phone, branch: form.branch } }); //, email: form.email
-            Alert.alert('Success', 'Your profile has been updated successfully.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
+            AppAlert.alert('Success', 'Your profile has been updated successfully.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
         } catch (e) {
             const msg = e?.response?.data?.message || e?.message || 'Update failed';
-            Alert.alert('Error', msg);
+            AppAlert.alert('Error', msg);
         } finally {
             setSaving(false);
         }

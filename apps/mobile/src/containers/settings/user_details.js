@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, ScrollView, TouchableOpacity, Switch, Alert, Linking, TextInput, StyleSheet } from 'react-native';
+import { View, ScrollView, TouchableOpacity, Switch, Linking, TextInput, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import ScreenHeader from '../../components/screen_header';
@@ -13,6 +13,7 @@ import { users as usersApi } from '../../services/api';
 import AppModal from '../../components/app_modal';
 import { hasPermission } from '../../utils/permissions';
 import { formatPhone } from '../../utils/format';
+import AppAlert from '../../utils/appAlert';
 
 const UserDetails = ({ navigation, route }) => {
     const { colors } = useTheme();
@@ -69,7 +70,7 @@ const UserDetails = ({ navigation, route }) => {
                         err?.response?.data?.message ||
                         err?.message ||
                         'Failed to load user details.';
-                    Alert.alert('Error', msg);
+                    AppAlert.alert('Error', msg);
                 } finally {
                     if (mounted) {
                         setLoading(false);
@@ -96,20 +97,20 @@ const UserDetails = ({ navigation, route }) => {
             if (supported) {
                 await Linking.openURL(url);
             } else {
-                Alert.alert('Call', 'This device cannot make phone calls.');
+                AppAlert.alert('Call', 'This device cannot make phone calls.');
             }
         } catch (err) {
             const msg = err?.message || 'Failed to start the call.';
-            Alert.alert('Error', msg);
+            AppAlert.alert('Error', msg);
         }
     };
 
     const handleToggleActive = (value) => {
         if (!hasPermission(currentUser, 'users.toggle_active')) {
-            Alert.alert('Not allowed', 'You do not have permission to change user status.');
+            AppAlert.alert('Not allowed', 'You do not have permission to change user status.');
             return;
         }
-        Alert.alert(
+        AppAlert.alert(
             value ? 'Enable user' : 'Disable user',
             value ? `Enable ${user.name}? They will be able to sign in again.` : `Disable ${user.name}? They will no longer be able to sign in.`,
             [
@@ -122,7 +123,7 @@ const UserDetails = ({ navigation, route }) => {
                             setUser((u) => ({ ...u, isActive: value }));
                         } catch (err) {
                             const msg = err?.response?.data?.message || err?.message || 'Failed to update user.';
-                            Alert.alert('Error', msg);
+                            AppAlert.alert('Error', msg);
                         }
                     },
                 },
@@ -135,7 +136,7 @@ const UserDetails = ({ navigation, route }) => {
             return;
         }
         if (!hasPermission(currentUser, 'users.delete')) {
-            Alert.alert('Not allowed', 'You do not have permission to delete users.');
+            AppAlert.alert('Not allowed', 'You do not have permission to delete users.');
             return;
         }
         setDeleteReason('');
@@ -144,7 +145,7 @@ const UserDetails = ({ navigation, route }) => {
 
     const confirmDelete = async () => {
         if (!deleteReason.trim()) {
-            Alert.alert('Reason required', 'Please provide a reason for deleting this user.');
+            AppAlert.alert('Reason required', 'Please provide a reason for deleting this user.');
             return;
         }
         if (!user?.id) return;
@@ -153,7 +154,7 @@ const UserDetails = ({ navigation, route }) => {
             await usersApi.delete(user.id, { reason: deleteReason.trim() });
             setUser((u) => ({ ...u, deleted: true }));
             setShowDeleteModal(false);
-            Alert.alert('Deleted', 'User has been deleted.', [
+            AppAlert.alert('Deleted', 'User has been deleted.', [
                 { text: 'OK', onPress: () => navigation.goBack() },
             ]);
         } catch (err) {
@@ -161,7 +162,7 @@ const UserDetails = ({ navigation, route }) => {
                 err?.response?.data?.message ||
                 err?.message ||
                 'Failed to delete user.';
-            Alert.alert('Error', msg);
+            AppAlert.alert('Error', msg);
         } finally {
             setDeleting(false);
         }
@@ -173,7 +174,7 @@ const UserDetails = ({ navigation, route }) => {
     //         setUser((u) => ({ ...u, role }));
     //     } catch (err) {
     //         const msg = err?.response?.data?.message || err?.message || 'Failed to update role.';
-    //         Alert.alert('Error', msg);
+    //         AppAlert.alert('Error', msg);
     //     }
     //     setShowRolePicker(false);
     // };
@@ -200,7 +201,7 @@ const UserDetails = ({ navigation, route }) => {
                             disabled={!hasPermission(currentUser, ['users.update', 'users.view'])}
                             onPress={() => {
                                 if (!hasPermission(currentUser, ['users.update', 'users.view'])) {
-                                    Alert.alert('Not allowed', 'You do not have permission to edit users.');
+                                    AppAlert.alert('Not allowed', 'You do not have permission to edit users.');
                                     return;
                                 }
                                 navigation.navigate('UserForm', { user });

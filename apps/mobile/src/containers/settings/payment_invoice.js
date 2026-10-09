@@ -1,11 +1,12 @@
 import React from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity, Share, Alert } from 'react-native';
+import { View, ScrollView, StyleSheet, TouchableOpacity, Share } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
 import config from '../../config';
 import useTheme from '../../hooks/useTheme';
 import ScreenHeader from '../../components/screen_header';
+import AppAlert from '../../utils/appAlert';
 
 const formatter = new Intl.NumberFormat('en-GH', {
     style: 'currency',
@@ -96,7 +97,7 @@ const PaymentInvoice = ({ navigation, route }) => {
                 title: `Invoice ${payment.invoice || ''}`,
             });
         } catch (e) {
-            Alert.alert('Share', 'Could not share invoice.');
+            AppAlert.alert('Share', 'Could not share invoice.');
         }
     };
 

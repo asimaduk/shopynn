@@ -1,15 +1,5 @@
 import React, { useState } from 'react';
-import {
-    StyleSheet,
-    TouchableOpacity,
-    ScrollView,
-    View,
-    TextInput,
-    KeyboardAvoidingView,
-    Platform,
-    Alert,
-    ActivityIndicator,
-} from 'react-native';
+import { StyleSheet, TouchableOpacity, ScrollView, View, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
@@ -17,6 +7,7 @@ import ScreenHeader from '../../components/screen_header';
 import config from '../../config';
 import useTheme from '../../hooks/useTheme';
 import { locations as locationsApi } from '../../services/api';
+import AppAlert from '../../utils/appAlert';
 
 const CreateLocation = ({ navigation }) => {
     const { colors } = useTheme();
@@ -46,17 +37,17 @@ const CreateLocation = ({ navigation }) => {
 
     const handleSave = async () => {
         if (!validateForm()) {
-            Alert.alert('Validation Error', 'Please fix the errors before saving');
+            AppAlert.alert('Validation Error', 'Please fix the errors before saving');
             return;
         }
         setIsLoading(true);
         try {
             await locationsApi.create({ name: formData.name.trim() });
-            Alert.alert('Success', 'Location added successfully', [
+            AppAlert.alert('Success', 'Location added successfully', [
                 { text: 'OK', onPress: () => navigation.goBack() },
             ]);
         } catch (_) {
-            Alert.alert('Error', 'Failed to add location. Please try again.');
+            AppAlert.alert('Error', 'Failed to add location. Please try again.');
         } finally {
             setIsLoading(false);
         }

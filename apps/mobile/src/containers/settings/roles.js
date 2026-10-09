@@ -1,14 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import {
-    View,
-    TouchableOpacity,
-    TextInput,
-    ActivityIndicator,
-    RefreshControl,
-    Alert,
-    ScrollView,
-    StyleSheet,
-} from 'react-native';
+import { View, TouchableOpacity, TextInput, ActivityIndicator, RefreshControl, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { FlashList } from '@shopify/flash-list';
@@ -21,6 +12,7 @@ import config from '../../config';
 import useTheme from '../../hooks/useTheme';
 import { roles as rolesApi, permissions as permissionsApi, normalizeList } from '../../services/api';
 import { hasPermission } from '../../utils/permissions';
+import AppAlert from '../../utils/appAlert';
 
 const roleInitials = (name) => {
     const parts = String(name || '')
@@ -165,7 +157,7 @@ const Roles = ({ navigation }) => {
     const openEdit = useCallback(
         async (role) => {
             if (isProtectedSystemRole(role)) {
-                Alert.alert(
+                AppAlert.alert(
                     'System role',
                     'The Customer role is managed by Shopynn and cannot be edited.',
                 );
@@ -250,20 +242,20 @@ const Roles = ({ navigation }) => {
 
     const saveRole = useCallback(async () => {
         if (editingRoleId && !canUpdateRole) {
-            Alert.alert('Permission', 'You are not allowed to update roles.');
+            AppAlert.alert('Permission', 'You are not allowed to update roles.');
             return;
         }
         if (!editingRoleId && !canCreateRole) {
-            Alert.alert('Permission', 'You are not allowed to create roles.');
+            AppAlert.alert('Permission', 'You are not allowed to create roles.');
             return;
         }
         const name = roleName.trim();
         if (!name) {
-            Alert.alert('Role name', 'Please enter a role name.');
+            AppAlert.alert('Role name', 'Please enter a role name.');
             return;
         }
         if (selectedPermissionIds.length === 0) {
-            Alert.alert('Permissions', 'Please select at least one permission.');
+            AppAlert.alert('Permissions', 'Please select at least one permission.');
             return;
         }
         try {
@@ -282,7 +274,7 @@ const Roles = ({ navigation }) => {
             setShowEditor(false);
         } catch (err) {
             const msg = err?.response?.data?.message || err?.message || 'Failed to save role.';
-            Alert.alert('Error', msg);
+            AppAlert.alert('Error', msg);
         } finally {
             setSaving(false);
         }
@@ -291,19 +283,19 @@ const Roles = ({ navigation }) => {
     const removeRole = useCallback(
         (role) => {
             if (isProtectedSystemRole(role)) {
-                Alert.alert(
+                AppAlert.alert(
                     'System role',
                     'The Customer role is managed by Shopynn and cannot be deleted.',
                 );
                 return;
             }
             if (!canDeleteRole) {
-                Alert.alert('Permission', 'You are not allowed to delete roles.');
+                AppAlert.alert('Permission', 'You are not allowed to delete roles.');
                 return;
             }
             const roleId = role?.id;
             if (!roleId) return;
-            Alert.alert('Delete role', `Delete "${role?.name || 'this role'}"? This cannot be undone.`, [
+            AppAlert.alert('Delete role', `Delete "${role?.name || 'this role'}"? This cannot be undone.`, [
                 { text: 'Cancel', style: 'cancel' },
                 {
                     text: 'Delete',
@@ -312,13 +304,13 @@ const Roles = ({ navigation }) => {
                         try {
                             const response = await rolesApi.delete(roleId);
                             if (response?.status === 400) {
-                                Alert.alert('Error', response?.data?.message || 'Could not delete role.');
+                                AppAlert.alert('Error', response?.data?.message || 'Could not delete role.');
                                 return;
                             }
                             await loadMeta();
                         } catch (err) {
                             const msg = err?.response?.data?.message || err?.message || 'Failed to delete role.';
-                            Alert.alert('Error', msg);
+                            AppAlert.alert('Error', msg);
                         }
                     },
                 },
@@ -349,7 +341,7 @@ const Roles = ({ navigation }) => {
                     onPress={
                         canCreateRole
                             ? openCreate
-                            : () => Alert.alert('Permission', 'You are not allowed to create roles.')
+                            : () => AppAlert.alert('Permission', 'You are not allowed to create roles.')
                     }
                     style={[
                         styles.headerBtn,
@@ -441,7 +433,7 @@ const Roles = ({ navigation }) => {
                               activeOpacity: 0.75,
                               onPress: canUpdateRole
                                   ? () => openEdit(item)
-                                  : () => Alert.alert('Permission', 'You are not allowed to update roles.'),
+                                  : () => AppAlert.alert('Permission', 'You are not allowed to update roles.'),
                           };
 
                     return (
@@ -494,7 +486,7 @@ const Roles = ({ navigation }) => {
                                             onPress={(e) => {
                                                 e?.stopPropagation?.();
                                                 if (canUpdateRole) openEdit(item);
-                                                else Alert.alert('Permission', 'You are not allowed to update roles.');
+                                                else AppAlert.alert('Permission', 'You are not allowed to update roles.');
                                             }}
                                             style={[styles.iconBtn, { opacity: canUpdateRole ? 1 : 0.4 }]}
                                         >

@@ -1,16 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-    View,
-    ScrollView,
-    TouchableOpacity,
-    TextInput,
-    Alert,
-    FlatList,
-    ActivityIndicator,
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet,
-} from 'react-native';
+import { View, ScrollView, TouchableOpacity, TextInput, FlatList, ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import { Lucide } from '@react-native-vector-icons/lucide';
@@ -20,6 +9,7 @@ import ScreenHeader from '../../components/screen_header';
 import useTheme from '../../hooks/useTheme';
 import { merchants as merchantsApi } from '../../services/api';
 import { hasPermission } from '../../utils/permissions';
+import AppAlert from '../../utils/appAlert';
 
 function eligibleUserLabel(u) {
     const name = [u.first_name, u.last_name].filter(Boolean).join(' ').trim();
@@ -83,7 +73,7 @@ const MerchantAdd = ({ navigation }) => {
             }
             setEligibleUsers(list);
         } catch (e) {
-            Alert.alert('Error', e?.response?.data?.message || 'Could not load eligible users.');
+            AppAlert.alert('Error', e?.response?.data?.message || 'Could not load eligible users.');
             setEligibleUsers([]);
         } finally {
             setEligibleLoading(false);
@@ -132,24 +122,24 @@ const MerchantAdd = ({ navigation }) => {
         const pctRaw = promotePct.trim();
         const commission = pctRaw === '' ? null : Number(promotePct);
         if (pctRaw !== '' && (commission === null || Number.isNaN(commission) || commission < 0 || commission > 100)) {
-            Alert.alert('Merchant', 'Commission % must be between 0 and 100.');
+            AppAlert.alert('Merchant', 'Commission % must be between 0 and 100.');
             return;
         }
         if (mode === 'new') {
             if (!firstName.trim() || !lastName.trim()) {
-                Alert.alert('Merchant', 'First and last name are required.');
+                AppAlert.alert('Merchant', 'First and last name are required.');
                 return;
             }
             if (!email.trim()) {
-                Alert.alert('Merchant', 'Email is required.');
+                AppAlert.alert('Merchant', 'Email is required.');
                 return;
             }
             if (!phone.trim()) {
-                Alert.alert('Merchant', 'Phone is required.');
+                AppAlert.alert('Merchant', 'Phone is required.');
                 return;
             }
         } else if (!selectedUser?.id) {
-            Alert.alert('Merchant', 'Select a user from the list.');
+            AppAlert.alert('Merchant', 'Select a user from the list.');
             return;
         }
 
@@ -159,7 +149,7 @@ const MerchantAdd = ({ navigation }) => {
                 ? `Create a merchant partner for ${email.trim()} (${firstName.trim()} ${lastName.trim()}).\n\nDefault commission: ${commissionLabel}`
                 : `Promote ${eligibleUserLabel(selectedUser)} to merchant partner.\n\nDefault commission: ${commissionLabel}`;
 
-        Alert.alert('Add merchant partner?', confirmMessage, [
+        AppAlert.alert('Add merchant partner?', confirmMessage, [
             { text: 'Cancel', style: 'cancel' },
             {
                 text: 'Confirm',
@@ -176,7 +166,7 @@ const MerchantAdd = ({ navigation }) => {
                                 },
                                 default_commission_percent: commission,
                             });
-                            Alert.alert('Done', 'Merchant created. A temporary password was emailed to the new user.', [
+                            AppAlert.alert('Done', 'Merchant created. A temporary password was emailed to the new user.', [
                                 { text: 'OK', onPress: () => navigation.goBack() },
                             ]);
                         } else {
@@ -184,10 +174,10 @@ const MerchantAdd = ({ navigation }) => {
                                 user_id: selectedUser.id,
                                 default_commission_percent: commission,
                             });
-                            Alert.alert('Done', 'Merchant record created.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
+                            AppAlert.alert('Done', 'Merchant record created.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
                         }
                     } catch (e) {
-                        Alert.alert('Error', e?.response?.data?.message || e?.message || 'Failed');
+                        AppAlert.alert('Error', e?.response?.data?.message || e?.message || 'Failed');
                     } finally {
                         setSubmitting(false);
                     }

@@ -1,16 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import {
-    Dimensions,
-    StyleSheet,
-    TouchableOpacity,
-    View,
-    TextInput,
-    KeyboardAvoidingView,
-    Platform,
-    Alert,
-    ScrollView,
-    ActivityIndicator,
-} from 'react-native';
+import { Dimensions, StyleSheet, TouchableOpacity, View, TextInput, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Lucide } from '@react-native-vector-icons/lucide';
@@ -21,6 +10,7 @@ import AppModal from '../../components/app_modal';
 import { FlashList } from '@shopify/flash-list';
 import useTheme from '../../hooks/useTheme';
 import { transfers as transfersApi, warehouses as warehousesApi, normalizeList } from '../../services/api';
+import AppAlert from '../../utils/appAlert';
 
 const { width, height } = Dimensions.get('screen');
 
@@ -137,7 +127,7 @@ const NewTransfer = ({ navigation, route }) => {
     };
 
     const handleRemoveProduct = () => {
-        Alert.alert('Remove item', `Remove "${selectedProduct?.name}" from this transfer?`, [
+        AppAlert.alert('Remove item', `Remove "${selectedProduct?.name}" from this transfer?`, [
             { text: 'Cancel', style: 'cancel' },
             {
                 text: 'Remove',
@@ -166,18 +156,18 @@ const NewTransfer = ({ navigation, route }) => {
 
     const handleSaveTransfer = () => {
         if (!sourceWarehouse || !destinationWarehouse) {
-            Alert.alert('Select warehouses', 'Please select both From and To warehouses.');
+            AppAlert.alert('Select warehouses', 'Please select both From and To warehouses.');
             return;
         }
         if (sameWarehouse(sourceWarehouse, destinationWarehouse)) {
-            Alert.alert('Invalid warehouses', 'From and To must be different warehouses.');
+            AppAlert.alert('Invalid warehouses', 'From and To must be different warehouses.');
             return;
         }
         if (orders.length === 0) {
-            Alert.alert('Add items', 'Add at least one product to transfer.');
+            AppAlert.alert('Add items', 'Add at least one product to transfer.');
             return;
         }
-        Alert.alert(
+        AppAlert.alert(
             'Confirm transfer',
             `Transfer ${orders.reduce((s, o) => s + (o.order_quantity || 0), 0)} item(s) from ${sourceWarehouse?.name} to ${destinationWarehouse?.name}?`,
             [
@@ -193,10 +183,10 @@ const NewTransfer = ({ navigation, route }) => {
                                 products: orders.map((o) => ({ id: o.id, quantity: Number(o.order_quantity) || 0 })),
                                 notes: notes?.trim() || undefined,
                             });
-                            Alert.alert('Success', 'Transfer saved.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
+                            AppAlert.alert('Success', 'Transfer saved.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
                         } catch (err) {
                             const msg = err?.response?.data?.message || err?.message || 'Failed to save transfer.';
-                            Alert.alert('Error', msg);
+                            AppAlert.alert('Error', msg);
                         } finally {
                             setSaving(false);
                         }
@@ -212,7 +202,7 @@ const NewTransfer = ({ navigation, route }) => {
     const pickWarehouse = (item, isSource) => {
         if (isSource) {
             if (sameWarehouse(item, destinationWarehouse)) {
-                Alert.alert('Invalid warehouse', 'From and To must be different. Choose another source warehouse.');
+                AppAlert.alert('Invalid warehouse', 'From and To must be different. Choose another source warehouse.');
                 return;
             }
             setSourceWarehouse(item);
@@ -220,7 +210,7 @@ const NewTransfer = ({ navigation, route }) => {
             return;
         }
         if (sameWarehouse(item, sourceWarehouse)) {
-            Alert.alert('Invalid warehouse', 'From and To must be different. Choose another destination warehouse.');
+            AppAlert.alert('Invalid warehouse', 'From and To must be different. Choose another destination warehouse.');
             return;
         }
         setDestinationWarehouse(item);

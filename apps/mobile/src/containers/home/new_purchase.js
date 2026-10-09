@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Dimensions, StyleSheet, TouchableOpacity, ScrollView, View, TextInput, KeyboardAvoidingView, Platform, Image, Alert, Share } from 'react-native';
+import { Dimensions, StyleSheet, TouchableOpacity, ScrollView, View, TextInput, KeyboardAvoidingView, Platform, Image, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSelector, useDispatch } from 'react-redux';
@@ -15,6 +15,7 @@ import { FlashList } from '@shopify/flash-list';
 import { launchCamera } from 'react-native-image-picker';
 import useTheme from '../../hooks/useTheme';
 import { purchases as purchasesApi, warehouses as warehousesApi, suppliers as suppliersApi, normalizeList } from '../../services/api';
+import AppAlert from '../../utils/appAlert';
 
 const { width, height } = Dimensions.get('screen');
 
@@ -167,7 +168,7 @@ const NewPurchase = ({ navigation, route }) => {
 
     const handleRemoveProduct = () => {
         if (!selectedProduct) return;
-        Alert.alert('Remove item', `Remove "${selectedProduct.name}" from this purchase?`, [
+        AppAlert.alert('Remove item', `Remove "${selectedProduct.name}" from this purchase?`, [
             { text: 'Cancel', style: 'cancel' },
             { text: 'Remove', style: 'destructive', onPress: () => {
                 setOrders((prev) => prev.filter((o) => o.id !== selectedProduct.id && o.name !== selectedProduct.name));
@@ -261,19 +262,19 @@ const NewPurchase = ({ navigation, route }) => {
 
     const handleSavePurchase = async () => {
         if (orders.length === 0) {
-            Alert.alert('Add items', 'Add at least one product.');
+            AppAlert.alert('Add items', 'Add at least one product.');
             return;
         }
         else if (!selectedStore) {
-            Alert.alert('Add store', 'Please select a store.');
+            AppAlert.alert('Add store', 'Please select a store.');
             return;
         }
         else if (!selectedSupplier) {
-            Alert.alert('Add supplier', 'Please select a supplier.');
+            AppAlert.alert('Add supplier', 'Please select a supplier.');
             return;
         }
         else if (!invoiceNumber.trim()) {
-            Alert.alert('Add invoice number', 'Please enter an invoice number.');
+            AppAlert.alert('Add invoice number', 'Please enter an invoice number.');
             return;
         }
 
@@ -287,11 +288,11 @@ const NewPurchase = ({ navigation, route }) => {
         } else if (paymentStatus === PAYMENT_STATUS.PARTIAL) {
             resolvedAmountPaid = paidParsed != null && Number.isFinite(paidParsed) ? paidParsed : 0;
             if (resolvedAmountPaid <= 0) {
-                Alert.alert('Amount paid', 'Enter amount paid for partial payment.');
+                AppAlert.alert('Amount paid', 'Enter amount paid for partial payment.');
                 return;
             }
             if (resolvedAmountPaid >= totalAmount) {
-                Alert.alert('Amount paid', 'Partial amount must be less than total — use Paid instead.');
+                AppAlert.alert('Amount paid', 'Partial amount must be less than total — use Paid instead.');
                 return;
             }
         }
@@ -320,10 +321,10 @@ const NewPurchase = ({ navigation, route }) => {
                 due_date: dueDate.trim() || null,
             });
             setShowConfirm(false);
-            Alert.alert('Success', 'Purchase saved.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
+            AppAlert.alert('Success', 'Purchase saved.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
         } catch (err) {
             const msg = err?.response?.data?.message || err?.message || 'Failed to save purchase.';
-            Alert.alert('Error', msg);
+            AppAlert.alert('Error', msg);
         } finally {
             setSaving(false);
         }
@@ -442,7 +443,7 @@ const NewPurchase = ({ navigation, route }) => {
                                     <TouchableOpacity
                                         activeOpacity={0.7}
                                         onPress={() => {
-                                            Alert.alert('Remove item', `Remove "${item.name}" from this purchase?`, [
+                                            AppAlert.alert('Remove item', `Remove "${item.name}" from this purchase?`, [
                                                 { text: 'Cancel', style: 'cancel' },
                                                 { text: 'Remove', style: 'destructive', onPress: () => {
                                                     setOrders((prev) => prev.filter((o) => o.id !== item.id && o.name !== item.name));
@@ -659,25 +660,25 @@ const NewPurchase = ({ navigation, route }) => {
                     onPress={() => {
                         if (orders.length === 0) return;
                         if (!selectedStore?.id) {
-                            Alert.alert('Select store', 'Please select a store before proceeding.');
+                            AppAlert.alert('Select store', 'Please select a store before proceeding.');
                             return;
                         }
                         if (!selectedSupplier?.id) {
-                            Alert.alert('Select supplier', 'Please select a supplier before proceeding.');
+                            AppAlert.alert('Select supplier', 'Please select a supplier before proceeding.');
                             return;
                         }
                         if (!invoiceNumber.trim()) {
-                            Alert.alert('Add invoice number', 'Please enter an invoice number.');
+                            AppAlert.alert('Add invoice number', 'Please enter an invoice number.');
                             return;
                         }
                         if (paymentStatus === PAYMENT_STATUS.PARTIAL) {
                             const paid = Number(String(amountPaid).replace(/,/g, ''));
                             if (!Number.isFinite(paid) || paid <= 0) {
-                                Alert.alert('Amount paid', 'Enter amount paid for partial payment.');
+                                AppAlert.alert('Amount paid', 'Enter amount paid for partial payment.');
                                 return;
                             }
                             if (paid >= totalAmount) {
-                                Alert.alert('Amount paid', 'Partial amount must be less than total — use Paid instead.');
+                                AppAlert.alert('Amount paid', 'Partial amount must be less than total — use Paid instead.');
                                 return;
                             }
                         }
@@ -691,7 +692,7 @@ const NewPurchase = ({ navigation, route }) => {
                     activeOpacity={0.7}
                     onPress={() => {
                         if (orders.length === 0) { backPress(); return; }
-                        Alert.alert('Cancel purchase?', 'All items will be removed.', [
+                        AppAlert.alert('Cancel purchase?', 'All items will be removed.', [
                             { text: 'Keep editing', style: 'cancel' },
                             { text: 'Cancel', style: 'destructive', onPress: () => { setOrders([]); setSelectedProduct(null); setDiscountAmount(''); backPress(); } },
                         ]);
@@ -830,7 +831,7 @@ const NewPurchase = ({ navigation, route }) => {
                                             dispatch(incrementInvoiceNext());
                                             setShowPaymentOptions(false);
                                             navigation.goBack();
-                                        } catch (e) { Alert.alert('Share', 'Could not share receipt.'); }
+                                        } catch (e) { AppAlert.alert('Share', 'Could not share receipt.'); }
                                     }}>
                                     <AppText label="Save & Print" color={colors.textInverse} variant={1} />
                                 </TouchableOpacity>

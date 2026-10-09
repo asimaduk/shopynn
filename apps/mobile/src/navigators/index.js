@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 // import Toast from 'react-native-toast-message';
-import { AppState, View, StatusBar, Linking, NativeModules, Platform, Alert, BackHandler } from 'react-native';
+import { AppState, View, StatusBar, Linking, NativeModules, Platform, BackHandler } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import SplashScreen from 'react-native-splash-screen';
 import axios from 'axios';
@@ -20,6 +20,7 @@ import { syncPendingSales } from '../utils/syncPendingSales';
 import useInactivityTimer from '../hooks/useInactivityTimer';
 import ConfirmDialog from '../components/ConfirmDialog';
 import AppUpdateModal from '../components/AppUpdateModal';
+import AppAlert from '../utils/appAlert';
 
 const ApplicationNavigator = () => {
     const [isBlocked, setIsBlocked] = useState(false);
@@ -48,13 +49,13 @@ const ApplicationNavigator = () => {
                     Linking.openURL(link);
                     return;
                 }
-                Alert.alert(
+                AppAlert.alert(
                     Platform.OS === 'android' ? 'Visit Play Store' : 'Visit App Store',
                     'Could not open the store automatically. Please open it manually to update this app.',
                 );
             },
             () => {
-                Alert.alert(
+                AppAlert.alert(
                     Platform.OS === 'android' ? 'Visit Play Store' : 'Visit App Store',
                     'Could not open the store automatically. Please open it manually to update this app.',
                 );

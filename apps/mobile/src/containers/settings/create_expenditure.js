@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, TextInput, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
+import { View, TextInput, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ScreenHeader from '../../components/screen_header';
 import AppText from '../../components/text';
@@ -10,6 +10,7 @@ import AppModal from '../../components/app_modal';
 import useTheme from '../../hooks/useTheme';
 import { expenses as expensesApi, warehouses as warehousesApi, normalizeList } from '../../services/api';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import AppAlert from '../../utils/appAlert';
 
 const InputField = ({
     label,
@@ -136,7 +137,7 @@ const CreateExpenditure = ({ navigation }) => {
 
     const handleSave = () => {
         if (!description?.trim() || !amount?.trim() || !category?.trim()) {
-            Alert.alert('Error', 'Please fill in all required fields (Description, Amount, Category, Payment Method, Expense Date).');
+            AppAlert.alert('Error', 'Please fill in all required fields (Description, Amount, Category, Payment Method, Expense Date).');
             return;
         }
 
@@ -157,18 +158,18 @@ const CreateExpenditure = ({ navigation }) => {
                     body.warehouse_id = selectedWarehouse.id;
                 }
                 await expensesApi.create(body);
-                Alert.alert('Success', 'Expenditure saved successfully.', [
+                AppAlert.alert('Success', 'Expenditure saved successfully.', [
                     { text: 'OK', onPress: () => navigation.goBack() }
                 ]);
             } catch (err) {
                 const msg = err?.response?.data?.message || err?.message || 'Failed to save expenditure.';
-                Alert.alert('Error', msg);
+                AppAlert.alert('Error', msg);
             } finally {
                 setSaving(false);
             }
         };
 
-        Alert.alert(
+        AppAlert.alert(
             'Save expenditure',
             'Are you sure you want to save this expenditure?',
             [

@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { Alert } from 'react-native';
 import { getAccessToken, getRefreshToken, setTokens, clearTokens } from './utils/secureStorage';
 import appconfig from './config';
 import { rootNavigationRef } from './navigators/main';
@@ -9,6 +8,7 @@ const AUTH_REFRESH_PATH = '/auth/refresh';
 const MAX_GET_RETRIES = 2;
 const RETRY_DELAY_MS = 1000;
 import { SUBSCRIPTION_RENEWAL_CODES as SUBSCRIPTION_ERROR_CODES } from './utils/subscriptionAccess';
+import AppAlert from './utils/appAlert';
 const FEATURE_GATE_CODES = new Set([
     'FEATURE_NOT_AVAILABLE',
     'SUBSCRIPTION_FEATURES_UNKNOWN',
@@ -86,7 +86,7 @@ const processQueue = (err, token = null) => {
 const showSessionExpired = () => {
     if (isAlertVisible) return;
     isAlertVisible = true;
-    Alert.alert('', 'Access denied.', [{ text: 'OK', onPress: () => { isAlertVisible = false; } }], { onDismiss: () => { isAlertVisible = false; } });
+    AppAlert.alert('', 'Access denied.', [{ text: 'OK', onPress: () => { isAlertVisible = false; } }], { onDismiss: () => { isAlertVisible = false; } });
 };
 
 axios.defaults.timeout = API_TIMEOUT;
@@ -199,7 +199,7 @@ axios.interceptors.response.use(
             showSessionExpired();
         } else if (status === 403 && !isAuthEndpoint && FEATURE_GATE_CODES.has(responseCode)) {
             if (!originalRequest?.skipErrorAlert) {
-                Alert.alert(
+                AppAlert.alert(
                     'Feature unavailable',
                     extractServerErrorMessage(error) || 'This feature requires a higher subscription plan.',
                     [
@@ -210,7 +210,7 @@ axios.interceptors.response.use(
             }
         } else if (status === 403 && !isAuthEndpoint && responseCode === 'INSUFFICIENT_PERMISSIONS') {
             if (!originalRequest?.skipErrorAlert) {
-                Alert.alert(
+                AppAlert.alert(
                     'Access denied',
                     extractServerErrorMessage(error) || 'You do not have permission for this action.',
                     [{ text: 'OK', style: 'cancel' }],
@@ -248,7 +248,7 @@ axios.interceptors.response.use(
                 !isHandledChangePhoneEndpoint &&
                 !skipErrorAlert
             ) {
-                Alert.alert('Error', extractServerErrorMessage(error));
+                AppAlert.alert('Error', extractServerErrorMessage(error));
             }
         }
 

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { TouchableOpacity, View, ScrollView, Platform, TextInput, StyleSheet, RefreshControl, ActivityIndicator, Share, Alert } from 'react-native';
+import { TouchableOpacity, View, ScrollView, Platform, TextInput, StyleSheet, RefreshControl, ActivityIndicator, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
@@ -12,6 +12,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import useTheme from '../../hooks/useTheme';
 import { transactions as transactionsApi, normalizeList } from '../../services/api';
 import { formatCurrency, formatQuantity } from '../../utils/format';
+import AppAlert from '../../utils/appAlert';
 
 const dateRanges = [
     { id: '0', label: 'Recent', value: 'recent' },
@@ -456,7 +457,7 @@ const ProductTransactions = ({ navigation, route }) => {
         setShowExportFormatModal(false);
         
         if (filteredData.length === 0) {
-            Alert.alert('No Data', 'There are no transactions to export.');
+            AppAlert.alert('No Data', 'There are no transactions to export.');
             return;
         }
 
@@ -487,14 +488,14 @@ const ProductTransactions = ({ navigation, route }) => {
                     });
                     
                     // Show instruction for PDF conversion
-                    Alert.alert(
+                    AppAlert.alert(
                         'PDF Export',
                         'The HTML file has been shared. To convert to PDF:\n\n• iOS: Open in Safari, tap Share > Print > Save as PDF\n• Android: Open in browser, print > Save as PDF',
                         [{ text: 'OK' }]
                     );
                 }
             } catch (error) {
-                Alert.alert('Export Error', 'Could not export transactions. Please try again.');
+                AppAlert.alert('Export Error', 'Could not export transactions. Please try again.');
             } finally {
                 setExporting(false);
             }
@@ -503,7 +504,7 @@ const ProductTransactions = ({ navigation, route }) => {
 
     const handleExport = () => {
         if (filteredData.length === 0) {
-            Alert.alert('No Data', 'There are no transactions to export.');
+            AppAlert.alert('No Data', 'There are no transactions to export.');
             return;
         }
         setShowExportFormatModal(true);

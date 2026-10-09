@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { ActivityIndicator, Dimensions, StyleSheet, TouchableOpacity, ScrollView, View, TextInput, KeyboardAvoidingView, Platform, Image, Alert, Share, DeviceEventEmitter } from 'react-native';
+import { ActivityIndicator, Dimensions, StyleSheet, TouchableOpacity, ScrollView, View, TextInput, KeyboardAvoidingView, Platform, Image, Share, DeviceEventEmitter } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -38,6 +38,7 @@ import {
     isPriceMismatchError,
     getSaleApiErrorMessage,
 } from '../../utils/bulkDiscount';
+import AppAlert from '../../utils/appAlert';
 
 const { height } = Dimensions.get('screen');
 
@@ -206,11 +207,11 @@ const NewSale = ({ navigation, route }) => {
 
     const saveHeldSale = useCallback(async () => {
         if (!orders?.length) {
-            Alert.alert('Hold sale', 'Add at least one item to hold this sale.');
+            AppAlert.alert('Hold sale', 'Add at least one item to hold this sale.');
             return;
         }
         if (!selectedStore?.id) {
-            Alert.alert('Hold sale', 'Please select a store before holding this sale.');
+            AppAlert.alert('Hold sale', 'Please select a store before holding this sale.');
             return;
         }
         const now = new Date();
@@ -240,14 +241,14 @@ const NewSale = ({ navigation, route }) => {
             await writeSecureList(HELD_SALES_KEY, next);
             setHeldItems(next);
 
-            Alert.alert('Held', 'Sale saved. You can continue it later from Held sales.');
+            AppAlert.alert('Held', 'Sale saved. You can continue it later from Held sales.');
 
             // Clear current draft so cashier can start fresh
             setOrders([]);
             setSelectedProduct(null);
             setShowPaymentOptions(false);
         } catch (e) {
-            Alert.alert('Error', 'Failed to hold sale locally.');
+            AppAlert.alert('Error', 'Failed to hold sale locally.');
         }
     }, [orders, selectedStore, selectedCustomer, selectedPaymentOption]);
 
@@ -293,7 +294,7 @@ const NewSale = ({ navigation, route }) => {
             selectedPaymentOption.transactionRef &&
             (ordersRef.current?.length > 0)
         ) {
-            Alert.alert(
+            AppAlert.alert(
                 'Cart locked',
                 selectedPaymentOption.paid
                     ? 'MoMo already paid for this cart amount. Complete the sale — do not change items.'
@@ -303,7 +304,7 @@ const NewSale = ({ navigation, route }) => {
         }
 
         if (!selectedStore?.id) {
-            Alert.alert('Select store', 'Please select a store to check stock availability.');
+            AppAlert.alert('Select store', 'Please select a store to check stock availability.');
             return;
         }
 
@@ -312,7 +313,7 @@ const NewSale = ({ navigation, route }) => {
         const availableQty = getAvailableQtyForStore(product, warehouseIdForCheck);
 
         if (availableQty !== null && availableQty < 1) {
-            Alert.alert('No system quantity', NO_SYSTEM_QTY_MSG);
+            AppAlert.alert('No system quantity', NO_SYSTEM_QTY_MSG);
             return;
         }
 
@@ -339,7 +340,7 @@ const NewSale = ({ navigation, route }) => {
             selectedPaymentOption.transactionRef &&
             (ordersRef.current?.length > 0)
         ) {
-            Alert.alert(
+            AppAlert.alert(
                 'Cart locked',
                 selectedPaymentOption.paid
                     ? 'MoMo already paid for this cart amount. Complete the sale — do not change items.'
@@ -521,7 +522,7 @@ const NewSale = ({ navigation, route }) => {
         const availableQty = getAvailableQtyForStore(selectedProduct, warehouseId);
 
         if (availableQty !== null && availableQty < 1) {
-            Alert.alert('No system quantity', NO_SYSTEM_QTY_MSG);
+            AppAlert.alert('No system quantity', NO_SYSTEM_QTY_MSG);
             setOrders((prev) => prev.filter((o) => o.id !== selectedProduct.id && o.name !== selectedProduct.name));
             setShowSetQuantity(false);
             setSelectedProduct(null);
@@ -530,7 +531,7 @@ const NewSale = ({ navigation, route }) => {
 
         if (availableQty !== null && qty > availableQty) {
             const storeName = selectedStore?.name || 'selected store';
-            Alert.alert(
+            AppAlert.alert(
                 'Not enough stock',
                 `Available quantity in ${storeName} is ${availableQty}.`
             );
@@ -555,7 +556,7 @@ const NewSale = ({ navigation, route }) => {
 
     const handleRemoveProduct = () => {
         if (!selectedProduct) return;
-        Alert.alert('Remove item', `Remove "${selectedProduct.name}" from this sale?`, [
+        AppAlert.alert('Remove item', `Remove "${selectedProduct.name}" from this sale?`, [
             { text: 'Cancel', style: 'cancel' },
             { text: 'Remove', style: 'destructive', onPress: () => {
                 setOrders((prev) => prev.filter((o) => o.id !== selectedProduct.id && o.name !== selectedProduct.name));
@@ -605,7 +606,7 @@ const NewSale = ({ navigation, route }) => {
         setOrders(next);
 
         if (blockedZeroStock) {
-            Alert.alert('No system quantity', NO_SYSTEM_QTY_MSG);
+            AppAlert.alert('No system quantity', NO_SYSTEM_QTY_MSG);
         }
 
         if (next.length > 0 && next.length > orders.length) {
@@ -639,7 +640,7 @@ const NewSale = ({ navigation, route }) => {
         orders.length > 0;
 
     const alertMomoCartLocked = useCallback(() => {
-        Alert.alert(
+        AppAlert.alert(
             'Cart locked',
             selectedPaymentOption.paid
                 ? 'MoMo already paid for this cart amount. Complete the sale — do not change items.'
@@ -654,13 +655,13 @@ const NewSale = ({ navigation, route }) => {
                 return false;
             }
             if (!selectedStore?.id) {
-                Alert.alert('Select store', 'Please select a store to check stock availability.');
+                AppAlert.alert('Select store', 'Please select a store to check stock availability.');
                 return false;
             }
             const warehouseId = resolvedWarehouseId;
             const r = applyVoiceSelectionsToOrders(ordersRef.current, selections, warehouseId);
             if (!r.ok) {
-                Alert.alert('Cannot add items', r.message);
+                AppAlert.alert('Cannot add items', r.message);
                 return false;
             }
             setOrders(r.next);
@@ -855,16 +856,16 @@ const NewSale = ({ navigation, route }) => {
             selectedPaymentOption.provider || 'mtn',
         );
         if (!check.ok) {
-            Alert.alert('MoMo', check.message);
+            AppAlert.alert('MoMo', check.message);
             return;
         }
         const digits = check.digits;
         if (momoFace <= 0) {
-            Alert.alert('MoMo', 'Sale total must be greater than zero.');
+            AppAlert.alert('MoMo', 'Sale total must be greater than zero.');
             return;
         }
         if (selectedPaymentOption.paid && selectedPaymentOption.transactionRef) {
-            Alert.alert('MoMo', `Payment already confirmed. ${completeLabel} — do not send another charge.`);
+            AppAlert.alert('MoMo', `Payment already confirmed. ${completeLabel} — do not send another charge.`);
             return;
         }
         momoPollGenRef.current += 1;
@@ -884,7 +885,7 @@ const NewSale = ({ navigation, route }) => {
             });
             const ref = res?.transaction_ref;
             if (!ref) {
-                Alert.alert('MoMo', 'No payment reference returned.');
+                AppAlert.alert('MoMo', 'No payment reference returned.');
                 setMomoStatusText('');
                 return;
             }
@@ -941,7 +942,7 @@ const NewSale = ({ navigation, route }) => {
                 );
             }
         } catch (e) {
-            Alert.alert('MoMo', extractMomoError(e));
+            AppAlert.alert('MoMo', extractMomoError(e));
             setMomoStatusText('');
             setMomoNeedsOtp(false);
         } finally {
@@ -951,10 +952,10 @@ const NewSale = ({ navigation, route }) => {
 
     const handleCancelMomoAndSendAgain = () => {
         if (selectedPaymentOption.paid && selectedPaymentOption.transactionRef) {
-            Alert.alert('MoMo', `Payment already succeeded. ${completeLabel} — do not send another charge.`);
+            AppAlert.alert('MoMo', `Payment already succeeded. ${completeLabel} — do not send another charge.`);
             return;
         }
-        Alert.alert(
+        AppAlert.alert(
             'New MoMo prompt?',
             'This abandons the open prompt and sends a new one. Continue only if the previous prompt failed or timed out.',
             [
@@ -997,7 +998,7 @@ const NewSale = ({ navigation, route }) => {
     const handleSubmitMomoOtp = async () => {
         const isTelecel = isTelecelMomoProvider(selectedPaymentOption.provider);
         if (!selectedPaymentOption.transactionRef || !momoOtp) {
-            Alert.alert('MoMo', isTelecel ? 'Enter the Telecel voucher from *110#.' : 'Enter the OTP from the network.');
+            AppAlert.alert('MoMo', isTelecel ? 'Enter the Telecel voucher from *110#.' : 'Enter the OTP from the network.');
             return;
         }
         setMomoSending(true);
@@ -1022,7 +1023,7 @@ const NewSale = ({ navigation, route }) => {
                 setMomoStatusText(res?.display_text || (isTelecel ? 'Voucher submitted — waiting…' : 'OTP submitted — waiting…'));
             }
         } catch (e) {
-            Alert.alert('MoMo', extractMomoError(e));
+            AppAlert.alert('MoMo', extractMomoError(e));
         } finally {
             setMomoSending(false);
         }
@@ -1046,7 +1047,7 @@ const NewSale = ({ navigation, route }) => {
                 setMomoStatusText(v?.display_text || `Status: ${st || 'pending'}`);
             }
         } catch (e) {
-            Alert.alert('MoMo', e?.response?.data?.message || e?.message || 'Could not verify');
+            AppAlert.alert('MoMo', e?.response?.data?.message || e?.message || 'Could not verify');
         } finally {
             setMomoChecking(false);
         }
@@ -1055,11 +1056,11 @@ const NewSale = ({ navigation, route }) => {
     const handleParkMomoAndServeNext = async () => {
         const ref = selectedPaymentOption.transactionRef;
         if (!ref) {
-            Alert.alert('MoMo', 'Send MoMo first before parking.');
+            AppAlert.alert('MoMo', 'Send MoMo first before parking.');
             return;
         }
         if (!orders.length) {
-            Alert.alert('MoMo', 'Cart is empty.');
+            AppAlert.alert('MoMo', 'Cart is empty.');
             return;
         }
         momoPollGenRef.current += 1;
@@ -1100,7 +1101,7 @@ const NewSale = ({ navigation, route }) => {
                 text2: 'Serve the next customer — finish later from Pending MoMo.',
             });
         } catch (e) {
-            Alert.alert('MoMo', e?.response?.data?.message || e?.message || 'Could not park payment');
+            AppAlert.alert('MoMo', e?.response?.data?.message || e?.message || 'Could not park payment');
         } finally {
             setMomoSending(false);
         }
@@ -1108,24 +1109,24 @@ const NewSale = ({ navigation, route }) => {
 
     const handleSavePrint = async () => {
         if (!canCreateSale) {
-            Alert.alert('Not allowed', 'You do not have permission to create sales.');
+            AppAlert.alert('Not allowed', 'You do not have permission to create sales.');
             return;
         }
         if (selectedPaymentOption.method === 'momo') {
             if (momoFace > 0.02) {
                 const digits = String(selectedPaymentOption.momoNumber || '').replace(/\D/g, '');
                 if (digits.length < 10) {
-                    Alert.alert('MoMo', 'Enter a full MoMo number (10 digits).');
+                    AppAlert.alert('MoMo', 'Enter a full MoMo number (10 digits).');
                     return;
                 }
                 if (!selectedPaymentOption.paid || !selectedPaymentOption.transactionRef) {
-                    Alert.alert('MoMo', `Tap Send and confirm payment before ${completeLabel}.`);
+                    AppAlert.alert('MoMo', `Tap Send and confirm payment before ${completeLabel}.`);
                     return;
                 }
             }
             const charged = Number(selectedPaymentOption.chargedFaceAmount);
             if (Number.isFinite(charged) && charged > 0 && Math.abs(Number(momoFace) - charged) > 0.02) {
-                Alert.alert(
+                AppAlert.alert(
                     'Amount mismatch',
                     `Amount due after store credit (${Number(momoFace).toFixed(2)}) does not match the MoMo charge (${charged.toFixed(2)}). Finish this payment without changing items or credit.`,
                 );
@@ -1134,12 +1135,12 @@ const NewSale = ({ navigation, route }) => {
         }
         if (selectedPaymentOption.method === 'cash' && !cashTenderOk) {
             if (cashIsPartialOrCredit && !hasCustomerForCredit) {
-                Alert.alert(
+                AppAlert.alert(
                     'Customer required',
                     'Select a customer to sell on credit or accept a partial payment.',
                 );
             } else {
-                Alert.alert(
+                AppAlert.alert(
                     'Cash',
                     `Amount tendered must be at least the amount due (${momoFace.toFixed(2)}), or select a customer for partial/credit.`,
                 );
@@ -1147,7 +1148,7 @@ const NewSale = ({ navigation, route }) => {
             return;
         }
         if (selectedPaymentOption.method === 'cash' && cashIsPartialOrCredit && !hasCustomerForCredit) {
-            Alert.alert(
+            AppAlert.alert(
                 'Customer required',
                 'Select a customer to sell on credit or accept a partial payment.',
             );
@@ -1235,7 +1236,7 @@ const NewSale = ({ navigation, route }) => {
             const netState = await NetInfo.fetch();
             const offlineNow = !(netState?.isConnected && netState?.isInternetReachable !== false);
             if (selectedPaymentOption?.method === 'momo' && offlineNow) {
-                Alert.alert(
+                AppAlert.alert(
                     'Offline',
                     'MoMo needs network. Use cash or store credit while offline, or reconnect.',
                 );
@@ -1327,7 +1328,7 @@ const NewSale = ({ navigation, route }) => {
                             : i,
                     );
                     await writeSecureList(PENDING_SALES_KEY, next);
-                    Alert.alert(
+                    AppAlert.alert(
                         'Saved for later',
                         `${errMessage}\n\nThe sale has been saved to Pending Sales for retry.`,
                     );
@@ -1343,7 +1344,7 @@ const NewSale = ({ navigation, route }) => {
             if (printerType === 'thermal') {
                 const printUrl = getPrintAgentPrintUrl(appSettings);
                 if (!printUrl) {
-                    Alert.alert(
+                    AppAlert.alert(
                         'Print agent not set',
                         'Set the Print agent IP under More → Print agent (the PC running Shopynn Print). Your sale is complete.',
                     );
@@ -1398,7 +1399,7 @@ const NewSale = ({ navigation, route }) => {
                     });
                     const { data: printData } = await readPrintAgentResponse(printRes);
                     if (Number(printData?.status) !== 200) {
-                        Alert.alert(
+                        AppAlert.alert(
                             'Print',
                             printData?.message
                                 ? String(printData.message)
@@ -1406,7 +1407,7 @@ const NewSale = ({ navigation, route }) => {
                         );
                     }
                 } catch (printErr) {
-                    Alert.alert(
+                    AppAlert.alert(
                         'Print',
                         printErr?.message
                             ? String(printErr.message)
@@ -1424,7 +1425,7 @@ const NewSale = ({ navigation, route }) => {
                         visibilityTime: 6000,
                     });
                 } else {
-                    Alert.alert(
+                    AppAlert.alert(
                         'A4 receipt',
                         'A4 invoice preview and print work on desktop web. Open New Sale in a browser on your computer to print. Your sale is complete.',
                     );
@@ -1468,10 +1469,10 @@ const NewSale = ({ navigation, route }) => {
             setShowInvoiceShare(true);
         } catch (e) {
             if (isPriceMismatchError(e)) {
-                Alert.alert('Price mismatch', getSaleApiErrorMessage(e));
+                AppAlert.alert('Price mismatch', getSaleApiErrorMessage(e));
                 return;
             }
-            Alert.alert(
+            AppAlert.alert(
                 'Sale',
                 e?.response?.data?.message || e?.message || 'Could not complete sale. Check Pending Sales if it was queued.',
             );
@@ -1585,7 +1586,7 @@ const NewSale = ({ navigation, route }) => {
                             activeOpacity={0.7}
                             onPress={() => {
                                 if (storeLocked) {
-                                    Alert.alert('Store locked', 'Remove all items to change the store.');
+                                    AppAlert.alert('Store locked', 'Remove all items to change the store.');
                                     return;
                                 }
                                 setShowStores(true);
@@ -1707,7 +1708,7 @@ const NewSale = ({ navigation, route }) => {
                                                 alertMomoCartLocked();
                                                 return;
                                             }
-                                            Alert.alert('Remove item', `Remove "${item.name}" from this sale?`, [
+                                            AppAlert.alert('Remove item', `Remove "${item.name}" from this sale?`, [
                                                 { text: 'Cancel', style: 'cancel' },
                                                 { text: 'Remove', style: 'destructive', onPress: () => {
                                                     setOrders((prev) => prev.filter((o) => o.id !== item.id && o.name !== item.name));
@@ -1749,15 +1750,15 @@ const NewSale = ({ navigation, route }) => {
                     disabled={orders.length === 0 || !canCreateSale}
                     onPress={() => {
                         if (!canCreateSale) {
-                            Alert.alert('Not allowed', 'You do not have permission to create sales.');
+                            AppAlert.alert('Not allowed', 'You do not have permission to create sales.');
                             return;
                         }
                         if (!selectedStore?.id) {
-                            Alert.alert('Select store', 'Please select a store before proceeding.');
+                            AppAlert.alert('Select store', 'Please select a store before proceeding.');
                             return;
                         }
                         if (!selectedCustomer?.id) {
-                            Alert.alert('Select customer', 'Please select a customer before proceeding.');
+                            AppAlert.alert('Select customer', 'Please select a customer before proceeding.');
                             return;
                         }
                         setShowPaymentOptions(true);
@@ -1778,7 +1779,7 @@ const NewSale = ({ navigation, route }) => {
                                 return;
                             }
                             if (!canCreateSale) {
-                                Alert.alert('Not allowed', 'You do not have permission to hold sales.');
+                                AppAlert.alert('Not allowed', 'You do not have permission to hold sales.');
                                 return;
                             }
                             saveHeldSale();
@@ -1791,7 +1792,7 @@ const NewSale = ({ navigation, route }) => {
                         activeOpacity={0.7}
                         onPress={() => {
                             if (momoCartLocked) {
-                                Alert.alert(
+                                AppAlert.alert(
                                     'MoMo in progress',
                                     selectedPaymentOption.paid
                                         ? 'Complete the sale for this MoMo payment instead of cancelling the cart.'
@@ -1800,7 +1801,7 @@ const NewSale = ({ navigation, route }) => {
                                 return;
                             }
                             if (orders.length === 0) { backPress(); return; }
-                            Alert.alert('Cancel sale?', 'All items will be removed.', [
+                            AppAlert.alert('Cancel sale?', 'All items will be removed.', [
                                 { text: 'Keep editing', style: 'cancel' },
                                 { text: 'Cancel sale', style: 'destructive', onPress: () => { setOrders([]); setSelectedProduct(null); backPress(); } },
                             ]);
@@ -1826,7 +1827,7 @@ const NewSale = ({ navigation, route }) => {
                                     activeOpacity={0.7}
                                     onPress={() => {
                                         if (storeLocked) {
-                                            Alert.alert('Store locked', 'Remove all items to change the store.');
+                                            AppAlert.alert('Store locked', 'Remove all items to change the store.');
                                             return;
                                         }
                                         setShowStores(false);
@@ -1858,7 +1859,7 @@ const NewSale = ({ navigation, route }) => {
                                         activeOpacity={0.7}
                                         onPress={() => {
                                             if (storeLocked) {
-                                                Alert.alert('Store locked', 'Remove all items to change the store.');
+                                                AppAlert.alert('Store locked', 'Remove all items to change the store.');
                                                 return;
                                             }
                                             setSelectedStore(item);
@@ -2264,7 +2265,7 @@ const NewSale = ({ navigation, route }) => {
                                     disabled={!hasCustomerForCredit}
                                     onPress={() => {
                                         if (!hasCustomerForCredit) {
-                                            Alert.alert(
+                                            AppAlert.alert(
                                                 'Customer required',
                                                 'Select a customer before putting a sale on credit.',
                                             );

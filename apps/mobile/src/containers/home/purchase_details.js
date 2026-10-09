@@ -1,14 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-    StyleSheet,
-    TouchableOpacity,
-    ScrollView,
-    View,
-    Alert,
-    ActivityIndicator,
-    Image,
-    TextInput,
-} from 'react-native';
+import { StyleSheet, TouchableOpacity, ScrollView, View, ActivityIndicator, Image, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
@@ -18,6 +9,7 @@ import AppModal from '../../components/app_modal';
 import useTheme from '../../hooks/useTheme';
 import { purchases as purchasesApi } from '../../services/api';
 import { formatCurrency, formatQuantity } from '../../utils/format';
+import AppAlert from '../../utils/appAlert';
 
 const defaultItem = { id: 'N/A', vendor: 'Unknown', amount: '0.00', date: 'N/A', status: 'N/A', poStatus: 'draft', user: 'Unknown', itemCount: 0 };
 
@@ -105,11 +97,11 @@ const PurchaseDetails = ({ navigation, route }) => {
     const backPress = () => navigation.goBack();
     const markAsSent = () => {
         setItem((prev) => ({ ...prev, poStatus: 'sent' }));
-        Alert.alert('Updated', 'Purchase order marked as Sent.');
+        AppAlert.alert('Updated', 'Purchase order marked as Sent.');
     };
     const markAsReceived = () => {
         setItem((prev) => ({ ...prev, poStatus: 'received', status: 'Completed' }));
-        Alert.alert('Updated', 'Purchase order marked as Received.');
+        AppAlert.alert('Updated', 'Purchase order marked as Received.');
     };
 
     const openPaymentModal = () => {
@@ -142,7 +134,7 @@ const PurchaseDetails = ({ navigation, route }) => {
         if (paymentStatus === PAYMENT_STATUS.PAID) {
             if (!Number.isFinite(resolvedAmount) || resolvedAmount <= 0) resolvedAmount = netTotal;
         } else if (!Number.isFinite(resolvedAmount) || resolvedAmount <= 0) {
-            Alert.alert('Amount required', 'Enter how much was paid for a partial payment.');
+            AppAlert.alert('Amount required', 'Enter how much was paid for a partial payment.');
             return;
         }
 
@@ -158,9 +150,9 @@ const PurchaseDetails = ({ navigation, route }) => {
             });
             if (updated) setItem((prev) => ({ ...prev, ...updated }));
             setShowPaymentModal(false);
-            Alert.alert('Saved', 'Purchase payment updated.');
+            AppAlert.alert('Saved', 'Purchase payment updated.');
         } catch (error) {
-            Alert.alert(
+            AppAlert.alert(
                 'Could not save',
                 error?.response?.data?.message || error?.message || 'Try again.',
             );

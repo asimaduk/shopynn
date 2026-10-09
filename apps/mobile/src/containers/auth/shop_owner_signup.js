@@ -1,19 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    StatusBar,
-    TextInput,
-    TouchableOpacity,
-    View,
-    Dimensions,
-    Image,
-    Keyboard,
-} from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, StatusBar, TextInput, TouchableOpacity, View, Dimensions, Image, Keyboard } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { Lucide } from '@react-native-vector-icons/lucide';
@@ -24,6 +10,7 @@ import config from '../../config';
 import { tenants as tenantsApi, users as usersApi, billing as billingApi } from '../../services/api';
 import { SUBSCRIPTION_PLANS, getSubscriptionPlan } from '../../constants/subscriptionPlans';
 import { buildSignupPlansFromCatalog } from '../../utils/billingCatalog';
+import AppAlert from '../../utils/appAlert';
 
 const { width } = Dimensions.get('window');
 const TABS = [
@@ -189,15 +176,15 @@ const ShopOwnerSignup = ({ navigation }) => {
 
     const validateBusinessTab = () => {
         if (!canContinueBusiness) {
-            Alert.alert('Required', 'Complete business name, phone, company email, and address.');
+            AppAlert.alert('Required', 'Complete business name, phone, company email, and address.');
             return false;
         }
         if (!isValidEmail(companyEmail)) {
-            Alert.alert('Invalid email', 'Enter a valid company email.');
+            AppAlert.alert('Invalid email', 'Enter a valid company email.');
             return false;
         }
         if (!isValidPhone(businessPhone)) {
-            Alert.alert('Invalid phone', 'Company phone: use 0XXXXXXXXX or +233XXXXXXXXX.');
+            AppAlert.alert('Invalid phone', 'Company phone: use 0XXXXXXXXX or +233XXXXXXXXX.');
             return false;
         }
         return true;
@@ -210,7 +197,7 @@ const ShopOwnerSignup = ({ navigation }) => {
 
     const sendEmailOtp = async () => {
         if (!isValidEmail(ownerEmail)) {
-            Alert.alert('Invalid email', 'Enter a valid login email first.');
+            AppAlert.alert('Invalid email', 'Enter a valid login email first.');
             return;
         }
         setSendingOtp(true);
@@ -224,7 +211,7 @@ const ShopOwnerSignup = ({ navigation }) => {
             setCodeSentVisible(true);
         } catch (error) {
             const msg = error?.response?.data?.message || error?.message || 'Could not send code.';
-            Alert.alert('Send failed', msg);
+            AppAlert.alert('Send failed', msg);
         } finally {
             setSendingOtp(false);
         }
@@ -232,11 +219,11 @@ const ShopOwnerSignup = ({ navigation }) => {
 
     const verifyEmailOtp = async () => {
         if (!isValidEmail(ownerEmail)) {
-            Alert.alert('Invalid email', 'Enter a valid login email first.');
+            AppAlert.alert('Invalid email', 'Enter a valid login email first.');
             return;
         }
         if (!/^\d{6}$/.test(String(emailOtp).trim())) {
-            Alert.alert('Invalid code', 'Enter the 6-digit code from your email.');
+            AppAlert.alert('Invalid code', 'Enter the 6-digit code from your email.');
             return;
         }
         setVerifyingOtp(true);
@@ -247,10 +234,10 @@ const ShopOwnerSignup = ({ navigation }) => {
             );
             setOwnerEmailVerified(true);
             setVerificationToken(result?.verification_token || '');
-            Alert.alert('Email verified', 'You can finish creating your account.');
+            AppAlert.alert('Email verified', 'You can finish creating your account.');
         } catch (error) {
             const msg = error?.response?.data?.message || error?.message || 'Verification failed.';
-            Alert.alert('Verification failed', msg);
+            AppAlert.alert('Verification failed', msg);
         } finally {
             setVerifyingOtp(false);
         }
@@ -262,31 +249,31 @@ const ShopOwnerSignup = ({ navigation }) => {
             return;
         }
         if (!canSubmitOwner) {
-            Alert.alert('Required', 'Please complete all owner account fields.');
+            AppAlert.alert('Required', 'Please complete all owner account fields.');
             return;
         }
         if (firstName.trim().length < 2 || lastName.trim().length < 2) {
-            Alert.alert('Required', 'Enter your first and last name (at least 2 characters each).');
+            AppAlert.alert('Required', 'Enter your first and last name (at least 2 characters each).');
             return;
         }
         if (!isValidEmail(ownerEmail)) {
-            Alert.alert('Invalid email', 'Enter a valid login email for the owner account.');
+            AppAlert.alert('Invalid email', 'Enter a valid login email for the owner account.');
             return;
         }
         if (!isValidPhone(ownerPhone)) {
-            Alert.alert('Invalid phone', 'Owner phone: use 0XXXXXXXXX or +233XXXXXXXXX.');
+            AppAlert.alert('Invalid phone', 'Owner phone: use 0XXXXXXXXX or +233XXXXXXXXX.');
             return;
         }
         if (password.length < 8) {
-            Alert.alert('Invalid password', 'Password must be at least 8 characters.');
+            AppAlert.alert('Invalid password', 'Password must be at least 8 characters.');
             return;
         }
         if (password !== confirmPassword) {
-            Alert.alert('Password mismatch', 'Password and confirm password must match.');
+            AppAlert.alert('Password mismatch', 'Password and confirm password must match.');
             return;
         }
         if (!ownerEmailVerified || !verificationToken) {
-            Alert.alert('Verify email', 'Verify your owner login email with the code we sent before creating your account.');
+            AppAlert.alert('Verify email', 'Verify your owner login email with the code we sent before creating your account.');
             return;
         }
 
@@ -316,7 +303,7 @@ const ShopOwnerSignup = ({ navigation }) => {
                 ? 'Your subscription is active for 14 days. Sign in and start using the app.'
                 : 'Your plan is reserved. Sign in, then open Subscription in the app to pay and activate.';
 
-            Alert.alert('Account created', `Your shop account is ready on the ${plan.label} plan. ${accessNote}`, [
+            AppAlert.alert('Account created', `Your shop account is ready on the ${plan.label} plan. ${accessNote}`, [
                 {
                     text: 'Sign in',
                     onPress: () =>
@@ -325,7 +312,7 @@ const ShopOwnerSignup = ({ navigation }) => {
             ]);
         } catch (error) {
             const msg = error?.response?.data?.message || error?.message || 'Could not create shop account.';
-            Alert.alert('Signup failed', msg);
+            AppAlert.alert('Signup failed', msg);
         } finally {
             setLoading(false);
         }

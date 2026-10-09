@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { StyleSheet, TouchableOpacity, View, TextInput, ScrollView, Platform, Share, Alert, ActivityIndicator } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, TextInput, ScrollView, Platform, Share, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import { FlashList } from '@shopify/flash-list';
@@ -12,6 +12,7 @@ import AppModal from '../../components/app_modal';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import useTheme from '../../hooks/useTheme';
 import { returnsApi, normalizeList } from '../../services/api';
+import AppAlert from '../../utils/appAlert';
 
 const SAMPLE_SALES_RETURNS = [
     { id: 'SR-001', type: 'sales', ref: '10888', customer: 'Liam Mensah', date: 'Feb 16, 2026 @ 10:30am', items: 2, amount: '180.00', reason: 'Defective', status: 'Approved' },
@@ -447,7 +448,7 @@ const Returns = ({ navigation }) => {
         setShowExportFormatModal(false);
 
         if (filteredData.length === 0) {
-            Alert.alert('No Data', `There are no ${activeTab === 'sales' ? 'sales' : 'purchase'} returns to export.`);
+            AppAlert.alert('No Data', `There are no ${activeTab === 'sales' ? 'sales' : 'purchase'} returns to export.`);
             return;
         }
 
@@ -475,14 +476,14 @@ const Returns = ({ navigation }) => {
                         title: fileName,
                     });
 
-                    Alert.alert(
+                    AppAlert.alert(
                         'PDF Export',
                         'The HTML file has been shared. To convert to PDF:\n\n• iOS: Open in Safari, tap Share > Print > Save as PDF\n• Android: Open in browser, print > Save as PDF',
                         [{ text: 'OK' }]
                     );
                 }
             } catch (error) {
-                Alert.alert('Export Error', 'Could not export returns. Please try again.');
+                AppAlert.alert('Export Error', 'Could not export returns. Please try again.');
             } finally {
                 setExporting(false);
             }
@@ -491,7 +492,7 @@ const Returns = ({ navigation }) => {
 
     const handleExport = () => {
         if (filteredData.length === 0) {
-            Alert.alert('No Data', `There are no ${activeTab === 'sales' ? 'sales' : 'purchase'} returns to export.`);
+            AppAlert.alert('No Data', `There are no ${activeTab === 'sales' ? 'sales' : 'purchase'} returns to export.`);
             return;
         }
         setShowExportFormatModal(true);

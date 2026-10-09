@@ -1,17 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Image,
-    Modal,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    View,
-} from 'react-native';
+import { ActivityIndicator, FlatList, Image, Modal, RefreshControl, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Lucide } from '@react-native-vector-icons/lucide';
@@ -23,6 +11,8 @@ import styles from './styles';
 import { tenants } from '../../services/api';
 import { formatCurrency } from '../../utils/format';
 import { getMomoNetworkIcon } from '../../utils/momoNetworks';
+import AppAlert from '../../utils/appAlert';
+import AppAlertHost from '../../components/AppAlertHost';
 
 const formatAmount = (amount) => formatCurrency(amount);
 
@@ -237,9 +227,9 @@ const OrderSettlements = ({ navigation }) => {
             });
             applyProfile(saved);
             setEditingPayout(false);
-            Alert.alert('Saved', 'Payout details updated.');
+            AppAlert.alert('Saved', 'Payout details updated.');
         } catch (error) {
-            Alert.alert(
+            AppAlert.alert(
                 'Could not save',
                 error?.response?.data?.message || error?.response?.data?.error || 'Try again.',
             );
@@ -263,10 +253,10 @@ const OrderSettlements = ({ navigation }) => {
     const onRequestWithdrawal = () => {
         const parsed = Number(withdrawAmount);
         if (!Number.isFinite(parsed) || parsed <= 0) {
-            Alert.alert('Invalid amount', 'Enter a valid withdrawal amount.');
+            AppAlert.alert('Invalid amount', 'Enter a valid withdrawal amount.');
             return;
         }
-        Alert.alert('Request withdrawal', `Request ${formatAmount(parsed)} from your available balance?`, [
+        AppAlert.alert('Request withdrawal', `Request ${formatAmount(parsed)} from your available balance?`, [
             { text: 'Cancel', style: 'cancel' },
             {
                 text: 'Request',
@@ -282,17 +272,17 @@ const OrderSettlements = ({ navigation }) => {
                         await load();
                         const status = String(result?.status || '').toLowerCase();
                         if (status === 'paid') {
-                            Alert.alert('Withdrawal sent', 'Paystack completed your payout.');
+                            AppAlert.alert('Withdrawal sent', 'Paystack completed your payout.');
                         } else if (status === 'failed') {
-                            Alert.alert(
+                            AppAlert.alert(
                                 'Withdrawal failed',
                                 result?.rejection_reason || 'Paystack could not complete this payout.',
                             );
                         } else {
-                            Alert.alert('Withdrawal submitted', 'Paystack is processing your payout.');
+                            AppAlert.alert('Withdrawal submitted', 'Paystack is processing your payout.');
                         }
                     } catch (error) {
-                        Alert.alert(
+                        AppAlert.alert(
                             'Could not request withdrawal',
                             error?.response?.data?.message || error?.response?.data?.error || 'Try again.',
                         );
@@ -305,7 +295,7 @@ const OrderSettlements = ({ navigation }) => {
     };
 
     const onRetryWithdrawal = (row) => {
-        Alert.alert('Retry payout', `Retry Paystack payout of ${formatAmount(row.amount)}?`, [
+        AppAlert.alert('Retry payout', `Retry Paystack payout of ${formatAmount(row.amount)}?`, [
             { text: 'Cancel', style: 'cancel' },
             {
                 text: 'Retry',
@@ -316,17 +306,17 @@ const OrderSettlements = ({ navigation }) => {
                         await load();
                         const status = String(result?.status || '').toLowerCase();
                         if (status === 'paid') {
-                            Alert.alert('Withdrawal sent', 'Paystack completed your payout.');
+                            AppAlert.alert('Withdrawal sent', 'Paystack completed your payout.');
                         } else if (status === 'failed') {
-                            Alert.alert(
+                            AppAlert.alert(
                                 'Withdrawal failed',
                                 result?.rejection_reason || 'Paystack could not complete this payout.',
                             );
                         } else {
-                            Alert.alert('Retry submitted', 'Paystack is processing your payout.');
+                            AppAlert.alert('Retry submitted', 'Paystack is processing your payout.');
                         }
                     } catch (error) {
-                        Alert.alert(
+                        AppAlert.alert(
                             'Could not retry',
                             error?.response?.data?.message || error?.response?.data?.error || 'Try again.',
                         );
@@ -887,6 +877,7 @@ const OrderSettlements = ({ navigation }) => {
                         }
                     />
                 </SafeAreaView>
+                <AppAlertHost />
             </Modal>
         </SafeAreaView>
     );

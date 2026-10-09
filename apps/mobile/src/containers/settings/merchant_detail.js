@@ -1,14 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import {
-    View,
-    ScrollView,
-    TouchableOpacity,
-    RefreshControl,
-    ActivityIndicator,
-    Alert,
-    Platform,
-    StyleSheet,
-} from 'react-native';
+import { View, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, Platform, StyleSheet } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
@@ -20,6 +11,7 @@ import useTheme from '../../hooks/useTheme';
 import { merchants as merchantsApi } from '../../services/api';
 import { hasPermission } from '../../utils/permissions';
 import { formatPhone } from '../../utils/format';
+import AppAlert from '../../utils/appAlert';
 
 function fmtMoney(v) {
     const n = Number(v);
@@ -69,7 +61,7 @@ const MerchantDetail = ({ navigation, route }) => {
             setDetailData(data);
         } catch (e) {
             setDetailData(null);
-            Alert.alert('Error', e?.response?.data?.message || e?.message || 'Could not load merchant.');
+            AppAlert.alert('Error', e?.response?.data?.message || e?.message || 'Could not load merchant.');
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -95,7 +87,7 @@ const MerchantDetail = ({ navigation, route }) => {
 
     const handleMarkPaid = useCallback(
         (commissionId) => {
-            Alert.alert('Mark paid', 'Confirm commission paid?', [
+            AppAlert.alert('Mark paid', 'Confirm commission paid?', [
                 { text: 'Cancel', style: 'cancel' },
                 {
                     text: 'OK',
@@ -104,7 +96,7 @@ const MerchantDetail = ({ navigation, route }) => {
                             await merchantsApi.markPaid(commissionId);
                             await load();
                         } catch (e) {
-                            Alert.alert('Error', e?.response?.data?.message || e?.message || 'Failed');
+                            AppAlert.alert('Error', e?.response?.data?.message || e?.message || 'Failed');
                         }
                     },
                 },
@@ -117,7 +109,7 @@ const MerchantDetail = ({ navigation, route }) => {
         const m = detailData?.merchant;
         if (!m?.id) return;
         const label = userDisplayName(m);
-        Alert.alert(
+        AppAlert.alert(
             'Remove merchant partner?',
             `Remove merchant status for ${label}? Onboarded businesses will be unlinked and commission records for this merchant will be permanently deleted.`,
             [
@@ -129,11 +121,11 @@ const MerchantDetail = ({ navigation, route }) => {
                         setRevoking(true);
                         try {
                             await merchantsApi.revoke(m.id);
-                            Alert.alert('Done', 'User is no longer a merchant.', [
+                            AppAlert.alert('Done', 'User is no longer a merchant.', [
                                 { text: 'OK', onPress: () => navigation.goBack() },
                             ]);
                         } catch (e) {
-                            Alert.alert('Error', e?.response?.data?.message || e?.message || 'Could not remove merchant');
+                            AppAlert.alert('Error', e?.response?.data?.message || e?.message || 'Could not remove merchant');
                         } finally {
                             setRevoking(false);
                         }

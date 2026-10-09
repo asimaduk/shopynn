@@ -1,6 +1,7 @@
-import { Alert, Platform } from 'react-native';
+import { Platform } from 'react-native';
 import RNFS from 'react-native-fs';
 import RNShare from 'react-native-share';
+import AppAlert from './appAlert';
 
 function arrayBufferToBase64(buffer) {
     const bytes = new Uint8Array(buffer);
@@ -221,5 +222,5 @@ export function alertExportError(error) {
         (typeof data === 'string' && data) ||
         error?.message ||
         'Could not export report. Please try again.';
-    Alert.alert('Export failed', typeof msg === 'string' ? msg : 'Could not export report. Please try again.');
+    AppAlert.alert('Export failed', typeof msg === 'string' ? msg : 'Could not export report. Please try again.');
 }

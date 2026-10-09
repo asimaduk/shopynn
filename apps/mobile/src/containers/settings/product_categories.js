@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { StyleSheet, TextInput, TouchableOpacity, View, Alert, ActivityIndicator } from 'react-native';
+import { StyleSheet, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
@@ -10,6 +10,7 @@ import AppModal from '../../components/app_modal';
 import useTheme from '../../hooks/useTheme';
 import { categories as categoriesApi, normalizeList } from '../../services/api';
 import { useFocusEffect } from '@react-navigation/native';
+import AppAlert from '../../utils/appAlert';
 
 const ProductCategories = ({ navigation }) => {
     const { colors } = useTheme();
@@ -67,17 +68,17 @@ const ProductCategories = ({ navigation }) => {
             setCategories((prev) =>
                 prev.map((cat) => (cat.id === selectedCategory.id ? { ...cat, active: true } : cat)),
             );
-            Alert.alert('Success', 'Category enabled successfully');
+            AppAlert.alert('Success', 'Category enabled successfully');
         } catch (err) {
             const msg = err?.response?.data?.message || err?.message || 'Failed to enable category.';
-            Alert.alert('Error', msg);
+            AppAlert.alert('Error', msg);
         } finally {
             setIsEnabling(false);
         }
     };
 
     const handleDisableCategory = () => {
-        Alert.alert(
+        AppAlert.alert(
             'Disable Category',
             `Are you sure you want to disable "${selectedCategory.name}"? This action cannot be undone.`,
             [
@@ -93,10 +94,10 @@ const ProductCategories = ({ navigation }) => {
                             setShowMenu(false);
                             setSelectedCategory({});
                             loadCategories();
-                            Alert.alert('Success', 'Category disabled successfully');
+                            AppAlert.alert('Success', 'Category disabled successfully');
                         } catch (err) {
                             const msg = err?.response?.data?.message || err?.message || 'Failed to disable category.';
-                            Alert.alert('Error', msg);
+                            AppAlert.alert('Error', msg);
                         } finally {
                             setIsDeleting(false);
                         }

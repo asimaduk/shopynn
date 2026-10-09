@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import ScreenHeader from '../../components/screen_header';
@@ -7,6 +7,7 @@ import AppText from '../../components/text';
 import config from '../../config';
 import useTheme from '../../hooks/useTheme';
 import { customers as customersApi } from '../../services/api';
+import AppAlert from '../../utils/appAlert';
 
 const InputField = ({ label, value, onChangeText, placeholder, keyboardType = 'default', multiline = false, icon, colors }) => (
     <View style={styles.inputContainer}>
@@ -63,7 +64,7 @@ const CustomerForm = ({ navigation, route }) => {
 
     const handleSave = () => {
         if (!form.name?.trim() || !form.phone?.trim()) {
-            Alert.alert('Error', 'Please fill in Name and Phone number');
+            AppAlert.alert('Error', 'Please fill in Name and Phone number');
             return;
         }
 
@@ -85,7 +86,7 @@ const CustomerForm = ({ navigation, route }) => {
                     createdId = created?.id || created?.data?.id || created;
                 }
                 const fromPos = Boolean(route.params?.fromPos);
-                Alert.alert('Success', `Customer ${isEdit ? 'updated' : 'created'} successfully`, [
+                AppAlert.alert('Success', `Customer ${isEdit ? 'updated' : 'created'} successfully`, [
                     {
                         text: 'OK',
                         onPress: () => {
@@ -114,13 +115,13 @@ const CustomerForm = ({ navigation, route }) => {
             } catch (err) {
                 const msg =
                     err?.response?.data?.message || err?.message || 'Failed to save customer.';
-                Alert.alert('Error', msg);
+                AppAlert.alert('Error', msg);
             } finally {
                 setSaving(false);
             }
         };
 
-        Alert.alert(
+        AppAlert.alert(
             isEdit ? 'Update customer' : 'Create customer',
             isEdit
                 ? 'Are you sure you want to update this customer?'

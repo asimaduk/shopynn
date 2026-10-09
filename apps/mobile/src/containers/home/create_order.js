@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ScreenHeader from '../../components/screen_header';
 import AppText from '../../components/text';
@@ -7,6 +7,7 @@ import config from '../../config';
 import useTheme from '../../hooks/useTheme';
 import AppModal from '../../components/app_modal';
 import { catalog, customerProfiles, orders } from '../../services/api';
+import AppAlert from '../../utils/appAlert';
 
 const CreateOrder = ({ navigation }) => {
     const { colors } = useTheme();
@@ -68,17 +69,17 @@ const CreateOrder = ({ navigation }) => {
 
     const submit = async () => {
         if (!warehouseId || !selectedProduct?.id) {
-            Alert.alert('Required', 'Warehouse and product are required.');
+            AppAlert.alert('Required', 'Warehouse and product are required.');
             return;
         }
         const q = Number(quantity);
         const p = Number(unitPrice);
         if (!Number.isFinite(q) || q <= 0) {
-            Alert.alert('Invalid quantity', 'Enter a valid quantity.');
+            AppAlert.alert('Invalid quantity', 'Enter a valid quantity.');
             return;
         }
         if (!Number.isFinite(p) || p < 0) {
-            Alert.alert('Invalid price', 'Enter a valid unit price.');
+            AppAlert.alert('Invalid price', 'Enter a valid unit price.');
             return;
         }
 
@@ -96,10 +97,10 @@ const CreateOrder = ({ navigation }) => {
                     },
                 ],
             });
-            Alert.alert('Success', 'Order created.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
+            AppAlert.alert('Success', 'Order created.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
         } catch (error) {
             const message = error?.response?.data?.message || 'Failed to create order.';
-            Alert.alert('Order error', message);
+            AppAlert.alert('Order error', message);
         } finally {
             setSubmitting(false);
         }
@@ -108,7 +109,7 @@ const CreateOrder = ({ navigation }) => {
     const linkStoreByReference = async () => {
         const code = referenceCode.trim();
         if (!code) {
-            Alert.alert('Reference required', 'Enter a valid store reference code.');
+            AppAlert.alert('Reference required', 'Enter a valid store reference code.');
             return;
         }
         try {
@@ -122,9 +123,9 @@ const CreateOrder = ({ navigation }) => {
             setStores(list);
             if (list.length && !warehouseId) setWarehouseId(list[0].warehouse_id);
             setReferenceCode('');
-            Alert.alert('Success', 'Store linked successfully.');
+            AppAlert.alert('Success', 'Store linked successfully.');
         } catch (error) {
-            Alert.alert('Link failed', error?.response?.data?.message || 'Invalid reference code.');
+            AppAlert.alert('Link failed', error?.response?.data?.message || 'Invalid reference code.');
         }
     };
 

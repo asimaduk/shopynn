@@ -1,15 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import {
-    View,
-    ScrollView,
-    TextInput,
-    TouchableOpacity,
-    Alert,
-    ActivityIndicator,
-    Platform,
-    StyleSheet,
-    KeyboardAvoidingView,
-} from 'react-native';
+import { View, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Platform, StyleSheet, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
@@ -23,6 +13,7 @@ import { merchants as merchantsApi, billing as billingApi } from '../../services
 import Toast from 'react-native-toast-message';
 import { buildPlansFromCatalog, computeQuoteTotalFromSelection, filterSellableAddons } from '../../utils/billingCatalog';
 import { formatPhone } from '../../utils/format';
+import AppAlert from '../../utils/appAlert';
 
 /** Fallback when catalog API unavailable */
 const PLANS = [
@@ -88,7 +79,7 @@ function toastError(title, message) {
             position: 'bottom',
         });
     } else {
-        Alert.alert(title, message);
+        AppAlert.alert(title, message);
     }
 }
 
@@ -274,7 +265,7 @@ const MerchantOnboard = ({ navigation }) => {
         if (!validateBusinessStep()) return;
         if (!validateOwnerStep()) return;
 
-        Alert.alert(
+        AppAlert.alert(
             'Create tenant?',
             'This will register the new business and owner. Do you want to continue?',
             [

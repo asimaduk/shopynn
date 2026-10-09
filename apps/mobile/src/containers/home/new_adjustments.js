@@ -1,15 +1,5 @@
 import React, { useState, useRef } from 'react';
-import {
-    Dimensions,
-    StyleSheet,
-    TouchableOpacity,
-    ScrollView,
-    View,
-    TextInput,
-    KeyboardAvoidingView,
-    Platform,
-    Alert,
-} from 'react-native';
+import { Dimensions, StyleSheet, TouchableOpacity, ScrollView, View, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Lucide } from '@react-native-vector-icons/lucide';
@@ -22,6 +12,7 @@ import useTheme from '../../hooks/useTheme';
 import { useSelector } from 'react-redux';
 import { adjustments as adjustmentsApi, warehouses as warehousesApi, normalizeList } from '../../services/api';
 import { getScreenPlanAccess, navigateToScreenOrUpgrade } from '../../utils/permissions';
+import AppAlert from '../../utils/appAlert';
 
 const { height } = Dimensions.get('screen');
 
@@ -74,7 +65,7 @@ const NewAdjustments = ({ navigation, route }) => {
 
     const openProductSearch = () => {
         if (!selectedStore?.id) {
-            Alert.alert('Select store', 'Choose a store before adding products.');
+            AppAlert.alert('Select store', 'Choose a store before adding products.');
             return;
         }
         navigation.navigate('Search', {
@@ -144,7 +135,7 @@ const NewAdjustments = ({ navigation, route }) => {
     };
 
     const handleRemoveProduct = () => {
-        Alert.alert('Remove item', `Remove "${selectedProduct?.name}" from this adjustment?`, [
+        AppAlert.alert('Remove item', `Remove "${selectedProduct?.name}" from this adjustment?`, [
             { text: 'Cancel', style: 'cancel' },
             {
                 text: 'Remove',
@@ -159,18 +150,18 @@ const NewAdjustments = ({ navigation, route }) => {
 
     const handleSaveAdjustment = () => {
         if (orders.length === 0) {
-            Alert.alert('Add items', 'Add at least one product to adjust.');
+            AppAlert.alert('Add items', 'Add at least one product to adjust.');
             return;
         }
         if (!selectedStore) {
-            Alert.alert('Select store', 'Please select a store / warehouse.');
+            AppAlert.alert('Select store', 'Please select a store / warehouse.');
             return;
         }
         if (!reason.trim()) {
-            Alert.alert('Reason required', 'Please provide a reason for this adjustment.');
+            AppAlert.alert('Reason required', 'Please provide a reason for this adjustment.');
             return;
         }
-        Alert.alert(
+        AppAlert.alert(
             'Confirm adjustment',
             `Adjust ${orders.length} product(s) at ${selectedStore?.name}?\n\nReason: ${reason}`,
             [
@@ -190,10 +181,10 @@ const NewAdjustments = ({ navigation, route }) => {
                                     adjustment_type: o.adjustment_type || 'addition',
                                 })),
                             });
-                            Alert.alert('Success', 'Adjustment saved.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
+                            AppAlert.alert('Success', 'Adjustment saved.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
                         } catch (err) {
                             const msg = err?.response?.data?.message || err?.message || 'Failed to save adjustment.';
-                            Alert.alert('Error', msg);
+                            AppAlert.alert('Error', msg);
                         } finally {
                             setSaving(false);
                         }
@@ -232,7 +223,7 @@ const NewAdjustments = ({ navigation, route }) => {
                         activeOpacity={0.7}
                         onPress={() => {
                             if (orders.length > 0) {
-                                Alert.alert(
+                                AppAlert.alert(
                                     'Store locked',
                                     'Remove all items before changing the store for this adjustment.',
                                 );

@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Image, StyleSheet, TouchableOpacity, ScrollView, View, Dimensions, Alert, ActivityIndicator } from 'react-native';
+import { Image, StyleSheet, TouchableOpacity, ScrollView, View, Dimensions, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
@@ -18,6 +18,7 @@ import {
 import { formatCurrency, displayEmail, formatPhone, isPlaceholderEmail } from '../../utils/format';
 import { useDispatch, useSelector } from 'react-redux';
 import { SET_USER } from '../../store/actions/user';
+import AppAlert from '../../utils/appAlert';
 
 const { width } = Dimensions.get('screen');
 
@@ -206,7 +207,7 @@ const Profile = ({ navigation, route }) => {
         try {
             const res = await usersApi.updateProfileImage(selectedImage);
             const uploadedImageUrl = res?.image_url || selectedImage?.uri || null;
-            Alert.alert('Success', 'Image uploaded successfully');
+            AppAlert.alert('Success', 'Image uploaded successfully');
             setShowFullImage(false);
             setServerImageUri(uploadedImageUrl);
             setSelectedImage({ uri: uploadedImageUrl, isLocal: false });
@@ -220,14 +221,14 @@ const Profile = ({ navigation, route }) => {
                 },
             });
         } catch (_) {
-            Alert.alert('Error', 'Failed to upload image');
+            AppAlert.alert('Error', 'Failed to upload image');
         } finally {
             setImageActionLoading(null);
         }
     }
 
     const handleAddImage = async () => {
-        Alert.alert('Profile Photo', 'Choose an option', [
+        AppAlert.alert('Profile Photo', 'Choose an option', [
             { text: 'Gallery', onPress: handleOpenGallery },
             { text: 'Camera', onPress: handleOpenCamera },
             { text: 'Cancel', style: 'cancel' }
@@ -238,7 +239,7 @@ const Profile = ({ navigation, route }) => {
         if (!selectedImage) return;
         if (selectedImage.isLocal) return;
 
-        Alert.alert(
+        AppAlert.alert(
             'Delete Profile Image',
             'Are you sure you want to delete your profile image?',
             [
@@ -250,7 +251,7 @@ const Profile = ({ navigation, route }) => {
                         setImageActionLoading('delete');
                         try {
                             await usersApi.removeProfileImage();
-                            Alert.alert('Success', 'Image deleted successfully');
+                            AppAlert.alert('Success', 'Image deleted successfully');
                             setShowFullImage(false);
                             setSelectedImage(null);
                             setServerImageUri(null);
@@ -265,7 +266,7 @@ const Profile = ({ navigation, route }) => {
                             });
                         } catch (_) {
                             console.log('error', _);
-                            Alert.alert('Error', 'Failed to delete image');
+                            AppAlert.alert('Error', 'Failed to delete image');
                         } finally {
                             setImageActionLoading(null);
                         }

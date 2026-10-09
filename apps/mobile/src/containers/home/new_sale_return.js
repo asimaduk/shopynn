@@ -1,14 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-    StyleSheet,
-    TouchableOpacity,
-    ScrollView,
-    View,
-    TextInput,
-    Alert,
-    ActivityIndicator,
-    Switch,
-} from 'react-native';
+import { StyleSheet, TouchableOpacity, ScrollView, View, TextInput, ActivityIndicator, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
@@ -17,6 +8,7 @@ import ScreenHeader from '../../components/screen_header';
 import useTheme from '../../hooks/useTheme';
 import { formatCurrency } from '../../utils/format';
 import { returnsApi } from '../../services/api';
+import AppAlert from '../../utils/appAlert';
 
 const REASONS = ['Defective', 'Wrong item', 'Customer change of mind', 'Damaged', 'Other'];
 
@@ -56,7 +48,7 @@ const NewSaleReturn = ({ navigation, route }) => {
             setRestockMap(nextRestock);
             setRefundAmount('');
         } catch (err) {
-            Alert.alert('Error', err?.response?.data?.message || err?.message || 'Could not load sale.');
+            AppAlert.alert('Error', err?.response?.data?.message || err?.message || 'Could not load sale.');
         } finally {
             setLoading(false);
         }
@@ -97,28 +89,28 @@ const NewSaleReturn = ({ navigation, route }) => {
 
     const handleSubmit = async () => {
         if (!saleId) {
-            Alert.alert('Required', 'Open this screen from a sale.');
+            AppAlert.alert('Required', 'Open this screen from a sale.');
             return;
         }
         if (!selectedLines.length) {
-            Alert.alert('Required', 'Enter a return quantity on at least one line.');
+            AppAlert.alert('Required', 'Enter a return quantity on at least one line.');
             return;
         }
         if (!reason.trim()) {
-            Alert.alert('Required', 'Select a reason.');
+            AppAlert.alert('Required', 'Select a reason.');
             return;
         }
         const writeOffMissing = selectedLines.some((l) => !l.restock);
         if (writeOffMissing && !reason.trim()) {
-            Alert.alert('Required', 'Reason is required for write-off (non-restock) lines.');
+            AppAlert.alert('Required', 'Reason is required for write-off (non-restock) lines.');
             return;
         }
         if (refundMethod === 'store_credit' && !data?.sale?.customer_id) {
-            Alert.alert('Customer required', 'Store credit refunds need a customer on the sale.');
+            AppAlert.alert('Customer required', 'Store credit refunds need a customer on the sale.');
             return;
         }
         if (refundMethod === 'momo' && !data?.can_momo_refund) {
-            Alert.alert(
+            AppAlert.alert(
                 'MoMo unavailable',
                 'No original MoMo payment found. Use cash or store credit.',
             );
@@ -143,11 +135,11 @@ const NewSaleReturn = ({ navigation, route }) => {
                     write_off_reason: l.restock ? undefined : reason.trim(),
                 })),
             });
-            Alert.alert('Return recorded', 'Stock and refund have been updated.', [
+            AppAlert.alert('Return recorded', 'Stock and refund have been updated.', [
                 { text: 'OK', onPress: () => navigation.goBack() },
             ]);
         } catch (err) {
-            Alert.alert('Error', err?.response?.data?.message || err?.message || 'Failed to create return.');
+            AppAlert.alert('Error', err?.response?.data?.message || err?.message || 'Failed to create return.');
         } finally {
             setSaving(false);
         }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, TouchableOpacity, ScrollView, View, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
+import { StyleSheet, TouchableOpacity, ScrollView, View, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
@@ -8,6 +8,7 @@ import ScreenHeader from '../../components/screen_header';
 import useTheme from '../../hooks/useTheme';
 import { sanitizeBody } from '../../utils/apiValidation';
 import { categories as categoriesApi } from '../../services/api';
+import AppAlert from '../../utils/appAlert';
 
 const CategoryForm = ({ navigation, route }) => {
     const { colors } = useTheme();
@@ -35,7 +36,7 @@ const CategoryForm = ({ navigation, route }) => {
 
     const backPress = () => {
         if (hasChanges) {
-            Alert.alert(
+            AppAlert.alert(
                 'Unsaved Changes',
                 'You have unsaved changes. Are you sure you want to go back?',
                 [
@@ -82,7 +83,7 @@ const CategoryForm = ({ navigation, route }) => {
 
     const handleSave = async () => {
         if(!validateForm()) {
-            Alert.alert('Validation Error', 'Please fix the errors before saving');
+            AppAlert.alert('Validation Error', 'Please fix the errors before saving');
             return;
         }
         
@@ -99,7 +100,7 @@ const CategoryForm = ({ navigation, route }) => {
                 await categoriesApi.create(categoryData);
             }
             
-            Alert.alert(
+            AppAlert.alert(
                 'Success', 
                 `Category ${isEditMode ? 'updated' : 'created'} successfully`,
                 [
@@ -111,7 +112,7 @@ const CategoryForm = ({ navigation, route }) => {
             );
         } catch (err) {
             const msg = err?.response?.data?.message || err?.message || `Failed to ${isEditMode ? 'update' : 'create'} category.`;
-            Alert.alert('Error', msg);
+            AppAlert.alert('Error', msg);
         } finally {
             setIsLoading(false);
         }

@@ -1,13 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    View,
-} from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import { useDispatch, useSelector } from 'react-redux';
@@ -32,6 +24,7 @@ import {
     normalizePrintAgentPort,
 } from '../../utils/printAgent';
 import { users as usersApi } from '../../services/api';
+import AppAlert from '../../utils/appAlert';
 
 const SectionCard = ({ colors, icon, title, subtitle, action, children }) => (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -168,12 +161,12 @@ const InvoiceReceiptSettings = ({ navigation }) => {
     const save = async () => {
         const host = normalizePrintAgentHost(printHost);
         if (!host) {
-            Alert.alert('Host required', 'Enter the LAN IP of the computer running Shopynn Print.');
+            AppAlert.alert('Host required', 'Enter the LAN IP of the computer running Shopynn Print.');
             return;
         }
         const register = normalizeInvoiceRegisterCode(invoiceRegister);
         if (!register) {
-            Alert.alert(
+            AppAlert.alert(
                 'Register code required',
                 'Register code is required (1–4 letters or digits, e.g. A, T1, W).',
             );
@@ -202,9 +195,9 @@ const InvoiceReceiptSettings = ({ navigation }) => {
             );
             setPrintHost(host);
             setPrintPort(String(normalizePrintAgentPort(printPort)));
-            Alert.alert('Saved', 'Invoice & receipt settings saved.');
+            AppAlert.alert('Saved', 'Invoice & receipt settings saved.');
         } catch (err) {
-            Alert.alert('Error', err?.message || 'Could not save settings.');
+            AppAlert.alert('Error', err?.message || 'Could not save settings.');
         } finally {
             setSaving(false);
         }

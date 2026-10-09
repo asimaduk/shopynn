@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { StyleSheet, TouchableOpacity, ScrollView, View, Alert } from 'react-native';
+import { StyleSheet, TouchableOpacity, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
 import config from '../../config';
 import ScreenHeader from '../../components/screen_header';
 import useTheme from '../../hooks/useTheme';
+import AppAlert from '../../utils/appAlert';
 
 const mockLines = [
     { id: '1', name: 'Tampico Medium', sku: 'Tam500', qty: 50, unitCost: 62, received: 50 },
@@ -23,7 +24,7 @@ const PurchaseOrderDetails = ({ navigation, route }) => {
 
     const markAsSent = () => {
         setItem(prev => ({ ...prev, status: 'sent' }));
-        Alert.alert('Updated', 'Purchase order marked as sent to supplier.');
+        AppAlert.alert('Updated', 'Purchase order marked as sent to supplier.');
     };
 
     const receiveAgainstPO = () => {

@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, Image, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { useFocusEffect } from '@react-navigation/native';
@@ -9,6 +9,7 @@ import ScreenHeader from '../../components/screen_header';
 import useTheme from '../../hooks/useTheme';
 import config from '../../config';
 import { clearBrowseHistory, loadBrowseHistory } from '../../utils/forYouBrowseHistory';
+import AppAlert from '../../utils/appAlert';
 
 const resolveImageUrl = (raw) => {
     if (!raw) return '';
@@ -36,7 +37,7 @@ const ForYouBrowseHistory = ({ navigation, route }) => {
 
     const onClear = () => {
         if (!history.length) return;
-        Alert.alert('Clear browsing history?', 'Remove all products from your browsing history.', [
+        AppAlert.alert('Clear browsing history?', 'Remove all products from your browsing history.', [
             { text: 'Cancel', style: 'cancel' },
             {
                 text: 'Clear',

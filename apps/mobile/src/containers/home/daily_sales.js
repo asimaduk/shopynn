@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Dimensions, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Platform, Alert } from 'react-native';
+import { View, Dimensions, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LineChart } from 'react-native-gifted-charts';
 import { Lucide } from '@react-native-vector-icons/lucide';
@@ -13,6 +13,7 @@ import { sales as salesApi, normalizeList } from '../../services/api';
 import { useSelector } from 'react-redux';
 import { canAccessScreen } from '../../utils/permissions';
 import FeatureUpgradePrompt from '../../components/FeatureUpgradePrompt';
+import AppAlert from '../../utils/appAlert';
 
 const { width } = Dimensions.get('window');
 
@@ -160,7 +161,7 @@ const DailySales = ({ navigation }) => {
             setData(fillMissingDays(mapped, params.startDate, params.endDate));
         } catch (e) {
             const msg = e?.response?.data?.message || e?.message || 'Failed to load daily sales.';
-            Alert.alert('Error', msg);
+            AppAlert.alert('Error', msg);
             setData([]);
         }
     }, [getApiParams, canViewDailySales]);

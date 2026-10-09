@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, RefreshControl, ActivityIndicator, Alert } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { Lucide } from '@react-native-vector-icons/lucide';
@@ -9,6 +9,7 @@ import useTheme from '../../hooks/useTheme';
 import ScreenHeader from '../../components/screen_header';
 import SaleItem from './sale_item';
 import { sales as salesApi, normalizeList } from '../../services/api';
+import AppAlert from '../../utils/appAlert';
 
 const formatter = new Intl.NumberFormat('en-GH', {
     style: 'currency',
@@ -73,7 +74,7 @@ const DaySalesList = ({ navigation, route }) => {
             setSales(mapped);
         } catch (e) {
             const msg = e?.response?.data?.message || e?.message || 'Failed to load sales for this day.';
-            Alert.alert('Error', msg);
+            AppAlert.alert('Error', msg);
             setSales([]);
         }
     }, [date]);

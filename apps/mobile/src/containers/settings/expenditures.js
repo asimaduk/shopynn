@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { TextInput, TouchableOpacity, View, ScrollView, Platform, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { TextInput, TouchableOpacity, View, ScrollView, Platform, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import { useSelector } from 'react-redux';
@@ -22,6 +22,7 @@ import {
     shareReportPdfFromServer,
 } from '../../utils/reportExport';
 import { formatCurrency } from '../../utils/format';
+import AppAlert from '../../utils/appAlert';
 
 const dateRanges = [
     { id: '1', label: 'Today', value: 'today' },
@@ -247,7 +248,7 @@ const Expenditures = ({ navigation }) => {
         setShowExportFormatModal(false);
 
         if (filteredData.length === 0) {
-            Alert.alert('No Data', 'There are no expenditures to export.');
+            AppAlert.alert('No Data', 'There are no expenditures to export.');
             return;
         }
 
@@ -278,7 +279,7 @@ const Expenditures = ({ navigation }) => {
 
     const handleExport = () => {
         if (filteredData.length === 0) {
-            Alert.alert('No Data', 'There are no expenditures to export.');
+            AppAlert.alert('No Data', 'There are no expenditures to export.');
             return;
         }
         setShowExportFormatModal(true);

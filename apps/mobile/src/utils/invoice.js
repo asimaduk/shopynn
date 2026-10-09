@@ -1,8 +1,9 @@
-import { Alert, Linking, Platform, Share } from 'react-native';
+import { Linking, Platform, Share } from 'react-native';
 import RNFS from 'react-native-fs';
 import RNShare from 'react-native-share';
 import config from '../config';
 import { formatSalePaymentLabel } from './salePayment';
+import AppAlert from './appAlert';
 
 const THEME = config.THEME_COLOR || '#0A74DA';
 
@@ -372,7 +373,7 @@ export async function shareInvoiceByWhatsApp(invoice, phoneOverride) {
     const url = buildWhatsAppUrl(digits, text);
     const ok = await Linking.canOpenURL(url);
     if (!ok) {
-        Alert.alert(
+        AppAlert.alert(
             'WhatsApp',
             digits
                 ? 'WhatsApp is not installed. Install WhatsApp or use Share to send the invoice another way.'

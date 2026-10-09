@@ -1,13 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-    View,
-    ScrollView,
-    ActivityIndicator,
-    Alert,
-    TouchableOpacity,
-    TextInput,
-    Switch,
-} from 'react-native';
+import { View, ScrollView, ActivityIndicator, TouchableOpacity, TextInput, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ScreenHeader from '../../components/screen_header';
 import AppText from '../../components/text';
@@ -16,6 +8,7 @@ import { Lucide } from '@react-native-vector-icons/lucide';
 import config from '../../config';
 import useTheme from '../../hooks/useTheme';
 import { transfers as transfersApi } from '../../services/api';
+import AppAlert from '../../utils/appAlert';
 
 const defaultItem = {
     id: '',
@@ -60,7 +53,7 @@ const TransferDetails = ({ navigation, route }) => {
             }
         } catch (err) {
             const msg = err?.response?.data?.message || err?.message || 'Failed to load transfer.';
-            Alert.alert('Error', msg);
+            AppAlert.alert('Error', msg);
         } finally {
             setLoading(false);
         }
@@ -124,10 +117,10 @@ const TransferDetails = ({ navigation, route }) => {
                       }),
                   };
             await transfersApi.receive(id, body);
-            Alert.alert('Received', 'Transfer accepted. Destination stock updated.');
+            AppAlert.alert('Received', 'Transfer accepted. Destination stock updated.');
             await load();
         } catch (err) {
-            Alert.alert(
+            AppAlert.alert(
                 'Receive failed',
                 err?.response?.data?.message || err?.message || 'Could not receive transfer.',
             );

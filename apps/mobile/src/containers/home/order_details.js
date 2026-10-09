@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
@@ -10,6 +10,7 @@ import config from '../../config';
 import { orders, storeOrders } from '../../services/api';
 import { hasFeature, hasPermission } from '../../utils/permissions';
 import { Lucide } from '@react-native-vector-icons/lucide';
+import AppAlert from '../../utils/appAlert';
 
 const TRANSITIONS = {
     pending: ['confirmed'],
@@ -96,11 +97,11 @@ const OrderDetails = ({ navigation, route }) => {
     const updateStatus = async (status) => {
         const requiresReason = status === 'completed';
         if (requiresReason && !String(reason).trim()) {
-            Alert.alert('Reason required', 'Please provide a completion reason.');
+            AppAlert.alert('Reason required', 'Please provide a completion reason.');
             return;
         }
 
-        Alert.alert(
+        AppAlert.alert(
             'Confirm status update',
             `Change order status to "${formatStatusLabel(status)}"?`,
             [
@@ -114,7 +115,7 @@ const OrderDetails = ({ navigation, route }) => {
                             setReason('');
                             await load();
                         } catch (error) {
-                            Alert.alert('Status update failed', error?.response?.data?.message || 'Try again.');
+                            AppAlert.alert('Status update failed', error?.response?.data?.message || 'Try again.');
                         }
                     },
                 },
@@ -125,14 +126,14 @@ const OrderDetails = ({ navigation, route }) => {
     const cancel = () => {
         const status = String(order?.status || '').toLowerCase();
         if (!CANCELLABLE_ORDER_STATUSES.has(status)) {
-            Alert.alert(
+            AppAlert.alert(
                 'Cannot cancel',
                 'Only orders that are still pending or confirmed can be cancelled.',
             );
             return;
         }
         const note = String(cancelNote || '').trim();
-        Alert.alert('Cancel order', 'Are you sure you want to cancel this order?', [
+        AppAlert.alert('Cancel order', 'Are you sure you want to cancel this order?', [
             { text: 'No', style: 'cancel' },
             {
                 text: 'Yes, cancel',
@@ -143,7 +144,7 @@ const OrderDetails = ({ navigation, route }) => {
                         setCancelNote('');
                         await load();
                     } catch (error) {
-                        Alert.alert('Cancel failed', error?.response?.data?.message || 'Try again.');
+                        AppAlert.alert('Cancel failed', error?.response?.data?.message || 'Try again.');
                     }
                 },
             },
@@ -160,14 +161,14 @@ const OrderDetails = ({ navigation, route }) => {
     const onRecordPartialCash = () => {
         const amt = Number(partialAmount);
         if (!Number.isFinite(amt) || amt <= 0) {
-            Alert.alert('Invalid amount', 'Enter a valid partial payment amount.');
+            AppAlert.alert('Invalid amount', 'Enter a valid partial payment amount.');
             return;
         }
         if (amt > balanceDue + 0.02) {
-            Alert.alert('Too high', `Amount cannot exceed remaining balance (GHS ${balanceDue.toFixed(2)}).`);
+            AppAlert.alert('Too high', `Amount cannot exceed remaining balance (GHS ${balanceDue.toFixed(2)}).`);
             return;
         }
-        Alert.alert('Record cash payment', `Record GHS ${amt.toFixed(2)} toward this order balance?`, [
+        AppAlert.alert('Record cash payment', `Record GHS ${amt.toFixed(2)} toward this order balance?`, [
             { text: 'Cancel', style: 'cancel' },
             {
                 text: 'Record',
@@ -182,7 +183,7 @@ const OrderDetails = ({ navigation, route }) => {
                         setPartialNote('');
                         await load();
                     } catch (error) {
-                        Alert.alert(
+                        AppAlert.alert(
                             'Could not record payment',
                             error?.response?.data?.message || error?.response?.data?.error || 'Try again.',
                         );
@@ -195,7 +196,7 @@ const OrderDetails = ({ navigation, route }) => {
     };
 
     const onMarkCashPaid = () => {
-        Alert.alert(
+        AppAlert.alert(
             'Mark paid (cash)',
             'Mark this order as paid in cash? This cannot be undone automatically.',
             [
@@ -208,7 +209,7 @@ const OrderDetails = ({ navigation, route }) => {
                             await storeOrders.markPaidCash(orderId, {});
                             await load();
                         } catch (error) {
-                            Alert.alert(
+                            AppAlert.alert(
                                 'Could not mark paid',
                                 error?.response?.data?.message || error?.response?.data?.error || 'Try again.',
                             );

@@ -1,13 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-    Alert,
-    Dimensions,
-    Image,
-    RefreshControl,
-    StyleSheet,
-    TouchableOpacity,
-    View,
-} from 'react-native';
+import { Dimensions, Image, RefreshControl, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { Lucide } from '@react-native-vector-icons/lucide';
@@ -26,6 +18,7 @@ import {
 import { catalog, customerProfiles } from '../../services/api';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { formatUnit } from '../../utils/format';
+import AppAlert from '../../utils/appAlert';
 
 const { width } = Dimensions.get('window');
 const SUGGESTION_CARD_WIDTH = (width - 44) / 2;
@@ -154,7 +147,7 @@ const Cart = ({ navigation }) => {
     const onCheckout = () => {
         if (!items.length) return;
         if (warehouseCount > 1) {
-            Alert.alert('Multiple stores', 'Please checkout items from one store at a time.');
+            AppAlert.alert('Multiple stores', 'Please checkout items from one store at a time.');
             return;
         }
         navigation.navigate('Checkout');

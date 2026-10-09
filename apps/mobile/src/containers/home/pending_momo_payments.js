@@ -1,15 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import {
-    View,
-    TouchableOpacity,
-    ActivityIndicator,
-    Alert,
-    RefreshControl,
-    ScrollView,
-    TextInput,
-    StyleSheet,
-    Image,
-} from 'react-native';
+import { View, TouchableOpacity, ActivityIndicator, RefreshControl, ScrollView, TextInput, StyleSheet, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import { useFocusEffect } from '@react-navigation/native';
@@ -23,6 +13,7 @@ import { payments as paymentsApi, sales as salesApi, normalizeList } from '../..
 import { buildInvoiceNumberFromSettings } from '../../utils/invoiceNumbering';
 import { incrementInvoiceNext } from '../../store/actions/appSettings';
 import { isTelecelMomoProvider, getMomoNetworkIcon } from '../../utils/momoNetworks';
+import AppAlert from '../../utils/appAlert';
 
 const isSuccess = (status) => ['success', 'paid', 'completed'].includes(String(status || '').toLowerCase());
 
@@ -94,7 +85,7 @@ const PendingMomoPayments = ({ navigation }) => {
             return list;
         } catch (e) {
             setRows([]);
-            Alert.alert('Pending MoMo', e?.response?.data?.message || e?.message || 'Could not load payments');
+            AppAlert.alert('Pending MoMo', e?.response?.data?.message || e?.message || 'Could not load payments');
             return [];
         } finally {
             setLoading(false);
@@ -178,7 +169,7 @@ const PendingMomoPayments = ({ navigation }) => {
             if (isSuccess(st)) {
                 setNeedsOtp(false);
                 setStatusNote(note || 'Payment confirmed.');
-                Alert.alert('Status', 'Payment confirmed.');
+                AppAlert.alert('Status', 'Payment confirmed.');
             } else if (momoStatusNeedsOtp(st, note) || isTelecelMomoProvider(row?.pos_cart_snapshot?.provider)) {
                 setNeedsOtp(true);
                 setStatusNote(note || 'Enter the OTP / voucher from the network.');
@@ -188,7 +179,7 @@ const PendingMomoPayments = ({ navigation }) => {
             }
             await load();
         } catch (e) {
-            Alert.alert('MoMo', e?.response?.data?.message || e?.message || 'Verify failed');
+            AppAlert.alert('MoMo', e?.response?.data?.message || e?.message || 'Verify failed');
         } finally {
             setBusy(null);
         }
@@ -214,7 +205,7 @@ const PendingMomoPayments = ({ navigation }) => {
             }
             await load();
         } catch (e) {
-            Alert.alert('MoMo', e?.response?.data?.message || e?.message || 'Could not submit OTP');
+            AppAlert.alert('MoMo', e?.response?.data?.message || e?.message || 'Could not submit OTP');
         } finally {
             setBusy(null);
         }
@@ -226,11 +217,11 @@ const PendingMomoPayments = ({ navigation }) => {
         const lines = productLines(snap);
         if (!ref || busy) return;
         if (!isSuccess(row?.status)) {
-            Alert.alert('MoMo', 'Payment is not confirmed yet. Check status first.');
+            AppAlert.alert('MoMo', 'Payment is not confirmed yet. Check status first.');
             return;
         }
         if (!lines.length) {
-            Alert.alert(
+            AppAlert.alert(
                 'MoMo',
                 'No cart was saved with this payment. Complete this sale from New Sale with matching items, or abandon if it was a mistake.',
             );
@@ -272,7 +263,7 @@ const PendingMomoPayments = ({ navigation }) => {
                 payment_type: 2,
             });
             dispatch(incrementInvoiceNext());
-            Alert.alert('Sale', 'Sale completed.');
+            AppAlert.alert('Sale', 'Sale completed.');
             setSelectedRef(null);
             setStatusNote('');
             setNeedsOtp(false);
@@ -280,7 +271,7 @@ const PendingMomoPayments = ({ navigation }) => {
             setEvents([]);
             await load('open');
         } catch (e) {
-            Alert.alert('Sale', e?.response?.data?.message || e?.message || 'Could not complete sale');
+            AppAlert.alert('Sale', e?.response?.data?.message || e?.message || 'Could not complete sale');
         } finally {
             setBusy(null);
         }
@@ -289,7 +280,7 @@ const PendingMomoPayments = ({ navigation }) => {
     const handleAbandon = (row) => {
         const ref = row?.transaction_ref;
         if (!ref || isSuccess(row?.status) || busy) return;
-        Alert.alert(
+        AppAlert.alert(
             'Abandon payment?',
             'We will check the network first. If the customer already paid, abandon will be blocked and you must complete the sale.',
             [
@@ -312,10 +303,10 @@ const PendingMomoPayments = ({ navigation }) => {
                             const msg =
                                 e?.response?.data?.message || e?.message || 'Could not abandon';
                             if (code === 'PAYMENT_ALREADY_SUCCESS' || /already succeeded/i.test(String(msg))) {
-                                Alert.alert('Already paid', msg);
+                                AppAlert.alert('Already paid', msg);
                                 await load('open');
                             } else {
-                                Alert.alert('MoMo', msg);
+                                AppAlert.alert('MoMo', msg);
                             }
                         } finally {
                             setBusy(null);

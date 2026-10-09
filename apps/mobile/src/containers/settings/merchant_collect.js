@@ -1,15 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import {
-    View,
-    ScrollView,
-    TextInput,
-    TouchableOpacity,
-    Alert,
-    ActivityIndicator,
-    Platform,
-    Share,
-    Image,
-} from 'react-native';
+import { View, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Platform, Share, Image } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import Clipboard from '@react-native-clipboard/clipboard';
@@ -19,6 +9,7 @@ import useTheme from '../../hooks/useTheme';
 import config from '../../config';
 import { merchants as merchantsApi } from '../../services/api';
 import { MOMO_NETWORK_OPTIONS, getMomoNetworkIcon } from '../../utils/momoNetworks';
+import AppAlert from '../../utils/appAlert';
 
 const MerchantCollect = ({ navigation, route }) => {
     const { colors } = useTheme();
@@ -43,7 +34,7 @@ const MerchantCollect = ({ navigation, route }) => {
             setQuote(res?.quote || null);
             if (res?.quote?.owner_email) setOwnerEmail(res.quote.owner_email);
         } catch (e) {
-            Alert.alert('Error', e?.response?.data?.message || e?.message || 'Could not load quote');
+            AppAlert.alert('Error', e?.response?.data?.message || e?.message || 'Could not load quote');
         } finally {
             setLoading(false);
         }
@@ -70,11 +61,11 @@ const MerchantCollect = ({ navigation, route }) => {
             if (res?.redirect_url) {
                 setCardUrl(res.redirect_url);
             } else {
-                Alert.alert('MoMo', res?.display_text || 'Charge sent. Enter OTP if prompted.');
+                AppAlert.alert('MoMo', res?.display_text || 'Charge sent. Enter OTP if prompted.');
             }
             await loadQuote();
         } catch (e) {
-            Alert.alert('Payment', e?.response?.data?.message || e?.message || 'Failed');
+            AppAlert.alert('Payment', e?.response?.data?.message || e?.message || 'Failed');
         } finally {
             setBusy(false);
         }
@@ -85,11 +76,11 @@ const MerchantCollect = ({ navigation, route }) => {
         setBusy(true);
         try {
             await merchantsApi.submitOtp(tenantId, { reference: transactionRef, otp });
-            Alert.alert('Success', 'Payment completed.', [
+            AppAlert.alert('Success', 'Payment completed.', [
                 { text: 'OK', onPress: () => navigation.goBack() },
             ]);
         } catch (e) {
-            Alert.alert('OTP', e?.response?.data?.message || e?.message || 'Failed');
+            AppAlert.alert('OTP', e?.response?.data?.message || e?.message || 'Failed');
         } finally {
             setBusy(false);
         }
@@ -97,7 +88,7 @@ const MerchantCollect = ({ navigation, route }) => {
 
     const copyEmail = () => {
         if (ownerEmail) Clipboard.setString(ownerEmail);
-        Alert.alert('Copied', 'Owner email copied.');
+        AppAlert.alert('Copied', 'Owner email copied.');
     };
 
     const shareLink = async () => {

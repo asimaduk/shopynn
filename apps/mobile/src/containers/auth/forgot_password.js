@@ -1,18 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import {
-    View,
-    TextInput,
-    TouchableOpacity,
-    StyleSheet,
-    KeyboardAvoidingView,
-    Platform,
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    StatusBar,
-    Dimensions,
-    Image,
-} from 'react-native';
+import { View, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView, StatusBar, Dimensions, Image } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { Lucide } from '@react-native-vector-icons/lucide';
@@ -20,6 +7,7 @@ import AppText from '../../components/text';
 import config from '../../config';
 import useTheme from '../../hooks/useTheme';
 import { users as usersApi } from '../../services/api';
+import AppAlert from '../../utils/appAlert';
 
 const { width } = Dimensions.get('window');
 
@@ -41,20 +29,20 @@ const ForgotPassword = ({ navigation }) => {
     const handleSubmit = async () => {
         const v = email.trim().toLowerCase();
         if (!v) {
-            Alert.alert('Required', 'Please enter your email.');
+            AppAlert.alert('Required', 'Please enter your email.');
             return;
         }
         setLoading(true);
         try {
             await usersApi.forgotPassword(v);
-            Alert.alert(
+            AppAlert.alert(
                 'Reset password sent',
                 'If an account exists with that email, you will receive password reset instructions.',
                 [{ text: 'OK', onPress: () => navigation.goBack() }]
             );
         } catch (err) {
             const msg = err?.response?.data?.message || err?.message || 'Something went wrong. Please try again.';
-            Alert.alert('Error', msg);
+            AppAlert.alert('Error', msg);
         } finally {
             setLoading(false);
         }

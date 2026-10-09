@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, TouchableOpacity, ScrollView, View, TextInput, Alert } from 'react-native';
+import { StyleSheet, TouchableOpacity, ScrollView, View, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
@@ -8,6 +8,7 @@ import ScreenHeader from '../../components/screen_header';
 import AppModal from '../../components/app_modal';
 import useTheme from '../../hooks/useTheme';
 import { returnsApi } from '../../services/api';
+import AppAlert from '../../utils/appAlert';
 
 const SAMPLE_POS = [
     { id: 'PO-1002', supplier: 'Kasapreko', amount: '1,240.00', date: 'Feb 14, 2026' },
@@ -26,8 +27,8 @@ const NewPurchaseReturn = ({ navigation }) => {
     const [saving, setSaving] = useState(false);
 
     const handleSubmit = async () => {
-        if (!selectedPO) { Alert.alert('Required', 'Please select a purchase order.'); return; }
-        if (!reason.trim()) { Alert.alert('Required', 'Please select a reason.'); return; }
+        if (!selectedPO) { AppAlert.alert('Required', 'Please select a purchase order.'); return; }
+        if (!reason.trim()) { AppAlert.alert('Required', 'Please select a reason.'); return; }
         setSaving(true);
         try {
             await returnsApi.create({
@@ -36,10 +37,10 @@ const NewPurchaseReturn = ({ navigation }) => {
                 reason: reason.trim(),
                 notes: notes?.trim() || undefined,
             });
-            Alert.alert('Return created', 'Purchase return has been recorded.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
+            AppAlert.alert('Return created', 'Purchase return has been recorded.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
         } catch (err) {
             const msg = err?.response?.data?.message || err?.message || 'Failed to create return.';
-            Alert.alert('Error', msg);
+            AppAlert.alert('Error', msg);
         } finally {
             setSaving(false);
         }

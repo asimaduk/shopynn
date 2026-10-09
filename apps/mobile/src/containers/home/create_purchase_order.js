@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, TouchableOpacity, View, TextInput, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
@@ -7,6 +7,7 @@ import ScreenHeader from '../../components/screen_header';
 import config from '../../config';
 import useTheme from '../../hooks/useTheme';
 import AppModal from '../../components/app_modal';
+import AppAlert from '../../utils/appAlert';
 
 const defaultSuppliers = [{ id: '1', name: 'Kasapreko' }, { id: '2', name: 'CocaCola' }, { id: '3', name: 'FanMilk' }];
 const defaultProducts = [
@@ -54,20 +55,20 @@ const CreatePurchaseOrder = ({ navigation, route }) => {
             status: 'draft',
             lines,
         };
-        Alert.alert('Saved', 'Purchase order saved as draft.', [
+        AppAlert.alert('Saved', 'Purchase order saved as draft.', [
             { text: 'OK', onPress: () => navigation.navigate('PurchaseOrders') },
         ]);
     };
 
     const sendPO = () => {
         if (lines.length === 0) {
-            Alert.alert('Add items', 'Add at least one line item to the purchase order.');
+            AppAlert.alert('Add items', 'Add at least one line item to the purchase order.');
             return;
         }
-        Alert.alert('Send PO', 'Mark this purchase order as sent to supplier?', [
+        AppAlert.alert('Send PO', 'Mark this purchase order as sent to supplier?', [
             { text: 'Cancel', style: 'cancel' },
             { text: 'Send', onPress: () => {
-                Alert.alert('Sent', 'Purchase order sent to supplier.', [
+                AppAlert.alert('Sent', 'Purchase order sent to supplier.', [
                     { text: 'OK', onPress: () => navigation.navigate('PurchaseOrders') },
                 ]);
             }},

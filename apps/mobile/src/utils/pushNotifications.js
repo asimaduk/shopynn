@@ -1,8 +1,9 @@
-import { Alert, Linking, PermissionsAndroid, Platform } from 'react-native';
+import { Linking, PermissionsAndroid, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import messaging from '@react-native-firebase/messaging';
 import { users as usersApi } from '../services/api';
 import { hasFeature } from './permissions';
+import AppAlert from './appAlert';
 
 const PROMPTED_KEY = 'SHOPYNN_PUSH_PERMISSION_PROMPTED_V1';
 const NOTIFICATIONS_FEATURE = 'notifications.view';
@@ -60,7 +61,7 @@ async function requestAndroidSystemPermission() {
 	if (result === PermissionsAndroid.RESULTS.GRANTED) return true;
 	if (result === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
 		await new Promise((resolve) => {
-			Alert.alert(
+			AppAlert.alert(
 				'Notifications blocked',
 				'Enable notifications for Shopynn in your device settings to receive alerts.',
 				[
@@ -93,7 +94,7 @@ async function requestIosSystemPermission() {
 		// iOS only shows the system dialog once. After Deny, send the user to Settings.
 		if (current === messaging.AuthorizationStatus.DENIED) {
 			await new Promise((resolve) => {
-				Alert.alert(
+				AppAlert.alert(
 					'Notifications blocked',
 					'Enable notifications for Shopynn in Settings → Notifications.',
 					[
@@ -179,7 +180,7 @@ export function promptForNotificationPermission({
 		}
 
 		// Fallback if host is not mounted yet
-		Alert.alert(title, message, [
+		AppAlert.alert(title, message, [
 			{ text: cancelLabel, style: 'cancel', onPress: () => finish(false) },
 			{ text: confirmLabel, onPress: () => finish(true) },
 		]);

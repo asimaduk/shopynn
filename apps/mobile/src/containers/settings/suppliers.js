@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { TextInput, TouchableOpacity, View, ScrollView, Platform, StyleSheet, Share, Alert, ActivityIndicator, RefreshControl } from 'react-native';
+import { TextInput, TouchableOpacity, View, ScrollView, Platform, StyleSheet, Share, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import ScreenHeader from '../../components/screen_header';
@@ -13,6 +13,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import useTheme from '../../hooks/useTheme';
 import { useFocusEffect } from '@react-navigation/native';
 import { suppliers as suppliersApi, normalizePagedList } from '../../services/api';
+import AppAlert from '../../utils/appAlert';
 
 const PAGE_SIZE = 20;
 
@@ -443,7 +444,7 @@ const Suppliers = ({ navigation }) => {
         setShowExportFormatModal(false);
 
         if (filteredData.length === 0) {
-            Alert.alert('No Data', 'There are no suppliers to export.');
+            AppAlert.alert('No Data', 'There are no suppliers to export.');
             return;
         }
 
@@ -471,14 +472,14 @@ const Suppliers = ({ navigation }) => {
                         title: fileName,
                     });
 
-                    Alert.alert(
+                    AppAlert.alert(
                         'PDF Export',
                         'The HTML file has been shared. To convert to PDF:\n\n• iOS: Open in Safari, tap Share > Print > Save as PDF\n• Android: Open in browser, print > Save as PDF',
                         [{ text: 'OK' }]
                     );
                 }
             } catch (error) {
-                Alert.alert('Export Error', 'Could not export suppliers. Please try again.');
+                AppAlert.alert('Export Error', 'Could not export suppliers. Please try again.');
             } finally {
                 setExporting(false);
             }
@@ -487,7 +488,7 @@ const Suppliers = ({ navigation }) => {
 
     const handleExport = () => {
         if (filteredData.length === 0) {
-            Alert.alert('No Data', 'There are no suppliers to export.');
+            AppAlert.alert('No Data', 'There are no suppliers to export.');
             return;
         }
         setShowExportFormatModal(true);

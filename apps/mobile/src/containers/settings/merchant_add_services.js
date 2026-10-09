@@ -1,12 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import {
-    View,
-    ScrollView,
-    TouchableOpacity,
-    Alert,
-    ActivityIndicator,
-    TextInput,
-} from 'react-native';
+import { View, ScrollView, TouchableOpacity, ActivityIndicator, TextInput } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Lucide } from '@react-native-vector-icons/lucide';
@@ -16,6 +9,7 @@ import useTheme from '../../hooks/useTheme';
 import config from '../../config';
 import { merchants as merchantsApi, billing as billingApi } from '../../services/api';
 import { filterSellableAddons } from '../../utils/billingCatalog';
+import AppAlert from '../../utils/appAlert';
 
 const MerchantAddServices = ({ navigation, route }) => {
     const { colors } = useTheme();
@@ -34,7 +28,7 @@ const MerchantAddServices = ({ navigation, route }) => {
             const cat = await billingApi.catalog({ grouped: true });
             setCatalog(cat);
         } catch (e) {
-            Alert.alert('Error', e?.response?.data?.message || e?.message || 'Could not load services');
+            AppAlert.alert('Error', e?.response?.data?.message || e?.message || 'Could not load services');
         } finally {
             setLoading(false);
         }
@@ -60,7 +54,7 @@ const MerchantAddServices = ({ navigation, route }) => {
     const handleCreateQuote = async () => {
         if (!tenantId) return;
         if (addonCodes.length === 0) {
-            Alert.alert('Add services', 'Select at least one paid service.');
+            AppAlert.alert('Add services', 'Select at least one paid service.');
             return;
         }
         setBusy(true);
@@ -76,13 +70,13 @@ const MerchantAddServices = ({ navigation, route }) => {
         } catch (e) {
             const msg = e?.response?.data?.message || e?.message || 'Failed';
             if (String(msg).toLowerCase().includes('pending')) {
-                Alert.alert('Payment pending', 'A quote is already awaiting payment.', [
+                AppAlert.alert('Payment pending', 'A quote is already awaiting payment.', [
                     { text: 'Collect now', onPress: () => navigation.replace('MerchantCollect', { tenantId }) },
                     { text: 'OK' },
                 ]);
                 return;
             }
-            Alert.alert('Add services', msg);
+            AppAlert.alert('Add services', msg);
         } finally {
             setBusy(false);
         }

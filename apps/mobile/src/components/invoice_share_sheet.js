@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppModal from './app_modal';
 import AppText from './text';
 import useTheme from '../hooks/useTheme';
 import config from '../config';
 import { buildInvoiceFromSale, shareInvoice } from '../utils/invoice';
+import AppAlert from '../utils/appAlert';
 
 const PDF_OPTIONS = [
     {
@@ -64,7 +65,7 @@ const InvoiceShareSheet = ({ visible, sale, saleId, appSettings, onClose }) => {
 
         const opt = [...PDF_OPTIONS, ...MESSAGE_OPTIONS].find((o) => o.id === method);
         if (opt?.needsSaleId && !resolvedSaleId) {
-            Alert.alert(
+            AppAlert.alert(
                 'Invoice',
                 'This sale is not synced yet. Upload it first to send or save the official PDF, or use WhatsApp / Email text.',
             );
@@ -74,14 +75,14 @@ const InvoiceShareSheet = ({ visible, sale, saleId, appSettings, onClose }) => {
         setBusy(method);
         try {
             if (method === 'server-email' && !invoice.customer_email) {
-                Alert.alert('Email required', 'Add a customer email, or use Email text instead.');
+                AppAlert.alert('Email required', 'Add a customer email, or use Email text instead.');
                 return;
             }
             const savedPath = await shareInvoice(invoice, method, { saleId: resolvedSaleId });
             if (method === 'server-email') {
-                Alert.alert('Sent', `PDF invoice emailed to ${invoice.customer_email}.`);
+                AppAlert.alert('Sent', `PDF invoice emailed to ${invoice.customer_email}.`);
             } else if (method === 'pdf' && savedPath) {
-                Alert.alert('PDF saved', `Invoice PDF saved${savedPath ? `\n${savedPath}` : ''}.`);
+                AppAlert.alert('PDF saved', `Invoice PDF saved${savedPath ? `\n${savedPath}` : ''}.`);
             }
             onClose?.();
         } catch (err) {
@@ -103,7 +104,7 @@ const InvoiceShareSheet = ({ visible, sale, saleId, appSettings, onClose }) => {
             } else {
                 msg = raw || 'Could not share the invoice. Please try again.';
             }
-            Alert.alert('Invoice', msg);
+            AppAlert.alert('Invoice', msg);
         } finally {
             setBusy(null);
         }

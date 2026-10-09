@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, View, TouchableOpacity, Alert, ActivityIndicator, Platform } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, View, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import { Lucide } from '@react-native-vector-icons/lucide';
@@ -19,6 +19,7 @@ import {
     shareReportExcelFromServer,
     shareReportPdfFromServer,
 } from '../../utils/reportExport';
+import AppAlert from '../../utils/appAlert';
 
 const formatter = new Intl.NumberFormat('en-GH', { style: 'currency', currency: 'GHS' });
 const formatCurrency = (value) => formatter.format(Number(value)).replace('GH₵', 'GHS ').trim();
@@ -727,7 +728,7 @@ const ReportDetail = ({ navigation, route }) => {
         setShowExportFormatModal(false);
 
         if (rows.length === 0) {
-            Alert.alert('No Data', 'There is no data to export.');
+            AppAlert.alert('No Data', 'There is no data to export.');
             return;
         }
 
@@ -758,7 +759,7 @@ const ReportDetail = ({ navigation, route }) => {
 
     const handleExport = () => {
         if (rows.length === 0) {
-            Alert.alert('No Data', 'There is no data to export.');
+            AppAlert.alert('No Data', 'There is no data to export.');
             return;
         }
         setShowExportFormatModal(true);

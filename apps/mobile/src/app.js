@@ -11,7 +11,7 @@ import { configureSocialAuth } from './utils/socialAuth';
 import messaging from '@react-native-firebase/messaging';
 import PushNotification from 'react-native-push-notification';
 import { useEffect } from 'react';
-import { Alert, LogBox, Platform } from 'react-native';
+import { LogBox, Platform } from 'react-native';
 import { getDeviceSecurityState } from './utils/deviceSecurity';
 import SplashScreen from 'react-native-splash-screen';
 import {
@@ -21,6 +21,8 @@ import {
 } from './utils/pushNotifications';
 import { handleIncomingRemoteMessageData } from './utils/notificationNavigation';
 import NotificationPermissionHost from './components/NotificationPermissionHost';
+import AppAlertHost from './components/AppAlertHost';
+import AppAlert from './utils/appAlert';
 // LogBox.ignoreLogs(['Reanimated 2']);
 LogBox.ignoreAllLogs();
 
@@ -119,7 +121,7 @@ const App = () => {
 	useEffect(() => {
 		const securityState = getDeviceSecurityState();
 		if (securityState?.isCompromised) {
-			Alert.alert(
+			AppAlert.alert(
 				'Security warning',
 				'This device appears to be rooted/jailbroken or insecure. Sensitive local data protection may be reduced.',
 			);
@@ -145,6 +147,7 @@ const App = () => {
 						<PushLifecycle />
 						<ApplicationNavigator />
 						<NotificationPermissionHost />
+						<AppAlertHost />
 						<Toast />
 					</>
 				</PersistGate>

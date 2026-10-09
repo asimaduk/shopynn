@@ -1,13 +1,5 @@
 import React, { useState } from 'react';
-import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    Share,
-    StyleSheet,
-    TouchableOpacity,
-    View,
-} from 'react-native';
+import { ActivityIndicator, ScrollView, Share, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import { useSelector } from 'react-redux';
@@ -17,6 +9,7 @@ import config from '../../config';
 import useTheme from '../../hooks/useTheme';
 import { products as productsApi } from '../../services/api';
 import { hasFeature, hasPermission } from '../../utils/permissions';
+import AppAlert from '../../utils/appAlert';
 
 function csvEscape(value) {
     const s = value == null ? '' : String(value);
@@ -60,7 +53,7 @@ const DataExportBackup = ({ navigation }) => {
 
     const handleExportProducts = async () => {
         if (!canRun) {
-            Alert.alert(
+            AppAlert.alert(
                 'Upgrade required',
                 'Product export needs the Product export feature on your plan.',
             );
@@ -70,7 +63,7 @@ const DataExportBackup = ({ navigation }) => {
         try {
             const rows = await productsApi.export();
             if (!rows.length) {
-                Alert.alert('No products', 'There are no products to export yet.');
+                AppAlert.alert('No products', 'There are no products to export yet.');
                 return;
             }
             const csv = productsToCsv(rows);
@@ -81,7 +74,7 @@ const DataExportBackup = ({ navigation }) => {
             });
             setLastExportCount(rows.length);
         } catch (e) {
-            Alert.alert(
+            AppAlert.alert(
                 'Export failed',
                 e?.response?.data?.message || e?.message || 'Could not export products. Check your connection and permissions.',
             );

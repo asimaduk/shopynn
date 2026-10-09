@@ -2,6 +2,7 @@ import { KeyboardAvoidingView, Modal, Platform, TouchableOpacity, View } from 'r
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from './text';
+import AppAlertHost from './AppAlertHost';
 import useTheme from '../hooks/useTheme';
 
 const AppModal = ({ visible, title, handleClose, onRequestClose, children }) => {
@@ -36,6 +37,7 @@ const AppModal = ({ visible, title, handleClose, onRequestClose, children }) => 
                     </View>
                 </SafeAreaView>
             </KeyboardAvoidingView>
+            <AppAlertHost />
         </Modal>
     )
 }

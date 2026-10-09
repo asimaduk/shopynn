@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Image, ScrollView, StyleSheet, TouchableOpacity, View, Alert, Share, Linking, Switch, Platform, TextInput } from 'react-native';
+import { Image, ScrollView, StyleSheet, TouchableOpacity, View, Share, Linking, Switch, Platform, TextInput } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
 import { SET_USER, SET_LOGGED_IN } from '../../store/actions/user';
@@ -27,6 +27,7 @@ import { clearTokens } from '../../utils/secureStorage';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { displayEmail, formatPhone } from '../../utils/format';
 import { tenants as tenantsApi } from '../../services/api';
+import AppAlert from '../../utils/appAlert';
 
 const TAB_BAR_HEIGHT = 60;
 
@@ -274,7 +275,7 @@ const Settings = ({ navigation, route }) => {
             await disableBiometricLogin();
             setBiometricEnabled(false);
         } else {
-            Alert.alert(
+            AppAlert.alert(
                 'Enable on sign in',
                 'Sign in with your password on the login screen, then choose "Yes" when asked to use ' + biometricLabel + ' for next time.'
             );

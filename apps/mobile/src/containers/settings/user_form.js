@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, Switch, ActivityIndicator } from 'react-native';
+import { View, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Switch, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import ScreenHeader from '../../components/screen_header';
@@ -8,6 +8,7 @@ import config from '../../config';
 import AppModal from '../../components/app_modal';
 import useTheme from '../../hooks/useTheme';
 import { users as usersApi, roles as rolesApi, warehouses as warehousesApi, normalizeList } from '../../services/api';
+import AppAlert from '../../utils/appAlert';
 
 function normId(v) {
     if (v == null || v === '') return null;
@@ -155,22 +156,22 @@ const UserForm = ({ navigation, route }) => {
 
     const handleSave = () => {
         if (!form.firstName.trim() || !form.lastName.trim()) {
-            Alert.alert('Required', 'Please enter the user\'s first and last name.');
+            AppAlert.alert('Required', 'Please enter the user\'s first and last name.');
             return;
         }
         if (!form.email.trim()) {
-            Alert.alert('Email', 'Please enter an email address.');
+            AppAlert.alert('Email', 'Please enter an email address.');
             return;
         }
         const phoneDigits = String(form.phone || '').replace(/\D/g, '').slice(0, 10);
         if (phoneDigits.length !== 10) {
-            Alert.alert('Phone', 'Please enter a valid 10-digit phone number.');
+            AppAlert.alert('Phone', 'Please enter a valid 10-digit phone number.');
             return;
         }
 
         const isAdminRole = (form.role || '').toLowerCase() === 'admin';
         if (!isAdminRole && !selectedWarehouse?.name) {
-            Alert.alert('Warehouse', 'Please select a warehouse / branch for this user.');
+            AppAlert.alert('Warehouse', 'Please select a warehouse / branch for this user.');
             return;
         }
 
@@ -180,7 +181,7 @@ const UserForm = ({ navigation, route }) => {
                 (r) => (r.name || r.code || '').toLowerCase() === (form.role || '').toLowerCase(),
             )?.id;
         if (!resolvedRoleId) {
-            Alert.alert('Role', 'Please select a role for this user.');
+            AppAlert.alert('Role', 'Please select a role for this user.');
             return;
         }
 
@@ -216,7 +217,7 @@ const UserForm = ({ navigation, route }) => {
             }
             const changedKeys = Object.keys(updatePayload).filter((k) => k !== 'id');
             if (changedKeys.length === 0) {
-                Alert.alert('No changes', 'No changes to save.');
+                AppAlert.alert('No changes', 'No changes to save.');
                 return;
             }
         }
@@ -229,7 +230,7 @@ const UserForm = ({ navigation, route }) => {
                 } else {
                     await usersApi.create({ ...fullBody, registration_method: 'manual' });
                 }
-                Alert.alert('Success', `User ${isEdit ? 'updated' : 'created'} successfully.`, [
+                AppAlert.alert('Success', `User ${isEdit ? 'updated' : 'created'} successfully.`, [
                     { text: 'OK', onPress: () => navigation.goBack() },
                 ]);
             } catch (err) {
@@ -237,13 +238,13 @@ const UserForm = ({ navigation, route }) => {
                     err?.response?.data?.message ||
                     err?.message ||
                     `Failed to ${isEdit ? 'update' : 'create'} user.`;
-                Alert.alert('Error', msg);
+                AppAlert.alert('Error', msg);
             } finally {
                 setLoading(false);
             }
         };
 
-        Alert.alert(
+        AppAlert.alert(
             isEdit ? 'Update user' : 'Create user',
             isEdit
                 ? 'Are you sure you want to update this user?'

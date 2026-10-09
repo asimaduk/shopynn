@@ -1,15 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    View,
-} from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
@@ -18,6 +8,7 @@ import useTheme from '../../hooks/useTheme';
 import config from '../../config';
 import { customerProfiles, orders } from '../../services/api';
 import { clearCart, getCartItems } from '../../store/cartStore';
+import AppAlert from '../../utils/appAlert';
 
 const computeRequiredInitial = (total, items) => {
     let maxPct = 0;
@@ -166,20 +157,20 @@ const Checkout = ({ navigation }) => {
 
     const submit = async () => {
         if (!items.length) {
-            Alert.alert('Cart empty', 'Add items before checkout.');
+            AppAlert.alert('Cart empty', 'Add items before checkout.');
             return;
         }
         if (!fulfillmentType) {
-            Alert.alert('Fulfillment required', 'Please choose pickup or delivery before placing the order.');
+            AppAlert.alert('Fulfillment required', 'Please choose pickup or delivery before placing the order.');
             return;
         }
         if (fulfillmentType === 'delivery' && !deliveryAddress.trim()) {
-            Alert.alert('Delivery address', 'Enter the address we should deliver to.');
+            AppAlert.alert('Delivery address', 'Enter the address we should deliver to.');
             return;
         }
         if (!warehouseId) return;
         if (storeMinAmount > 0 && total < storeMinAmount) {
-            Alert.alert(
+            AppAlert.alert(
                 'Minimum order',
                 `This store requires a minimum order of GHS ${storeMinAmount.toFixed(2)}. Your total is GHS ${total.toFixed(2)}.`,
             );
@@ -188,11 +179,11 @@ const Checkout = ({ navigation }) => {
         const initialAmt = paymentMode === 'installment' ? Number(initialPayment || 0) : 0;
         if (paymentMode === 'installment') {
             if (initialAmt < requiredInitial - 0.02) {
-                Alert.alert('Initial payment', `Minimum initial payment is GHS ${requiredInitial.toFixed(2)}.`);
+                AppAlert.alert('Initial payment', `Minimum initial payment is GHS ${requiredInitial.toFixed(2)}.`);
                 return;
             }
             if (initialAmt > total + 0.02) {
-                Alert.alert('Initial payment', 'Initial payment cannot exceed order total.');
+                AppAlert.alert('Initial payment', 'Initial payment cannot exceed order total.');
                 return;
             }
         }
@@ -241,7 +232,7 @@ const Checkout = ({ navigation }) => {
                 balanceDue: createdOrder?.balance_due,
             });
         } catch (error) {
-            Alert.alert('Checkout failed', error?.response?.data?.message || 'Could not place order.');
+            AppAlert.alert('Checkout failed', error?.response?.data?.message || 'Could not place order.');
         } finally {
             setLoading(false);
         }

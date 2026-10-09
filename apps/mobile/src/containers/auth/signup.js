@@ -1,19 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    StatusBar,
-    TextInput,
-    TouchableOpacity,
-    View,
-    Dimensions,
-    Image,
-    Keyboard,
-} from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, StatusBar, TextInput, TouchableOpacity, View, Dimensions, Image, Keyboard } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { Lucide } from '@react-native-vector-icons/lucide';
@@ -27,6 +13,7 @@ import {
     validateReferenceCode,
     REFERENCE_CODE_MIN_LENGTH,
 } from '../../components/warehouse_reference_code_field';
+import AppAlert from '../../utils/appAlert';
 
 const STEPS = ['Store', 'Phone', 'Name'];
 const { width } = Dimensions.get('window');
@@ -67,7 +54,7 @@ const CustomerSignup = ({ navigation }) => {
     const verifyReference = async () => {
         const refErr = validateReferenceCode(referenceCode);
         if (refErr) {
-            Alert.alert('Invalid code', refErr);
+            AppAlert.alert('Invalid code', refErr);
             return;
         }
         setLoading(true);
@@ -81,7 +68,7 @@ const CustomerSignup = ({ navigation }) => {
             setDevCode(null);
         } catch (error) {
             const msg = error?.response?.data?.message || error?.message || 'Could not verify reference code.';
-            Alert.alert('Verification failed', msg);
+            AppAlert.alert('Verification failed', msg);
         } finally {
             setLoading(false);
         }
@@ -89,7 +76,7 @@ const CustomerSignup = ({ navigation }) => {
 
     const sendOtp = async () => {
         if (phone.length !== 10) {
-            Alert.alert('Invalid phone', 'Enter a 10-digit mobile number (e.g. 024XXXXXXX).');
+            AppAlert.alert('Invalid phone', 'Enter a 10-digit mobile number (e.g. 024XXXXXXX).');
             return;
         }
         setLoading(true);
@@ -113,7 +100,7 @@ const CustomerSignup = ({ navigation }) => {
             });
         } catch (error) {
             const msg = error?.response?.data?.message || error?.message || 'Could not send code.';
-            Alert.alert('Could not send code', msg);
+            AppAlert.alert('Could not send code', msg);
         } finally {
             setLoading(false);
         }
@@ -121,7 +108,7 @@ const CustomerSignup = ({ navigation }) => {
 
     const verifyOtp = async () => {
         if (String(otp).trim().length < 6) {
-            Alert.alert('Required', 'Enter the 6-digit code.');
+            AppAlert.alert('Required', 'Enter the 6-digit code.');
             return;
         }
         setLoading(true);
@@ -138,7 +125,7 @@ const CustomerSignup = ({ navigation }) => {
             setStep(2);
         } catch (error) {
             const msg = error?.response?.data?.message || error?.message || 'Invalid code.';
-            Alert.alert('Verification failed', msg);
+            AppAlert.alert('Verification failed', msg);
         } finally {
             setLoading(false);
         }
@@ -146,12 +133,12 @@ const CustomerSignup = ({ navigation }) => {
 
     const completeSignup = async () => {
         if (!sessionToken) {
-            Alert.alert('Required', 'Verify your phone first.');
+            AppAlert.alert('Required', 'Verify your phone first.');
             setStep(1);
             return;
         }
         if (!existingCustomer && (firstName.trim().length < 2 || lastName.trim().length < 2)) {
-            Alert.alert('Required', 'Enter your first and last name (min 2 characters each).');
+            AppAlert.alert('Required', 'Enter your first and last name (min 2 characters each).');
             return;
         }
         setLoading(true);
@@ -166,7 +153,7 @@ const CustomerSignup = ({ navigation }) => {
             setSignupDone(true);
         } catch (error) {
             const msg = error?.response?.data?.message || error?.message || 'Signup failed.';
-            Alert.alert('Signup failed', msg);
+            AppAlert.alert('Signup failed', msg);
         } finally {
             setLoading(false);
         }

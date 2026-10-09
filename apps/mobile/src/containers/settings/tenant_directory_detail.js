@@ -1,15 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import {
-    View,
-    ScrollView,
-    TouchableOpacity,
-    RefreshControl,
-    ActivityIndicator,
-    StyleSheet,
-    Platform,
-    TextInput,
-    Alert,
-} from 'react-native';
+import { View, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, StyleSheet, Platform, TextInput } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Lucide } from '@react-native-vector-icons/lucide';
@@ -19,6 +9,7 @@ import ScreenHeader from '../../components/screen_header';
 import useTheme from '../../hooks/useTheme';
 import { tenants as tenantsApi } from '../../services/api';
 import { formatCurrency, formatPhone } from '../../utils/format';
+import AppAlert from '../../utils/appAlert';
 
 function fmtDate(iso) {
     if (!iso) return '—';
@@ -193,10 +184,10 @@ const TenantDirectoryDetail = ({ navigation, route }) => {
     const onCreateSettlement = () => {
         const parsed = Number(settlementAmount);
         if (!Number.isFinite(parsed) || parsed <= 0) {
-            Alert.alert('Invalid amount', 'Enter a valid payout amount.');
+            AppAlert.alert('Invalid amount', 'Enter a valid payout amount.');
             return;
         }
-        Alert.alert('Create settlement', `Reserve ${formatCurrency(parsed)} for payout?`, [
+        AppAlert.alert('Create settlement', `Reserve ${formatCurrency(parsed)} for payout?`, [
             { text: 'Cancel', style: 'cancel' },
             {
                 text: 'Create',
@@ -211,7 +202,7 @@ const TenantDirectoryDetail = ({ navigation, route }) => {
                         setSettlementNote('');
                         await loadSettlements();
                     } catch (error) {
-                        Alert.alert(
+                        AppAlert.alert(
                             'Could not create settlement',
                             error?.response?.data?.message || error?.response?.data?.error || 'Try again.',
                         );
@@ -224,7 +215,7 @@ const TenantDirectoryDetail = ({ navigation, route }) => {
     };
 
     const onMarkSettlementPaid = (row) => {
-        Alert.alert('Mark paid', `Mark ${formatCurrency(row.amount)} as paid out?`, [
+        AppAlert.alert('Mark paid', `Mark ${formatCurrency(row.amount)} as paid out?`, [
             { text: 'Cancel', style: 'cancel' },
             {
                 text: 'Mark paid',
@@ -236,7 +227,7 @@ const TenantDirectoryDetail = ({ navigation, route }) => {
                         });
                         await loadSettlements();
                     } catch (error) {
-                        Alert.alert(
+                        AppAlert.alert(
                             'Could not mark paid',
                             error?.response?.data?.message || error?.response?.data?.error || 'Try again.',
                         );
@@ -254,14 +245,14 @@ const TenantDirectoryDetail = ({ navigation, route }) => {
             await tenantsApi.approveAdminSettlement(row.id);
             await loadSettlements();
         } catch (error) {
-            Alert.alert('Could not approve', error?.response?.data?.message || error?.response?.data?.error || 'Try again.');
+            AppAlert.alert('Could not approve', error?.response?.data?.message || error?.response?.data?.error || 'Try again.');
         } finally {
             setSettlementBusy(false);
         }
     };
 
     const onRejectSettlement = (row) => {
-        Alert.alert('Reject withdrawal', 'Reject this merchant withdrawal request?', [
+        AppAlert.alert('Reject withdrawal', 'Reject this merchant withdrawal request?', [
             { text: 'Cancel', style: 'cancel' },
             {
                 text: 'Reject',
@@ -274,7 +265,7 @@ const TenantDirectoryDetail = ({ navigation, route }) => {
                         });
                         await loadSettlements();
                     } catch (error) {
-                        Alert.alert(
+                        AppAlert.alert(
                             'Could not reject',
                             error?.response?.data?.message || error?.response?.data?.error || 'Try again.',
                         );

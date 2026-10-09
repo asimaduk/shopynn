@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useState } from 'react';
-import { StyleSheet, TouchableOpacity, ScrollView, View, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
+import { StyleSheet, TouchableOpacity, ScrollView, View, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import AppText from '../../components/text';
@@ -10,6 +10,7 @@ import { users as usersApi } from '../../services/api';
 import useTheme from '../../hooks/useTheme';
 import { SET_USER, SET_LOGGED_IN } from '../../store/actions/user';
 import { clearTokens } from '../../utils/secureStorage';
+import AppAlert from '../../utils/appAlert';
 
 const PasswordInput = memo(({ label, placeholder, value, onChangeText, visible, onToggle, fieldKey }) => (
     <View style={styles.inputGroup}>
@@ -70,19 +71,19 @@ const ResetPassword = ({ navigation, route: { params: { changePassword = false }
 
     const handleUpdate = useCallback(async () => {
         if (!form.currentPassword) {
-            Alert.alert('Error', 'Please enter your current password');
+            AppAlert.alert('Error', 'Please enter your current password');
             return;
         }
         if (!form.newPassword || !form.confirmPassword) {
-            Alert.alert('Error', 'Please enter and confirm your new password');
+            AppAlert.alert('Error', 'Please enter and confirm your new password');
             return;
         }
         if (form.newPassword.length < 8) {
-            Alert.alert('Error', 'New password must be at least 8 characters long.');
+            AppAlert.alert('Error', 'New password must be at least 8 characters long.');
             return;
         }
         if (form.newPassword !== form.confirmPassword) {
-            Alert.alert('Error', 'New passwords do not match');
+            AppAlert.alert('Error', 'New passwords do not match');
             return;
         }
         setLoading(true);
@@ -93,7 +94,7 @@ const ResetPassword = ({ navigation, route: { params: { changePassword = false }
                 await usersApi.resetPassword(form.currentPassword, form.newPassword);
             }
             
-            Alert.alert(
+            AppAlert.alert(
                 'Success',
                 'Your password has been changed successfully.',
                 [
@@ -118,7 +119,7 @@ const ResetPassword = ({ navigation, route: { params: { changePassword = false }
             );
         } catch (err) {
             const msg = err?.response?.data?.message || err?.message || 'Failed to update password.';
-            Alert.alert('Error', msg);
+            AppAlert.alert('Error', msg);
         } finally {
             setLoading(false);
         }
