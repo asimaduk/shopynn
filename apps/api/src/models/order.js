@@ -966,6 +966,30 @@ export const updateOrderService = async (user, orderId, payload = {}) => {
     return result.rows[0] ?? null;
 };
 
+export const PAID_ORDER_CANCEL_MESSAGE =
+    "This order has already been paid. Contact the store to cancel a paid order.";
+
+export const orderHasPayment = (order) =>
+    ["paid", "partially_paid", "partial"].includes(normalizePaymentStatus(order?.payment_status)) ||
+    toMoney(order?.amount_paid) > 0;
+
+// Customers can't self-cancel once money has moved; staff can (and handle the refund themselves).
+export const cancelOrderService = async (user, orderId, reason = null) => {
+    const order = await getOrderByIdService(user, orderId);
+    if (!order) return null;
+
+    const profile = await getCustomerProfileForUser(user);
+    const isOwnOrder = profile && order.customer_profile_id === profile.id;
+    if (isOwnOrder && orderHasPayment(order)) {
+        const err = new Error(PAID_ORDER_CANCEL_MESSAGE);
+        err.status = 409;
+        err.code = "ORDER_PAID";
+        throw err;
+    }
+
+    return updateOrderStatusService(user, orderId, "cancelled", reason);
+};
+
 export const updateOrderStatusService = async (user, orderId, toStatus, reason = null) => {
     const normalized = normalizeStatus(toStatus);
     const order = await getOrderByIdService(user, orderId);

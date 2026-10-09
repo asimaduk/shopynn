@@ -9,6 +9,7 @@ import {
     verifyOrderPaymentService,
     updateOrderService,
     updateOrderStatusService,
+    cancelOrderService,
 } from "../models/order.js";
 import { handleResponse } from "../util/handleresponse.js";
 
@@ -101,10 +102,9 @@ export const updateOrderStatus = async (req, res, next) => {
 
 export const cancelOrder = async (req, res, next) => {
     try {
-        const updated = await updateOrderStatusService(
+        const updated = await cancelOrderService(
             req.user,
             req.params.id,
-            "cancelled",
             req.body?.reason || "Order cancelled"
         );
         if (!updated) return handleResponse(res, 404, "Order not found.");

@@ -54,7 +54,12 @@ const MyOrderDetails = ({ navigation, route }) => {
         }, [loadOrder])
     );
 
-    const canCancel = ['pending', 'confirmed'].includes(String(order?.status || '').toLowerCase());
+    const cancellableStatus = ['pending', 'confirmed'].includes(String(order?.status || '').toLowerCase());
+    const hasPayment =
+        ['paid', 'partially_paid', 'partial'].includes(String(order?.payment_status || '').toLowerCase()) ||
+        Number(order?.amount_paid || 0) > 0;
+    const canCancel = cancellableStatus && !hasPayment;
+    const showPaidCancelHint = cancellableStatus && hasPayment;
     const [cancelDialog, setCancelDialog] = useState(null); // null | 'confirm' | { error }
     const [cancelling, setCancelling] = useState(false);
     const cancel = async () => {
@@ -556,6 +561,17 @@ const MyOrderDetails = ({ navigation, route }) => {
                         </View>
                     </View>
                 )}
+                {showPaidCancelHint ? (
+                    <View style={[styles.paidHint, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
+                        <Lucide name="info" size={16} color={colors.textSecondary} />
+                        <AppText
+                            label="This order is paid. Contact the store to cancel a paid order."
+                            fontSize={13}
+                            color={colors.textSecondary}
+                            style={styles.paidHintText}
+                        />
+                    </View>
+                ) : null}
                 <View style={styles.actionsRow}>
                     <TouchableOpacity
                         onPress={callVendor}
@@ -648,18 +664,29 @@ const styles = StyleSheet.create({
     cancelTag: { alignSelf: 'flex-start', marginTop: 8, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 },
     noteCard: { marginTop: 10, borderRadius: 8, padding: 10 },
     actionsRow: { flexDirection: 'row', gap: 10, marginTop: 6 },
-    actionBtn: { flex: 1, borderRadius: 5, alignItems: 'center', justifyContent: 'center', paddingVertical: 11 },
+    actionBtn: { flex: 1, borderRadius: 999, alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },
+    paidHint: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: StyleSheet.hairlineWidth,
+        borderRadius: 12,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        marginTop: 6,
+        marginBottom: 4,
+    },
+    paidHintText: { flex: 1, marginLeft: 8, lineHeight: 18 },
     actionRow: { flexDirection: 'row', alignItems: 'center' },
     payMethodRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
     payMethodChip: { flex: 1, borderWidth: 1.5, borderRadius: 5, paddingVertical: 10, alignItems: 'center' },
-    payPrimaryBtn: { borderRadius: 5, paddingVertical: 13, alignItems: 'center' },
+    payPrimaryBtn: { borderRadius: 999, paddingVertical: 13, alignItems: 'center' },
     progressTrack: { height: 8, borderRadius: 4, overflow: 'hidden', marginTop: 4 },
     progressFill: { height: '100%', borderRadius: 4 },
     presetRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
     presetChip: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, minWidth: 90 },
     amountInput: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16 },
     paymentRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 8, borderRadius: 6 },
-    payOutlineBtn: { marginTop: 10, borderRadius: 10, paddingVertical: 12, alignItems: 'center', borderWidth: 1.5 },
+    payOutlineBtn: { marginTop: 10, borderRadius: 999, paddingVertical: 12, alignItems: 'center', borderWidth: 1.5 },
     payInput: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15 },
     providerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     providerChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1.5 },
