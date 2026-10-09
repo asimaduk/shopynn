@@ -131,6 +131,7 @@ const Payment = ({ navigation, route }) => {
                     Alert.alert('Payment', 'Could not start card checkout. Try again.');
                     return;
                 }
+                if (!navigation.isFocused()) return;
                 navigation.navigate('PaymentWebView', {
                     checkoutUrl,
                     amount,
@@ -174,6 +175,7 @@ const Payment = ({ navigation, route }) => {
                 (isTelecel
                     ? 'Telecel voucher submitted. Confirm status on the next screen.'
                     : 'Complete the payment prompt on your phone.');
+            if (!navigation.isFocused()) return;
             if (res?.status !== 'success') Alert.alert('Mobile money', msg);
             navigation.navigate('MomoStatus', {
                 amount,
@@ -186,6 +188,7 @@ const Payment = ({ navigation, route }) => {
                 needsVoucher: isTelecel,
             });
         } catch (error) {
+            if (!navigation.isFocused()) return;
             Alert.alert(
                 'Payment failed',
                 error?.response?.data?.message || error?.message || 'Could not start payment.',
@@ -220,6 +223,7 @@ const Payment = ({ navigation, route }) => {
                     Alert.alert('Payment', 'Could not start card checkout. Try again.');
                     return;
                 }
+                if (!navigation.isFocused()) return;
                 navigation.navigate('PaymentWebView', {
                     checkoutUrl: res.redirect_url,
                     paymentReference: res?.transaction_ref,
@@ -261,6 +265,7 @@ const Payment = ({ navigation, route }) => {
                 (isTelecel
                     ? 'Telecel voucher submitted. Confirm status on the next screen.'
                     : 'Complete the payment prompt on your phone.');
+            if (!navigation.isFocused()) return;
             if (res?.status !== 'success') Alert.alert('Mobile money', msg);
             navigation.replace('MomoStatus', {
                 amount: res?.charge_amount || chargeAmount || amount,
@@ -284,6 +289,7 @@ const Payment = ({ navigation, route }) => {
                 },
             });
         } catch (error) {
+            if (!navigation.isFocused()) return;
             Alert.alert('Payment failed', error?.response?.data?.message || error?.message || 'Could not start payment.');
         } finally {
             setSubmitting(false);

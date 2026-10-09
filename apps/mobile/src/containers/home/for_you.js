@@ -97,16 +97,13 @@ const getBrickMetrics = (index) => {
     return { imageHeight: 198, bodyMinHeight: 102 };
 };
 
-const getSoldLabel = (product, index) => {
+const getSoldLabel = (product) => {
     const soldRaw = Number(product?.sold_count || product?.sold || product?.orders_count || 0);
-    if (soldRaw > 0) {
-        if (soldRaw >= 1000) {
-            return `${(soldRaw / 1000).toFixed(1).replace('.0', '')}k sold`;
-        }
-        return `${soldRaw} sold`;
+    if (!(soldRaw > 0)) return null;
+    if (soldRaw >= 1000) {
+        return `${(soldRaw / 1000).toFixed(1).replace('.0', '')}k sold`;
     }
-    // Deterministic lightweight fallback for catalog items without sales metadata.
-    return `${((index * 13) % 57) + 8} sold`;
+    return `${parseFloat(soldRaw.toFixed(2))} sold`;
 };
 
 const ForYou = ({ navigation, route }) => {
@@ -293,7 +290,7 @@ const ForYou = ({ navigation, route }) => {
                         );
                         const stockCount = Number(item.quantity_available || 0);
                         const showLowStock = stockCount > 0 && stockCount <= 5;
-                        const soldLabel = getSoldLabel(item, index);
+                        const soldLabel = getSoldLabel(item);
 
                         return (
                             <View
@@ -353,7 +350,9 @@ const ForYou = ({ navigation, route }) => {
                                         color={Number(item.quantity_available || 0) > 0 ? '#16A34A' : '#DC2626'}
                                         numberOfLines={1}
                                     />
-                                    <AppText label={soldLabel} fontSize={11} color={colors.textTertiary || colors.textSecondary} />
+                                    {soldLabel ? (
+                                        <AppText label={soldLabel} fontSize={11} color={colors.textTertiary || colors.textSecondary} />
+                                    ) : null}
 
                                     <View style={{ flexDirection:'row',justifyContent:'space-between',alignItems:'center' }}>
                                         <AppText

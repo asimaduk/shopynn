@@ -15,7 +15,7 @@ import {
     isTenantSubscriptionActive,
     SUBSCRIPTION_INACTIVE_MESSAGE,
 } from '../../utils/subscriptionAccess';
-import { formatCurrency } from '../../utils/format';
+import { formatCurrency, displayEmail, formatPhone, isPlaceholderEmail } from '../../utils/format';
 import { useDispatch, useSelector } from 'react-redux';
 import { SET_USER } from '../../store/actions/user';
 
@@ -309,8 +309,11 @@ const Profile = ({ navigation, route }) => {
     );
 
     const name = profile?.first_name + ' ' + profile?.last_name || '—';
-    const email = profile?.email || '—';
-    const phone = profile?.phone || '—';
+    const realEmail = displayEmail(profile?.email);
+    const email = realEmail || 'Not added';
+    const rawPhone = String(profile?.phone || '').trim();
+    const phone = rawPhone ? formatPhone(rawPhone) : '—';
+    const usesOtpSignIn = isPlaceholderEmail(profile?.email);
     const branch = profile?.warehouse_name || profile?.location || '—';
     const companyName = profile?.companyName || appSettings?.companyName || appSettings?.receiptCompanyName || 'Shopynn';
     const companyIndustry = profile?.company?.industry || '—';
@@ -348,12 +351,14 @@ const Profile = ({ navigation, route }) => {
         <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={backPress} label={'My Profile'}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', padding: 10 }}>
-                    <TouchableOpacity
-                        activeOpacity={.6}
-                        onPress={() => navigation.navigate("ResetPassword", { changePassword: false })}
-                        style={[styles.headerAction, { backgroundColor: colors.surfaceSecondary }]}>
-                        <Lucide name="lock" color={colors.textSecondary} size={18} />
-                    </TouchableOpacity>
+                    {!usesOtpSignIn ? (
+                        <TouchableOpacity
+                            activeOpacity={.6}
+                            onPress={() => navigation.navigate("ResetPassword", { changePassword: false })}
+                            style={[styles.headerAction, { backgroundColor: colors.surfaceSecondary }]}>
+                            <Lucide name="lock" color={colors.textSecondary} size={18} />
+                        </TouchableOpacity>
+                    ) : null}
                     
                     {/* TODO: Add edit profile button */}
                     {/* <TouchableOpacity
@@ -423,8 +428,12 @@ const Profile = ({ navigation, route }) => {
                                 <StatItem value="Sales (MTD)" label={`${myWeeklySalesCount} (${formatCurrency(myWeeklySalesTotal)})`} icon="shopping-cart" color={colors.success} />
                             </>
                         ) : null}
-                        <View style={[styles.statDivider, { backgroundColor: colors.borderLight }]} />
-                        <StatItem label="Plan" value={planName} icon="wallet" color={colors.warning} />
+                        {!isCustomerProfile ? (
+                            <>
+                                <View style={[styles.statDivider, { backgroundColor: colors.borderLight }]} />
+                                <StatItem label="Plan" value={planName} icon="wallet" color={colors.warning} />
+                            </>
+                        ) : null}
                     </View>
                 </View>
 
@@ -438,7 +447,7 @@ const Profile = ({ navigation, route }) => {
                             val={phone}
                             onPress={() =>
                                 navigation.navigate('ChangePhone', {
-                                    currentPhone: phone === '—' ? '' : phone,
+                                    currentPhone: rawPhone,
                                 })
                             }
                         />
@@ -449,7 +458,7 @@ const Profile = ({ navigation, route }) => {
                             val={email}
                             onPress={() =>
                                 navigation.navigate('ChangeEmail', {
-                                    currentEmail: email === '—' ? '' : email,
+                                    currentEmail: realEmail,
                                 })
                             }
                         />

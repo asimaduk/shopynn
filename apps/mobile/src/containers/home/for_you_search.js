@@ -39,13 +39,11 @@ const resolveImageUrl = (raw) => {
 
 const formatMoney = (n) => `GHS ${Number(n || 0).toFixed(2)}`;
 
-const getSoldLabel = (product, index = 0) => {
+const getSoldLabel = (product) => {
     const soldRaw = Number(product?.sold_count || product?.sold || product?.orders_count || 0);
-    if (soldRaw > 0) {
-        if (soldRaw >= 1000) return `${(soldRaw / 1000).toFixed(1).replace('.0', '')}k sold`;
-        return `${soldRaw} sold`;
-    }
-    return `${((index * 13) % 57) + 8} sold`;
+    if (!(soldRaw > 0)) return null;
+    if (soldRaw >= 1000) return `${(soldRaw / 1000).toFixed(1).replace('.0', '')}k sold`;
+    return `${parseFloat(soldRaw.toFixed(2))} sold`;
 };
 
 const productMatchesQuery = (p, q) => {
@@ -631,12 +629,14 @@ const ForYouSearch = ({ navigation, route }) => {
                                                     fontSize={15}
                                                     color={config.THEME_COLOR}
                                                 />
-                                                <AppText
-                                                    label={getSoldLabel(item, index)}
-                                                    fontSize={11}
-                                                    color={colors.textSecondary}
-                                                    style={{ marginTop: 2 }}
-                                                />
+                                                {getSoldLabel(item) ? (
+                                                    <AppText
+                                                        label={getSoldLabel(item)}
+                                                        fontSize={11}
+                                                        color={colors.textSecondary}
+                                                        style={{ marginTop: 2 }}
+                                                    />
+                                                ) : null}
                                             </View>
                                             <TouchableOpacity
                                                 onPress={() => toggleCart(item)}

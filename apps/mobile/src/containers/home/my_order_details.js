@@ -8,6 +8,8 @@ import ScreenHeader from '../../components/screen_header';
 import useTheme from '../../hooks/useTheme';
 import config from '../../config';
 import { orders } from '../../services/api';
+import ConfirmDialog from '../../components/ConfirmDialog';
+import { inferGhanaMomoNetwork } from '../../utils/format';
 
 const STATUS_STEPS = ['pending', 'confirmed', 'processing', 'ready', 'shipped', 'delivered', 'completed'];
 const formatStatusLabel = (value) =>
@@ -53,25 +55,21 @@ const MyOrderDetails = ({ navigation, route }) => {
     );
 
     const canCancel = ['pending', 'confirmed'].includes(String(order?.status || '').toLowerCase());
+    const [cancelDialog, setCancelDialog] = useState(null); // null | 'confirm' | { error }
+    const [cancelling, setCancelling] = useState(false);
     const cancel = async () => {
+        setCancelling(true);
         try {
             await orders.cancel(orderId, 'Cancelled by customer');
-            Alert.alert('Cancelled', 'Order cancelled.');
+            setCancelDialog(null);
             navigation.goBack();
         } catch (error) {
-            Alert.alert('Failed', error?.response?.data?.message || 'Could not cancel order.');
+            setCancelDialog({ error: error?.response?.data?.message || 'Could not cancel order.' });
+        } finally {
+            setCancelling(false);
         }
     };
-    const confirmCancel = () => {
-        Alert.alert(
-            'Cancel order?',
-            'Are you sure you want to cancel this order? This action cannot be undone.',
-            [
-                { text: 'Keep order', style: 'cancel' },
-                { text: 'Cancel order', style: 'destructive', onPress: cancel },
-            ]
-        );
-    };
+    const confirmCancel = () => setCancelDialog('confirm');
 
     const callVendor = async () => {
         const phone =
@@ -183,7 +181,7 @@ const MyOrderDetails = ({ navigation, route }) => {
             amount: charge,
             planName: order?.order_number || 'Order payment',
             momoNumber: openPayment.payment_number || '',
-            momoNetwork: '',
+            momoNetwork: inferGhanaMomoNetwork(openPayment.payment_number),
             transactionId: openPayment.transaction_ref,
             transactionRef: openPayment.transaction_ref,
             mode: 'order',
@@ -588,6 +586,22 @@ const MyOrderDetails = ({ navigation, route }) => {
                     )}
                 </View>
             </ScrollView>
+            <ConfirmDialog
+                visible={!!cancelDialog}
+                destructive
+                icon={cancelDialog?.error ? 'circle-x' : 'package-x'}
+                title={cancelDialog?.error ? 'Could not cancel' : 'Cancel order?'}
+                message={
+                    cancelDialog?.error ||
+                    `${order?.order_number || 'This order'} will be cancelled and the store notified. This can't be undone.`
+                }
+                cancelLabel="Keep order"
+                confirmLabel={cancelDialog?.error ? 'OK' : 'Cancel order'}
+                hideCancel={!!cancelDialog?.error}
+                loading={cancelling}
+                onCancel={() => !cancelling && setCancelDialog(null)}
+                onConfirm={cancelDialog?.error ? () => setCancelDialog(null) : cancel}
+            />
         </SafeAreaView>
     );
 };

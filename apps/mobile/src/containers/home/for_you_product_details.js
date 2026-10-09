@@ -9,6 +9,7 @@ import config from '../../config';
 import { addToCart, clearCart, getCartItems, subscribeCart, updateCartItemQty } from '../../store/cartStore';
 import { catalog } from '../../services/api';
 import { recordBrowseHistory } from '../../utils/forYouBrowseHistory';
+import { formatQtyWithUnit } from '../../utils/format';
 
 const { width } = Dimensions.get('window');
 const CAROUSEL_WIDTH = width;
@@ -239,7 +240,7 @@ const ForYouProductDetails = ({ navigation, route }) => {
         setOrderQty(qty);
         if (isInCart) {
             updateCartItemQty(cartKey, qty);
-            showToast(`Cart updated · ${qty} ${unit}`);
+            showToast(`Cart updated · ${formatQtyWithUnit(qty, unit)}`);
             return;
         }
         addToCart(buildCartPayload(qty));
@@ -370,7 +371,7 @@ const ForYouProductDetails = ({ navigation, route }) => {
                             </View>
                             <View style={styles.aboutRow}>
                                 <AppText label="Minimum order" color={colors.textSecondary} fontSize={13} />
-                                <AppText label={`${minQty} ${unit}`} color={colors.text} fontSize={13} />
+                                <AppText label={formatQtyWithUnit(minQty, unit)} color={colors.text} fontSize={13} />
                             </View>
                             <View style={styles.aboutRow}>
                                 <AppText label="Brand" color={colors.textSecondary} fontSize={13} />
@@ -378,7 +379,7 @@ const ForYouProductDetails = ({ navigation, route }) => {
                             </View>
                             {/* <View style={styles.aboutRow}>
                                 <AppText label="Quantity step" color={colors.textSecondary} fontSize={13} />
-                                <AppText label={`${qtyStep} ${unit}`} color={colors.text} fontSize={13} />
+                                <AppText label={formatQtyWithUnit(qtyStep, unit)} color={colors.text} fontSize={13} />
                             </View> */}
                             {/* <View style={styles.aboutRow}>
                                 <AppText label="Fractional quantity" color={colors.textSecondary} fontSize={13} />
@@ -475,7 +476,7 @@ const ForYouProductDetails = ({ navigation, route }) => {
                                 <AppText
                                     label={
                                         isInStock
-                                            ? `Buy now · ${orderQty} ${unit}`
+                                            ? `Buy now · ${formatQtyWithUnit(orderQty, unit)}`
                                             : 'Unavailable'
                                     }
                                     color={isInStock ? config.THEME_COLOR : colors.textSecondary}

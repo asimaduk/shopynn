@@ -10,6 +10,7 @@ import useTheme from '../../hooks/useTheme';
 import ScreenHeader from '../../components/screen_header';
 import { orders, payments } from '../../services/api';
 import { setSubscriptionActive } from '../../store/actions/appSettings';
+import { inferGhanaMomoNetwork } from '../../utils/format';
 
 const formatter = new Intl.NumberFormat('en-GH', {
     style: 'currency',
@@ -215,7 +216,7 @@ const MomoStatus = ({ navigation, route }) => {
     const statusConfig = getStatusConfig();
     const getNetworkName = () => {
         const names = { mtn: 'MTN', telecel: 'Telecel', airteltigo: 'AirtelTigo' };
-        const key = String(momoNetwork || '').toLowerCase();
+        const key = String(momoNetwork || inferGhanaMomoNetwork(momoNumber) || '').toLowerCase();
         return names[key] || (key ? key.charAt(0).toUpperCase() + key.slice(1) : 'Mobile Money');
     };
 

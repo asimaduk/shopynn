@@ -25,6 +25,7 @@ import {
 } from '../../utils/secureOfflineStorage';
 import { clearTokens } from '../../utils/secureStorage';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import { displayEmail, formatPhone } from '../../utils/format';
 import { tenants as tenantsApi } from '../../services/api';
 
 const TAB_BAR_HEIGHT = 60;
@@ -132,6 +133,8 @@ const Settings = ({ navigation, route }) => {
                 .includes('customer')) ||
         user?.settings?.roles?.some((role) => String(role?.name || '').trim().toLowerCase() === 'customer')
     );
+
+    const profileSubtitle = displayEmail(user?.email) || (user?.phone ? formatPhone(user.phone) : '');
 
     const canPendingSales = canAccessScreen(user, 'PendingSales', subscriptionFeatures);
     const canPendingMomo = canAccessScreen(user, 'PendingMomoPayments', subscriptionFeatures);
@@ -298,10 +301,10 @@ const Settings = ({ navigation, route }) => {
 
     const handleShareApp = async () => {
         try {
-            const result = await Share.share({
-                message: 'Check out Shopynn - Inventory Management System',
-                title: 'Shopynn'
-            });
+            const message = isCustomer
+                ? `I shop on Shopynn: browse products, order, pay with mobile money and track delivery from your phone. ${config.MARKETING_SITE_URL}`
+                : `Check out Shopynn: inventory, sales and customer orders in one app. ${config.MARKETING_SITE_URL}`;
+            await Share.share({ message, title: 'Shopynn' });
         } catch (error) {
             console.error('Error sharing:', error);
         }
@@ -430,9 +433,9 @@ const Settings = ({ navigation, route }) => {
                             fontSize={18}
                             style={styles.profileName}
                         />
-                        {user?.email ? (
+                        {profileSubtitle ? (
                             <AppText
-                                label={user.email}
+                                label={profileSubtitle}
                                 variant={2}
                                 color={colors.textSecondary}
                                 fontSize={14}
@@ -455,7 +458,7 @@ const Settings = ({ navigation, route }) => {
                             </View>
                             <View style={styles.menuContent}>
                                 <AppText label={'Profile'} variant={2} color={colors.text} fontSize={15} />
-                                <AppText label={'Manage your personal information and company profile'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
+                                <AppText label={isCustomer ? 'Your contact details and linked store' : 'Manage your personal information and company profile'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
                             </View>
                             <Lucide name="chevron-right" color={colors.border} size={18} />
                         </TouchableOpacity>
@@ -1398,6 +1401,11 @@ const Settings = ({ navigation, route }) => {
             </ScrollView>
             )}
 
+            <View
+                pointerEvents="none"
+                style={[styles.statusBarCover, { height: insets.top, backgroundColor: colors.background }]}
+            />
+
             <ConfirmDialog
                 visible={showSignOutConfirm}
                 icon="log-out"
@@ -1419,6 +1427,12 @@ const Settings = ({ navigation, route }) => {
 export default Settings;
 
 const styles = StyleSheet.create({
+    statusBarCover: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+    },
     header: {
         paddingHorizontal: 15,
         paddingTop: 10,

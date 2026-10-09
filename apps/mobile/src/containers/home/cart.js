@@ -24,6 +24,7 @@ import {
     updateCartItemQty,
 } from '../../store/cartStore';
 import { catalog, customerProfiles } from '../../services/api';
+import ConfirmDialog from '../../components/ConfirmDialog';
 
 const { width } = Dimensions.get('window');
 const SUGGESTION_CARD_WIDTH = (width - 44) / 2;
@@ -104,8 +105,7 @@ const Cart = ({ navigation }) => {
             }
             setSuggestionWarehouseId(firstWarehouseId);
             const res = await catalog.list(firstWarehouseId);
-            const list = Array.isArray(res) ? res.slice(0, 10) : [];
-            setSuggestions(list);
+            setSuggestions(Array.isArray(res) ? res.slice(0, 30) : []);
         } catch (_) {
             setSuggestions([]);
             setSuggestionWarehouseId('');
@@ -117,6 +117,11 @@ const Cart = ({ navigation }) => {
     useEffect(() => {
         loadSuggestions();
     }, [loadSuggestions]);
+
+    const visibleSuggestions = useMemo(() => {
+        const inCartIds = new Set(items.map((it) => String(it.product_id)));
+        return suggestions.filter((p) => !inCartIds.has(String(p?.id))).slice(0, 10);
+    }, [suggestions, items]);
 
     const total = useMemo(
         () => items.reduce((sum, it) => sum + Number(it.quantity || 0) * Number(it.unit_price || 0), 0),
@@ -154,12 +159,10 @@ const Cart = ({ navigation }) => {
         navigation.navigate('Checkout');
     };
 
+    const [showClearConfirm, setShowClearConfirm] = useState(false);
     const onClearCart = () => {
         if (!items.length) return;
-        Alert.alert('Clear cart?', 'Remove all items from your cart.', [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Clear', style: 'destructive', onPress: () => clearCart() },
-        ]);
+        setShowClearConfirm(true);
     };
 
     const onRefresh = async () => {
@@ -234,14 +237,14 @@ const Cart = ({ navigation }) => {
                 <View style={{ alignItems: 'center', paddingVertical: 20 }}>
                     <Lucide name="loader-circle" size={22} color={config.THEME_COLOR} />
                 </View>
-            ) : suggestions.length > 0 ? (
+            ) : visibleSuggestions.length > 0 ? (
                 <View style={styles.masonryRow}>
                     {[0, 1].map((col) => (
                         <View key={`col-${col}`} style={styles.masonryCol}>
-                            {suggestions
+                            {visibleSuggestions
                                 .filter((_p, idx) => idx % 2 === col)
                                 .map((product, idxInCol) => {
-                                    const sourceIndex = suggestions.findIndex((p) => p?.id === product?.id);
+                                    const sourceIndex = visibleSuggestions.findIndex((p) => p?.id === product?.id);
                                     const metrics = getBrickMetrics(sourceIndex);
                                     const uri = resolveProductImageUri(product);
                                     const inCart = isInCart(product);
@@ -613,6 +616,19 @@ const Cart = ({ navigation }) => {
                     </TouchableOpacity>
                 </View>
             ) : null}
+            <ConfirmDialog
+                visible={showClearConfirm}
+                destructive
+                icon="trash-2"
+                title="Clear cart?"
+                message={`Remove all ${items.length} ${items.length === 1 ? 'item' : 'items'} from your cart.`}
+                confirmLabel="Clear cart"
+                onCancel={() => setShowClearConfirm(false)}
+                onConfirm={() => {
+                    setShowClearConfirm(false);
+                    clearCart();
+                }}
+            />
         </SafeAreaView>
     );
 };
