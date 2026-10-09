@@ -1840,7 +1840,7 @@ export const recordSalePaymentService = async (user, saleId, body = {}) => {
         await client.query("BEGIN");
 
         const saleRes = await client.query(
-            `SELECT id, tenant_id, customer_id, total_amount, amount_paid, balance_due, payment_status
+            `SELECT id, tenant_id, customer_id, total_amount, amount_paid, balance_due, payment_status, is_active
              FROM sales WHERE id = $1 AND tenant_id = $2 FOR UPDATE`,
             [saleId, tenantId]
         );
@@ -1850,6 +1850,35 @@ export const recordSalePaymentService = async (user, saleId, body = {}) => {
             err.status = 404;
             err.code = "SALE_NOT_FOUND";
             throw err;
+        }
+        if (sale.is_active === false) {
+            const err = new Error("This sale has been deleted. Payments can no longer be recorded on it.");
+            err.status = 409;
+            err.code = "SALE_DELETED";
+            throw err;
+        }
+
+        const clientRequestId = String(body.client_request_id || "").trim().slice(0, 100) || null;
+        if (clientRequestId) {
+            const dupRes = await client.query(
+                `SELECT id, amount FROM sale_payments
+                 WHERE tenant_id = $1 AND client_request_id = $2 LIMIT 1`,
+                [tenantId, clientRequestId]
+            );
+            if (dupRes.rows[0]) {
+                await client.query("ROLLBACK");
+                const balanceNow = toMoney(sale.balance_due);
+                return {
+                    sale_id: saleId,
+                    payment_id: dupRes.rows[0].id,
+                    amount: toMoney(dupRes.rows[0].amount),
+                    amount_paid: toMoney(sale.amount_paid),
+                    balance_due: balanceNow,
+                    payment_status: sale.payment_status,
+                    fully_paid: balanceNow <= 0.02,
+                    duplicate: true,
+                };
+            }
         }
 
         const balance = toMoney(sale.balance_due != null ? sale.balance_due : toMoney(sale.total_amount) - toMoney(sale.amount_paid));
@@ -1939,8 +1968,9 @@ export const recordSalePaymentService = async (user, saleId, body = {}) => {
         await client.query(
             `INSERT INTO sale_payments (
                 id, sale_id, tenant_id, amount, payment_method, payment_type,
-                payment_number, payment_reference, payments_id, recorded_by, note, created_at
-            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+                payment_number, payment_reference, payments_id, recorded_by, note, created_at,
+                client_request_id
+            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
             [
                 payId,
                 saleId,
@@ -1954,6 +1984,7 @@ export const recordSalePaymentService = async (user, saleId, body = {}) => {
                 user.id || null,
                 body.note != null ? String(body.note).trim().slice(0, 300) : null,
                 new Date(),
+                clientRequestId,
             ]
         );
 
@@ -1987,9 +2018,18 @@ export const recordSalePaymentService = async (user, saleId, body = {}) => {
             ]
         );
 
-        // Loyalty on collections: 1 pt per GHS 10 of this payment (skip store-credit applications).
-        if (sale.customer_id && resolvedMethod !== "store_credit" && payAmount >= 10) {
-            const points = Math.floor(payAmount / 10);
+        // Loyalty: 1 pt per GHS 10 of cash/MoMo/card collected on the sale, counted cumulatively
+        // so split payments earn the same as paying in one go. Store credit never earns points.
+        if (sale.customer_id && resolvedMethod !== "store_credit") {
+            const creditRes = await client.query(
+                `SELECT COALESCE(SUM(-amount), 0)::numeric AS applied
+                 FROM store_credit_ledger
+                 WHERE sale_id = $1 AND tenant_id = $2 AND amount < 0`,
+                [saleId, tenantId]
+            );
+            const creditApplied = toMoney(creditRes.rows[0]?.applied);
+            const earnedBefore = Math.max(0, toMoney(sale.amount_paid) - creditApplied);
+            const points = Math.floor(toMoney(earnedBefore + payAmount) / 10) - Math.floor(earnedBefore / 10);
             if (points > 0) {
                 await client.query(
                     `UPDATE customers

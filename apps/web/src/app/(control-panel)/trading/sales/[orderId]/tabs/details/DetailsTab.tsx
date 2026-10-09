@@ -13,18 +13,11 @@ import TableCell from '@mui/material/TableCell';
 import Table from '@mui/material/Table';
 import TableHead from '@mui/material/TableHead';
 import Button from '@mui/material/Button';
-import TextField from '@mui/material/TextField';
-import MenuItem from '@mui/material/MenuItem';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
-import { useGetSaleQuery, useRecordSalePaymentMutation } from '../../../../TradingApi';
+import { useGetSaleQuery } from '../../../../TradingApi';
+import CollectPaymentDialog from './CollectPaymentDialog';
 import OrdersStatus from '../../../SalesStatus';
 import GoogleAddressMap from './GoogleAddressMap';
 import { formatGhsCurrency } from '../../../../../dashboards/analytics/daily-sales/formatGhsCurrency';
-import { showMessage } from '@fuse/core/FuseMessage/fuseMessageSlice';
-import { useAppDispatch } from 'src/store/hooks';
 import useUser from '@auth/useUser';
 import { hasPermissionCodes } from '@auth/permissions';
 
@@ -41,7 +34,6 @@ function paymentStatusLabel(status: unknown) {
  */
 function DetailsTab() {
 	const routeParams = useParams();
-	const dispatch = useAppDispatch();
 	const { data: user } = useUser();
 	const canRecordPayment = hasPermissionCodes(user, 'sales.create');
 
@@ -50,14 +42,8 @@ function DetailsTab() {
 	const { data: order, isError, refetch } = useGetSaleQuery(orderId, {
 		skip: !orderId
 	});
-	const [recordPayment, { isLoading: savingCollect }] = useRecordSalePaymentMutation();
-
 	const [map, setMap] = useState<string>('shipping');
 	const [collectOpen, setCollectOpen] = useState(false);
-	const [collectAmount, setCollectAmount] = useState('');
-	const [collectMethod, setCollectMethod] = useState('cash');
-	const [collectNote, setCollectNote] = useState('');
-	const [collectRef, setCollectRef] = useState('');
 
 	if (!isError && !order) {
 		return null;
@@ -69,71 +55,7 @@ function DetailsTab() {
 	const canCollect =
 		canRecordPayment && (Boolean(order?.can_collect_payment) || balanceDue > 0.02);
 
-	const openCollect = () => {
-		setCollectAmount(balanceDue > 0 ? balanceDue.toFixed(2) : '');
-		setCollectMethod('cash');
-		setCollectNote('');
-		setCollectRef('');
-		setCollectOpen(true);
-	};
-
-	const saveCollect = async () => {
-		const amt = Number(String(collectAmount).replace(/,/g, ''));
-		if (!Number.isFinite(amt) || amt <= 0) {
-			dispatch(showMessage({ message: 'Enter a valid collection amount' }));
-			return;
-		}
-		if (amt > balanceDue + 0.02) {
-			dispatch(
-				showMessage({
-					message: `Amount cannot exceed balance due (${formatGhsCurrency(balanceDue, 2, 2)})`
-				})
-			);
-			return;
-		}
-		if (collectMethod === 'store_credit') {
-			if (!order?.customer_id) {
-				dispatch(showMessage({ message: 'Store credit requires a customer on this sale' }));
-				return;
-			}
-			if (amt > storeCreditBalance + 0.02) {
-				dispatch(
-					showMessage({
-						message: `Available store credit is ${formatGhsCurrency(storeCreditBalance, 2, 2)}`
-					})
-				);
-				return;
-			}
-		}
-		if (collectMethod === 'momo' && !String(collectRef || '').trim()) {
-			dispatch(
-				showMessage({
-					message: 'Enter the confirmed Paystack MoMo payment reference'
-				})
-			);
-			return;
-		}
-		try {
-			const body: Record<string, unknown> = {
-				amount: amt,
-				payment_method: collectMethod,
-				payment_reference: collectRef.trim() || null,
-				note: collectNote.trim() || null
-			};
-			if (collectMethod === 'momo') {
-				body.payment_transaction_ref = collectRef.trim();
-			}
-			await recordPayment({
-				saleId: orderId,
-				body
-			}).unwrap();
-			setCollectOpen(false);
-			refetch();
-			dispatch(showMessage({ message: 'Payment recorded' }));
-		} catch (err: any) {
-			dispatch(showMessage({ message: err?.data?.message || err?.message || 'Could not record payment' }));
-		}
-	};
+	const openCollect = () => setCollectOpen(true);
 
 	return (
 		<div className="w-full max-w-5xl space-y-12">
@@ -384,67 +306,19 @@ function DetailsTab() {
 				) : null}
 			</div>
 
-			<Dialog open={collectOpen} onClose={() => !savingCollect && setCollectOpen(false)} fullWidth maxWidth="xs">
-				<DialogTitle>Collect payment</DialogTitle>
-				<DialogContent className="flex flex-col gap-3 pt-2">
-					<Typography variant="body2" color="text.secondary">
-						Balance due {formatGhsCurrency(balanceDue, 2, 2)}
-					</Typography>
-					{storeCreditBalance > 0.001 ? (
-						<Typography variant="body2" color="text.secondary">
-							Store credit available {formatGhsCurrency(storeCreditBalance, 2, 2)}
-						</Typography>
-					) : null}
-					<TextField
-						label="Amount"
-						type="number"
-						value={collectAmount}
-						onChange={(e) => setCollectAmount(e.target.value)}
-						fullWidth
-						InputLabelProps={{ shrink: true }}
-					/>
-					<TextField
-						select
-						label="Method"
-						value={collectMethod}
-						onChange={(e) => {
-							const next = e.target.value;
-							setCollectMethod(next);
-							if (next === 'store_credit' && storeCreditBalance > 0.001) {
-								setCollectAmount(Math.min(balanceDue, storeCreditBalance).toFixed(2));
-							}
-						}}
-						fullWidth
-					>
-						<MenuItem value="cash">Cash</MenuItem>
-						<MenuItem value="momo">MoMo</MenuItem>
-						<MenuItem value="store_credit">Store credit</MenuItem>
-					</TextField>
-					{collectMethod === 'momo' ? (
-						<TextField
-							label="Paystack reference (required)"
-							value={collectRef}
-							onChange={(e) => setCollectRef(e.target.value)}
-							helperText="Confirmed MoMo transaction reference from Paystack"
-							fullWidth
-						/>
-					) : null}
-					<TextField
-						label="Note (optional)"
-						value={collectNote}
-						onChange={(e) => setCollectNote(e.target.value)}
-						fullWidth
-					/>
-				</DialogContent>
-				<DialogActions>
-					<Button onClick={() => setCollectOpen(false)} disabled={savingCollect}>
-						Cancel
-					</Button>
-					<Button variant="contained" onClick={saveCollect} disabled={savingCollect}>
-						{savingCollect ? 'Saving…' : 'Record'}
-					</Button>
-				</DialogActions>
-			</Dialog>
+			<CollectPaymentDialog
+				open={collectOpen}
+				onClose={() => setCollectOpen(false)}
+				onRecorded={() => {
+					setCollectOpen(false);
+					refetch();
+				}}
+				saleId={orderId}
+				balanceDue={balanceDue}
+				storeCreditBalance={storeCreditBalance}
+				customerId={order?.customer_id}
+				customerPhone={order?.customer_phone}
+			/>
 
 			{/* <div className="space-y-4">
 				<div className="flex items-center border-b-1 space-x-2 pb-2">

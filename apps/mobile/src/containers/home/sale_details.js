@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, TouchableOpacity, ScrollView, View, Alert, ActivityIndicator, Linking, Image, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
@@ -9,9 +9,15 @@ import ScreenHeader from '../../components/screen_header';
 import AppModal from '../../components/app_modal';
 import useTheme from '../../hooks/useTheme';
 import InvoiceShareSheet from '../../components/invoice_share_sheet';
-import { formatCurrency, formatQuantity } from '../../utils/format';
+import { formatCurrency, formatQuantity, inferGhanaMomoNetwork } from '../../utils/format';
 import { formatSalePaymentLabel, salePaymentIcon } from '../../utils/salePayment';
-import { sales as salesApi } from '../../services/api';
+import { sales as salesApi, payments as paymentsApi } from '../../services/api';
+import {
+    MOMO_NETWORK_OPTIONS,
+    isTelecelMomoProvider,
+    normalizeGhanaMomoNumber,
+    validateMomoNumberForProvider,
+} from '../../utils/momoNetworks';
 import { hasPermission } from '../../utils/permissions';
 import {
     SECURE_PENDING_SALES_KEY as PENDING_SALES_KEY,
@@ -37,6 +43,17 @@ const paymentStatusLabel = (status) => {
     return '—';
 };
 
+const COLLECT_METHOD_LABELS = { cash: 'Cash', momo: 'MoMo', store_credit: 'Store credit' };
+const EMPTY_MOMO = { ref: null, face: 0, charge: 0, paid: false, needsOtp: false, status: '' };
+const newRequestId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+const momoStatusNeedsOtp = (status, displayText) => {
+    const st = String(status || '').toLowerCase();
+    if (st === 'send_otp' || st === 'otp' || st === 'send_pin' || st === 'pay_offline') return true;
+    return /\botp\b|\bvoucher\b|\*110#/.test(String(displayText || '').toLowerCase());
+};
+const momoErrorMessage = (e, fallback) =>
+    e?.response?.data?.message || e?.response?.data?.error || e?.message || fallback;
+
 const SaleDetails = ({ navigation, route }) => {
     const { colors } = useTheme();
     const user = useSelector(({ user }) => user);
@@ -54,8 +71,15 @@ const SaleDetails = ({ navigation, route }) => {
     const [collectAmount, setCollectAmount] = useState('');
     const [collectMethod, setCollectMethod] = useState('cash');
     const [collectNote, setCollectNote] = useState('');
-    const [collectRef, setCollectRef] = useState('');
     const [savingCollect, setSavingCollect] = useState(false);
+    const [momoPhone, setMomoPhone] = useState('');
+    const [momoProvider, setMomoProvider] = useState('mtn');
+    const [momo, setMomo] = useState(EMPTY_MOMO);
+    const [momoOtp, setMomoOtp] = useState('');
+    const [momoBusy, setMomoBusy] = useState(false);
+    const savingRef = useRef(false);
+    const momoCheckingRef = useRef(false);
+    const requestIdRef = useRef(null);
 
     const reloadSale = async () => {
         const id = saleId || paramItem?.id || item?.id;
@@ -85,73 +109,287 @@ const SaleDetails = ({ navigation, route }) => {
     const storeCreditBalance = Number(item?.store_credit_balance ?? 0);
     const canCollectPayment = !isPendingUpload && canCollect && (item?.can_collect_payment || balanceDue > 0.02);
 
+    const canUseStoreCredit = !!item?.customer_id && storeCreditBalance > 0.001;
+    const collectMethods = canUseStoreCredit ? ['cash', 'momo', 'store_credit'] : ['cash', 'momo'];
+    const collectInputStyle = {
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: 10,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        color: colors.text,
+        marginBottom: 12,
+        backgroundColor: colors.inputBackground || colors.surface,
+    };
+    const momoLocked = !!momo.ref;
+
     const openCollectModal = () => {
+        const phone = normalizeGhanaMomoNumber(item?.customer_phone);
+        const network = MOMO_NETWORK_OPTIONS.find((n) => n.id === inferGhanaMomoNetwork(phone));
         setCollectAmount(balanceDue > 0 ? balanceDue.toFixed(2) : '');
         setCollectMethod('cash');
         setCollectNote('');
-        setCollectRef('');
+        setMomoPhone(phone);
+        setMomoProvider(network?.provider || 'mtn');
+        setMomo(EMPTY_MOMO);
+        setMomoOtp('');
+        requestIdRef.current = newRequestId();
         setShowCollectModal(true);
     };
 
-    const saveCollectPayment = async () => {
-        const id = saleId || item?.id;
-        if (!id) return;
-        const amt = Number(String(collectAmount).replace(/,/g, ''));
-        if (!Number.isFinite(amt) || amt <= 0) {
-            Alert.alert('Amount required', 'Enter how much is being collected.');
+    const closeCollectModal = () => {
+        if (savingCollect || momoBusy) return;
+        if (momo.paid && momo.ref) {
+            Alert.alert(
+                'MoMo payment not recorded',
+                `${formatCurrency(momo.face)} was received by MoMo but is not yet recorded on this sale.`,
+                [
+                    { text: 'Close anyway', style: 'destructive', onPress: () => setShowCollectModal(false) },
+                    { text: 'Record now', onPress: () => saveCollectPayment({ momoRef: momo.ref, momoFace: momo.face }) },
+                ],
+            );
             return;
+        }
+        setShowCollectModal(false);
+    };
+
+    /** Returns the validated amount, or null after alerting. */
+    const validateCollectAmount = (method) => {
+        const amt = Number(String(collectAmount).replace(/,/g, ''));
+        if (!Number.isFinite(amt) || amt < 0.01) {
+            Alert.alert('Amount required', 'Enter how much is being collected.');
+            return null;
         }
         if (amt > balanceDue + 0.02) {
             Alert.alert('Too much', `Balance due is ${formatCurrency(balanceDue)}.`);
-            return;
+            return null;
         }
-        if (collectMethod === 'store_credit') {
+        if (method === 'store_credit') {
             if (!item?.customer_id) {
                 Alert.alert('Customer required', 'Store credit can only be applied when the sale has a customer.');
-                return;
+                return null;
             }
             if (amt > storeCreditBalance + 0.02) {
-                Alert.alert(
-                    'Insufficient credit',
-                    `Available store credit is ${formatCurrency(storeCreditBalance)}.`,
-                );
-                return;
+                Alert.alert('Insufficient credit', `Available store credit is ${formatCurrency(storeCreditBalance)}.`);
+                return null;
             }
         }
-        if (collectMethod === 'momo') {
-            const ref = String(collectRef || '').trim();
-            if (!ref) {
-                Alert.alert(
-                    'MoMo reference required',
-                    'Enter the confirmed Paystack payment reference from a completed MoMo charge.',
-                );
+        return Math.round(amt * 100) / 100;
+    };
+
+    const saveCollectPayment = async (confirmedMomo = null) => {
+        const id = saleId || item?.id;
+        if (!id || savingRef.current) return;
+        const method = confirmedMomo ? 'momo' : collectMethod;
+        let amt;
+        let momoRef = null;
+        if (method === 'momo') {
+            momoRef = confirmedMomo?.momoRef || (momo.paid ? momo.ref : null);
+            if (!momoRef) {
+                Alert.alert('MoMo not confirmed', 'Send the MoMo prompt and wait for the customer to approve it.');
                 return;
             }
+            amt = confirmedMomo?.momoFace || momo.face;
+        } else {
+            amt = validateCollectAmount(method);
+            if (amt == null) return;
         }
+        savingRef.current = true;
         setSavingCollect(true);
         try {
             const body = {
                 amount: amt,
-                payment_method: collectMethod,
-                payment_reference: collectRef.trim() || null,
+                payment_method: method,
                 note: collectNote.trim() || null,
+                client_request_id: requestIdRef.current,
             };
-            if (collectMethod === 'momo') {
-                body.payment_transaction_ref = collectRef.trim();
+            if (method === 'momo') {
+                body.payment_transaction_ref = momoRef;
+                body.payment_reference = momoRef;
+                body.payment_number = normalizeGhanaMomoNumber(momoPhone) || null;
             }
             await salesApi.recordPayment(id, body);
+            setMomo(EMPTY_MOMO);
             setShowCollectModal(false);
             await reloadSale();
-            Alert.alert('Collected', 'Payment recorded.');
+            Alert.alert('Collected', `${formatCurrency(amt)} recorded.`);
         } catch (error) {
-            Alert.alert(
-                'Could not save',
-                error?.response?.data?.message || error?.message || 'Try again.',
-            );
+            Alert.alert('Could not save', momoErrorMessage(error, 'Try again.'));
         } finally {
+            savingRef.current = false;
             setSavingCollect(false);
         }
     };
+
+    const markMomoPaid = (ref, face) => {
+        setMomo((m) => ({ ...m, ref, face, paid: true, needsOtp: false, status: 'MoMo payment confirmed.' }));
+        saveCollectPayment({ momoRef: ref, momoFace: face });
+    };
+
+    const sendMomoPrompt = async ({ forceNew = false } = {}) => {
+        const amt = validateCollectAmount('momo');
+        if (amt == null) return;
+        const check = validateMomoNumberForProvider(momoPhone, momoProvider);
+        if (!check.ok) {
+            Alert.alert('MoMo', check.message);
+            return;
+        }
+        setMomoBusy(true);
+        setMomoOtp('');
+        setMomo({ ...EMPTY_MOMO, status: forceNew ? 'Starting a new MoMo prompt…' : 'Sending MoMo prompt…' });
+        try {
+            const res = await paymentsApi.initiate({
+                face_amount: amt,
+                payment_method: 'mobile_money',
+                phone: check.digits,
+                provider: momoProvider,
+                source: 'pos_sale',
+                payment_number: check.digits,
+                force_new: forceNew,
+            });
+            const ref = res?.transaction_ref;
+            if (!ref) {
+                setMomo(EMPTY_MOMO);
+                Alert.alert('MoMo', 'No payment reference returned.');
+                return;
+            }
+            const face = Number(res?.face_amount) || amt;
+            const charge = Number(res?.charge_amount) || face;
+            if (res?.reused || String(res?.status || '').toLowerCase() === 'success') {
+                setMomo({ ...EMPTY_MOMO, ref, face, charge });
+                markMomoPaid(ref, face);
+                return;
+            }
+            const telecel = isTelecelMomoProvider(momoProvider);
+            setMomo({
+                ref,
+                face,
+                charge,
+                paid: false,
+                needsOtp: telecel || momoStatusNeedsOtp(res?.status, res?.display_text),
+                status:
+                    res?.display_text ||
+                    (telecel
+                        ? 'Ask the customer to dial *110#, then enter the voucher below.'
+                        : 'Ask the customer to approve the MoMo prompt on their phone.'),
+            });
+        } catch (e) {
+            setMomo(EMPTY_MOMO);
+            Alert.alert('MoMo', momoErrorMessage(e, 'Could not start MoMo payment.'));
+        } finally {
+            setMomoBusy(false);
+        }
+    };
+
+    const checkMomoStatus = async ({ silent = false } = {}) => {
+        const { ref, face } = momo;
+        if (!ref || momo.paid || momoCheckingRef.current) return;
+        momoCheckingRef.current = true;
+        if (!silent) setMomoBusy(true);
+        try {
+            const v = await paymentsApi.verify(ref);
+            const st = String(v?.status || '').toLowerCase();
+            if (st === 'success' || st === 'paid' || st === 'completed') {
+                markMomoPaid(ref, face);
+            } else if (st === 'failed' || st === 'abandoned' || st === 'reversed') {
+                setMomo({ ...EMPTY_MOMO, status: v?.display_text || 'MoMo payment failed. Send a new prompt.' });
+            } else if (momoStatusNeedsOtp(st, v?.display_text)) {
+                setMomo((m) => ({ ...m, needsOtp: true, status: v?.display_text || 'Enter the OTP / voucher from the network.' }));
+            } else if (!silent) {
+                setMomo((m) => ({ ...m, status: v?.display_text || 'Still waiting for the customer to approve.' }));
+            }
+        } catch (e) {
+            if (!silent) Alert.alert('MoMo', momoErrorMessage(e, 'Could not check status.'));
+        } finally {
+            momoCheckingRef.current = false;
+            if (!silent) setMomoBusy(false);
+        }
+    };
+
+    const submitMomoOtp = async () => {
+        const otp = momoOtp.trim();
+        if (!momo.ref || !otp) {
+            Alert.alert('MoMo', isTelecelMomoProvider(momoProvider) ? 'Enter the voucher from *110#.' : 'Enter the OTP from the network.');
+            return;
+        }
+        setMomoBusy(true);
+        try {
+            const res = await paymentsApi.submitOtp({ reference: momo.ref, otp });
+            const st = String(res?.status || '').toLowerCase();
+            if (st === 'success') {
+                markMomoPaid(momo.ref, momo.face);
+            } else {
+                setMomoOtp('');
+                setMomo((m) => ({
+                    ...m,
+                    needsOtp: isTelecelMomoProvider(momoProvider) || momoStatusNeedsOtp(st, res?.display_text),
+                    status: res?.display_text || 'Submitted. Waiting for confirmation…',
+                }));
+            }
+        } catch (e) {
+            Alert.alert('MoMo', momoErrorMessage(e, 'Could not submit the code.'));
+        } finally {
+            setMomoBusy(false);
+        }
+    };
+
+    const resendMomoPrompt = () => {
+        Alert.alert(
+            'Send a new prompt?',
+            'This cancels the open prompt. Only do this if the customer did not get it or it timed out.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Send again',
+                    style: 'destructive',
+                    onPress: async () => {
+                        if (momo.ref) {
+                            try {
+                                await paymentsApi.posAbandon({ reference: momo.ref });
+                            } catch (e) {
+                                if (/already succeeded/i.test(String(momoErrorMessage(e, '')))) {
+                                    markMomoPaid(momo.ref, momo.face);
+                                    return;
+                                }
+                            }
+                        }
+                        sendMomoPrompt({ forceNew: true });
+                    },
+                },
+            ],
+        );
+    };
+
+    const selectCollectMethod = (m) => {
+        if (m === collectMethod) return;
+        if (momo.paid && momo.ref) {
+            Alert.alert('MoMo already received', 'Record the confirmed MoMo payment before switching method.');
+            return;
+        }
+        if (momo.ref) {
+            paymentsApi.posAbandon({ reference: momo.ref }).catch(() => {});
+        }
+        setMomo(EMPTY_MOMO);
+        setMomoOtp('');
+        setCollectMethod(m);
+        if (m === 'store_credit') {
+            setCollectAmount(Math.min(balanceDue, storeCreditBalance).toFixed(2));
+        }
+    };
+
+    const checkMomoStatusRef = useRef(checkMomoStatus);
+    checkMomoStatusRef.current = checkMomoStatus;
+
+    useEffect(() => {
+        if (!showCollectModal || collectMethod !== 'momo' || !momo.ref || momo.paid || momo.needsOtp) return undefined;
+        const timer = setInterval(() => checkMomoStatusRef.current({ silent: true }), 5000);
+        const stop = setTimeout(() => clearInterval(timer), 3 * 60 * 1000);
+        return () => {
+            clearInterval(timer);
+            clearTimeout(stop);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [showCollectModal, collectMethod, momo.ref, momo.paid, momo.needsOtp]);
 
     const removePendingSaleById = async (pendingId) => {
         const list = await readSecureList(PENDING_SALES_KEY);
@@ -596,12 +834,12 @@ const SaleDetails = ({ navigation, route }) => {
             <AppModal
                 title="Collect payment"
                 visible={showCollectModal}
-                handleClose={() => !savingCollect && setShowCollectModal(false)}
-                onRequestClose={() => !savingCollect && setShowCollectModal(false)}
+                handleClose={closeCollectModal}
+                onRequestClose={closeCollectModal}
             >
                 <View style={styles.collectBody}>
                 <AppText label={`Balance due ${formatCurrency(balanceDue)}`} fontSize={13} color={colors.textSecondary} style={{ marginBottom: 12 }} />
-                {storeCreditBalance > 0.001 ? (
+                {canUseStoreCredit ? (
                     <AppText
                         label={`Store credit available ${formatCurrency(storeCreditBalance)}`}
                         fontSize={13}
@@ -616,30 +854,16 @@ const SaleDetails = ({ navigation, route }) => {
                     keyboardType="decimal-pad"
                     placeholder={balanceDue.toFixed(2)}
                     placeholderTextColor={colors.placeholder}
-                    style={{
-                        borderWidth: 1,
-                        borderColor: colors.border,
-                        borderRadius: 10,
-                        paddingHorizontal: 12,
-                        paddingVertical: 10,
-                        color: colors.text,
-                        marginBottom: 12,
-                        backgroundColor: colors.inputBackground || colors.surface,
-                    }}
+                    editable={!momoLocked}
+                    style={[collectInputStyle, momoLocked && { opacity: 0.6 }]}
                 />
                 <AppText label="Method" fontSize={13} color={colors.text} style={{ marginBottom: 8 }} />
                 <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
-                    {['cash', 'momo', 'store_credit'].map((m) => (
+                    {collectMethods.map((m) => (
                         <TouchableOpacity
                             key={m}
                             activeOpacity={0.7}
-                            onPress={() => {
-                                setCollectMethod(m);
-                                if (m === 'store_credit' && storeCreditBalance > 0.001) {
-                                    const capped = Math.min(balanceDue, storeCreditBalance);
-                                    setCollectAmount(capped.toFixed(2));
-                                }
-                            }}
+                            onPress={() => selectCollectMethod(m)}
                             style={{
                                 paddingHorizontal: 14,
                                 paddingVertical: 8,
@@ -650,7 +874,7 @@ const SaleDetails = ({ navigation, route }) => {
                             }}
                         >
                             <AppText
-                                label={m === 'cash' ? 'Cash' : m === 'momo' ? 'MoMo' : 'Credit'}
+                                label={COLLECT_METHOD_LABELS[m]}
                                 fontSize={13}
                                 color={collectMethod === m ? '#fff' : colors.textSecondary}
                             />
@@ -659,23 +883,100 @@ const SaleDetails = ({ navigation, route }) => {
                 </View>
                 {collectMethod === 'momo' ? (
                     <>
-                        <AppText label="Paystack reference (required)" fontSize={13} color={colors.text} style={{ marginBottom: 6 }} />
+                        <AppText label="Customer MoMo number" fontSize={13} color={colors.text} style={{ marginBottom: 6 }} />
                         <TextInput
-                            value={collectRef}
-                            onChangeText={setCollectRef}
-                            placeholder="Confirmed MoMo transaction ref"
-                            placeholderTextColor={colors.placeholder}
-                            style={{
-                                borderWidth: 1,
-                                borderColor: colors.border,
-                                borderRadius: 10,
-                                paddingHorizontal: 12,
-                                paddingVertical: 10,
-                                color: colors.text,
-                                marginBottom: 12,
-                                backgroundColor: colors.inputBackground || colors.surface,
+                            value={momoPhone}
+                            onChangeText={(v) => {
+                                setMomoPhone(v);
+                                const network = MOMO_NETWORK_OPTIONS.find((n) => n.id === inferGhanaMomoNetwork(v));
+                                if (network) setMomoProvider(network.provider);
                             }}
+                            keyboardType="phone-pad"
+                            placeholder="024 000 0000"
+                            placeholderTextColor={colors.placeholder}
+                            editable={!momoLocked}
+                            style={[collectInputStyle, momoLocked && { opacity: 0.6 }]}
                         />
+                        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                            {MOMO_NETWORK_OPTIONS.map((n) => (
+                                <TouchableOpacity
+                                    key={n.id}
+                                    activeOpacity={0.7}
+                                    disabled={momoLocked}
+                                    onPress={() => setMomoProvider(n.provider)}
+                                    style={[
+                                        styles.collectChip,
+                                        {
+                                            borderColor: momoProvider === n.provider ? config.THEME_COLOR : colors.border,
+                                            backgroundColor: momoProvider === n.provider ? `${config.THEME_COLOR}18` : colors.surfaceSecondary,
+                                            opacity: momoLocked && momoProvider !== n.provider ? 0.5 : 1,
+                                        },
+                                    ]}
+                                >
+                                    <AppText
+                                        label={n.label}
+                                        fontSize={13}
+                                        color={momoProvider === n.provider ? config.THEME_COLOR : colors.textSecondary}
+                                    />
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                        {momo.status ? (
+                            <AppText
+                                label={momo.status}
+                                fontSize={13}
+                                color={momo.paid ? colors.success || '#16a34a' : colors.textSecondary}
+                                style={{ marginBottom: 8 }}
+                            />
+                        ) : null}
+                        {momo.ref && momo.charge > momo.face + 0.001 ? (
+                            <AppText
+                                label={`Customer approves ${formatCurrency(momo.charge)} (includes ${formatCurrency(momo.charge - momo.face)} fee).`}
+                                fontSize={12}
+                                color={colors.textSecondary}
+                                style={{ marginBottom: 8 }}
+                            />
+                        ) : null}
+                        {momo.ref && !momo.paid && momo.needsOtp ? (
+                            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                                <TextInput
+                                    value={momoOtp}
+                                    onChangeText={setMomoOtp}
+                                    keyboardType="number-pad"
+                                    placeholder={isTelecelMomoProvider(momoProvider) ? 'Voucher from *110#' : 'OTP'}
+                                    placeholderTextColor={colors.placeholder}
+                                    style={[collectInputStyle, { flex: 1, marginBottom: 0 }]}
+                                />
+                                <TouchableOpacity
+                                    activeOpacity={0.8}
+                                    disabled={momoBusy}
+                                    onPress={submitMomoOtp}
+                                    style={[styles.collectSmallBtn, { backgroundColor: config.THEME_COLOR, opacity: momoBusy ? 0.6 : 1 }]}
+                                >
+                                    <AppText label="Submit" fontSize={13} color="#fff" />
+                                </TouchableOpacity>
+                            </View>
+                        ) : null}
+                        {momo.ref && !momo.paid ? (
+                            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                                <TouchableOpacity
+                                    activeOpacity={0.8}
+                                    disabled={momoBusy}
+                                    onPress={() => checkMomoStatus()}
+                                    style={[styles.collectSmallBtn, { flex: 1, borderWidth: 1, borderColor: config.THEME_COLOR, opacity: momoBusy ? 0.6 : 1 }]}
+                                >
+                                    <AppText label="Check status" fontSize={13} color={config.THEME_COLOR} />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    activeOpacity={0.8}
+                                    disabled={momoBusy}
+                                    onPress={resendMomoPrompt}
+                                    style={[styles.collectSmallBtn, { flex: 1, borderWidth: 1, borderColor: colors.border, opacity: momoBusy ? 0.6 : 1 }]}
+                                >
+                                    <AppText label="Send again" fontSize={13} color={colors.textSecondary} />
+                                </TouchableOpacity>
+                            </View>
+                        ) : null}
                     </>
                 ) : null}
                 <AppText label="Note (optional)" fontSize={13} color={colors.text} style={{ marginBottom: 6 }} />
@@ -684,31 +985,29 @@ const SaleDetails = ({ navigation, route }) => {
                     onChangeText={setCollectNote}
                     placeholder="Collection note"
                     placeholderTextColor={colors.placeholder}
-                    style={{
-                        borderWidth: 1,
-                        borderColor: colors.border,
-                        borderRadius: 10,
-                        paddingHorizontal: 12,
-                        paddingVertical: 10,
-                        color: colors.text,
-                        marginBottom: 16,
-                        backgroundColor: colors.inputBackground || colors.surface,
-                    }}
+                    style={[collectInputStyle, { marginBottom: 16 }]}
                 />
-                <TouchableOpacity
-                    activeOpacity={0.8}
-                    disabled={savingCollect}
-                    onPress={saveCollectPayment}
-                    style={{
-                        backgroundColor: config.THEME_COLOR,
-                        paddingVertical: 12,
-                        borderRadius: 999,
-                        alignItems: 'center',
-                        opacity: savingCollect ? 0.6 : 1,
-                    }}
-                >
-                    <AppText label={savingCollect ? 'Saving…' : 'Record payment'} variant={1} color="#fff" />
-                </TouchableOpacity>
+                {collectMethod === 'momo' && !momo.paid ? (
+                    momo.ref ? null : (
+                        <TouchableOpacity
+                            activeOpacity={0.8}
+                            disabled={momoBusy}
+                            onPress={() => sendMomoPrompt()}
+                            style={[styles.collectPrimaryBtn, { backgroundColor: config.THEME_COLOR, opacity: momoBusy ? 0.6 : 1 }]}
+                        >
+                            <AppText label={momoBusy ? 'Sending…' : 'Send MoMo prompt'} variant={1} color="#fff" />
+                        </TouchableOpacity>
+                    )
+                ) : (
+                    <TouchableOpacity
+                        activeOpacity={0.8}
+                        disabled={savingCollect}
+                        onPress={() => saveCollectPayment()}
+                        style={[styles.collectPrimaryBtn, { backgroundColor: config.THEME_COLOR, opacity: savingCollect ? 0.6 : 1 }]}
+                    >
+                        <AppText label={savingCollect ? 'Saving…' : 'Record payment'} variant={1} color="#fff" />
+                    </TouchableOpacity>
+                )}
                 </View>
             </AppModal>
 
@@ -725,6 +1024,9 @@ const SaleDetails = ({ navigation, route }) => {
 
 const styles = StyleSheet.create({
     collectBody: { paddingHorizontal: 16, paddingTop: 14 },
+    collectChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, borderWidth: 1 },
+    collectSmallBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
+    collectPrimaryBtn: { paddingVertical: 12, borderRadius: 999, alignItems: 'center' },
     headerActionButton: {
         width: 40,
         height: 40,
