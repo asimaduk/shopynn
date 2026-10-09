@@ -316,13 +316,19 @@ const getCustomerProfileForUser = async (user) => {
     return result.rows[0] ?? null;
 };
 
-// JWTs carry no email; Paystack groups charges by email, so use the payer's own (OTP accounts keep their unique placeholder).
+// JWTs carry no email; Paystack groups charges by email, so send one per payer.
+// Paystack rejects `.local` addresses, so phone-OTP placeholders map to a per-customer address on a public domain.
+const isPaystackSafeEmail = (email) =>
+    /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email) && !/\.local$/i.test(email);
+
 const resolvePayerEmail = async (user, override) => {
     const given = String(override || "").trim();
-    if (given) return given;
-    const result = await pool.query(`SELECT email FROM users WHERE id = $1 LIMIT 1`, [user.id]);
+    if (isPaystackSafeEmail(given)) return given;
+    const result = await pool.query(`SELECT email, phone FROM users WHERE id = $1 LIMIT 1`, [user.id]);
     const stored = String(result.rows[0]?.email || "").trim();
-    return stored || `user-${user.id}@otp.shopynn.local`;
+    if (isPaystackSafeEmail(stored)) return stored;
+    const handle = String(result.rows[0]?.phone || "").replace(/\D/g, "") || String(user.id).replace(/[^a-z0-9]/gi, "");
+    return `customer-${handle}@shopynn.app`;
 };
 
 const customerHasStoreAccess = async (customerProfileId, warehouseId, tenantId) => {
