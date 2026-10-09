@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, TouchableOpacity, ScrollView, View, Alert, ActivityIndicator, Linking, Image, TextInput } from 'react-native';
+import { StyleSheet, TouchableOpacity, ScrollView, View, ActivityIndicator, Linking, Image, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import { Lucide } from '@react-native-vector-icons/lucide';
@@ -7,6 +7,8 @@ import AppText from '../../components/text';
 import config from '../../config';
 import ScreenHeader from '../../components/screen_header';
 import AppModal from '../../components/app_modal';
+import ConfirmDialog from '../../components/ConfirmDialog';
+import SuccessDialog from '../../components/SuccessDialog';
 import useTheme from '../../hooks/useTheme';
 import InvoiceShareSheet from '../../components/invoice_share_sheet';
 import { formatCurrency, formatQuantity, formatPhone, inferGhanaMomoNetwork } from '../../utils/format';
@@ -81,6 +83,17 @@ const SaleDetails = ({ navigation, route }) => {
     const momoCheckingRef = useRef(false);
     const requestIdRef = useRef(null);
 
+    const [dialog, setDialog] = useState(null);
+    const showNotice = (title, message, icon = 'circle-alert') =>
+        setDialog({ type: 'confirm', title, message, icon, hideCancel: true, confirmLabel: 'OK' });
+    const showConfirm = (opts) => setDialog({ type: 'confirm', ...opts });
+    const showSuccess = (opts) => setDialog({ type: 'success', ...opts });
+    const handleDialogAction = (key) => {
+        const action = dialog?.[key];
+        setDialog(null);
+        if (action) action();
+    };
+
     const reloadSale = async () => {
         const id = saleId || paramItem?.id || item?.id;
         if (!id || isPendingUpload) return;
@@ -140,14 +153,16 @@ const SaleDetails = ({ navigation, route }) => {
     const closeCollectModal = () => {
         if (savingCollect || momoBusy) return;
         if (momo.paid && momo.ref) {
-            Alert.alert(
-                'MoMo payment not recorded',
-                `${formatCurrency(momo.face)} was received by MoMo but is not yet recorded on this sale.`,
-                [
-                    { text: 'Close anyway', style: 'destructive', onPress: () => setShowCollectModal(false) },
-                    { text: 'Record now', onPress: () => saveCollectPayment({ momoRef: momo.ref, momoFace: momo.face }) },
-                ],
-            );
+            const { ref, face } = momo;
+            showConfirm({
+                icon: 'wallet',
+                title: 'MoMo payment not recorded',
+                message: `${formatCurrency(face)} was received by MoMo but is not yet recorded on this sale.`,
+                cancelLabel: 'Close anyway',
+                confirmLabel: 'Record now',
+                onCancel: () => setShowCollectModal(false),
+                onConfirm: () => saveCollectPayment({ momoRef: ref, momoFace: face }),
+            });
             return;
         }
         setShowCollectModal(false);
@@ -157,20 +172,20 @@ const SaleDetails = ({ navigation, route }) => {
     const validateCollectAmount = (method) => {
         const amt = Number(String(collectAmount).replace(/,/g, ''));
         if (!Number.isFinite(amt) || amt < 0.01) {
-            Alert.alert('Amount required', 'Enter how much is being collected.');
+            showNotice('Amount required', 'Enter how much is being collected.');
             return null;
         }
         if (amt > balanceDue + 0.02) {
-            Alert.alert('Too much', `Balance due is ${formatCurrency(balanceDue)}.`);
+            showNotice('Amount too high', `Balance due is ${formatCurrency(balanceDue)}.`);
             return null;
         }
         if (method === 'store_credit') {
             if (!item?.customer_id) {
-                Alert.alert('Customer required', 'Store credit can only be applied when the sale has a customer.');
+                showNotice('Customer required', 'Store credit can only be applied when the sale has a customer.');
                 return null;
             }
             if (amt > storeCreditBalance + 0.02) {
-                Alert.alert('Insufficient credit', `Available store credit is ${formatCurrency(storeCreditBalance)}.`);
+                showNotice('Not enough store credit', `Available store credit is ${formatCurrency(storeCreditBalance)}.`);
                 return null;
             }
         }
@@ -186,7 +201,7 @@ const SaleDetails = ({ navigation, route }) => {
         if (method === 'momo') {
             momoRef = confirmedMomo?.momoRef || (momo.paid ? momo.ref : null);
             if (!momoRef) {
-                Alert.alert('MoMo not confirmed', 'Send the MoMo prompt and wait for the customer to approve it.');
+                showNotice('MoMo not confirmed', 'Send the MoMo prompt and wait for the customer to approve it.');
                 return;
             }
             amt = confirmedMomo?.momoFace || momo.face;
@@ -208,13 +223,28 @@ const SaleDetails = ({ navigation, route }) => {
                 body.payment_reference = momoRef;
                 body.payment_number = normalizeGhanaMomoNumber(momoPhone) || null;
             }
-            await salesApi.recordPayment(id, body);
+            const result = await salesApi.recordPayment(id, body);
             setMomo(EMPTY_MOMO);
             setShowCollectModal(false);
             await reloadSale();
-            Alert.alert('Collected', `${formatCurrency(amt)} recorded.`);
+            const remaining = Number(result?.balance_due ?? Math.max(0, balanceDue - amt));
+            const fullyPaid = result?.fully_paid ?? remaining <= 0.02;
+            // iOS drops a Modal presented while another is still dismissing.
+            setTimeout(() => {
+                showSuccess({
+                    title: fullyPaid ? 'Sale fully paid' : 'Payment recorded',
+                    message: fullyPaid
+                        ? `${formatCurrency(amt)} collected. Nothing is owed on this sale.`
+                        : `${formatCurrency(amt)} collected.`,
+                    details: [
+                        { icon: 'wallet', label: 'Amount', value: formatCurrency(amt) },
+                        { icon: 'credit-card', label: 'Method', value: COLLECT_METHOD_LABELS[method] },
+                        { icon: 'scale', label: 'Balance left', value: formatCurrency(remaining) },
+                    ],
+                });
+            }, 400);
         } catch (error) {
-            Alert.alert('Could not save', momoErrorMessage(error, 'Try again.'));
+            showNotice('Could not save', momoErrorMessage(error, 'Try again.'));
         } finally {
             savingRef.current = false;
             setSavingCollect(false);
@@ -231,7 +261,7 @@ const SaleDetails = ({ navigation, route }) => {
         if (amt == null) return;
         const check = validateMomoNumberForProvider(momoPhone, momoProvider);
         if (!check.ok) {
-            Alert.alert('MoMo', check.message);
+            showNotice('Check the MoMo number', check.message, 'smartphone');
             return;
         }
         setMomoBusy(true);
@@ -250,7 +280,7 @@ const SaleDetails = ({ navigation, route }) => {
             const ref = res?.transaction_ref;
             if (!ref) {
                 setMomo(EMPTY_MOMO);
-                Alert.alert('MoMo', 'No payment reference returned.');
+                showNotice('MoMo not started', 'No payment reference was returned. Try again.');
                 return;
             }
             const face = Number(res?.face_amount) || amt;
@@ -275,7 +305,7 @@ const SaleDetails = ({ navigation, route }) => {
             });
         } catch (e) {
             setMomo(EMPTY_MOMO);
-            Alert.alert('MoMo', momoErrorMessage(e, 'Could not start MoMo payment.'));
+            showNotice('MoMo not started', momoErrorMessage(e, 'Could not start MoMo payment.'));
         } finally {
             setMomoBusy(false);
         }
@@ -299,7 +329,7 @@ const SaleDetails = ({ navigation, route }) => {
                 setMomo((m) => ({ ...m, status: v?.display_text || 'Still waiting for the customer to approve.' }));
             }
         } catch (e) {
-            if (!silent) Alert.alert('MoMo', momoErrorMessage(e, 'Could not check status.'));
+            if (!silent) showNotice('Could not check status', momoErrorMessage(e, 'Try again in a moment.'));
         } finally {
             momoCheckingRef.current = false;
             if (!silent) setMomoBusy(false);
@@ -309,7 +339,11 @@ const SaleDetails = ({ navigation, route }) => {
     const submitMomoOtp = async () => {
         const otp = momoOtp.trim();
         if (!momo.ref || !otp) {
-            Alert.alert('MoMo', isTelecelMomoProvider(momoProvider) ? 'Enter the voucher from *110#.' : 'Enter the OTP from the network.');
+            showNotice(
+                'Code required',
+                isTelecelMomoProvider(momoProvider) ? 'Enter the voucher from *110#.' : 'Enter the OTP from the network.',
+                'key-round',
+            );
             return;
         }
         setMomoBusy(true);
@@ -327,43 +361,40 @@ const SaleDetails = ({ navigation, route }) => {
                 }));
             }
         } catch (e) {
-            Alert.alert('MoMo', momoErrorMessage(e, 'Could not submit the code.'));
+            showNotice('Code not accepted', momoErrorMessage(e, 'Could not submit the code.'));
         } finally {
             setMomoBusy(false);
         }
     };
 
     const resendMomoPrompt = () => {
-        Alert.alert(
-            'Send a new prompt?',
-            'This cancels the open prompt. Only do this if the customer did not get it or it timed out.',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Send again',
-                    style: 'destructive',
-                    onPress: async () => {
-                        if (momo.ref) {
-                            try {
-                                await paymentsApi.posAbandon({ reference: momo.ref });
-                            } catch (e) {
-                                if (/already succeeded/i.test(String(momoErrorMessage(e, '')))) {
-                                    markMomoPaid(momo.ref, momo.face);
-                                    return;
-                                }
-                            }
+        const { ref, face } = momo;
+        showConfirm({
+            icon: 'refresh-cw',
+            title: 'Send a new prompt?',
+            message: 'This cancels the open prompt. Only do this if the customer did not get it or it timed out.',
+            confirmLabel: 'Send again',
+            destructive: true,
+            onConfirm: async () => {
+                if (ref) {
+                    try {
+                        await paymentsApi.posAbandon({ reference: ref });
+                    } catch (e) {
+                        if (/already succeeded/i.test(String(momoErrorMessage(e, '')))) {
+                            markMomoPaid(ref, face);
+                            return;
                         }
-                        sendMomoPrompt({ forceNew: true });
-                    },
-                },
-            ],
-        );
+                    }
+                }
+                sendMomoPrompt({ forceNew: true });
+            },
+        });
     };
 
     const selectCollectMethod = (m) => {
         if (m === collectMethod) return;
         if (momo.paid && momo.ref) {
-            Alert.alert('MoMo already received', 'Record the confirmed MoMo payment before switching method.');
+            showNotice('MoMo already received', 'Record the confirmed MoMo payment before switching method.', 'wallet');
             return;
         }
         if (momo.ref) {
@@ -414,8 +445,12 @@ const SaleDetails = ({ navigation, route }) => {
         try {
             await salesApi.create(item.payload);
             await removePendingSaleById(pendingId);
-            Alert.alert('Uploaded', 'Pending sale uploaded successfully.');
-            navigation.goBack();
+            showSuccess({
+                title: 'Sale uploaded',
+                message: 'This pending sale is now saved to your sales.',
+                primaryLabel: 'Back to sales',
+                onPrimary: () => navigation.goBack(),
+            });
         } catch (err) {
             const nowIso = new Date().toISOString();
             const nextItem = {
@@ -427,41 +462,37 @@ const SaleDetails = ({ navigation, route }) => {
             };
             setItem(nextItem);
             await updatePendingSale(pendingId, () => nextItem);
-            Alert.alert('Upload failed', nextItem.last_error_message || 'Could not upload this sale.');
+            showNotice('Upload failed', nextItem.last_error_message || 'Could not upload this sale.', 'cloud-off');
         }
     };
 
     const handleEditPendingSale = () => {
         const pendingId = item?.id;
-        Alert.alert(
-            'Edit pending sale',
-            'This will remove it from Pending Sales and open it in New Sale for editing.',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Edit',
-                    onPress: async () => {
-                        if (pendingId) await removePendingSaleById(pendingId);
-                        navigation.navigate('NewSale', { restorePendingSale: item });
-                    },
-                },
-            ],
-        );
+        showConfirm({
+            icon: 'pencil',
+            title: 'Edit pending sale?',
+            message: 'This will remove it from Pending Sales and open it in New Sale for editing.',
+            confirmLabel: 'Edit',
+            onConfirm: async () => {
+                if (pendingId) await removePendingSaleById(pendingId);
+                navigation.navigate('NewSale', { restorePendingSale: item });
+            },
+        });
     };
 
     const handleDeletePendingSale = () => {
         const pendingId = item?.id;
-        Alert.alert('Delete pending sale?', 'This will remove it from Pending Sales.', [
-            { text: 'Cancel', style: 'cancel' },
-            {
-                text: 'Delete',
-                style: 'destructive',
-                onPress: async () => {
-                    if (pendingId) await removePendingSaleById(pendingId);
-                    navigation.goBack();
-                },
+        showConfirm({
+            icon: 'trash-2',
+            title: 'Delete pending sale?',
+            message: 'This will remove it from Pending Sales.',
+            confirmLabel: 'Delete',
+            destructive: true,
+            onConfirm: async () => {
+                if (pendingId) await removePendingSaleById(pendingId);
+                navigation.goBack();
             },
-        ]);
+        });
     };
 
     const backPress = () => {
@@ -472,31 +503,32 @@ const SaleDetails = ({ navigation, route }) => {
         const id = saleId || item?.id;
         if (!id || isPendingUpload) return;
         const emailHint = item?.customer_email ? ` to ${item.customer_email}` : '';
-        Alert.alert(
-            'Resend invoice',
-            `Email invoice #${item?.invoice_number}${emailHint}?`,
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Resend',
-                    onPress: async () => {
-                        setResendingInvoice(true);
-                        try {
-                            const result = await salesApi.sendInvoice(
-                                id,
-                                item?.customer_email ? { email: item.customer_email } : {},
-                            );
-                            Alert.alert('Sent', `Invoice resent to ${result?.sent_to || item?.customer_email || 'customer'}.`);
-                        } catch (err) {
-                            const msg = err?.response?.data?.message || err?.message || 'Could not resend invoice.';
-                            Alert.alert('Resend failed', msg);
-                        } finally {
-                            setResendingInvoice(false);
-                        }
-                    },
-                },
-            ],
-        );
+        showConfirm({
+            icon: 'mail',
+            title: 'Resend invoice?',
+            message: `Email invoice #${item?.invoice_number}${emailHint}?`,
+            confirmLabel: 'Resend',
+            onConfirm: async () => {
+                setResendingInvoice(true);
+                try {
+                    const result = await salesApi.sendInvoice(
+                        id,
+                        item?.customer_email ? { email: item.customer_email } : {},
+                    );
+                    showSuccess({
+                        icon: 'mail-check',
+                        title: 'Invoice sent',
+                        message: `Invoice resent to ${result?.sent_to || item?.customer_email || 'customer'}.`,
+                        primaryLabel: 'Done',
+                    });
+                } catch (err) {
+                    const msg = err?.response?.data?.message || err?.message || 'Could not resend invoice.';
+                    showNotice('Resend failed', msg);
+                } finally {
+                    setResendingInvoice(false);
+                }
+            },
+        });
     };
 
     const handleCallCustomer = async () => {
@@ -508,13 +540,38 @@ const SaleDetails = ({ navigation, route }) => {
             if (supported) {
                 await Linking.openURL(url);
             } else {
-                Alert.alert('Call', 'This device cannot make phone calls.');
+                showNotice('Calls not available', 'This device cannot make phone calls.', 'phone-off');
             }
         } catch (err) {
-            const msg = err?.message || 'Failed to start the call.';
-            Alert.alert('Error', msg);
+            showNotice('Call failed', err?.message || 'Failed to start the call.', 'phone-off');
         }
     };
+
+    const dialogs = (
+        <>
+            <ConfirmDialog
+                visible={dialog?.type === 'confirm'}
+                icon={dialog?.icon || 'circle-alert'}
+                title={dialog?.title || ''}
+                message={dialog?.message}
+                cancelLabel={dialog?.cancelLabel || 'Cancel'}
+                confirmLabel={dialog?.confirmLabel || 'OK'}
+                destructive={!!dialog?.destructive}
+                hideCancel={!!dialog?.hideCancel}
+                onCancel={() => handleDialogAction('onCancel')}
+                onConfirm={() => handleDialogAction('onConfirm')}
+            />
+            <SuccessDialog
+                visible={dialog?.type === 'success'}
+                icon={dialog?.icon || 'check'}
+                title={dialog?.title || ''}
+                message={dialog?.message}
+                details={dialog?.details}
+                primaryLabel={dialog?.primaryLabel || 'Done'}
+                onPrimary={() => handleDialogAction('onPrimary')}
+            />
+        </>
+    );
 
     const DetailSection = ({ title, children }) => (
         <View style={[styles.section, { backgroundColor: colors.surface }]}>
@@ -1009,7 +1066,9 @@ const SaleDetails = ({ navigation, route }) => {
                     </TouchableOpacity>
                 )}
                 </View>
+                {showCollectModal ? dialogs : null}
             </AppModal>
+            {!showCollectModal ? dialogs : null}
 
             <InvoiceShareSheet
                 visible={showInvoiceShare}
