@@ -82,10 +82,13 @@ const PaymentWebView = ({ navigation, route }) => {
                 {
                     text: 'OK',
                     onPress: () => {
-                        if (successNavigateTo) {
+                        if (successNavigateTo === 'MyOrderDetails') {
+                            // Replace so Back from order details doesn't land on the gateway page.
+                            navigation.replace(successNavigateTo, successNavigateParams || {});
+                        } else if (successNavigateTo) {
                             navigation.navigate(successNavigateTo, successNavigateParams || {});
                         } else if (orderId) {
-                            navigation.navigate('MyOrderDetails', { orderId });
+                            navigation.replace('MyOrderDetails', { orderId });
                         } else {
                             navigation.goBack();
                         }
@@ -127,7 +130,7 @@ const PaymentWebView = ({ navigation, route }) => {
                     text: 'OK',
                     onPress: () => {
                         if (orderId) {
-                            navigation.navigate('MyOrderDetails', { orderId });
+                            navigation.replace('MyOrderDetails', { orderId });
                         } else {
                             navigation.goBack();
                         }
