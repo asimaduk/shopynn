@@ -13,6 +13,16 @@ export const getAllProductsCountService = async (user) => {
     return {count: 0}
 }
 
+const CATALOG_SOLD_COUNT_SQL = `(
+            SELECT COALESCE(SUM(oi.quantity), 0)::float8
+            FROM order_items oi
+            JOIN orders o ON o.id = oi.order_id AND o.tenant_id = oi.tenant_id
+            WHERE oi.product_id = p.id
+              AND oi.tenant_id = p.tenant_id
+              AND oi.warehouse_id = inv.warehouse_id
+              AND lower(coalesce(o.status, '')) <> 'cancelled'
+        ) AS sold_count`;
+
 export const getCatalogService = async (user, queryParams = {}) => {
     const warehouseId = queryParams.warehouse_id || queryParams.warehouseId;
     if (!warehouseId) throw new Error("warehouse_id is required.");
@@ -45,7 +55,8 @@ export const getCatalogService = async (user, queryParams = {}) => {
             p.id, p.name, p.sku, p.unit_price, p.alt_price, p.actual_cost, p.thumbnail, p.slug,
             p.product_type, p.measurement_unit, p.allows_fractional_qty, p.min_order_qty, p.qty_step,
             p.installment_enabled, p.installment_min_initial_percent, p.installment_min_payment_amount,
-            inv.quantity_available, inv.warehouse_id, w.name AS warehouse_name
+            inv.quantity_available, inv.warehouse_id, w.name AS warehouse_name,
+            ${CATALOG_SOLD_COUNT_SQL}
          FROM products p
          JOIN inventories inv ON inv.product_id = p.id AND inv.tenant_id = p.tenant_id
          LEFT JOIN warehouses w ON w.id = inv.warehouse_id
@@ -81,7 +92,8 @@ export const getCatalogProductByIdService = async (user, productId, queryParams 
             p.product_type, p.measurement_unit, p.allows_fractional_qty, p.min_order_qty, p.qty_step,
             p.description, p.picture1, p.picture2, p.picture3, p.picture4,
             p.installment_enabled, p.installment_min_initial_percent, p.installment_min_payment_amount,
-            inv.quantity_available, inv.warehouse_id, w.name AS warehouse_name
+            inv.quantity_available, inv.warehouse_id, w.name AS warehouse_name,
+            ${CATALOG_SOLD_COUNT_SQL}
          FROM products p
          JOIN inventories inv ON inv.product_id = p.id AND inv.tenant_id = p.tenant_id
          LEFT JOIN warehouses w ON w.id = inv.warehouse_id
