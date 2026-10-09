@@ -1851,13 +1851,6 @@ export const recordSalePaymentService = async (user, saleId, body = {}) => {
             err.code = "SALE_NOT_FOUND";
             throw err;
         }
-        if (sale.is_active === false) {
-            const err = new Error("This sale has been deleted. Payments can no longer be recorded on it.");
-            err.status = 409;
-            err.code = "SALE_DELETED";
-            throw err;
-        }
-
         const clientRequestId = String(body.client_request_id || "").trim().slice(0, 100) || null;
         if (clientRequestId) {
             const dupRes = await client.query(
