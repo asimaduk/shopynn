@@ -685,7 +685,7 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     },
     cta: {
-        borderRadius: 14,
+        borderRadius: 999,
         alignItems: 'center',
         paddingVertical: 15,
     },

@@ -376,14 +376,14 @@ const styles = StyleSheet.create({
     voucherButton: {
         marginTop: 12,
         paddingVertical: 12,
-        borderRadius: 5,
+        borderRadius: 999,
         borderWidth: 1,
         alignItems: 'center',
     },
     actionButton: {
         width: '100%',
         paddingVertical: 16,
-        borderRadius: 5,
+        borderRadius: 999,
         alignItems: 'center',
         marginTop: 32,
     },

@@ -145,12 +145,12 @@ const styles = StyleSheet.create({
 		gap: 10,
 	},
 	primaryBtn: {
-		borderRadius: 10,
+		borderRadius: 999,
 		paddingVertical: 13,
 		alignItems: 'center',
 	},
 	secondaryBtn: {
-		borderRadius: 10,
+		borderRadius: 999,
 		paddingVertical: 13,
 		alignItems: 'center',
 		borderWidth: 1,

@@ -807,7 +807,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 18,
         paddingVertical: 12,
-        borderRadius: 12,
+        borderRadius: 999,
     },
     masonryRow: {
         flexDirection: 'row',
@@ -855,7 +855,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 20,
         paddingVertical: 14,
-        borderRadius: 12,
+        borderRadius: 999,
     },
 });
 
