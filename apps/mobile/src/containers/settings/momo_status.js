@@ -157,15 +157,17 @@ const MomoStatus = ({ navigation, route }) => {
     };
 
     const getStatusConfig = () => {
-        const title = mode === 'order' ? 'Order Payment Status' : 'Plan Payment Status';
         switch (status) {
             case 'success':
                 return {
                     icon: 'circle-check',
                     iconColor: '#10b981',
                     bgColor: '#dcfce7',
-                    title: `${title} Successful`,
-                    message: 'Your payment has been processed successfully!',
+                    title: 'Payment successful',
+                    message:
+                        mode === 'order'
+                            ? 'Your order has been paid. The store will be notified.'
+                            : 'Your payment has been processed successfully.',
                     buttonLabel: 'Done',
                     buttonAction: () => {
                         if (mode === 'order') {
@@ -185,7 +187,7 @@ const MomoStatus = ({ navigation, route }) => {
                     icon: 'clock',
                     iconColor: '#f59e0b',
                     bgColor: '#fef3c7',
-                    title: 'Payment Pending',
+                    title: 'Payment pending',
                     message: isTelecel
                         ? 'If payment is still waiting, dial *110#, enter your voucher below, then check again.'
                         : 'Your payment is still being processed. Please check again in a few moments.',
@@ -197,7 +199,7 @@ const MomoStatus = ({ navigation, route }) => {
                     icon: 'x-circle',
                     iconColor: '#ef4444',
                     bgColor: '#fee2e2',
-                    title: 'Payment Failed',
+                    title: 'Payment failed',
                     message: 'Your payment could not be processed. Please try again.',
                     buttonLabel: 'Try Again',
                     buttonAction: handleTryAgain,
@@ -207,7 +209,7 @@ const MomoStatus = ({ navigation, route }) => {
                     icon: 'loader',
                     iconColor: config.THEME_COLOR,
                     bgColor: colors.primaryShade,
-                    title: 'Checking Status',
+                    title: 'Checking payment',
                     message: 'Please wait while we check your payment status...',
                     buttonLabel: null,
                     buttonAction: null,
@@ -217,7 +219,9 @@ const MomoStatus = ({ navigation, route }) => {
 
     const statusConfig = getStatusConfig();
     const getNetworkName = () => {
-        return momoNetwork?.charAt(0).toUpperCase() + momoNetwork?.slice(1) || 'Mobile Money';
+        const names = { mtn: 'MTN', telecel: 'Telecel', airteltigo: 'AirtelTigo' };
+        const key = String(momoNetwork || '').toLowerCase();
+        return names[key] || (key ? key.charAt(0).toUpperCase() + key.slice(1) : 'Mobile Money');
     };
 
     return (
@@ -241,7 +245,7 @@ const MomoStatus = ({ navigation, route }) => {
                         variant={1}
                         fontSize={24}
                         color={colors.text}
-                        style={{ marginTop: 24 }}
+                        style={{ marginTop: 24, textAlign: 'center', paddingHorizontal: 24 }}
                     />
                     <AppText
                         label={statusConfig.message}
