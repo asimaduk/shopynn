@@ -1910,6 +1910,16 @@ export const recordSalePaymentService = async (user, saleId, body = {}) => {
                 err.code = "MOMO_PAYMENT_REQUIRED";
                 throw err;
             }
+            const usedRes = await client.query(
+                `SELECT sale_id FROM payments WHERE transaction_ref = $1 AND tenant_id = $2 FOR UPDATE`,
+                [txRef, tenantId]
+            );
+            if (usedRes.rows[0]?.sale_id) {
+                const err = new Error("This MoMo payment has already been recorded against a sale.");
+                err.status = 409;
+                err.code = "PAYMENT_ALREADY_LINKED";
+                throw err;
+            }
             await linkPosPaymentToSaleService({
                 client,
                 transaction_ref: txRef,
@@ -1957,9 +1967,9 @@ export const recordSalePaymentService = async (user, saleId, body = {}) => {
              SET amount_paid = $1,
                  balance_due = $2,
                  payment_status = $3,
-                 payment_type = COALESCE($4, payment_type),
-                 payment_number = COALESCE($5, payment_number),
-                 payment_reference = COALESCE($6, payment_reference),
+                 payment_type = COALESCE(payment_type, $4),
+                 payment_number = COALESCE(payment_number, $5),
+                 payment_reference = COALESCE(payment_reference, $6),
                  payment_date = COALESCE(payment_date, $7),
                  updated_at = $7
              WHERE id = $8 AND tenant_id = $9
@@ -1968,7 +1978,7 @@ export const recordSalePaymentService = async (user, saleId, body = {}) => {
                 newPaid,
                 newBalance,
                 paymentStatus,
-                payType,
+                resolvedMethod === "store_credit" ? null : payType,
                 body.payment_number || null,
                 body.payment_reference || body.payment_transaction_ref || null,
                 new Date(),
