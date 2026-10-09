@@ -210,13 +210,25 @@ const Cart = ({ navigation }) => {
 
     const renderSuggestions = () => (
         <View style={{ marginTop: items.length ? 8 : 28 }}>
-            <AppText
-                label={items.length ? 'You may also like' : 'You may like'}
-                variant={1}
-                color={colors.text}
-                fontSize={15}
-                style={{ marginBottom: 12 }}
-            />
+            <View style={styles.suggestHeader}>
+                <View style={[styles.suggestIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                    <Lucide name="sparkles" size={15} color={config.THEME_COLOR} />
+                </View>
+                <View style={{ flex: 1 }}>
+                    <AppText
+                        label={items.length ? 'You may also like' : 'You may like'}
+                        variant={1}
+                        color={colors.text}
+                        fontSize={15}
+                    />
+                    <AppText
+                        label="Popular picks from this store"
+                        color={colors.textTertiary}
+                        fontSize={12}
+                        style={{ marginTop: 1 }}
+                    />
+                </View>
+            </View>
             {suggestionsLoading ? (
                 <View style={{ alignItems: 'center', paddingVertical: 20 }}>
                     <Lucide name="loader-circle" size={22} color={config.THEME_COLOR} />
@@ -483,38 +495,57 @@ const Cart = ({ navigation }) => {
                     );
                 }}
                 ListEmptyComponent={() => (
-                    <View style={{ paddingTop: 28 }}>
-                        <View style={styles.emptyWrap}>
+                    <View style={{ paddingTop: 12 }}>
+                        <View
+                            style={[
+                                styles.emptyCard,
+                                {
+                                    backgroundColor: colors.primaryShade,
+                                    borderColor: `${config.THEME_COLOR}26`,
+                                },
+                            ]}
+                        >
                             <View
-                                style={[
-                                    styles.emptyIcon,
-                                    { backgroundColor: `${config.THEME_COLOR}14` },
-                                ]}
-                            >
-                                <Lucide name="shopping-bag" size={28} color={config.THEME_COLOR} />
+                                pointerEvents="none"
+                                style={[styles.emptyBlobLarge, { backgroundColor: `${config.THEME_COLOR}12` }]}
+                            />
+                            <View
+                                pointerEvents="none"
+                                style={[styles.emptyBlobSmall, { backgroundColor: `${config.THEME_COLOR}1A` }]}
+                            />
+                            <View style={[styles.emptyIcon, { backgroundColor: colors.surface }]}>
+                                <Lucide name="shopping-bag" size={30} color={config.THEME_COLOR} />
+                                <View style={[styles.emptyBadge, { borderColor: colors.surface }]}>
+                                    <AppText label="0" color="#fff" variant={1} fontSize={11} />
+                                </View>
                             </View>
                             <AppText
                                 label="Your cart is empty"
                                 variant={1}
-                                fontSize={18}
+                                fontSize={19}
                                 color={colors.text}
-                                style={{ marginTop: 14 }}
+                                style={{ marginTop: 16 }}
                             />
                             <AppText
-                                label="Browse products and add items to get started."
+                                label="Add items from the store and they'll show up here, ready for checkout."
                                 fontSize={13}
                                 color={colors.textSecondary}
-                                style={{ marginTop: 6, textAlign: 'center', paddingHorizontal: 24 }}
+                                style={styles.emptySubtitle}
                             />
                             <TouchableOpacity
                                 activeOpacity={0.85}
                                 onPress={() => navigation.navigate('ForYou')}
                                 style={[styles.browseBtn, { backgroundColor: config.THEME_COLOR }]}
                             >
-                                <AppText label="Browse products" color="#fff" variant={1} fontSize={14} />
-                                <View style={{ marginLeft: 6 }}>
-                                    <Lucide name="arrow-right" size={16} color="#fff" />
-                                </View>
+                                <Lucide name="store" size={16} color="#fff" />
+                                <AppText
+                                    label="Start shopping"
+                                    color="#fff"
+                                    variant={1}
+                                    fontSize={14}
+                                    style={{ marginHorizontal: 8 }}
+                                />
+                                <Lucide name="arrow-right" size={16} color="#fff" />
                             </TouchableOpacity>
                         </View>
                         {renderSuggestions()}
@@ -634,16 +665,74 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         marginLeft: 'auto',
     },
-    emptyWrap: {
+    emptyCard: {
         alignItems: 'center',
-        paddingHorizontal: 12,
+        borderRadius: 20,
+        borderWidth: 1,
+        paddingHorizontal: 20,
+        paddingTop: 28,
+        paddingBottom: 24,
+        overflow: 'hidden',
+    },
+    emptyBlobLarge: {
+        position: 'absolute',
+        width: 180,
+        height: 180,
+        borderRadius: 90,
+        top: -70,
+        right: -60,
+    },
+    emptyBlobSmall: {
+        position: 'absolute',
+        width: 90,
+        height: 90,
+        borderRadius: 45,
+        bottom: -30,
+        left: -24,
     },
     emptyIcon: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
+        width: 72,
+        height: 72,
+        borderRadius: 22,
         alignItems: 'center',
         justifyContent: 'center',
+        shadowColor: '#0f172a',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+        elevation: 4,
+    },
+    emptyBadge: {
+        position: 'absolute',
+        top: -6,
+        right: -6,
+        minWidth: 22,
+        height: 22,
+        borderRadius: 11,
+        borderWidth: 2,
+        backgroundColor: '#94a3b8',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 4,
+    },
+    emptySubtitle: {
+        marginTop: 6,
+        textAlign: 'center',
+        lineHeight: 19,
+        paddingHorizontal: 12,
+    },
+    suggestHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    suggestIcon: {
+        width: 30,
+        height: 30,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 10,
     },
     browseBtn: {
         marginTop: 18,
