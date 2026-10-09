@@ -1352,7 +1352,7 @@ const NewSale = ({ navigation, route }) => {
                     id: Date.now(),
                     total_amount: saleTotal,
                     discount_amount: discountTotal,
-                    invoice_number: invoiceNumber,
+                    invoice_number: created?.invoice_number || created?.data?.invoice_number || invoiceNumber,
                     current_status: 1,
                     customer_id: selectedCustomer?.id ?? null,
                     customer: selectedCustomer?.name || 'Walk-in',
@@ -1436,7 +1436,7 @@ const NewSale = ({ navigation, route }) => {
 
             const saleForInvoice = {
                 id: created?.id || created?.data?.id,
-                invoice_number: invoiceNumber,
+                invoice_number: created?.invoice_number || created?.data?.invoice_number || invoiceNumber,
                 created_at: new Date().toISOString(),
                 customer: selectedCustomer?.name || 'Walk-in',
                 customer_email: selectedCustomer?.email || '',

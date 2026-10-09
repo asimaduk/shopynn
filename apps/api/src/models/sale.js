@@ -24,6 +24,23 @@ import { applyStoreCreditEntry, getCustomerStoreCredit } from "./storeCredit.js"
  * App-signup shoppers are listed with customer_profiles.id; map to (or create) a POS customers row
  * linked via customers.customer_profile_id.
  */
+/**
+ * sales.invoice_number is globally unique, but devices number invoices locally (INV-M-1001…),
+ * so reinstalls / other devices collide. Keep the requested number when free, else suffix it.
+ */
+async function resolveUniqueInvoiceNumber(client, invoiceNumber) {
+    const base = String(invoiceNumber ?? "").trim();
+    if (!base) return invoiceNumber ?? null;
+    const taken = async (candidate) =>
+        (await client.query(`SELECT 1 FROM sales WHERE invoice_number = $1 LIMIT 1`, [candidate])).rowCount > 0;
+    if (!(await taken(base))) return base;
+    for (let n = 2; n <= 50; n += 1) {
+        const candidate = `${base}-${n}`.slice(0, 40);
+        if (!(await taken(candidate))) return candidate;
+    }
+    return `${base.slice(0, 30)}-${Date.now().toString(36)}`.slice(0, 40);
+}
+
 async function resolvePosCustomerIdForSale(client, tenantId, customerId) {
     if (customerId == null || String(customerId).trim() === "") return null;
     const id = String(customerId).trim();
@@ -1622,6 +1639,8 @@ export const createSaleService = async (payload) => {
             throw err;
         }
 
+        const finalInvoiceNumber = await resolveUniqueInvoiceNumber(client, invoice_number);
+
         const result = await client.query(`
             INSERT INTO sales (
                 id, number_of_items, total_amount, discount_amount, tenant_id, invoice_number, current_status,
@@ -1636,7 +1655,7 @@ export const createSaleService = async (payload) => {
                 total_amount,
                 expectedDiscount,
                 tenant_id,
-                invoice_number,
+                finalInvoiceNumber,
                 current_status || 1,
                 customer_id,
                 warehouse_id,
@@ -1777,6 +1796,7 @@ export const createSaleService = async (payload) => {
         await client.query('COMMIT');
         return {
             id: result.rows[0].id,
+            invoice_number: finalInvoiceNumber,
             amount_paid: credit.amountPaid,
             balance_due: credit.balanceDue,
             payment_status: credit.paymentStatus,
