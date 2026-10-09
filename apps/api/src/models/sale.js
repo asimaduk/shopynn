@@ -1840,7 +1840,7 @@ export const recordSalePaymentService = async (user, saleId, body = {}) => {
         await client.query("BEGIN");
 
         const saleRes = await client.query(
-            `SELECT id, tenant_id, customer_id, total_amount, amount_paid, balance_due, payment_status, is_active
+            `SELECT id, tenant_id, customer_id, total_amount, amount_paid, balance_due, payment_status
              FROM sales WHERE id = $1 AND tenant_id = $2 FOR UPDATE`,
             [saleId, tenantId]
         );
