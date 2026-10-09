@@ -1245,7 +1245,21 @@ export const initiateOrderPaymentService = async (user, orderId, body = {}) => {
         provider,
     };
 
-    const result = await initiateCheckout(payload);
+    let result;
+    try {
+        result = await initiateCheckout(payload);
+    } catch (gatewayErr) {
+        // The charge never started; don't leave the order looking like a payment is in flight.
+        await updatePaymentStatusByTransactionRefService(transaction_ref, "failed").catch(() => {});
+        await pool
+            .query(
+                `UPDATE orders SET payment_status = 'failed', updated_at = now()
+                 WHERE id = $1 AND tenant_id = $2 AND payment_status = 'pending'`,
+                [orderId, user.tenant_id]
+            )
+            .catch(() => {});
+        throw gatewayErr;
+    }
 
     if (payment_method_type === "mobile_money") {
         return {
