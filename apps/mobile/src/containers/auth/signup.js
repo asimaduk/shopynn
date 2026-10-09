@@ -12,6 +12,7 @@ import {
     View,
     Dimensions,
     Image,
+    Keyboard,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
@@ -218,6 +219,7 @@ const CustomerSignup = ({ navigation }) => {
                 <ScrollView
                     contentContainerStyle={styles.content}
                     keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="on-drag"
                     showsVerticalScrollIndicator={false}
                 >
                     <View style={[styles.brandStrip, { backgroundColor: config.THEME_COLOR }]}>
@@ -351,9 +353,12 @@ const CustomerSignup = ({ navigation }) => {
                                     icon: 'smartphone',
                                     value: phone,
                                     onChangeText: (v) => {
-                                        setPhone(String(v || '').replace(/\D/g, '').slice(0, 10));
+                                        const next = String(v || '').replace(/\D/g, '').slice(0, 10);
+                                        setPhone(next);
                                         setOtpSent(false);
                                         setSessionToken(null);
+                                        // phone-pad has no return key on iOS; close it so "Send code" isn't covered.
+                                        if (next.length === 10) Keyboard.dismiss();
                                     },
                                     placeholder: '024 XXX XXXX',
                                     keyboardType: 'phone-pad',
@@ -364,7 +369,11 @@ const CustomerSignup = ({ navigation }) => {
                                         {renderLineInput({
                                             icon: 'shield-check',
                                             value: otp,
-                                            onChangeText: (v) => setOtp(String(v || '').replace(/\D/g, '').slice(0, 6)),
+                                            onChangeText: (v) => {
+                                                const next = String(v || '').replace(/\D/g, '').slice(0, 6);
+                                                setOtp(next);
+                                                if (next.length === 6) Keyboard.dismiss();
+                                            },
                                             placeholder: '6-digit code',
                                             keyboardType: 'number-pad',
                                             maxLength: 6,

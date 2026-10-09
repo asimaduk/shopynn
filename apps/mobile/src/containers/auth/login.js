@@ -14,6 +14,7 @@ import {
     StatusBar,
     Image,
     Animated,
+    Keyboard,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
@@ -799,6 +800,7 @@ const Login = ({ navigation, route }) => {
                                                 const digits = String(value || '').replace(/\D/g, '').slice(0, 10);
                                                 setPhone(digits);
                                                 if (loginError) setLoginError('');
+                                                if (digits.length === 10) Keyboard.dismiss();
                                             }}
                                             keyboardType="phone-pad"
                                             autoComplete="tel"
@@ -821,9 +823,11 @@ const Login = ({ navigation, route }) => {
                                                 placeholder="6-digit code"
                                                 placeholderTextColor={colors.placeholder}
                                                 value={phoneOtp}
-                                                onChangeText={(value) =>
-                                                    setPhoneOtp(String(value || '').replace(/\D/g, '').slice(0, 6))
-                                                }
+                                                onChangeText={(value) => {
+                                                    const digits = String(value || '').replace(/\D/g, '').slice(0, 6);
+                                                    setPhoneOtp(digits);
+                                                    if (digits.length === 6) Keyboard.dismiss();
+                                                }}
                                                 keyboardType="number-pad"
                                                 maxLength={6}
                                                 editable={!loading}
