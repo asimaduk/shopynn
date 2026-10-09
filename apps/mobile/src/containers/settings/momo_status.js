@@ -48,32 +48,27 @@ const MomoStatus = ({ navigation, route }) => {
     const [submittingVoucher, setSubmittingVoucher] = useState(false);
     const isTelecel = momoNetwork === 'telecel' || needsVoucher;
 
+    // This screen must leave the stack: React Navigation 7's navigate() pushes a new copy
+    // instead of returning to an existing route, which made Back loop between the two.
     const goToOrderDetails = useCallback(() => {
-        // Use navigate (not replace) so we return to an existing MyOrderDetails
-        // instead of stacking a second copy on top of it.
-        navigation.navigate(
-            successNavigateTo || 'MyOrderDetails',
-            successNavigateParams || { orderId },
-        );
+        const target = successNavigateTo || 'MyOrderDetails';
+        const params = successNavigateParams || { orderId };
+        const routes = navigation.getState?.()?.routes || [];
+        const existsBelow = routes.slice(0, -1).some((r) => r?.name === target);
+        if (existsBelow) {
+            navigation.popTo(target, params);
+        } else {
+            navigation.replace(target, params);
+        }
     }, [navigation, successNavigateTo, successNavigateParams, orderId]);
 
     const handleHeaderBack = useCallback(() => {
         if (mode === 'order' && orderId) {
-            // Prefer popping back when order details is already under this screen.
-            const state = navigation.getState?.();
-            const routes = state?.routes || [];
-            const hasOrderDetailsBelow = routes
-                .slice(0, -1)
-                .some((r) => r?.name === (successNavigateTo || 'MyOrderDetails'));
-            if (hasOrderDetailsBelow && navigation.canGoBack()) {
-                navigation.goBack();
-                return;
-            }
             goToOrderDetails();
             return;
         }
         navigation.goBack();
-    }, [mode, orderId, goToOrderDetails, navigation, successNavigateTo]);
+    }, [mode, orderId, goToOrderDetails, navigation]);
 
     useFocusEffect(
         useCallback(() => {

@@ -68,6 +68,16 @@ const PaymentWebView = ({ navigation, route }) => {
 
     const expectedRef = paymentReference || null;
 
+    // Leave the gateway page out of the stack; return to an existing order details screen if there is one.
+    const leaveToOrderDetails = (params) => {
+        const routes = navigation.getState?.()?.routes || [];
+        if (routes.slice(0, -1).some((r) => r?.name === 'MyOrderDetails')) {
+            navigation.popTo('MyOrderDetails', params);
+        } else {
+            navigation.replace('MyOrderDetails', params);
+        }
+    };
+
     const finishSuccess = () => {
         if (verifiedRef.current) return;
         verifiedRef.current = true;
@@ -83,12 +93,11 @@ const PaymentWebView = ({ navigation, route }) => {
                     text: 'OK',
                     onPress: () => {
                         if (successNavigateTo === 'MyOrderDetails') {
-                            // Replace so Back from order details doesn't land on the gateway page.
-                            navigation.replace(successNavigateTo, successNavigateParams || {});
+                            leaveToOrderDetails(successNavigateParams || { orderId });
                         } else if (successNavigateTo) {
                             navigation.navigate(successNavigateTo, successNavigateParams || {});
                         } else if (orderId) {
-                            navigation.replace('MyOrderDetails', { orderId });
+                            leaveToOrderDetails({ orderId });
                         } else {
                             navigation.goBack();
                         }
@@ -130,7 +139,7 @@ const PaymentWebView = ({ navigation, route }) => {
                     text: 'OK',
                     onPress: () => {
                         if (orderId) {
-                            navigation.replace('MyOrderDetails', { orderId });
+                            leaveToOrderDetails({ orderId });
                         } else {
                             navigation.goBack();
                         }
