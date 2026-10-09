@@ -279,11 +279,28 @@ export const initiatePayment = async (req, res, next) => {
 
         const result = await initiateCheckout(payload);
 
+        let chargeStatus = result.status;
+        if (payment_method_type === "mobile_money" && chargeStatus === "success") {
+            // Charge API can approve synchronously; confirm with the gateway so the sale can link without waiting for the webhook.
+            try {
+                const verified = await verifyTransaction(transaction_ref);
+                if (verified?.status === "success") {
+                    await updatePaymentStatusByTransactionRefService(transaction_ref, "success");
+                    await applyPaymentGatewaySuccess(transaction_ref, tenant_id);
+                } else {
+                    chargeStatus = verified?.status || "pending";
+                }
+            } catch (verifyErr) {
+                console.error("[payments/initiate] instant success verify failed", transaction_ref, verifyErr?.message);
+                chargeStatus = "pending";
+            }
+        }
+
         if (payment_method_type === "mobile_money") {
             handleResponse(res, 200, "Mobile money charge initiated.", {
                 transaction_ref: result.reference,
                 payment_id,
-                status: result.status,
+                status: chargeStatus,
                 display_text: result.display_text ?? undefined,
                 ussd_code: result.ussd_code ?? undefined,
                 reused: false,

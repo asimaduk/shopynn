@@ -904,7 +904,9 @@ const NewSale = ({ navigation, route }) => {
                 }));
                 setMomoNeedsOtp(false);
                 setMomoStatusText(
-                    res?.display_text || `Previous MoMo payment already confirmed. ${completeLabel}.`,
+                    res?.reused
+                        ? res?.display_text || `Previous MoMo payment already confirmed. ${completeLabel}.`
+                        : `MoMo payment confirmed. ${completeLabel}.`,
                 );
                 return;
             }
