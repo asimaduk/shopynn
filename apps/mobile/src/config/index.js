@@ -1,11 +1,10 @@
 // Railway production API (paths are relative to /api).
 const RAILWAY_API = 'https://shopynn-production.up.railway.app/api';
-// Security: use HTTPS for production-test / production release builds.
-const PRODUCTION_TEST_API = RAILWAY_API;
-// Emulator/simulator: adb reverse / iOS localhost → host API.
-// Physical device: use your machine LAN IP, e.g. http://192.168.x.x:4001/api
+// Emulator/simulator local API (adb reverse / iOS localhost → host).
+// Physical device: use machine LAN IP, e.g. http://192.168.x.x:4001/api
 const LOCAL_DEV_API = 'http://127.0.0.1:4001/api';
-const BASE_API = __DEV__ ? LOCAL_DEV_API : PRODUCTION_TEST_API;
+// Point mobile at Railway (use LOCAL_DEV_API for local API work).
+const BASE_API = RAILWAY_API;
 
 export default {
     test: "test",

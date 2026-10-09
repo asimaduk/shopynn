@@ -14,7 +14,14 @@ const app = express();
 const port = Number(process.env.PORT || process.env.APP_PORT || 4000);
 
 //middlewares
-app.use(express.json());
+// Keep the raw body: Paystack webhook signatures are computed over the exact bytes.
+app.use(
+    express.json({
+        verify: (req, _res, buf) => {
+            req.rawBody = buf;
+        },
+    })
+);
 app.use(cors());
 
 // health (Railway / load balancers)

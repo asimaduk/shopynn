@@ -473,7 +473,13 @@ export const paymentWebhook = async (req, res, next) => {
         const crypto = await import("crypto");
         const secret = process.env.PAYSTACK_SECRET_KEY;
         const signature = req.headers["x-paystack-signature"];
-        const rawBody = Buffer.isBuffer(req.body) ? req.body : typeof req.body === "string" ? Buffer.from(req.body) : null;
+        const rawBody = Buffer.isBuffer(req.rawBody)
+            ? req.rawBody
+            : Buffer.isBuffer(req.body)
+              ? req.body
+              : typeof req.body === "string"
+                ? Buffer.from(req.body)
+                : null;
         if (!rawBody || !signature || !secret) {
             res.status(400).send("Bad request");
             return;
