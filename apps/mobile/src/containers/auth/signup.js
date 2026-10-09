@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -51,6 +51,8 @@ const CustomerSignup = ({ navigation }) => {
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
     const [signupDone, setSignupDone] = useState(false);
+    const [codeSentNotice, setCodeSentNotice] = useState(null);
+    const otpInputRef = useRef(null);
 
     useFocusEffect(
         useCallback(() => {
@@ -103,10 +105,12 @@ const CustomerSignup = ({ navigation }) => {
                 if (n.startsWith('233') && n.length >= 12) n = `0${n.slice(3)}`;
                 setPhone(n.slice(0, 10));
             }
-            Alert.alert(
-                'Code sent',
-                data?.dev_code ? `Dev code: ${data.dev_code}` : 'Enter the SMS code we sent to your phone.'
-            );
+            Keyboard.dismiss();
+            setCodeSentNotice({
+                message: data?.dev_code
+                    ? `SMS isn't set up yet. Use dev code ${data.dev_code}.`
+                    : 'We sent a 6-digit code by SMS. Enter it to verify your number.',
+            });
         } catch (error) {
             const msg = error?.response?.data?.message || error?.message || 'Could not send code.';
             Alert.alert('Could not send code', msg);
@@ -177,11 +181,13 @@ const CustomerSignup = ({ navigation }) => {
         autoCapitalize = 'none',
         maxLength,
         containerStyle,
+        inputRef,
     }) => (
         <View style={[styles.fieldGroup, containerStyle]}>
             <View style={[styles.inputRow, { borderBottomColor: colors.border }]}>
                 <Lucide name={icon} size={18} color={colors.placeholder} style={styles.inputIcon} />
                 <TextInput
+                    ref={inputRef}
                     style={[styles.input, { color: colors.text }]}
                     value={value}
                     onChangeText={onChangeText}
@@ -357,6 +363,7 @@ const CustomerSignup = ({ navigation }) => {
                                     <>
                                         {renderLineInput({
                                             icon: 'shield-check',
+                                            inputRef: otpInputRef,
                                             value: otp,
                                             onChangeText: (v) => {
                                                 const next = String(v || '').replace(/\D/g, '').slice(0, 6);
@@ -477,6 +484,19 @@ const CustomerSignup = ({ navigation }) => {
                     </View>
                 </ScrollView>
             </SafeAreaView>
+            <SuccessDialog
+                visible={!!codeSentNotice}
+                tone="primary"
+                icon="message-square-text"
+                title="Code sent"
+                message={codeSentNotice?.message}
+                details={[{ icon: 'smartphone', label: 'Sent to', value: phone }]}
+                primaryLabel="Enter code"
+                onPrimary={() => {
+                    setCodeSentNotice(null);
+                    setTimeout(() => otpInputRef.current?.focus(), 250);
+                }}
+            />
             <SuccessDialog
                 visible={signupDone}
                 title="You're all set"

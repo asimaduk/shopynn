@@ -21,6 +21,7 @@ import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { useDispatch } from 'react-redux';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
+import SuccessDialog from '../../components/SuccessDialog';
 import config from '../../config';
 import { SET_USER, SET_LOGGED_IN } from '../../store/actions/user';
 import { registerPushAfterLogin } from '../../utils/pushNotifications';
@@ -99,6 +100,8 @@ const Login = ({ navigation, route }) => {
     const [phoneDevCode, setPhoneDevCode] = useState(null);
     const [phoneResendCooldownSec, setPhoneResendCooldownSec] = useState(0);
     const [phoneResendAttempts, setPhoneResendAttempts] = useState(0);
+    const [codeSentNotice, setCodeSentNotice] = useState(null);
+    const phoneOtpInputRef = useRef(null);
     const [tabWidth, setTabWidth] = useState(0);
     const tabUnderlineX = useRef(new Animated.Value(0)).current;
     const [biometricAvailable, setBiometricAvailable] = useState(false);
@@ -475,12 +478,12 @@ const Login = ({ navigation, route }) => {
             setPhoneResendCooldownSec(cooldown);
             setPhoneResendAttempts((n) => (isResend || phoneOtpSent ? n + 1 : 1));
             if (!isResend) {
-                Alert.alert(
-                    'Code sent',
-                    data?.dev_code
-                        ? `Dev code: ${data.dev_code}`
-                        : 'Enter the SMS code we sent to your phone.'
-                );
+                Keyboard.dismiss();
+                setCodeSentNotice({
+                    message: data?.dev_code
+                        ? `SMS isn't set up yet. Use dev code ${data.dev_code}.`
+                        : 'We sent a 6-digit code by SMS. Enter it to sign in.',
+                });
             }
         } catch (err) {
             const payload = err?.response?.data?.data || {};
@@ -822,6 +825,7 @@ const Login = ({ navigation, route }) => {
                                                 style={[styles.input, { color: colors.text }]}
                                                 placeholder="6-digit code"
                                                 placeholderTextColor={colors.placeholder}
+                                                ref={phoneOtpInputRef}
                                                 value={phoneOtp}
                                                 onChangeText={(value) => {
                                                     const digits = String(value || '').replace(/\D/g, '').slice(0, 6);
@@ -1029,6 +1033,19 @@ const Login = ({ navigation, route }) => {
                     </View>
                 </ScrollView>
             </SafeAreaView>
+            <SuccessDialog
+                visible={!!codeSentNotice}
+                tone="primary"
+                icon="message-square-text"
+                title="Code sent"
+                message={codeSentNotice?.message}
+                details={[{ icon: 'smartphone', label: 'Sent to', value: phone }]}
+                primaryLabel="Enter code"
+                onPrimary={() => {
+                    setCodeSentNotice(null);
+                    setTimeout(() => phoneOtpInputRef.current?.focus(), 250);
+                }}
+            />
         </KeyboardAvoidingView>
     );
 };

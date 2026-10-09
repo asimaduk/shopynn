@@ -17,10 +17,12 @@ import useTheme from '../hooks/useTheme';
  * Same card language as ConfirmDialog; not dismissible by backdrop so the user takes the next step.
  *
  * details: [{ icon, label, value }] rendered as a compact summary card.
+ * tone: 'success' (green) or 'primary' (brand blue, for informational steps like "code sent").
  */
 const SuccessDialog = ({
 	visible,
 	icon = 'check',
+	tone = 'success',
 	title,
 	message,
 	details = [],
@@ -67,8 +69,13 @@ const SuccessDialog = ({
 		return undefined;
 	}, [visible, fade, scale, badge]);
 
-	const accent = colors.success || '#10b981';
-	const accentSoft = isDark ? 'rgba(16, 185, 129, 0.18)' : colors.successLight || '#d1fae5';
+	const isPrimary = tone === 'primary';
+	const accent = isPrimary ? colors.primary || '#0A74DA' : colors.success || '#10b981';
+	const accentSoft = isPrimary
+		? colors.primaryShade || '#e8f4fc'
+		: isDark
+			? 'rgba(16, 185, 129, 0.18)'
+			: colors.successLight || '#d1fae5';
 	const rows = (details || []).filter((d) => d && d.value);
 
 	return (

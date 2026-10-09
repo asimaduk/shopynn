@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -12,11 +12,13 @@ import {
     View,
     Dimensions,
     Image,
+    Keyboard,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
+import SuccessDialog from '../../components/SuccessDialog';
 import useTheme from '../../hooks/useTheme';
 import config from '../../config';
 import { tenants as tenantsApi, users as usersApi, billing as billingApi } from '../../services/api';
@@ -58,6 +60,8 @@ const ShopOwnerSignup = ({ navigation }) => {
     const [verificationToken, setVerificationToken] = useState('');
     const [sendingOtp, setSendingOtp] = useState(false);
     const [verifyingOtp, setVerifyingOtp] = useState(false);
+    const [codeSentVisible, setCodeSentVisible] = useState(false);
+    const emailOtpInputRef = useRef(null);
     const [signupPlans, setSignupPlans] = useState(SUBSCRIPTION_PLANS);
 
     const planOptions = signupPlans;
@@ -216,7 +220,8 @@ const ShopOwnerSignup = ({ navigation }) => {
             setVerificationToken('');
             setEmailOtp('');
             setOtpSent(true);
-            Alert.alert('Code sent', 'Check your inbox for a 6-digit verification code (expires in 10 minutes).');
+            Keyboard.dismiss();
+            setCodeSentVisible(true);
         } catch (error) {
             const msg = error?.response?.data?.message || error?.message || 'Could not send code.';
             Alert.alert('Send failed', msg);
@@ -617,11 +622,14 @@ const ShopOwnerSignup = ({ navigation }) => {
                                                     style={styles.inputIcon}
                                                 />
                                                 <TextInput
+                                                    ref={emailOtpInputRef}
                                                     style={[styles.input, { color: colors.text }]}
                                                     value={emailOtp}
-                                                    onChangeText={(t) =>
-                                                        setEmailOtp(String(t).replace(/\D/g, '').slice(0, 6))
-                                                    }
+                                                    onChangeText={(t) => {
+                                                        const next = String(t).replace(/\D/g, '').slice(0, 6);
+                                                        setEmailOtp(next);
+                                                        if (next.length === 6) Keyboard.dismiss();
+                                                    }}
                                                     placeholder="6-digit code"
                                                     placeholderTextColor={colors.placeholder}
                                                     keyboardType="number-pad"
@@ -724,6 +732,19 @@ const ShopOwnerSignup = ({ navigation }) => {
                     </View>
                 </ScrollView>
             </SafeAreaView>
+            <SuccessDialog
+                visible={codeSentVisible}
+                tone="primary"
+                icon="mail-check"
+                title="Check your inbox"
+                message="We emailed you a 6-digit verification code. It expires in 10 minutes."
+                details={[{ icon: 'mail', label: 'Sent to', value: ownerEmail.trim().toLowerCase() }]}
+                primaryLabel="Enter code"
+                onPrimary={() => {
+                    setCodeSentVisible(false);
+                    setTimeout(() => emailOtpInputRef.current?.focus(), 250);
+                }}
+            />
         </KeyboardAvoidingView>
     );
 };
