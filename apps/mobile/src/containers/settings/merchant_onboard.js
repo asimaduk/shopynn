@@ -59,7 +59,7 @@ function navigateToClientsTab(navigation, user) {
     const operateOnly =
         hasPermission(user, ['merchants.operate']) && !hasPermission(user, ['merchants.view']);
     if (operateOnly) {
-        navigation.navigate('Home', { screen: 'ClientsTab' });
+        navigation.popTo('Home', { screen: 'ClientsTab' });
     } else {
         navigation.navigate('MerchantPortal');
     }

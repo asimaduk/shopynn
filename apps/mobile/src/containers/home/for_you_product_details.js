@@ -172,7 +172,7 @@ const ForYouProductDetails = ({ navigation, route }) => {
 
     const goToCart = () => {
         // Cart is a tab under the Home navigator.
-        navigation.navigate('Home', { screen: 'Cart' });
+        navigation.popTo('Home', { screen: 'Cart' });
     };
 
     const showToast = (message) => {

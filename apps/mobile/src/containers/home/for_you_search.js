@@ -669,7 +669,7 @@ const ForYouSearch = ({ navigation, route }) => {
             {cartCount > 0 ? (
                 <TouchableOpacity
                     activeOpacity={0.9}
-                    onPress={() => navigation.navigate('Home', { screen: 'Cart' })}
+                    onPress={() => navigation.popTo('Home', { screen: 'Cart' })}
                     style={[styles.cartFab, { backgroundColor: config.THEME_COLOR }]}
                 >
                     <Lucide name="shopping-cart" size={20} color="#fff" />
