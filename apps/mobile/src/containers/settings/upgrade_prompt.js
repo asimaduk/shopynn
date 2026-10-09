@@ -150,7 +150,7 @@ const UpgradePrompt = ({ navigation, route }) => {
                             backgroundColor: config.THEME_COLOR,
                             paddingVertical: 14,
                             paddingHorizontal: 24,
-                            borderRadius: 6,
+                            borderRadius: 999,
                             width: '100%',
                             maxWidth: 360,
                             alignItems: 'center',

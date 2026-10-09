@@ -705,7 +705,7 @@ const OrderDetails = ({ navigation, route }) => {
                             style={{
                                 marginTop: 12,
                                 paddingVertical: 12,
-                                borderRadius: 10,
+                                borderRadius: 999,
                                 alignItems: 'center',
                                 flexDirection: 'row',
                                 justifyContent: 'center',
@@ -750,11 +750,11 @@ const styles = StyleSheet.create({
     actionButtonInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     actionButtonLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, paddingRight: 10 },
     actionIconWrap: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-    cancelBtn: { marginTop: 12, borderRadius: 5, paddingVertical: 15, alignItems: 'center' },
+    cancelBtn: { marginTop: 12, borderRadius: 999, paddingVertical: 15, alignItems: 'center' },
     cancelRow: { flexDirection: 'row', alignItems: 'center' },
     reasonInput: { borderWidth: 1, borderRadius: 5, paddingHorizontal: 10, paddingVertical: 10, marginTop: 8 },
     paymentSummaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4, marginBottom: 8 },
-    payBtn: { marginTop: 10, borderRadius: 5, paddingVertical: 14, alignItems: 'center' },
+    payBtn: { marginTop: 10, borderRadius: 999, paddingVertical: 14, alignItems: 'center' },
 });
 
 export default OrderDetails;

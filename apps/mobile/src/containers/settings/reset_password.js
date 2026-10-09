@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         backgroundColor: config.THEME_COLOR,
         height: 55,
-        borderRadius: 5,
+        borderRadius: 999,
         justifyContent: 'center',
         alignItems: 'center',
         elevation: 3,

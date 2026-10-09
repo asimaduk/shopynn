@@ -2624,7 +2624,7 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     paymentInput: { height: 46, borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, fontFamily: 'FiraSans-Regular', fontSize: 16 },
-    continuePaymentBtn: { height: 46, backgroundColor: config.THEME_COLOR, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+    continuePaymentBtn: { height: 46, backgroundColor: config.THEME_COLOR, borderRadius: 999, justifyContent: 'center', alignItems: 'center' },
     networkRow: {
         flexDirection: 'row',
         gap: 8,

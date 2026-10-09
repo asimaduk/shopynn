@@ -203,7 +203,7 @@ export default function WarehouseReferenceCodeField({
                                 justifyContent: 'center',
                                 gap: 8,
                                 height: 44,
-                                borderRadius: 8,
+                                borderRadius: 999,
                                 backgroundColor: '#25D366',
                             }}
                         >

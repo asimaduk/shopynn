@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
     col: { flex: 1 },
     textArea: { minHeight: 78, textAlignVertical: 'top' },
     rowTotal: { marginTop: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    submitBtn: { marginTop: 14, borderRadius: 9, paddingVertical: 12, alignItems: 'center' },
+    submitBtn: { marginTop: 14, borderRadius: 999, paddingVertical: 12, alignItems: 'center' },
     modalRow: { paddingVertical: 12, borderBottomWidth: 1 },
     refBtn: { marginLeft: 8, borderRadius: 8, paddingHorizontal: 14, justifyContent: 'center' },
 });

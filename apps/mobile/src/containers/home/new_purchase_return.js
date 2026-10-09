@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
     label: { marginBottom: 8 },
     picker: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderWidth: 1, borderColor: '#ddd', borderRadius: 8 },
     textArea: { minHeight: 80, alignItems: 'flex-start' },
-    submitBtn: { height: 50, backgroundColor: config.THEME_COLOR, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginTop: 16 },
+    submitBtn: { height: 50, backgroundColor: config.THEME_COLOR, borderRadius: 999, justifyContent: 'center', alignItems: 'center', marginTop: 16 },
     modalList: { maxHeight: 300 },
     modalRow: { padding: 14, borderBottomWidth: 1, borderBottomColor: '#eee', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 });

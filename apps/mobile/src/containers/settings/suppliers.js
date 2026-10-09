@@ -964,7 +964,7 @@ const localStyles = StyleSheet.create({
     listContent: { paddingHorizontal: 15, paddingBottom: 28 },
     emptyWrap: { paddingTop: 48, paddingHorizontal: 24, alignItems: 'center' },
     emptyIcon: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
-    emptyCta: { flexDirection: 'row', alignItems: 'center', marginTop: 18, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10 },
+    emptyCta: { flexDirection: 'row', alignItems: 'center', marginTop: 18, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 999 },
     headerRow: {
         flexDirection: 'row',
         alignItems: 'center',

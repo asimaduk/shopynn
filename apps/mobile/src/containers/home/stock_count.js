@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
     card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 14, borderRadius: 10, marginBottom: 10 },
     actualWrap: { marginLeft: 12 },
     actualInput: { width: 70, height: 44, borderWidth: 1, borderColor: '#ddd', borderRadius: 8, paddingHorizontal: 10, fontFamily: 'FiraSans-Regular', fontSize: 16, textAlign: 'center' },
-    submitBtn: { position: 'absolute', bottom: 24, left: 16, right: 16, height: 50, backgroundColor: config.THEME_COLOR, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+    submitBtn: { position: 'absolute', bottom: 24, left: 16, right: 16, height: 50, backgroundColor: config.THEME_COLOR, borderRadius: 999, justifyContent: 'center', alignItems: 'center' },
     storeCard: {
         flexDirection: 'row',
         alignItems: 'center',

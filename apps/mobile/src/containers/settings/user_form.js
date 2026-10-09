@@ -502,7 +502,7 @@ const styles = {
     inputWrapper: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 8, paddingHorizontal: 14, height: 50 },
     input: { flex: 1, fontFamily: 'FiraSans-Regular', fontSize: 16 },
     pickerTouch: { justifyContent: 'space-between' },
-    submitBtn: { height: 52, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+    submitBtn: { height: 52, borderRadius: 999, justifyContent: 'center', alignItems: 'center' },
 };
 
 export default UserForm;

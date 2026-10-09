@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginTop: 12 },
-    cta: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
+    cta: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999 },
     mark: { flexDirection: 'row', alignItems: 'center' },
 });
 

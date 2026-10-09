@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
     qtyInput: { width: 70, padding: 10, borderRadius: 8, borderWidth: 1, fontSize: 15, textAlign: 'center' },
     notesInput: { padding: 12, borderRadius: 8, borderWidth: 1, minHeight: 80, textAlignVertical: 'top' },
     totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, borderRadius: 10, marginBottom: 16 },
-    submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, borderRadius: 10 },
+    submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, borderRadius: 999 },
 });
 
 export default ReceiveAgainstPO;

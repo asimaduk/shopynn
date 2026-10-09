@@ -205,10 +205,10 @@ const styles = StyleSheet.create({
     input: { padding: 12, borderRadius: 8, borderWidth: 1, fontSize: 15 },
     textArea: { minHeight: 80, textAlignVertical: 'top' },
     lineRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1 },
-    addLineBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 8, borderWidth: 1, marginTop: 8 },
+    addLineBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 999, borderWidth: 1, marginTop: 8 },
     totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, borderRadius: 10, marginBottom: 16 },
     actions: { flexDirection: 'row', gap: 10 },
-    btn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 10 },
+    btn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 999 },
     btnSecondary: {},
     modalItem: { padding: 14, borderBottomWidth: 1 },
 });
