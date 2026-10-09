@@ -311,7 +311,7 @@ const Settings = ({ navigation, route }) => {
     }
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['left', 'right']}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={isCustomer ? ['top', 'left', 'right'] : ['left', 'right']}>
             {/* Search - icon button or expanded input (below status bar / Dynamic Island) */}
             {!isCustomer && !showSearchInput ? (
                 <TouchableOpacity
@@ -403,8 +403,7 @@ const Settings = ({ navigation, route }) => {
                 keyboardShouldPersistTaps="handled"
                 contentContainerStyle={{
                     padding: 10,
-                    // Customers have no search header — keep avatar below Dynamic Island / status bar.
-                    paddingTop: isCustomer ? insets.top + 16 : 10,
+                    paddingTop: isCustomer ? 16 : 10,
                     paddingBottom: TAB_BAR_HEIGHT + insets.bottom + 24,
                 }}>
 
@@ -1401,11 +1400,6 @@ const Settings = ({ navigation, route }) => {
             </ScrollView>
             )}
 
-            <View
-                pointerEvents="none"
-                style={[styles.statusBarCover, { height: insets.top, backgroundColor: colors.background }]}
-            />
-
             <ConfirmDialog
                 visible={showSignOutConfirm}
                 icon="log-out"
@@ -1427,12 +1421,6 @@ const Settings = ({ navigation, route }) => {
 export default Settings;
 
 const styles = StyleSheet.create({
-    statusBarCover: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-    },
     header: {
         paddingHorizontal: 15,
         paddingTop: 10,

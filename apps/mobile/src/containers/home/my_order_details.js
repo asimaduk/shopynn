@@ -9,7 +9,7 @@ import useTheme from '../../hooks/useTheme';
 import config from '../../config';
 import { orders } from '../../services/api';
 import ConfirmDialog from '../../components/ConfirmDialog';
-import { inferGhanaMomoNetwork } from '../../utils/format';
+import { formatPhone, inferGhanaMomoNetwork } from '../../utils/format';
 
 const STATUS_STEPS = ['pending', 'confirmed', 'processing', 'ready', 'shipped', 'delivered', 'completed'];
 const formatStatusLabel = (value) =>
@@ -283,7 +283,7 @@ const MyOrderDetails = ({ navigation, route }) => {
                     )}
                     {!!String(order?.warehouse_phone || '').trim() && (
                         <AppText
-                            label={`Phone: ${String(order?.warehouse_phone).trim()}`}
+                            label={`Phone: ${formatPhone(order?.warehouse_phone)}`}
                             color={colors.textSecondary}
                             fontSize={12}
                             style={{ marginTop: 2 }}

@@ -25,6 +25,7 @@ import {
 } from '../../store/cartStore';
 import { catalog, customerProfiles } from '../../services/api';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import { formatUnit } from '../../utils/format';
 
 const { width } = Dimensions.get('window');
 const SUGGESTION_CARD_WIDTH = (width - 44) / 2;
@@ -468,7 +469,7 @@ const Cart = ({ navigation }) => {
                                         numberOfLines={2}
                                     />
                                     <AppText
-                                        label={`${formatMoney(item.unit_price)} / ${unit}`}
+                                        label={`${formatMoney(item.unit_price)} / ${formatUnit(1, unit)}`}
                                         color={colors.textSecondary}
                                         fontSize={12}
                                         style={{ marginTop: 3 }}
@@ -621,7 +622,7 @@ const Cart = ({ navigation }) => {
                 destructive
                 icon="trash-2"
                 title="Clear cart?"
-                message={`Remove all ${items.length} ${items.length === 1 ? 'item' : 'items'} from your cart.`}
+                message={items.length === 1 ? 'Remove this item from your cart.' : `Remove all ${items.length} items from your cart.`}
                 confirmLabel="Clear cart"
                 onCancel={() => setShowClearConfirm(false)}
                 onConfirm={() => {
