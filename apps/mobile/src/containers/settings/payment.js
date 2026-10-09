@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, Image, Keyboard } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
@@ -55,11 +55,15 @@ const Payment = ({ navigation, route }) => {
 
     const isOrderFlow = flowType === 'order' || flowType === 'order_partial';
 
+    const momoPrefilledRef = useRef(Boolean(momoNumber));
     useEffect(() => {
-        if (momoNumber) return;
+        if (momoPrefilledRef.current) return;
         const fromUser = user?.phone || user?.mobile || '';
-        if (fromUser) setMomoNumber(normalizeMomoNumber(fromUser));
-    }, [user?.phone, user?.mobile, momoNumber]);
+        if (fromUser) {
+            momoPrefilledRef.current = true;
+            setMomoNumber((current) => current || normalizeMomoNumber(fromUser));
+        }
+    }, [user?.phone, user?.mobile]);
 
     useEffect(() => {
         if (!isOrderFlow) return;
@@ -170,7 +174,7 @@ const Payment = ({ navigation, route }) => {
                 (isTelecel
                     ? 'Telecel voucher submitted. Confirm status on the next screen.'
                     : 'Complete the payment prompt on your phone.');
-            Alert.alert('Mobile money', msg);
+            if (res?.status !== 'success') Alert.alert('Mobile money', msg);
             navigation.navigate('MomoStatus', {
                 amount,
                 planName,
@@ -257,7 +261,7 @@ const Payment = ({ navigation, route }) => {
                 (isTelecel
                     ? 'Telecel voucher submitted. Confirm status on the next screen.'
                     : 'Complete the payment prompt on your phone.');
-            Alert.alert('Mobile money', msg);
+            if (res?.status !== 'success') Alert.alert('Mobile money', msg);
             navigation.replace('MomoStatus', {
                 amount: res?.charge_amount || chargeAmount || amount,
                 planName: planName || 'Order payment',
@@ -300,7 +304,8 @@ const Payment = ({ navigation, route }) => {
                     style={styles.scroll}
                     contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
                     showsVerticalScrollIndicator={false}
-                    keyboardShouldPersistTaps="handled">
+                    keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="on-drag">
                 
                 {/* Payment Summary */}
                 <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -447,6 +452,7 @@ const Payment = ({ navigation, route }) => {
                                 onChangeText={(text) => {
                                     const digitsOnly = normalizeMomoNumber(text);
                                     setMomoNumber(digitsOnly);
+                                    if (digitsOnly.length === MOMO_NUMBER_MAX_LENGTH) Keyboard.dismiss();
                                 }}
                                 keyboardType="phone-pad"
                                 maxLength={MOMO_NUMBER_MAX_LENGTH}
