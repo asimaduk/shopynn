@@ -81,6 +81,7 @@ const QtyStepper = ({ value, onDec, onInc, colors, canInc }) => (
 
 const Cart = ({ navigation }) => {
     const { colors } = useTheme();
+    const panelBorder = `${config.THEME_COLOR}26`;
     const insets = useSafeAreaInsets();
     const [items, setItems] = useState(getCartItems());
     const [refreshing, setRefreshing] = useState(false);
@@ -350,16 +351,6 @@ const Cart = ({ navigation }) => {
                 ) : null}
             </ScreenHeader>
 
-            {items.length > 0 ? (
-                <View style={styles.summaryRow}>
-                    <AppText
-                        label={`${totalItems} item${totalItems === 1 ? '' : 's'} · ${formatMoney(total)}`}
-                        fontSize={13}
-                        color={colors.textSecondary}
-                    />
-                </View>
-            ) : null}
-
             {warehouseCount > 1 ? (
                 <View
                     style={[
@@ -388,11 +379,36 @@ const Cart = ({ navigation }) => {
                 keyExtractor={(item) => item.key}
                 contentContainerStyle={{
                     paddingHorizontal: 16,
-                    paddingTop: 4,
+                    paddingTop: 12,
                     paddingBottom: 210 + insets.bottom,
                 }}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-                renderItem={({ item }) => {
+                ListHeaderComponent={
+                    items.length > 0 ? (
+                        <View
+                            style={[
+                                styles.panelTop,
+                                { backgroundColor: colors.primaryShade, borderColor: panelBorder },
+                            ]}
+                        >
+                            <View style={[styles.panelIcon, { backgroundColor: colors.surface }]}>
+                                <Lucide name="shopping-bag" size={18} color={config.THEME_COLOR} />
+                            </View>
+                            <View style={{ flex: 1, marginLeft: 10 }}>
+                                <AppText label="Your cart" variant={1} fontSize={16} color={colors.text} />
+                                <AppText
+                                    label={`${totalItems} item${totalItems === 1 ? '' : 's'} ready for checkout`}
+                                    fontSize={12}
+                                    color={colors.textSecondary}
+                                    style={{ marginTop: 1 }}
+                                />
+                            </View>
+                            <AppText label={formatMoney(total)} variant={1} fontSize={16} color={config.THEME_COLOR} />
+                        </View>
+                    ) : null
+                }
+                renderItem={({ item, index }) => {
+                    const isLast = index === items.length - 1;
                     const img = resolveCartImageUri(item);
                     const qty = Number(item.quantity || 1);
                     const maxAvailable = Number(item.available_quantity || item.quantity_available || 0);
@@ -404,11 +420,19 @@ const Cart = ({ navigation }) => {
                     return (
                         <View
                             style={[
+                                styles.panelBody,
+                                { backgroundColor: colors.primaryShade, borderColor: panelBorder },
+                                isLast && styles.panelBottom,
+                            ]}
+                        >
+                        <View
+                            style={[
                                 styles.card,
                                 {
                                     backgroundColor: colors.surface,
                                     borderColor: colors.border,
                                 },
+                                isLast && { marginBottom: 0 },
                             ]}
                         >
                             <TouchableOpacity
@@ -491,6 +515,7 @@ const Cart = ({ navigation }) => {
                                     <Lucide name="trash-2" size={15} color="#ef4444" />
                                 </TouchableOpacity>
                             </View>
+                        </View>
                         </View>
                     );
                 }}
@@ -601,10 +626,35 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         marginRight: 12,
     },
-    summaryRow: {
-        paddingHorizontal: 16,
-        paddingTop: 4,
+    panelTop: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderBottomWidth: 0,
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        paddingHorizontal: 14,
+        paddingTop: 14,
+        paddingBottom: 12,
+    },
+    panelIcon: {
+        width: 36,
+        height: 36,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    panelBody: {
+        borderLeftWidth: 1,
+        borderRightWidth: 1,
+        paddingHorizontal: 10,
+    },
+    panelBottom: {
+        borderBottomWidth: 1,
+        borderBottomLeftRadius: 20,
+        borderBottomRightRadius: 20,
         paddingBottom: 10,
+        marginBottom: 12,
     },
     notice: {
         flexDirection: 'row',
