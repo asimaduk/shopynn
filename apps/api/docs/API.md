@@ -275,7 +275,7 @@ On successful Paystack settlement (`verify`, `submit-otp`, or `webhook`), subscr
 | GET | `/api/notifications` | ✓ + subscription | List notifications. Query: `startDate`, `endDate`, `read`, `limit`. |
 | GET | `/api/notifications/:id` | ✓ | Get notification by ID. |
 | POST | `/api/notifications` | ✓ | Create notification. |
-| POST | `/api/notifications/send-fcm` | ✓ | Send FCM message. Body: tokens/topic, title, body, data. |
+| POST | `/api/notifications/send-fcm` | ✓ | Send FCM message to your shop only. Body: `tokens` (devices of your shop's staff/customers) and/or `topic` (must be `tenant_<your shop id>`), `notification`, `data`. |
 | PATCH | `/api/notifications/:id/read` | ✓ | Mark notification as read. |
 
 ---

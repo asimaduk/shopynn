@@ -30,11 +30,8 @@ export const publicSubscribeNewsletter = async (req, res, next) => {
 
 export const publicUnsubscribeNewsletter = async (req, res, next) => {
     try {
-        const result = await unsubscribeNewsletterService(req.body);
-        if (!result.subscriber) {
-            return handleResponse(res, 404, "Email not found or already unsubscribed.", null);
-        }
-        handleResponse(res, 200, "You have been unsubscribed.", result);
+        await unsubscribeNewsletterService(req.body);
+        handleResponse(res, 200, "If that email was subscribed, it has been unsubscribed.", null);
     } catch (error) {
         if (error.message?.includes("valid email")) {
             return handleResponse(res, 400, error.message, null);

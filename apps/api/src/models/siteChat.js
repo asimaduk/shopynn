@@ -2,6 +2,7 @@ import pool from "../config/db.js";
 import { v4 as uuidv4 } from "uuid";
 import { sendEmailService } from "./mail.js";
 import { isValidEmail, normalizeEmail } from "../utils/emailNormalize.js";
+import { escapeHtml } from "../util/escapeHtml.js";
 
 const BRAND_NAME = "Shopynn";
 
@@ -18,7 +19,7 @@ export const getSiteChatSessionByTokenService = async (visitorToken) => {
     if (!token) return null;
 
     const sessionRes = await pool.query(
-        `SELECT id, visitor_token, name, email, status, admin_notes, last_message_at, created_at, updated_at
+        `SELECT id, visitor_token, name, email, status, last_message_at, created_at, updated_at
          FROM site_chat_sessions WHERE visitor_token = $1`,
         [token]
     );
@@ -85,7 +86,7 @@ export const startOrContinueSiteChatService = async ({
             receipient: normalizedEmail,
             subject: `We received your chat — ${BRAND_NAME}`,
             text: `Hi ${trimmedName},\n\nThanks for messaging us. Our team will reply here and by email when we're back online.\n\n— ${BRAND_NAME}`,
-            html: `<p>Hi ${trimmedName},</p><p>Thanks for messaging us. Our team will reply as soon as we can.</p><p>— ${BRAND_NAME}</p>`,
+            html: `<p>Hi ${escapeHtml(trimmedName)},</p><p>Thanks for messaging us. Our team will reply as soon as we can.</p><p>— ${BRAND_NAME}</p>`,
         });
     } catch (_) {
         // non-blocking
@@ -231,7 +232,7 @@ export const replyToSiteChatSessionService = async (id, { message }, userId) => 
         receipient: session.email,
         subject: `New reply from ${BRAND_NAME}`,
         text: `Hi ${session.name},\n\n${trimmed}\n\n— ${BRAND_NAME} Support`,
-        html: `<p>Hi ${session.name},</p><p>${trimmed.replace(/\n/g, "<br/>")}</p><p>— ${BRAND_NAME} Support</p>`,
+        html: `<p>Hi ${escapeHtml(session.name)},</p><p>${escapeHtml(trimmed).replace(/\n/g, "<br/>")}</p><p>— ${BRAND_NAME} Support</p>`,
     });
 
     const updated = await pool.query(

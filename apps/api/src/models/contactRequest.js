@@ -2,6 +2,7 @@ import pool from "../config/db.js";
 import { v4 as uuidv4 } from "uuid";
 import { sendEmailService } from "./mail.js";
 import { isValidEmail, normalizeEmail } from "../utils/emailNormalize.js";
+import { escapeHtml } from "../util/escapeHtml.js";
 
 const BRAND_NAME = "Shopynn";
 export const createContactRequestService = async ({ name, email, message }) => {
@@ -29,7 +30,7 @@ export const createContactRequestService = async ({ name, email, message }) => {
             receipient: normalizedEmail,
             subject: `We received your message — ${BRAND_NAME}`,
             text: `Hi ${trimmedName},\n\nThanks for reaching out. We received your message and will get back to you soon.\n\n— ${BRAND_NAME}`,
-            html: `<p>Hi ${trimmedName},</p><p>Thanks for reaching out. We received your message and will get back to you soon.</p><p>— ${BRAND_NAME}</p>`,
+            html: `<p>Hi ${escapeHtml(trimmedName)},</p><p>Thanks for reaching out. We received your message and will get back to you soon.</p><p>— ${BRAND_NAME}</p>`,
         });
     } catch (_) {
         // Non-blocking acknowledgment email
@@ -136,7 +137,7 @@ export const replyToContactRequestService = async (id, { message }, userId) => {
         receipient: request.email,
         subject: `Re: Your message to ${BRAND_NAME}`,
         text: `Hi ${request.name},\n\n${trimmed}\n\n— ${staffName}`,
-        html: `<p>Hi ${request.name},</p><p>${trimmed.replace(/\n/g, "<br/>")}</p><p>— ${staffName}</p>`,
+        html: `<p>Hi ${escapeHtml(request.name)},</p><p>${escapeHtml(trimmed).replace(/\n/g, "<br/>")}</p><p>— ${escapeHtml(staffName)}</p>`,
     });
 
     const updated = await pool.query(

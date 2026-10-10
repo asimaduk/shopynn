@@ -14,6 +14,7 @@ import {
     createPayLaterQuoteForTenantService,
     createUpgradeCollectQuoteForMerchantService,
     getPendingQuoteForTenantService,
+    merchantCanAccessTenantService,
     assignServingMerchantService,
 } from "../models/merchant.js";
 import { QUOTE_KIND } from "../constants/billingCatalog.js";
@@ -178,6 +179,8 @@ export const getAdminMerchantDetail = async (req, res, next) => {
 
 export const getTenantQuote = async (req, res, next) => {
     try {
+        const allowed = await merchantCanAccessTenantService(req.merchant.id, req.params.tenantId);
+        if (!allowed) return handleResponse(res, 404, "Business not found.", null);
         const quote = await getPendingQuoteForTenantService(req.params.tenantId);
         handleResponse(res, 200, "Quote.", { quote });
     } catch (error) {

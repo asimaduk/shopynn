@@ -487,7 +487,9 @@ export const paymentWebhook = async (req, res, next) => {
             return;
         }
         const hash = crypto.createHmac("sha512", secret).update(rawBody).digest("hex");
-        if (hash !== signature) {
+        const expected = Buffer.from(hash, "hex");
+        const given = Buffer.from(String(signature), "hex");
+        if (expected.length !== given.length || !crypto.timingSafeEqual(expected, given)) {
             res.status(401).send("Invalid signature");
             return;
         }

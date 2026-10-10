@@ -9,15 +9,18 @@ import {
     publicVerifyStorefrontOrderPaymentService,
 } from "../models/storefront.js";
 
+/** Database errors go to the generic handler so table and constraint names never reach the public. */
+const sendStorefrontError = (res, next, error) => {
+    if (!error?.status && error?.severity) return next(error);
+    return handleResponse(res, error?.status || 400, error?.message || "Failed.", error?.code ? { code: error.code } : null);
+};
+
 export const publicGetStore = async (req, res, next) => {
     try {
         const data = await getPublicStorefrontService(req.params.code);
         handleResponse(res, 200, "Store.", data);
     } catch (error) {
-        if (error?.status === 400 || error?.message) {
-            return handleResponse(res, error.status || 400, error.message);
-        }
-        next(error);
+        return sendStorefrontError(res, next, error);
     }
 };
 
@@ -26,7 +29,7 @@ export const publicGetStoreCatalog = async (req, res, next) => {
         const data = await getPublicStoreCatalogService(req.params.code, req.query);
         handleResponse(res, 200, "Store catalog.", data);
     } catch (error) {
-        return handleResponse(res, error.status || 400, error.message || "Failed.");
+        return sendStorefrontError(res, next, error);
     }
 };
 
@@ -36,7 +39,7 @@ export const publicGetStoreProduct = async (req, res, next) => {
         if (!data) return handleResponse(res, 404, "Product not found.");
         handleResponse(res, 200, "Product.", data);
     } catch (error) {
-        return handleResponse(res, error.status || 400, error.message || "Failed.");
+        return sendStorefrontError(res, next, error);
     }
 };
 
@@ -48,7 +51,7 @@ export const publicSendStorefrontOtp = async (req, res, next) => {
         });
         handleResponse(res, 200, "OTP sent.", data);
     } catch (error) {
-        return handleResponse(res, error.status || 400, error.message || "Failed.", error?.code ? { code: error.code } : null);
+        return sendStorefrontError(res, next, error);
     }
 };
 
@@ -61,7 +64,7 @@ export const publicVerifyStorefrontOtp = async (req, res, next) => {
         });
         handleResponse(res, 200, "Phone verified.", data);
     } catch (error) {
-        return handleResponse(res, error.status || 400, error.message || "Failed.", error?.code ? { code: error.code } : null);
+        return sendStorefrontError(res, next, error);
     }
 };
 
@@ -73,7 +76,7 @@ export const publicCreateStorefrontOrder = async (req, res, next) => {
         });
         handleResponse(res, 201, "Order created.", data);
     } catch (error) {
-        return handleResponse(res, error.status || 400, error.message || "Failed.", error?.code ? { code: error.code } : null);
+        return sendStorefrontError(res, next, error);
     }
 };
 
@@ -86,6 +89,6 @@ export const publicVerifyStorefrontOrderPayment = async (req, res, next) => {
         });
         handleResponse(res, 200, "Payment verified.", data);
     } catch (error) {
-        return handleResponse(res, error.status || 400, error.message || "Failed.", error?.code ? { code: error.code } : null);
+        return sendStorefrontError(res, next, error);
     }
 };
