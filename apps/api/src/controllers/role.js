@@ -10,40 +10,26 @@ import {
     removePermissionFromRoleService,
     setRolePermissionsService,
 } from "../models/role.js";
-import { getUserPermissionsService } from "../models/userRole.js";
+import { findUngrantablePermissionIds, isReservedRoleName } from "../util/roleGrants.js";
 import pool from "../config/db.js";
-
-const SUPER_ADMIN_ROLE_NAME = "super admin";
-
-const isReservedRoleName = (name) => String(name || "").trim().toLowerCase() === SUPER_ADMIN_ROLE_NAME;
-
-const isSuperAdminRole = async (roleId, tenantId) => {
-    const r = await pool.query(`SELECT name FROM roles WHERE id = $1 AND tenant_id = $2 LIMIT 1`, [roleId, tenantId]);
-    return isReservedRoleName(r.rows[0]?.name);
-};
-
-/** Role editors may only grant permissions they hold themselves. */
-const findUngrantablePermissions = async (req, permissionIds) => {
-    const ids = (permissionIds || []).filter(Boolean);
-    if (ids.length === 0) return [];
-    const [callerCodes, requested] = await Promise.all([
-        getUserPermissionsService(req.user.id, req.user.tenant_id),
-        pool.query(`SELECT code FROM permissions WHERE id = ANY($1::text[])`, [ids]),
-    ]);
-    const held = new Set(callerCodes);
-    return requested.rows.map((r) => r.code).filter((code) => !held.has(code));
-};
 
 const rejectRoleChange = async (req, res, { roleId, name, permissionIds }) => {
     if (name !== undefined && isReservedRoleName(name)) {
         handleResponse(res, 400, "That role name is reserved.");
         return true;
     }
-    if (roleId && (await isSuperAdminRole(roleId, req.user.tenant_id))) {
-        handleResponse(res, 400, "The Super Admin role can't be changed.");
-        return true;
+    if (roleId) {
+        const r = await pool.query(`SELECT name FROM roles WHERE id = $1 AND tenant_id = $2 LIMIT 1`, [roleId, req.user.tenant_id]);
+        if (r.rowCount === 0) {
+            handleResponse(res, 404, "Role not found.");
+            return true;
+        }
+        if (isReservedRoleName(r.rows[0].name)) {
+            handleResponse(res, 400, "The Super Admin role can't be changed.");
+            return true;
+        }
     }
-    const ungrantable = await findUngrantablePermissions(req, permissionIds);
+    const ungrantable = await findUngrantablePermissionIds(req.user, permissionIds);
     if (ungrantable.length > 0) {
         handleResponse(res, 403, "You can't grant permissions you don't have.", { permissions: ungrantable });
         return true;

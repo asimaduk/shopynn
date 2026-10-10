@@ -1,10 +1,10 @@
 import express from "express";
-import { activateSubscription, getCurrentSubscription, onboardSubscription } from "../controllers/subscription.js";
+import { getCurrentSubscription, onboardSubscription } from "../controllers/subscription.js";
+import { requirePermission } from "../middleware/requirePermission.js";
 
 const router = express.Router();
 
-router.post("/onboard", onboardSubscription);
-router.put("/:id/activate", activateSubscription);
+router.post("/onboard", requirePermission("subscription.manage"), onboardSubscription);
 router.get("/current", getCurrentSubscription);
 
 export default router;

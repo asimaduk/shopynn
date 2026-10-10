@@ -4,11 +4,7 @@ import requireActiveSubscription from "../middleware/requireActiveSubscription.j
 import requireFeature from "../middleware/requireFeature.js";
 import { requirePermission } from "../middleware/requirePermission.js";
 import {
-    createTenant,
-    getTenantById,
-    getTenants,
     setupTenant,
-    updateTenant,
     updateMyCompanyInfo,
     getMyPrinterSetupEntitlement,
     getMyGoLiveNav,
@@ -37,9 +33,7 @@ import {
 const router = express.Router();
 
 router.post("/setup", setupTenant);
-router.post("/", createTenant);
-router.get("/", getTenants);
-router.put("/update-my-company-info", auth, requireActiveSubscription, updateMyCompanyInfo);
+router.put("/update-my-company-info", auth, requireActiveSubscription, requirePermission("company_profile.update"), updateMyCompanyInfo);
 router.get(
     "/me/printer-setup-entitlement",
     auth,
@@ -97,7 +91,7 @@ router.put(
     auth,
     requireActiveSubscription,
     requireFeature("payments.view"),
-    requirePermission("payments.view"),
+    requirePermission("payouts.manage"),
     updateMyPayoutProfile
 );
 router.post(
@@ -105,7 +99,7 @@ router.post(
     auth,
     requireActiveSubscription,
     requireFeature("payments.view"),
-    requirePermission("payments.view"),
+    requirePermission("payouts.manage"),
     requestMyWithdrawal
 );
 router.post(
@@ -113,7 +107,7 @@ router.post(
     auth,
     requireActiveSubscription,
     requireFeature("payments.view"),
-    requirePermission("payments.view"),
+    requirePermission("payouts.manage"),
     retryMyWithdrawal
 );
 router.get(
@@ -196,7 +190,4 @@ router.patch(
     requirePermission("tenants.directory.view"),
     markAdminSettlementPaid
 );
-router.put("/:id", updateTenant);
-router.get("/:id", getTenantById);
-
 export default router;

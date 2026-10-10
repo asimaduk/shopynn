@@ -4,6 +4,14 @@ import { getPreferencesService, updatePreferencesService } from "../models/userP
 import { handleResponse } from "../util/handleresponse.js";
 import { getUserPermissionsService } from "../models/userRole.js";
 import pool from "../config/db.js";
+import { canAssignRole, isSuperAdminUser } from "../util/roleGrants.js";
+
+const ROLE_TOO_POWERFUL = "You can't give someone a role with more access than you have.";
+const OWNER_PROTECTED = "Only a Super Admin can change a Super Admin's account.";
+
+/** Staff with user permissions still can't edit, disable or delete the shop owner. */
+const isProtectedTarget = async (req, targetId) =>
+    (await isSuperAdminUser(targetId, req.user.tenant_id)) && !(await isSuperAdminUser(req.user.id, req.user.tenant_id));
 
 const isTenantUser = async (userId, tenantId) => {
     if (!userId || !tenantId) return false;
@@ -32,6 +40,9 @@ export const createUser = async (req, res, next) => {
         const body = req.body || {};
         if (body.role_id && !(await isTenantRole(body.role_id, tenantId))) {
             return handleResponse(res, 400, "Choose a role from your shop.");
+        }
+        if (body.role_id && !(await canAssignRole(req.user, body.role_id))) {
+            return handleResponse(res, 403, ROLE_TOO_POWERFUL);
         }
         if (body.warehouse_id && !(await isTenantWarehouse(body.warehouse_id, tenantId))) {
             return handleResponse(res, 400, "Choose a branch from your shop.");
@@ -110,8 +121,12 @@ export const updateUser = async (req, res, next) => {
                 return res.status(403).json({ error: "Forbidden", code: "INSUFFICIENT_PERMISSIONS", required: ["users.update"] });
             }
             if (!(await isTenantUser(targetId, tenantId))) return handleResponse(res, 404, "Not found.");
+            if (await isProtectedTarget(req, targetId)) return handleResponse(res, 403, OWNER_PROTECTED);
             if (body.role_id && !(await isTenantRole(body.role_id, tenantId))) {
                 return handleResponse(res, 400, "Choose a role from your shop.");
+            }
+            if (body.role_id && !(await canAssignRole(req.user, body.role_id))) {
+                return handleResponse(res, 403, ROLE_TOO_POWERFUL);
             }
             if (body.warehouse_id && !(await isTenantWarehouse(body.warehouse_id, tenantId))) {
                 return handleResponse(res, 400, "Choose a branch from your shop.");
@@ -148,6 +163,7 @@ export const deleteUser = async (req, res, next) => {
     try {
         if (req.params.id === req.user.id) return handleResponse(res, 400, "You can't delete your own account here.");
         if (!(await isTenantUser(req.params.id, req.user.tenant_id))) return handleResponse(res, 404, "Not found.");
+        if (await isProtectedTarget(req, req.params.id)) return handleResponse(res, 403, OWNER_PROTECTED);
         const deletedUser = await deleteUserService({
             id: req.params.id,
             deleted_by: req.user?.id ?? null,
@@ -186,6 +202,7 @@ export const toggleUserActive = async (req, res, next) => {
         }
         if (id === req.user.id) return handleResponse(res, 400, "You can't deactivate your own account.", null);
         if (!(await isTenantUser(id, req.user.tenant_id))) return handleResponse(res, 404, "Not found.", null);
+        if (await isProtectedTarget(req, id)) return handleResponse(res, 403, OWNER_PROTECTED, null);
         const updated = await toggleUserActiveService({ id, is_active });
         if (!updated) return handleResponse(res, 404, "Not found.", null);
         handleResponse(res, 200, "User status updated.", updated);
