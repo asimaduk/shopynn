@@ -10,7 +10,7 @@ const SUBSCRIPTION_TYPES = {
     4: { name: "Scale", amount: 649, durationDays: 30 },
 };
 
-const NAME_TO_DURATION_DAYS = { Free: 14, Basic: 30, Standard: 30, Premium: 30 };
+const NAME_TO_DURATION_DAYS = { Free: 14, Basic: 30, Standard: 30, Premium: 30, Starter: 30, Business: 30, Scale: 30 };
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -87,7 +87,13 @@ const TIER_LIMITS = {
     premium: { maxUsers: 25, maxWarehouses: 10 },
 };
 
-const normalizeTierCode = (name) => String(name || "").trim().toLowerCase();
+/** Subscription rows are named after display plans; tier rows use the legacy codes. */
+const TIER_CODE_BY_PLAN_NAME = { starter: "basic", business: "standard", scale: "premium" };
+
+const normalizeTierCode = (name) => {
+    const key = String(name || "").trim().toLowerCase();
+    return TIER_CODE_BY_PLAN_NAME[key] || key;
+};
 
 const parseFeatureList = (value) => {
     if (!value) return [];
