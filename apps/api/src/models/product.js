@@ -542,6 +542,20 @@ export const getProductBySlugService = async (slug) => {
 }
 
 
+const normalizeSku = (value) => {
+    const s = String(value ?? "").trim();
+    return s ? s : null;
+};
+
+const rethrowDuplicateSku = (error) => {
+    if (error?.code === "23505" && /sku/i.test(String(error?.constraint || error?.detail || ""))) {
+        const err = new Error("Another product in your shop already uses this SKU. Use a different SKU or leave it blank.");
+        err.status = 409;
+        throw err;
+    }
+    throw error;
+};
+
 export const createProductService = async (payload) => {
     console.log(' create product payload',payload);
     const {
@@ -593,7 +607,7 @@ export const createProductService = async (payload) => {
             $22, $23, $24, $25
         ) RETURNING id`,
         [
-            id, name, sku, unit_price, actual_cost ?? null, normalizedMeasurementUnit, tenant_id, alt_price, bar_code, slug,
+            id, name, normalizeSku(sku), unit_price, actual_cost ?? null, normalizedMeasurementUnit, tenant_id, alt_price, bar_code, slug,
             description, creator_id, tags, true, categories, reorder_quantity,
             normalizedProductType, normalizedMeasurementUnit, normalizedAllowsFractionalQty, normalizedMinOrderQty, normalizedQtyStep,
             installment_enabled === true,
@@ -601,7 +615,7 @@ export const createProductService = async (payload) => {
             installment_min_payment_amount ?? null,
             new Date()
         ]
-    );
+    ).catch(rethrowDuplicateSku);
 
     if(warehouse_quantities) {
         for(const warehouse_quantity of warehouse_quantities) {
@@ -632,6 +646,9 @@ export const updateProductService = async (payload) => {
     if (Object.prototype.hasOwnProperty.call(payload, "qty_step")) {
         const n = Number(payload.qty_step);
         payload.qty_step = Number.isFinite(n) ? Math.max(1, n) : 1;
+    }
+    if (Object.prototype.hasOwnProperty.call(payload, "sku")) {
+        payload.sku = normalizeSku(payload.sku);
     }
 
     const columns = [
@@ -680,7 +697,7 @@ export const updateProductService = async (payload) => {
     const result = await pool.query(
         `UPDATE products SET ${sets.join(", ")} WHERE id = $${param} RETURNING id`,
         values
-    );
+    ).catch(rethrowDuplicateSku);
 
     return result.rows[0];
 }
