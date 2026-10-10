@@ -227,6 +227,7 @@ const Login = ({ navigation, route }) => {
             const me = await usersApi.me(token);
             if (me?.reset_password) {
                 AppAlert.alert('Reset password', 'Please reset your password to continue.');
+                setPassword('');
                 navigation.navigate('ResetPassword', { changePassword: true });
                 return;
             }
