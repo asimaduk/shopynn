@@ -137,8 +137,8 @@ const Dashboard = ({ navigation, route }) => {
                     setMetrics(defaultMetrics);
                 }
                 const [lowStockRes, expiringRes] = await Promise.all([
-                    inventories.lowStock().catch(() => null),
-                    inventories.expiring({ days: 30 }).catch(() => null),
+                    inventories.lowStock(undefined, { skipErrorAlert: true }).catch(() => null),
+                    inventories.expiring({ days: 30 }, { skipErrorAlert: true }).catch(() => null),
                 ]);
                 setItemsToReorder(normalizeList(lowStockRes).length ? normalizeList(lowStockRes) : [
                     // { id: '1', name: 'Tampico Medium', sku: 'Tam500', current: 21, reorderAt: 30 },
@@ -490,7 +490,7 @@ const Dashboard = ({ navigation, route }) => {
                                 </View>
                                 <View>
                                     <AppText label="Stock Status" variant={1} fontSize={16} color={colors.text} />
-                                    <AppText label={`${metrics.products?.activeProducts?.toLocaleString()} active products`} fontSize={12} color={colors.textTertiary} style={{ marginTop: 2 }} />
+                                    <AppText label={`${(metrics.products?.activeProducts ?? 0).toLocaleString()} active products`} fontSize={12} color={colors.textTertiary} style={{ marginTop: 2 }} />
                                 </View>
                             </View>
                             <TouchableOpacity

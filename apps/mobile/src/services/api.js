@@ -379,9 +379,9 @@ export const inventories = {
         axios.get('/inventories', { params }).then((res) => normalizeLowStockList(normalizeList(getData(res)))),
     count: () => axios.get('/inventories/count').then((res) => getData(res)),
     summary: (params) => axios.get('/inventories/summary', { params }).then((res) => getData(res)),
-    lowStock: (params) =>
-        axios.get('/inventories/low-stock', { params }).then((res) => normalizeLowStockList(normalizeList(getData(res)))),
-    expiring: (params) => axios.get('/inventories/expiring', { params }).then((res) => getData(res)),
+    lowStock: (params, options) =>
+        axios.get('/inventories/low-stock', { params, ...options }).then((res) => normalizeLowStockList(normalizeList(getData(res)))),
+    expiring: (params, options) => axios.get('/inventories/expiring', { params, ...options }).then((res) => getData(res)),
     topSelling: (params) => axios.get('/inventories/top-selling', { params }).then((res) => getData(res)),
     bulkUpdates: (body) => axios.post('/inventories/updates', body).then((res) => res.data),
 };
