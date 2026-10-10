@@ -83,7 +83,8 @@ export async function sendShopOwnerEmailOtpService(email) {
         [id, normalized, PURPOSE_SHOP_OWNER, hashOtp(normalized, code, PURPOSE_SHOP_OWNER), expiresAt]
     );
 
-    await sendEmailService({
+    // Not awaited: SMTP can hang for longer than the app's request timeout.
+    sendEmailService({
         sender_name: "Shopynn",
         receipient: normalized,
         subject: "Verify your email — Shopynn shop signup",
@@ -91,6 +92,8 @@ export async function sendShopOwnerEmailOtpService(email) {
         message: `Use this code to verify your owner login email:\n\n${code}\n\nThis code expires in 10 minutes. If you did not request this, you can ignore this email.`,
         text: `Your Shopynn verification code is ${code}. It expires in 10 minutes.`,
         html: `<p>Use this code to verify your owner login email:</p><p style="font-size:28px;font-weight:bold;letter-spacing:4px">${code}</p><p>This code expires in 10 minutes.</p>`,
+    }).catch((err) => {
+        console.info(`[shop owner signup OTP] email=${normalized} code=${code} mail=${err?.message || "n/a"}`);
     });
 
     return { email: normalized, expires_in_seconds: Math.floor(OTP_TTL_MS / 1000) };

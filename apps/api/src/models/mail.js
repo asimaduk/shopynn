@@ -13,7 +13,10 @@ const transporter = nodemailer.createTransport({
     auth: {
         user: "mail.asimadu@gmail.com",
         pass: process.env.GOOGLE_APP_PASSWORD,
-    }
+    },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 20000,
 });
 
 transporter.verify((err,status)=> {
