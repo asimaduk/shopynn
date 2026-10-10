@@ -14,25 +14,12 @@ import { useSelector } from 'react-redux';
 import { subscriptions as subscriptionsApi } from '../../services/api';
 import { canManageSubscription } from '../../utils/permissions';
 import AppAlert from '../../utils/appAlert';
+import { getPaymentStatusBadgeStyle } from '../../utils/paymentStatus';
 
 const formatter = new Intl.NumberFormat('en-GH', {
     style: 'currency',
     currency: 'GHS',
 });
-
-function getPaymentStatusBadgeStyle(status) {
-    const s = String(status || '').toLowerCase();
-    if (['completed', 'success', 'paid'].includes(s)) {
-        return { backgroundColor: '#dcfce7', color: '#10b981' };
-    }
-    if (['failed', 'error', 'cancelled', 'canceled'].includes(s)) {
-        return { backgroundColor: '#fee2e2', color: '#ef4444' };
-    }
-    if (['pending', 'processing'].includes(s)) {
-        return { backgroundColor: '#fef3c7', color: '#f59e0b' };
-    }
-    return { backgroundColor: '#f3f4f6', color: '#6b7280' };
-}
 
 function mapBillingPayment(row) {
     const createdAt = row?.created_at ? String(row.created_at) : '';

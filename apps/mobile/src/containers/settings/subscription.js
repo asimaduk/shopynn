@@ -16,6 +16,7 @@ import { canManageSubscription } from '../../utils/permissions';
 import { SUBSCRIPTION_INACTIVE_MESSAGE, subscriptionStateFromResponse } from '../../utils/subscriptionAccess';
 import { CHOOSEABLE_SUBSCRIPTION_PLANS, PLAN_RANK_BY_NAME, displayPlanName } from '../../constants/subscriptionPlans';
 import AppAlert from '../../utils/appAlert';
+import { getPaymentStatusBadgeStyle } from '../../utils/paymentStatus';
 
 const formatter = new Intl.NumberFormat('en-GH', {
     style: 'currency',
@@ -492,8 +493,8 @@ const Subscription = ({ navigation, route }) => {
                                         </View>
                                         <View style={styles.paymentRight}>
                                             <AppText label={formatCurrency(pAmount)} variant={1} fontSize={16} color={colors.text} />
-                                            <View style={[styles.paidBadge, { backgroundColor: pStatus === 'paid' ? '#dcfce7' : '#fef3c7' }]}>
-                                                <AppText label={(payment.status ?? pStatus).toUpperCase()} fontSize={10} variant={2} color={pStatus === 'paid' ? '#10b981' : '#f59e0b'} />
+                                            <View style={[styles.paidBadge, { backgroundColor: getPaymentStatusBadgeStyle(pStatus).backgroundColor }]}>
+                                                <AppText label={(payment.status ?? pStatus).toUpperCase()} fontSize={10} variant={2} color={getPaymentStatusBadgeStyle(pStatus).color} />
                                             </View>
                                         </View>
                                     </TouchableOpacity>
