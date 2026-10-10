@@ -432,6 +432,33 @@ export const createPurchaseService = async (payload) => {
         );
 
         for (const prod of products) {
+            const qty = Number(prod.quantity);
+            const unitCost = Number(prod.unit_price);
+            if (!Number.isFinite(qty) || qty <= 0 || !Number.isFinite(unitCost) || unitCost < 0) {
+                const err = new Error("Each item needs a quantity above zero and a valid unit price.");
+                err.status = 400;
+                throw err;
+            }
+
+            // Weighted average: existing stock at the old cost plus this delivery at its cost.
+            const rp = await client.query(
+                `UPDATE products SET
+                    actual_cost = CASE
+                        WHEN COALESCE(inventory, 0) <= 0 OR actual_cost IS NULL THEN $2::numeric
+                        ELSE ROUND((inventory * actual_cost + $1::numeric * $2::numeric) / (inventory + $1::numeric), 2)
+                    END,
+                    inventory = COALESCE(inventory, 0) + $1,
+                    updated_at = $3
+                 WHERE id = $4 AND tenant_id = $5
+                 RETURNING id`,
+                [qty, unitCost, new Date(), prod.id, tenant_id]
+            );
+            if (!rp.rowCount) {
+                const err = new Error("Product not found.");
+                err.status = 404;
+                throw err;
+            }
+
             const r1 = await client.query("SELECT id, quantity_available FROM inventories where product_id = $1 AND warehouse_id=$2", [prod.id, warehouse_id]);
             if(r1.rowCount) {
                 await client.query("UPDATE inventories SET quantity_available = quantity_available + $1, updated_at=$2 WHERE id=$3 RETURNING *",[prod.quantity, new Date(), r1.rows[0].id]);
@@ -440,9 +467,6 @@ export const createPurchaseService = async (payload) => {
                 const newId = uuidv4();
                 await client.query("INSERT INTO inventories (id, quantity_available, minimum_stock_level, product_id, warehouse_id, creator_id, tenant_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",[newId, prod.quantity, 10, prod.id, warehouse_id, creator_id, tenant_id, new Date()]);
             }
-
-            const rp = await client.query("UPDATE products SET inventory = inventory + $1, updated_at=$2 WHERE id=$3 RETURNING *",[prod.quantity, new Date(), prod.id]);
-            // console.log('X prod. update rp',rp.rows);
 
             const _newId = uuidv4();
             await client.query("INSERT INTO purchasedetails (id, purchase_id, product_id, unit_price, quantity, supplier_id, warehouse_id, tenant_id, created_at, creator_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id",[_newId, result.rows[0].id, prod.id, prod.unit_price, prod.quantity, supplier_id, warehouse_id, tenant_id, new Date(), creator_id]);
