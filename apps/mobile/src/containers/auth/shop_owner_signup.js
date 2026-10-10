@@ -146,6 +146,7 @@ const ShopOwnerSignup = ({ navigation }) => {
         rightElement = null,
         multiline = false,
         isLast = false,
+        editable = true,
     }) => (
         <View
             style={[
@@ -157,9 +158,10 @@ const ShopOwnerSignup = ({ navigation }) => {
             <TextInput
                 style={[
                     styles.input,
-                    { color: colors.text },
+                    { color: editable ? colors.text : colors.textSecondary },
                     multiline && styles.inputMultiline,
                 ]}
+                editable={editable}
                 value={value}
                 onChangeText={onChangeText}
                 placeholder={placeholder}
@@ -554,9 +556,20 @@ const ShopOwnerSignup = ({ navigation }) => {
                                     onChangeText: onOwnerEmailChange,
                                     placeholder: 'Login email',
                                     keyboardType: 'email-address',
+                                    editable: !ownerEmailVerified,
+                                    rightElement: ownerEmailVerified ? (
+                                        <TouchableOpacity
+                                            onPress={resetEmailVerification}
+                                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                            style={styles.changeEmailBtn}
+                                        >
+                                            <AppText label="Change" color={config.THEME_COLOR} fontSize={13} variant={1} />
+                                        </TouchableOpacity>
+                                    ) : null,
                                 })}
 
                                 <View style={styles.emailVerifyBlock}>
+                                    {!ownerEmailVerified ? (
                                     <TouchableOpacity
                                         onPress={sendEmailOtp}
                                         disabled={sendingOtp || !ownerEmail.trim() || ownerEmailVerified}
@@ -582,6 +595,7 @@ const ShopOwnerSignup = ({ navigation }) => {
                                             />
                                         )}
                                     </TouchableOpacity>
+                                    ) : null}
 
                                     {ownerEmailVerified ? (
                                         <View
@@ -831,6 +845,7 @@ const styles = StyleSheet.create({
     },
     inputMultiline: { minHeight: 56, paddingTop: 10 },
     eyeBtn: { padding: 8, marginTop: 4 },
+    changeEmailBtn: { paddingHorizontal: 4, paddingVertical: 8, marginTop: 4 },
     emailVerifyBlock: { marginBottom: 12, marginTop: 4 },
     otpSendBtn: {
         alignSelf: 'flex-start',
