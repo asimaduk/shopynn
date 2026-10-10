@@ -1,5 +1,6 @@
 import pool from "../config/db.js";
 import { v4 as uuidv4 } from 'uuid';
+import { assertTenantOwnsRecords } from "../util/tenantScope.js";
 
 const TRANSFER_STATUS = {
     PENDING: 'pending',
@@ -292,6 +293,11 @@ export const createTransferService = async (payload) => {
         if (!tenant_id) {
             throw statusError('tenant_id is required.', 'TENANT_REQUIRED');
         }
+        await assertTenantOwnsRecords(
+            tenant_id,
+            { warehouseIds: [source_warehouse_id, destination_warehouse_id], productIds: products.map((p) => p.id) },
+            client
+        );
 
         const id = uuidv4();
         const numberOfItems = products.reduce((acc, prod) => acc + toQty(prod.quantity), 0);
@@ -537,8 +543,8 @@ export const deleteTransferService = async (id) => {
     return result.rows[0];
 };
 
-export const getAllTransferDetailsService = async () => {
-    const result = await pool.query('SELECT * FROM transferdetails');
+export const getAllTransferDetailsService = async (tenantId) => {
+    const result = await pool.query('SELECT * FROM transferdetails WHERE tenant_id = $1', [tenantId]);
     return result.rows;
 };
 

@@ -528,7 +528,7 @@ export const deletePurchaseService = async (id) => {
     return result.rows[0];
 }
 
-export const getAllPurchaseDetailsService = async () => {
-    const result = await pool.query("SELECT * FROM purchasedetails");
+export const getAllPurchaseDetailsService = async (tenantId) => {
+    const result = await pool.query("SELECT * FROM purchasedetails WHERE tenant_id = $1", [tenantId]);
     return result.rows;
 }

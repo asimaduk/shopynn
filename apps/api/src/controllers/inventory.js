@@ -1,4 +1,5 @@
 import { handleResponse } from "../util/handleresponse.js";
+import { assertOwnStockPayload } from "../util/tenantScope.js";
 import { createBulkUpdatesService, getAllInventoriesService, getExpiringInventoriesService, getInventoryCountService, getSlowMovingInventoriesService, getStockSummaryService, getTopSellingInventoriesService } from "../models/inventory.js";
 
 export const getAllInventories = async (req, res, next) => {
@@ -67,6 +68,7 @@ export const getStockSummary = async (req, res, next) => {
 
 export const createBulkUpdates = async (req, res, next) => {
     try {
+        await assertOwnStockPayload(req);
         const update = await createBulkUpdatesService(req.body);
         handleResponse(res, 200, "Update respone.", update);
     } catch (error) {

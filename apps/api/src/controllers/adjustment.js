@@ -1,9 +1,11 @@
 import { handleResponse } from "../util/handleresponse.js";
+import { assertOwnStockPayload } from "../util/tenantScope.js";
 import { createAdjustmentService, getAdjustmentsSummaryService, getAllAdjustmentDetailsService, getAllAdjustmentsService } from "../models/adjustment.js";
 import { createAuditLogService } from "../models/auditLog.js";
 
 export const createAdjustment = async (req, res, next) => {
     try {
+        await assertOwnStockPayload(req);
         const newAdjustment = await createAdjustmentService({
             ...req.body,
             tenant_id: req.user?.tenant_id,
@@ -50,7 +52,7 @@ export const getAdjustmentsSummary = async (req, res, next) => {
 
 export const getAllAdjustmentDetails = async (req, res, next) => {
     try {
-        const adjustmentItems = await getAllAdjustmentDetailsService();
+        const adjustmentItems = await getAllAdjustmentDetailsService(req.user.tenant_id);
         handleResponse(res, 200, "Adjustment items list.", adjustmentItems);
     } catch (error) {
         next(error);

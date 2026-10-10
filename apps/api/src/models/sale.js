@@ -2182,8 +2182,8 @@ export const getOutstandingArService = async (user, requestQuery = {}) => {
     return { items, total_outstanding, count: items.length };
 };
 
-export const getAllSaleDetailsService = async () => {
-    const result = await pool.query("SELECT * FROM saledetails");
+export const getAllSaleDetailsService = async (tenantId) => {
+    const result = await pool.query("SELECT * FROM saledetails WHERE tenant_id = $1", [tenantId]);
     return result.rows;
 }
 

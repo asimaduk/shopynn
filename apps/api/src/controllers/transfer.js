@@ -82,7 +82,7 @@ export const getTransfersSummary = async (req, res, next) => {
 
 export const getAllTransferDetails = async (req, res, next) => {
     try {
-        const transferItems = await getAllTransferDetailsService();
+        const transferItems = await getAllTransferDetailsService(req.user.tenant_id);
         handleResponse(res, 200, "Transfer items list.", transferItems);
     } catch (error) {
         next(error);

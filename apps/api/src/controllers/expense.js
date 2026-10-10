@@ -1,3 +1,4 @@
+import { assertOwnRecord } from "../util/tenantScope.js";
 import { handleResponse } from "../util/handleresponse.js";
 import { createExpenseService, getAllExpensesService, updateExpenseService, getExpenseByIdService } from "../models/expense.js";
 
@@ -12,6 +13,7 @@ export const createExpense = async (req, res, next) => {
 
 export const getExpenseById = async (req, res, next) => {
     try {
+        await assertOwnRecord(req, "expenses", req.params.id);
         const product = await getExpenseByIdService(req.params.id);
         if(!product) return handleResponse(res, 404, "Not found.")
         handleResponse(res, 200, "Cat found.", product);
@@ -31,6 +33,7 @@ export const getAllExpenses = async (req, res, next) => {
 
 export const updateExpense = async (req, res, next) => {
     try {
+        await assertOwnRecord(req, "expenses", req.params.id);
         req.body.id = req.params.id;
         const updatedExpense = await updateExpenseService(req.body);
         if(!updatedExpense) return handleResponse(res, 404, "Not found.")

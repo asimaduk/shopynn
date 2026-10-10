@@ -534,15 +534,15 @@ export const getProductByIdService = async (id) => {
     });
 }
 
-export const getProductBySlugService = async (slug) => {
+export const getProductBySlugService = async (slug, tenantId) => {
     const result = await pool.query(
         `SELECT id, name, sku, unit_price, actual_cost, unit, inventory, bar_code, description,
                 categories, slug, reorder_quantity, alt_price, tags,
                 thumbnail, picture1, picture2, picture3, picture4,
                 product_type, measurement_unit, allows_fractional_qty, min_order_qty, qty_step
          FROM products
-         WHERE slug = $1`,
-        [slug]
+         WHERE slug = $1 AND tenant_id = $2`,
+        [slug, tenantId]
     );
     const row = result.rows[0];
     return row ? normalizeProductRow(row) : null;

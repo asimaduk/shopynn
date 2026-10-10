@@ -321,7 +321,10 @@ export const deleteAdjustmentService = async (id) => {
     return result.rows[0];
 }
 
-export const getAllAdjustmentDetailsService = async () => {
-    const result = await pool.query("SELECT * FROM adjustmentdetails");
+export const getAllAdjustmentDetailsService = async (tenantId) => {
+    const result = await pool.query(
+        "SELECT ad.* FROM adjustmentdetails ad JOIN adjustments a ON a.id = ad.adjustment_id WHERE a.tenant_id = $1",
+        [tenantId]
+    );
     return result.rows;
 }

@@ -1,4 +1,5 @@
 import { handleResponse } from "../util/handleresponse.js";
+import { assertOwnRecord, assertOwnStockPayload } from "../util/tenantScope.js";
 import {
     createPurchaseService,
     getAllPurchasesService,
@@ -15,6 +16,7 @@ export const createPurchase = async (req, res, next) => {
         if (!invoiceNumber) {
             return handleResponse(res, 400, "Invoice number is required.");
         }
+        await assertOwnStockPayload(req);
         const newPurchase = await createPurchaseService({ ...req.body, invoice_number: invoiceNumber });
         handleResponse(res, 201, "Purchase creation success.", newPurchase);
     } catch (error) {
@@ -29,6 +31,7 @@ export const createPurchase = async (req, res, next) => {
 
 export const getPurchaseById = async (req, res, next) => {
     try {
+        await assertOwnRecord(req, "purchases", req.params.id);
         const purchase = await getPurchaseByIdService(req.params.id);
         if(!purchase) return handleResponse(res, 404, "Not found.")
         handleResponse(res, 200, "Purchase found.", purchase);
@@ -85,7 +88,7 @@ export const getSuppliersSummary = async (req, res, next) => {
 
 export const getAllPurchaseDetails = async (req, res, next) => {
     try {
-        const purchaseItems = await getAllPurchaseDetailsService();
+        const purchaseItems = await getAllPurchaseDetailsService(req.user.tenant_id);
         handleResponse(res, 200, "Purchases items list.", purchaseItems);
     } catch (error) {
         next(error);

@@ -1,8 +1,10 @@
 import { handleResponse } from "../util/handleresponse.js";
-import { createSaleService, getAllSalesService, getSalesByDateService, getAllSaleDetailsService, getCogsReportService, getRevenueReportService, getDailySalesSummaryService, getSalesByCustomerSummaryService, getSalesByCustomersReportService, getSalesByUserSummaryService, getSaleByIdService, getSaleAttendantsService, getSalesSummaryService, getTopSellingProductsService, getMyMtdSalesTotalService, buildSaleInvoicePackageService, sendSaleInvoiceEmailService, recordSalePaymentService, getOutstandingArService } from "../models/sale.js";
+import { assertOwnStockPayload } from "../util/tenantScope.js";
+import { createSaleService, getAllSalesService, getSalesByDateService, getAllSaleDetailsService, getCogsReportService, getRevenueReportService, getDailySalesSummaryService, getSalesByCustomerSummaryService, getSalesByCustomersReportService, getSalesByUserSummaryService, getSaleByIdService, getSaleByIdForTenantService, getSaleAttendantsService, getSalesSummaryService, getTopSellingProductsService, getMyMtdSalesTotalService, buildSaleInvoicePackageService, sendSaleInvoiceEmailService, recordSalePaymentService, getOutstandingArService } from "../models/sale.js";
 
 export const createSale = async (req, res, next) => {
     try {
+        await assertOwnStockPayload(req, { ...req.body, customer_id: undefined });
         const newSale = await createSaleService(req.body);
         handleResponse(res, 201, "Sale creation success.", newSale);
     } catch (error) {
@@ -135,7 +137,7 @@ export const getTopSellingProducts = async (req, res, next) => {
 
 export const getSaleById = async (req, res, next) => {
     try {
-        const sale = await getSaleByIdService(req.params.id);
+        const sale = await getSaleByIdForTenantService(req.params.id, req.user.tenant_id);
         if(!sale) return handleResponse(res, 404, "Not found.")
         handleResponse(res, 200, "Sale found.", sale);
     } catch (error) {
@@ -165,7 +167,7 @@ export const sendSaleInvoice = async (req, res, next) => {
 
 export const getAllSaleDetails = async (req, res, next) => {
     try {
-        const saleItems = await getAllSaleDetailsService();
+        const saleItems = await getAllSaleDetailsService(req.user.tenant_id);
         handleResponse(res, 200, "Sales items list.", saleItems);
     } catch (error) {
         next(error);

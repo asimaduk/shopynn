@@ -1,4 +1,5 @@
 import { handleResponse } from "../util/handleresponse.js";
+import { assertOwnStockPayload } from "../util/tenantScope.js";
 import {
     getStockCountsHistoryService,
     getStockCountByIdService,
@@ -34,6 +35,7 @@ export const createStockCount = async (req, res, next) => {
             creator_id: req.user?.id,
             tenant_id: req.user?.tenant_id,
         };
+        await assertOwnStockPayload(req);
         const created = await createStockCountService(payload);
         handleResponse(res, 201, "Stock count created.", created);
     } catch (error) {

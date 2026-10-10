@@ -1,8 +1,10 @@
+import { assertOwnRecord } from "../util/tenantScope.js";
 import { handleResponse } from "../util/handleresponse.js";
 import { getAllTransactionsService, getTransactionByIdService} from "../models/transactions.js";
 
 export const getTransacionById = async (req, res, next) => {
     try {
+        await assertOwnRecord(req, "expenses", req.params.id);
         const transaction = await getTransactionByIdService(req.params.id);
         if(!transaction) return handleResponse(res, 404, "Not found.")
         handleResponse(res, 200, "Transaction found.", transaction);

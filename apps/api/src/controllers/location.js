@@ -1,3 +1,4 @@
+import { assertOwnRecord } from "../util/tenantScope.js";
 import { createLocationService, getAllLocationsService, getLocationByIdService, updateLocationService } from "../models/location.js";
 import { handleResponse } from "../util/handleresponse.js";
 
@@ -25,6 +26,7 @@ export const getAllLocations = async (req, res, next) => {
 
 export const getLocationById = async (req, res, next) => {
     try {
+        await assertOwnRecord(req, "locations", req.params.id);
         const location = await getLocationByIdService(req.params.id);
         if(!location) return handleResponse(res, 404, "Not found.")
         handleResponse(res, 200, "Location found.", location);
@@ -35,7 +37,8 @@ export const getLocationById = async (req, res, next) => {
 
 export const updateLocation = async (req, res, next) => {
     try {
-        const updatedLocation = await updateLocationService(req.body);
+        await assertOwnRecord(req, "locations", req.params.id);
+        const updatedLocation = await updateLocationService({ ...req.body, id: req.params.id });
         if(!updatedLocation) return handleResponse(res, 404, "Not found.")
         handleResponse(res, 201, "Location updated.", updatedLocation);
     } catch (error) {

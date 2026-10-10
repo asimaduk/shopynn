@@ -2,9 +2,14 @@ import { createProductService, deleteProductService, getAllProductsService, getP
 import { receiveTransferService } from "../models/transfer.js";
 import { createAuditLogService } from "../models/auditLog.js";
 import { handleResponse } from "../util/handleresponse.js";
+import { assertTenantOwnsRecords } from "../util/tenantScope.js";
+
+const assertOwnProduct = (req, productId) => assertTenantOwnsRecords(req.user.tenant_id, { productIds: [productId] });
 
 export const createProduct = async (req, res, next) => {
     try {
+        const warehouseIds = (req.body.warehouse_quantities || []).map((w) => w?.warehouse_id);
+        await assertTenantOwnsRecords(req.user.tenant_id, { warehouseIds: [...warehouseIds, req.body.warehouse_id] });
         const newProduct = await createProductService(req.body);
         handleResponse(res, 201, "Product creation success.", newProduct);
     } catch (error) {
@@ -123,6 +128,7 @@ export const receiveTransfer = async (req, res, next) => {
 
 export const getProductById = async (req, res, next) => {
     try {
+        await assertOwnProduct(req, req.params.id);
         const product = await getProductByIdService(req.params.id);
         if(!product) return handleResponse(res, 404, "Not found.")
         handleResponse(res, 200, "Product found.", product);
@@ -133,7 +139,7 @@ export const getProductById = async (req, res, next) => {
 
 export const getProductBySlug = async (req, res, next) => {
     try {
-        const product = await getProductBySlugService(req.params.slug);
+        const product = await getProductBySlugService(req.params.slug, req.user.tenant_id);
         if(!product) return handleResponse(res, 404, "Not found.")
         handleResponse(res, 200, "Product found.", product);
     } catch (error) {
@@ -153,6 +159,7 @@ export const getAllTransferById = async (req, res, next) => {
 
 export const updateProduct = async (req, res, next) => {
     try {
+        await assertOwnProduct(req, req.params.id);
         const updatedProduct = await updateProductService({...req.body, id: req.params.id});
         if(!updatedProduct) return handleResponse(res, 404, "Not found.")
         handleResponse(res, 201, "Product updated.", updatedProduct);
@@ -163,6 +170,7 @@ export const updateProduct = async (req, res, next) => {
 
 export const changeProductStatus = async (req, res, next) => {
     try {
+        await assertOwnProduct(req, req.body.id);
         const updatedProduct = await toggleProductStatusService(req.body);
         if(!updatedProduct) return handleResponse(res, 404, "Not found.")
         handleResponse(res, 201, "Product status updated.", updatedProduct);
@@ -173,6 +181,7 @@ export const changeProductStatus = async (req, res, next) => {
 
 export const updateProductImages = async (req, res, next) => {
     try {
+        await assertOwnProduct(req, req.body.id);
         const updatedProduct = await updateProductImagesService(req.body);
         if(!updatedProduct) return handleResponse(res, 404, "Not found.")
         handleResponse(res, 201, "Product updated.", updatedProduct);
@@ -187,6 +196,7 @@ export const uploadProductImages = async (req, res, next) => {
             return handleResponse(res, 400, "No files uploaded.", null);
         }
         const id = req.params.id;
+        await assertOwnProduct(req, id);
         const findKey = (name) => {
             const f = req.files.find(f => f.fieldname === name);
             return f ? f.key : null;
@@ -213,6 +223,7 @@ export const changeProductPrice = async (req, res, next) => {
         if (!id) {
             return handleResponse(res, 400, "id is required.", null);
         }
+        await assertOwnProduct(req, id);
         const change = await changeProductPriceService({ id, unit_price, alt_price });
         if (!change) {
             return handleResponse(res, 404, "Not found.", null);
@@ -248,6 +259,7 @@ export const changeProductPrice = async (req, res, next) => {
 
 export const deleteProduct = async (req, res, next) => {
     try {
+        await assertOwnProduct(req, req.params.id);
         const updatedProduct = await deleteProductService(req.params.id);
         if(!updatedProduct) return handleResponse(res, 404, "Not found.")
         handleResponse(res, 201, "Product deleted/updated.", updatedProduct);

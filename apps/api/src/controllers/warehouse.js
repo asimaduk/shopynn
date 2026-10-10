@@ -1,3 +1,4 @@
+import { assertOwnRecord } from "../util/tenantScope.js";
 import { createWarehouseService, getAllWarehousesService, getWarehouseByIdService, updateWarehouseService } from "../models/warehouse.js";
 import { handleResponse } from "../util/handleresponse.js";
 import { hasFeature } from "../middleware/requireFeature.js";
@@ -69,6 +70,7 @@ export const getAllWarehouses = async (req, res, next) => {
 
 export const getWarehouseById = async (req, res, next) => {
     try {
+        await assertOwnRecord(req, "warehouses", req.params.id);
         const warehouse = await getWarehouseByIdService(req.params.id);
         if(!warehouse) return handleResponse(res, 404, "Not found.")
         handleResponse(res, 200, "Warehouse found.", warehouse);
@@ -79,6 +81,7 @@ export const getWarehouseById = async (req, res, next) => {
 
 export const updateWarehouse = async (req, res, next) => {
     try {
+        await assertOwnRecord(req, "warehouses", req.params.id);
         req.body.id = req.params.id;
         req.body.tenant_id = req.body.tenant_id ?? req.user?.tenant_id;
         if (req.body.reference_code !== undefined && !allowCustomerSignupCodes(req)) {

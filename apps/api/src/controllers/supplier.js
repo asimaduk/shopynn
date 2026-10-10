@@ -1,3 +1,4 @@
+import { assertOwnRecord } from "../util/tenantScope.js";
 import { createSupplierService, getAllSuppliersService, getSupplierByIdService, updateSupplierService } from "../models/supplier.js";
 import { getPurchasesBySupplierIdService } from "../models/purchase.js";
 import { handleResponse } from "../util/handleresponse.js";
@@ -22,6 +23,7 @@ export const getAllSuppliers = async (req, res, next) => {
 
 export const getSupplierPurchases = async (req, res, next) => {
     try {
+        await assertOwnRecord(req, "suppliers", req.params.id);
         const purchases = await getPurchasesBySupplierIdService(req.user, req.params.id, req.query);
         handleResponse(res, 200, "Supplier purchases.", purchases);
     } catch (error) {
@@ -31,6 +33,7 @@ export const getSupplierPurchases = async (req, res, next) => {
 
 export const getSupplierById = async (req, res, next) => {
     try {
+        await assertOwnRecord(req, "suppliers", req.params.id);
         const warehouse = await getSupplierByIdService(req.params.id);
         if(!warehouse) return handleResponse(res, 404, "Not found.")
         handleResponse(res, 200, "Supplier found.", warehouse);
@@ -41,6 +44,7 @@ export const getSupplierById = async (req, res, next) => {
 
 export const updateSupplier = async (req, res, next) => {
     try {
+        await assertOwnRecord(req, "suppliers", req.params.id);
         const updatedSupplier = await updateSupplierService({...req.body, id: req.params.id});
         if(!updatedSupplier) return handleResponse(res, 404, "Not found.")
         handleResponse(res, 201, "Supplier updated.", updatedSupplier);
