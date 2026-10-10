@@ -98,8 +98,7 @@ const isProductLowStock = (item) => {
     const stock = productListedQuantity(item);
     if (stock === 0) return false;
     const reorder = Number(item?.reorder_quantity ?? 0);
-    if (reorder > 0) return stock <= reorder;
-    return stock < 50;
+    return reorder > 0 && stock <= reorder;
 };
 
 const stockStatusForItem = (item) => {
@@ -114,7 +113,7 @@ const stockStatusForItem = (item) => {
             icon: 'package-x',
         };
     }
-    const isLow = reorder > 0 ? stock <= reorder : stock < 50;
+    const isLow = reorder > 0 && stock <= reorder;
     if (isLow) {
         return {
             label: 'Low Stock',
@@ -686,7 +685,7 @@ const Inventory = ({ navigation, route }) => {
                             />
                         </View>
                         <View style={[styles.priceInputRow, { borderColor: colors.border, backgroundColor: colors.inputBackground }]}>
-                            <AppText label={'₵'} fontSize={14} color={colors.textSecondary} />
+                            <AppText label={'GH₵'} fontSize={14} color={colors.textSecondary} />
                             <TextInput
                                 keyboardType="decimal-pad"
                                 value={priceForm.retailPrice}
@@ -700,7 +699,7 @@ const Inventory = ({ navigation, route }) => {
                     <View style={{ marginBottom: 4 }}>
                         <AppText label={'Wholesale price (optional)'} fontSize={13} color={colors.text} />
                         <View style={[styles.priceInputRow, { borderColor: colors.border, backgroundColor: colors.inputBackground }]}>
-                            <AppText label={'₵'} fontSize={14} color={colors.textSecondary} />
+                            <AppText label={'GH₵'} fontSize={14} color={colors.textSecondary} />
                             <TextInput
                                 keyboardType="decimal-pad"
                                 value={priceForm.wholesalePrice}

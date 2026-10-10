@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Dimensions, StyleSheet, TouchableOpacity, ScrollView, View, TextInput, KeyboardAvoidingView, Platform, Image, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
@@ -88,6 +88,7 @@ const ProductForm = ({ navigation, route }) => {
     const [showUnitPicker, setShowUnitPicker] = useState(false);
     const [showProductTypePicker, setShowProductTypePicker] = useState(false);
     const [categories, setCategories] = useState([]);
+    const categoryIdsBeforeAddRef = useRef(null);
     const [imageDeleteLoading, setImageDeleteLoading] = useState(false);
 
     const UNIT_OPTIONS = ['units', 'piece', 'yard', 'meter', 'kg', 'g', 'ltr', 'ml', 'box', 'pack'];
@@ -179,6 +180,22 @@ const ProductForm = ({ navigation, route }) => {
                 const raw = await categoriesApi.list();
                 const list = normalizeList(raw) || [];
                 if (active) setCategories(Array.isArray(list) ? list : []);
+                const knownBeforeAdd = categoryIdsBeforeAddRef.current;
+                if (active && knownBeforeAdd) {
+                    categoryIdsBeforeAddRef.current = null;
+                    const added = list.filter((c) => c?.id && !knownBeforeAdd.has(c.id));
+                    if (added.length > 0) {
+                        setSelectedCategories((prev) => {
+                            const next = { ...prev };
+                            for (const cat of added) {
+                                if (Object.keys(next).length >= 3) break;
+                                next[cat.id] = cat;
+                            }
+                            return next;
+                        });
+                        setErrors((prev) => ({ ...prev, categories: undefined }));
+                    }
+                }
                 if (list.length > 0) { 
                     if (product.categories) {
                         const cats = {};
@@ -396,19 +413,6 @@ const ProductForm = ({ navigation, route }) => {
         }
         if(Object.values(selectedCategories).length === 0) {
             newErrors.categories = 'Please select at least one category';
-        }
-
-        if (!editMode) {
-            // Require at least one warehouse quantity when warehouses exist
-            const warehouseQuantitiesPayload = Object.entries(warehouseQuantities || {})
-                .map(([warehouseId, qtyStr]) => ({
-                    warehouse_id: warehouseId,
-                    quantity: parseInt(qtyStr || '0', 10) || 0,
-                }))
-                .filter((entry) => entry.quantity > 0);
-            if (warehouses.length > 0 && warehouseQuantitiesPayload.length === 0) {
-                newErrors.warehouseQuantities = 'Enter quantity for at least one warehouse';
-            }
         }
 
         setErrors(newErrors);
@@ -630,7 +634,7 @@ const ProductForm = ({ navigation, route }) => {
                                             },
                                         ]}
                                     >
-                                        <AppText label={'GHS'} color={colors.textTertiary} fontSize={14} style={{ marginRight: 5 }} />
+                                        <AppText label={'GH₵'} color={colors.textTertiary} fontSize={14} style={{ marginRight: 5 }} />
                                         <TextInput
                                             placeholder='0.00'
                                             placeholderTextColor={colors.placeholder}
@@ -653,7 +657,7 @@ const ProductForm = ({ navigation, route }) => {
                                             },
                                         ]}
                                     >
-                                        <AppText label={'GHS'} color={colors.textTertiary} fontSize={14} style={{ marginRight: 5 }} />
+                                        <AppText label={'GH₵'} color={colors.textTertiary} fontSize={14} style={{ marginRight: 5 }} />
                                         <TextInput
                                             placeholder='0.00'
                                             placeholderTextColor={colors.placeholder}
@@ -680,7 +684,7 @@ const ProductForm = ({ navigation, route }) => {
                                         },
                                     ]}
                                 >
-                                    <AppText label={'GHS'} color={colors.textTertiary} fontSize={14} style={{ marginRight: 5 }} />
+                                    <AppText label={'GH₵'} color={colors.textTertiary} fontSize={14} style={{ marginRight: 5 }} />
                                     <TextInput
                                         placeholder="0.00"
                                         placeholderTextColor={colors.placeholder}
@@ -1038,6 +1042,7 @@ const ProductForm = ({ navigation, route }) => {
                                 activeOpacity={0.7}
                                 onPress={() => {
                                     setShowCategories(false);
+                                    categoryIdsBeforeAddRef.current = new Set(categories.map((c) => c?.id).filter(Boolean));
                                     navigation.navigate('CategoryForm');
                                 }}
                                 style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6 }}>
