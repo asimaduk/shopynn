@@ -346,7 +346,7 @@ const NewPurchase = ({ navigation, route }) => {
                 <ScreenHeader onPress={backPress} label="New Purchase">
                     <TouchableOpacity
                         activeOpacity={0.7}
-                        onPress={() => navigation.navigate('Search', { source_nav: 'purchases', searchOnly: true, onMultiSelect: handleMultiSelect, onSelect: (record) => handleSingleSelect(record) })}
+                        onPress={() => navigation.navigate('Search', { source_nav: 'purchases', searchOnly: true, multiSelect: true, onMultiSelect: handleMultiSelect, onSelect: (record) => handleSingleSelect(record) })}
                         style={[styles.headerBtn, { backgroundColor: colors.surface, marginRight: 10 }]}>
                         <Lucide name="plus" color={config.THEME_COLOR} size={22} />
                     </TouchableOpacity>
@@ -406,7 +406,7 @@ const NewPurchase = ({ navigation, route }) => {
                 {orders.length === 0 ? (
                     <TouchableOpacity
                         activeOpacity={0.7}
-                        onPress={() => navigation.navigate('Search', { source_nav: 'purchases', searchOnly: true, onMultiSelect: handleMultiSelect })}
+                        onPress={() => navigation.navigate('Search', { source_nav: 'purchases', searchOnly: true, multiSelect: true, onMultiSelect: handleMultiSelect })}
                         style={[styles.emptyState, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                         <Lucide name="package" size={48} color={colors.border} />
                         <AppText label="No items yet" variant={1} fontSize={16} color={colors.textSecondary} style={{ marginTop: 12 }} />

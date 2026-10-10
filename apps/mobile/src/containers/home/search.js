@@ -189,7 +189,7 @@ const Search = ({ navigation, route }) => {
     const [loadingProducts, setLoadingProducts] = useState(true);
     const [refreshingProducts, setRefreshingProducts] = useState(false);
     const [selectedItems, setSelectedItems] = useState({});
-    const [multipleSelect, setMultipleSelect] = useState(false);
+    const [multipleSelect, setMultipleSelect] = useState(route.params?.multiSelect === true);
 
     const backPress = () => {
         navigation.goBack();

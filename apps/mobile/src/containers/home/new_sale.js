@@ -354,7 +354,7 @@ const NewSale = ({ navigation, route }) => {
             );
             return;
         }
-        navigation.navigate('Search', { source_nav: 'inventory', searchOnly: true, onMultiSelect: handleMultiSelect, barcodeFilter: scanned });
+        navigation.navigate('Search', { source_nav: 'inventory', searchOnly: true, multiSelect: true, onMultiSelect: handleMultiSelect, barcodeFilter: scanned });
         // Intentionally only react to barcode param — avoid re-firing when callback identity changes.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [route.params?.scannedBarcode]);
@@ -1535,7 +1535,7 @@ const NewSale = ({ navigation, route }) => {
                                     alertMomoCartLocked();
                                     return;
                                 }
-                                navigation.navigate('Search', { source_nav: 'inventory', searchOnly: true, onMultiSelect: handleMultiSelect });
+                                navigation.navigate('Search', { source_nav: 'inventory', searchOnly: true, multiSelect: true, onMultiSelect: handleMultiSelect });
                             }}
                             style={[styles.headerBtn, { backgroundColor: colors.surface, marginRight: 10, opacity: momoCartLocked ? 0.4 : 1 }]}
                         >
@@ -1663,7 +1663,7 @@ const NewSale = ({ navigation, route }) => {
                                 alertMomoCartLocked();
                                 return;
                             }
-                            navigation.navigate('Search', { source_nav: 'inventory', searchOnly: true, onMultiSelect: handleMultiSelect });
+                            navigation.navigate('Search', { source_nav: 'inventory', searchOnly: true, multiSelect: true, onMultiSelect: handleMultiSelect });
                         }}
                         style={[styles.emptyState, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                         <Lucide name="shopping-cart" size={48} color={colors.border} />
