@@ -2,7 +2,7 @@
 
 const errorHandling = (err, req, res, next) => {
     console.error(`[${req.method} ${req.originalUrl}]`, err?.stack || err);
-    const status = Number(err?.status || err?.statusCode);
+    const status = err?.name === "MulterError" ? 400 : Number(err?.status || err?.statusCode);
     if (status >= 400 && status < 500) {
         return res.status(status).json({
             status,

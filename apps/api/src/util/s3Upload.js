@@ -23,15 +23,28 @@ export const s3 = hasS3
 		})
 	: null;
 
+export const IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"]);
+
+const DEFAULT_LIMITS = { fileSize: 8 * 1024 * 1024, files: 5 };
+
+const imageOnlyFilter = (req, file, cb) => {
+	if (IMAGE_MIME_TYPES.has(String(file.mimetype || "").toLowerCase())) return cb(null, true);
+	const err = new Error("Only JPEG, PNG, WebP, GIF or HEIC images can be uploaded.");
+	err.status = 400;
+	cb(err);
+};
+
 /**
  * Use S3 when configured; otherwise memory storage so local API can boot without AWS.
  */
 export function createUpload(options = {}) {
-	const { key, limits, metadata } = options;
+	const { key, metadata } = options;
+	const limits = { ...DEFAULT_LIMITS, ...(options.limits || {}) };
 	if (!hasS3) {
 		return multer({
 			storage: multer.memoryStorage(),
-			limits: limits || undefined,
+			limits,
+			fileFilter: imageOnlyFilter,
 		});
 	}
 
@@ -44,6 +57,7 @@ export function createUpload(options = {}) {
 			...(metadata ? { metadata } : {}),
 			key,
 		}),
-		limits: limits || undefined,
+		limits,
+		fileFilter: imageOnlyFilter,
 	});
 }

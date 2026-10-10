@@ -1,9 +1,11 @@
 import express from "express";
 import { getImage, saveImage, uploadImages } from "../controllers/image.js";
+import auth from "../middleware/auth.js";
+import requireActiveSubscription from "../middleware/requireActiveSubscription.js";
 
 const router = express.Router();
 
-router.post('/',uploadImages.any(), saveImage);
+router.post('/', auth, requireActiveSubscription, uploadImages.any(), saveImage);
 
 router.get('/', getImage);
 

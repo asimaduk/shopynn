@@ -127,16 +127,19 @@ function ProductImagesTab() {
 		formData.append(updateImageUrl, blob);
 		
 		uploadImages(formData)
-			.then(resp=> {
-				const ids = resp.data?.ids;				
-				if(!ids) {
-					toast.error('Failed to upload image. Please try again')
+			.then(async (resp) => {
+				const newKey = resp.data?.ids?.[0];
+				if (!newKey) {
+					toast.error('Failed to upload image. Please try again');
+					return;
 				}
-				else {
-					forceUpdate((prv)=> prv);
-					toast.success('Image updated successfully.');
-					setShowNewImage(false);
-				}
+				const next = (images || []).map((im) => (im === updateImageUrl ? newKey : im));
+				const serverKeys = next.filter((i): i is string => typeof i === 'string');
+				await updateProductImages(buildImageSlotsPayload(serverKeys)).unwrap();
+				setValue('images', next, { shouldDirty: true });
+				forceUpdate((prv) => prv);
+				toast.success('Image updated successfully.');
+				setShowNewImage(false);
 			})
 			.catch(err=> {
 				toast.error(`An error occurred. Please try again. Message: ${err.message}`)
