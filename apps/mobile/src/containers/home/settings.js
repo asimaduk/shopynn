@@ -17,7 +17,7 @@ import {
     hasPermission,
     navigateToScreenOrUpgrade,
 } from '../../utils/permissions';
-import { getTierBadgeLetterForPlanName } from '../../utils/subscriptionFeatureTiers';
+import { getTierDisplayNameForPlanName } from '../../utils/subscriptionFeatureTiers';
 import {
     SECURE_PENDING_SALES_KEY as PENDING_SALES_KEY,
     readSecureList,
@@ -206,7 +206,7 @@ const Settings = ({ navigation, route }) => {
             <View style={styles.planGateTrailing}>
                 <View style={styles.planBadge}>
                     <AppText
-                        label={getTierBadgeLetterForPlanName(access.requiredPlanName)}
+                        label={getTierDisplayNameForPlanName(access.requiredPlanName)}
                         fontSize={11}
                         variant={1}
                         color="#4338CA"

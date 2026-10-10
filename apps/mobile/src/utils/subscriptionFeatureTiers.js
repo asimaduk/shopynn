@@ -4,18 +4,8 @@ const TIER_RANK = { free: 1, basic: 2, standard: 3, premium: 4 };
 
 const TIER_DISPLAY = { free: 'Free', basic: 'Starter', standard: 'Business', premium: 'Scale' };
 
-const TIER_BADGE_LETTER = { free: 'F', basic: 'B', standard: 'S', premium: 'P' };
-
-export function getTierBadgeLetter(tier) {
-    return TIER_BADGE_LETTER[tier] || 'P';
-}
-
-export function getTierBadgeLetterForPlanName(planName) {
-    const key = String(planName || '').trim().toLowerCase();
-    if (key.includes('premium') || key.includes('scale')) return getTierBadgeLetter('premium');
-    if (key.includes('standard') || key.includes('business')) return getTierBadgeLetter('standard');
-    if (key.includes('basic') || key.includes('starter')) return getTierBadgeLetter('basic');
-    return getTierBadgeLetter('free');
+export function getTierDisplayNameForPlanName(planName) {
+    return TIER_DISPLAY[normalizePlanTierCode(planName)];
 }
 
 const FREE_TIER_FEATURES = new Set([
