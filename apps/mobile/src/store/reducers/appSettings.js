@@ -2,6 +2,7 @@ import {
     SET_INVOICE_PREFIX,
     SET_INVOICE_NEXT,
     INCREMENT_INVOICE_NEXT,
+    SET_INVOICE_COUNTER_TENANT,
     SET_INVOICE_REGISTER_CODE,
     SET_RECEIPT_COMPANY_NAME,
     SET_CURRENCY,
@@ -34,6 +35,7 @@ const initialState = {
     invoicePrefix: DEFAULT_INVOICE_PREFIX,
     invoiceRegisterCode: DEFAULT_INVOICE_REGISTER_CODE,
     invoiceNextNumber: DEFAULT_INVOICE_NEXT_NUMBER,
+    invoiceCounterTenantId: null,
     receiptCompanyName: 'Shopynn',
     currency: 'GHS', currencySymbol: 'GH₵', exchangeRateToGHS: 1,
     themeMode: 'system', // 'light', 'dark', or 'system'
@@ -56,6 +58,9 @@ export default function appSettings(state = initialState, action) {
             return { ...state, invoiceNextNumber: normalizeInvoiceNextNumber(action.payload) };
         case INCREMENT_INVOICE_NEXT:
             return { ...state, invoiceNextNumber: (state.invoiceNextNumber || DEFAULT_INVOICE_NEXT_NUMBER) + 1 };
+        case SET_INVOICE_COUNTER_TENANT:
+            if (!action.payload || action.payload === state.invoiceCounterTenantId) return state;
+            return { ...state, invoiceCounterTenantId: action.payload, invoiceNextNumber: DEFAULT_INVOICE_NEXT_NUMBER };
         case SET_INVOICE_REGISTER_CODE:
             return {
                 ...state,

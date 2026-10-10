@@ -9,7 +9,7 @@ import SuccessDialog from '../../components/SuccessDialog';
 import config from '../../config';
 import { SET_USER, SET_LOGGED_IN } from '../../store/actions/user';
 import { registerPushAfterLogin } from '../../utils/pushNotifications';
-import { setCompanyDetails, setSubscriptionActive, setSubscriptionPlan, setSubscriptionFeatures } from '../../store/actions/appSettings';
+import { setCompanyDetails, setSubscriptionActive, setSubscriptionPlan, setSubscriptionFeatures, setInvoiceCounterTenant } from '../../store/actions/appSettings';
 import useTheme from '../../hooks/useTheme';
 import {
     isBiometricSupported,
@@ -247,19 +247,21 @@ const Login = ({ navigation, route }) => {
                 } else if (operateOnlyClientsTab) {
                     postLoginScreen = 'ClientsTab';
                 }
-                let resolvedUserId = me.id;
-                if (!resolvedUserId && token) {
+                let tokenPayload = null;
+                if (token) {
                     try {
                         const payloadPart = String(token).split('.')[1] || '';
                         const padded = payloadPart + '='.repeat((4 - (payloadPart.length % 4)) % 4);
                         const json = globalThis.atob
                             ? globalThis.atob(padded.replace(/-/g, '+').replace(/_/g, '/'))
                             : Buffer.from(padded.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
-                        resolvedUserId = JSON.parse(json)?.id ?? null;
+                        tokenPayload = JSON.parse(json);
                     } catch (_) {
-                        resolvedUserId = null;
+                        tokenPayload = null;
                     }
                 }
+                const resolvedUserId = me.id || tokenPayload?.id || null;
+                dispatch(setInvoiceCounterTenant(me.tenant_id || tokenPayload?.tenant_id || null));
                 profile = {
                     id: resolvedUserId,
                     name: `${me.first_name} ${me.last_name}`,

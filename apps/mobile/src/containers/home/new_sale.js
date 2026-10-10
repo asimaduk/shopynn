@@ -7,7 +7,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
 import config from '../../config';
-import { incrementInvoiceNext } from '../../store/actions/appSettings';
+import { incrementInvoiceNext, setInvoiceNext } from '../../store/actions/appSettings';
 import InvoiceShareSheet from '../../components/invoice_share_sheet';
 import ScreenHeader from '../../components/screen_header';
 import AppModal from '../../components/app_modal';
@@ -1437,7 +1437,13 @@ const NewSale = ({ navigation, route }) => {
                 }
             }
 
-            dispatch(incrementInvoiceNext());
+            const serverInvoiceNumber = created?.invoice_number || created?.data?.invoice_number;
+            const serverInvoiceSeq = String(serverInvoiceNumber || '').match(/(\d+)$/);
+            if (serverInvoiceNumber && serverInvoiceNumber !== invoiceNumber && serverInvoiceSeq) {
+                dispatch(setInvoiceNext(Number(serverInvoiceSeq[1]) + 1));
+            } else {
+                dispatch(incrementInvoiceNext());
+            }
             setShowPaymentOptions(false);
 
             const saleForInvoice = {

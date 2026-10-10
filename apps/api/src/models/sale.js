@@ -25,15 +25,35 @@ import { applyStoreCreditEntry, getCustomerStoreCredit } from "./storeCredit.js"
  * linked via customers.customer_profile_id.
  */
 /**
- * sales.invoice_number is globally unique, but devices number invoices locally (INV-M-1001…),
- * so reinstalls / other devices collide. Keep the requested number when free, else suffix it.
+ * Invoice numbers are unique per tenant, but devices number invoices locally (INV-M-1001…),
+ * so reinstalls / other devices collide. Keep the requested number when free, else take the
+ * next free number in the same series (INV-M-1001 → INV-M-1002 …).
  */
-async function resolveUniqueInvoiceNumber(client, invoiceNumber) {
+async function resolveUniqueInvoiceNumber(client, tenantId, invoiceNumber) {
     const base = String(invoiceNumber ?? "").trim();
     if (!base) return invoiceNumber ?? null;
     const taken = async (candidate) =>
-        (await client.query(`SELECT 1 FROM sales WHERE invoice_number = $1 LIMIT 1`, [candidate])).rowCount > 0;
+        (await client.query(
+            `SELECT 1 FROM sales WHERE tenant_id = $1 AND invoice_number = $2 LIMIT 1`,
+            [tenantId, candidate]
+        )).rowCount > 0;
     if (!(await taken(base))) return base;
+    const series = base.match(/^(.*?)(\d+)$/);
+    if (series) {
+        const [, prefix, digits] = series;
+        const { rows } = await client.query(
+            `SELECT invoice_number FROM sales
+             WHERE tenant_id = $1 AND invoice_number LIKE $2 ESCAPE '\\'`,
+            [tenantId, `${prefix.replace(/[\\%_]/g, "\\$&")}%`]
+        );
+        let max = Number(digits);
+        for (const r of rows) {
+            const m = String(r.invoice_number).slice(prefix.length).match(/^(\d+)$/);
+            if (m) max = Math.max(max, Number(m[1]));
+        }
+        const candidate = `${prefix}${max + 1}`.slice(0, 40);
+        if (!(await taken(candidate))) return candidate;
+    }
     for (let n = 2; n <= 50; n += 1) {
         const candidate = `${base}-${n}`.slice(0, 40);
         if (!(await taken(candidate))) return candidate;
@@ -1648,7 +1668,7 @@ export const createSaleService = async (payload) => {
             throw err;
         }
 
-        const finalInvoiceNumber = await resolveUniqueInvoiceNumber(client, invoice_number);
+        const finalInvoiceNumber = await resolveUniqueInvoiceNumber(client, tenant_id, invoice_number);
 
         const result = await client.query(`
             INSERT INTO sales (
