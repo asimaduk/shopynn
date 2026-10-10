@@ -10,6 +10,8 @@ import { startDailySalesSummaryNotificationJob } from "./jobs/dailySalesSummaryN
 import { ensureBillingCatalogSeededService } from "./models/billingCatalog.js";
 
 const app = express();
+// Railway terminates TLS in front of us; trust its one proxy hop so req.ip is the client.
+app.set("trust proxy", 1);
 // Railway injects PORT; fall back to APP_PORT for local/Docker.
 const port = Number(process.env.PORT || process.env.APP_PORT || 4000);
 
