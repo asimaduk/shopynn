@@ -406,15 +406,20 @@ async function assertNotCustomerPortalUser(userId) {
     }
 }
 
-const sendCredentials = async (data) => {
-    // console.log('email data',data);
-    const resp = await sendEmailService(data);
+const sendCredentials = async (data, plainPassword) => {
+    try {
+        await sendEmailService(data);
+    } catch (err) {
+        console.info(`[new user credentials] email=${data?.receipient} temp_password=${plainPassword} mail=${err?.message || "n/a"}`);
+    }
 }
 
-const sendNewPassword = async (data) => {
-    // console.log('email data',data);
-    const resp = await sendEmailService(data);
-    // console.log('forgot pass . email response',resp);
+const sendNewPassword = async (data, plainPassword) => {
+    try {
+        await sendEmailService(data);
+    } catch (err) {
+        console.info(`[password reset] email=${data?.receipient} temp_password=${plainPassword} mail=${err?.message || "n/a"}`);
+    }
 }
 
 export const createUserService = async (payload) => {
@@ -475,11 +480,14 @@ export const createUserService = async (payload) => {
 
     let plainPassword = null;
     let passwordHash = null;
+    // An owner's own signup password is permanent; generated or admin-set passwords are temporary.
+    const ownChosenPassword = Boolean(isOnboarding && password);
 
-    if (isManual) {
-        if (isOnboarding && password) {
-            plainPassword = password;
-        } else if (!isOnboarding && password != null && String(password).trim() !== "") {
+    if (ownChosenPassword) {
+        plainPassword = password;
+        passwordHash = await bcrypt.hash(plainPassword, saltRounds);
+    } else if (isManual) {
+        if (!isOnboarding && password != null && String(password).trim() !== "") {
             plainPassword = String(password).trim();
         } else {
             plainPassword = generatePassword(10);
@@ -519,12 +527,12 @@ export const createUserService = async (payload) => {
         tenant_id,
         phoneForInsert,
         passwordHash,
-        passwordHash,
+        ownChosenPassword ? null : passwordHash,
         new Date(),
         true,
         method,
         resolvedWarehouseId,
-        new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
+        ownChosenPassword ? null : new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
     ]
     // console.log('values',values);
     const result = await pool.query(
@@ -633,7 +641,7 @@ export const createUserService = async (payload) => {
                 title: "Your temporary login credentials",
                 message: `Hello ${first_name},<br/><br/>Your Shopynn account has been created successfully.<br/><br/>You can sign in with the credentials below:<br/>- Email: <strong>${normalizedEmail}</strong><br/>- Temporary password: <strong>${plainPassword}</strong><br/><br/>For your security, this temporary password expires in 30 minutes and must be changed at first login.<br/><br/>If you did not expect this account setup, please contact Shopynn Support immediately.<br/><br/>Regards,<br/>Shopynn Support Team`,
             };
-            sendCredentials(data);
+            sendCredentials(data, plainPassword);
         }
         return { id: newUser.id };
     }
@@ -854,7 +862,7 @@ export const forgotPasswordService = async (email) => {
             title: "Your password has been reset",
             message: `Hello ${user.first_name},\n\nA temporary password has been generated for your account. Please log in with this password and then set a new one from your profile.\n\nTemporary password: ${plainPassword}\n\nThis password will expire in 30 minutes. Thank you.\n\nRegards,\nShopynn Support Team`,
         };
-        sendNewPassword(data);
+        sendNewPassword(data, plainPassword);
     }
     else {
         return { status: 400, message: "User not found." };
