@@ -7,8 +7,7 @@ import { deleteS3Objects } from "../util/s3Delete.js";
 import { normalizeProductRow, toNum } from "../util/productNormalize.js";
 
 export const getAllProductsCountService = async (user) => {
-    const query = `SELECT COUNT(id) FROM products WHERE tenant_id = '${user.tenant_id}'`
-    const result = await pool.query(query);
+    const result = await pool.query(`SELECT COUNT(id) FROM products WHERE tenant_id = $1`, [user.tenant_id]);
     if(result.rowCount) return {count: result.rows[0].count}  
     return {count: 0}
 }
@@ -148,6 +147,18 @@ export const getAllProductsService = async (user, queryParams) => {
         ? `\n            LIMIT ${page_size} OFFSET ${(page_number - 1) * page_size}`
         : '';
 
+    const params = [user.tenant_id];
+    let filters = '';
+    const search = queryParams.pageType === 'pos' ? queryParams.searchKey : queryParams.searchText;
+    if (search) {
+        params.push(`%${search}%`);
+        filters += ` AND (p.name ILIKE $${params.length} OR p.sku ILIKE $${params.length})`;
+    }
+    if (queryParams.warehouse_id) {
+        params.push(String(queryParams.warehouse_id));
+        filters += ` AND inv.warehouse_id = $${params.length}`;
+    }
+
     let query = '';
 
     if (queryParams.pageType === 'pos') {
@@ -180,9 +191,7 @@ export const getAllProductsService = async (user, queryParams) => {
             LEFT JOIN inventories inv ON inv.product_id = p.id
             LEFT JOIN warehouses wh ON inv.warehouse_id = wh.id
             LEFT JOIN categories c ON c.tenant_id = p.tenant_id AND c.id = ANY(p.categories)
-            WHERE p.tenant_id = '${user.tenant_id}'
-              ${queryParams.searchKey ? (`AND (p.name ILIKE '%${queryParams.searchKey}%' OR sku ILIKE '%${queryParams.searchKey}%')`):''}
-              ${queryParams.warehouse_id ? (`AND inv.warehouse_id = '${queryParams.warehouse_id}'`) : ''}
+            WHERE p.tenant_id = $1${filters}
             GROUP BY p.id, inv.id, wh.name, inv.expiration_date
             ORDER BY p.updated_at DESC${limitOffsetClause}
         `;
@@ -214,9 +223,7 @@ export const getAllProductsService = async (user, queryParams) => {
             LEFT JOIN inventories inv ON inv.product_id = p.id
             LEFT JOIN warehouses wh ON inv.warehouse_id = wh.id
             LEFT JOIN categories c ON c.tenant_id = p.tenant_id AND c.id = ANY(p.categories)
-            WHERE p.tenant_id = '${user.tenant_id}'
-              ${queryParams.searchText ? (`AND (p.name ILIKE '%${queryParams.searchText}%' OR sku ILIKE '%${queryParams.searchText}%')`):''}
-              ${queryParams.warehouse_id ? (`AND inv.warehouse_id = '${queryParams.warehouse_id}'`) : ''}
+            WHERE p.tenant_id = $1${filters}
             GROUP BY p.id, inv.id, wh.name, inv.expiration_date
             ORDER BY p.updated_at DESC${limitOffsetClause};
         `;
@@ -224,7 +231,7 @@ export const getAllProductsService = async (user, queryParams) => {
 
     // console.log('query prod',query);
     
-    const result = await pool.query(query);
+    const result = await pool.query(query, params);
     if(result.rows) {
         const tmp = {};
         // console.log('rows.len',result.rows.length);
