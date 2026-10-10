@@ -1992,19 +1992,15 @@ export const recordSalePaymentService = async (user, saleId, body = {}) => {
                  balance_due = $2,
                  payment_status = $3,
                  payment_type = COALESCE(payment_type, $4),
-                 payment_number = COALESCE(payment_number, $5),
-                 payment_reference = COALESCE(payment_reference, $6),
-                 payment_date = COALESCE(payment_date, $7),
-                 updated_at = $7
-             WHERE id = $8 AND tenant_id = $9
+                 payment_date = COALESCE(payment_date, $5),
+                 updated_at = $5
+             WHERE id = $6 AND tenant_id = $7
              RETURNING id, amount_paid, balance_due, payment_status, total_amount, customer_id`,
             [
                 newPaid,
                 newBalance,
                 paymentStatus,
                 resolvedMethod === "store_credit" ? null : payType,
-                body.payment_number || null,
-                body.payment_reference || body.payment_transaction_ref || null,
                 new Date(),
                 saleId,
                 tenantId,
