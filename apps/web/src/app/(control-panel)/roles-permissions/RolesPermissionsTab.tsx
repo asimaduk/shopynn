@@ -409,7 +409,7 @@ export default function RolesPermissionsTab() {
 					</Box>
 					<Box className="flex flex-col gap-1">
 						<Box className="flex items-center justify-between gap-8">
-							<Typography variant="subtitle2">Permissions ({selectedIds.length} selected)</Typography>
+							<Typography variant="subtitle2">Permissions ({allPermissions.filter((p) => selectedIds.includes(p.id)).length} selected)</Typography>
 							<Button size="small" onClick={toggleAll}>
 								{filteredPermissions.length > 0 && filteredPermissions.every((p) => selectedIds.includes(p.id))
 									? 'Clear all'

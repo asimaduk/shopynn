@@ -185,10 +185,10 @@ const Roles = ({ navigation }) => {
         setSelectedPermissionIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
     }, []);
 
-    const selectedCountLabel = useMemo(
-        () => `${selectedPermissionIds.length} of ${permissions.length} selected`,
-        [selectedPermissionIds.length, permissions.length],
-    );
+    const selectedCountLabel = useMemo(() => {
+        const visible = permissions.filter((p) => selectedPermissionIds.includes(p?.id)).length;
+        return `${visible} of ${permissions.length} selected`;
+    }, [selectedPermissionIds, permissions]);
     const canCreateRole = hasPermission(currentUser, ['roles.create', 'users.roles.create']);
     const canUpdateRole = hasPermission(currentUser, ['roles.update', 'users.roles.update']);
     const canDeleteRole = hasPermission(currentUser, ['roles.delete', 'users.roles.delete']);
