@@ -150,6 +150,9 @@ export default function UserFormPage({ isNew }: UserFormPageProps) {
 		!isNew &&
 		(user?.roles || []).some((r) => String(r?.name || '').trim().toLowerCase() === 'customer');
 
+	const isOwnerAccount =
+		!isNew && (user?.roles || []).some((r) => String(r?.name || '').trim().toLowerCase() === 'super admin');
+
 	const roleOptions =
 		rolesFromServer.length > 0
 			? rolesFromServer
@@ -157,7 +160,7 @@ export default function UserFormPage({ isNew }: UserFormPageProps) {
 						const name = String((r as any)?.name ?? '').trim();
 						if (!name) return null;
 						const normalized = name.toLowerCase();
-						if (normalized === 'customer') return null;
+						if (normalized === 'customer' || normalized === 'super admin') return null;
 						const value = r.id;
 						return { value, label: name };
 					})
@@ -513,22 +516,32 @@ export default function UserFormPage({ isNew }: UserFormPageProps) {
 								</SectionCard>
 
 								<SectionCard title="Access" icon="heroicons-outline:shield-check">
-									<FormControl fullWidth>
-										<InputLabel id="user-form-role-label">Role</InputLabel>
-										<Select
-											labelId="user-form-role-label"
+									{isOwnerAccount ? (
+										<TextField
+											fullWidth
 											label="Role"
-											value={form.role_id}
-											onChange={(e) => setForm((p) => ({ ...p, role_id: e.target.value }))}
-											sx={{ borderRadius: 2 }}
-										>
-											{roleOptions.map((r) => (
-												<MenuItem key={`${r.value}-${r.label}`} value={r.value}>
-													{r.label}
-												</MenuItem>
-											))}
-										</Select>
-									</FormControl>
+											value="Super Admin (owner)"
+											disabled
+											helperText="The owner's role can't be changed here."
+										/>
+									) : (
+										<FormControl fullWidth>
+											<InputLabel id="user-form-role-label">Role</InputLabel>
+											<Select
+												labelId="user-form-role-label"
+												label="Role"
+												value={form.role_id}
+												onChange={(e) => setForm((p) => ({ ...p, role_id: e.target.value }))}
+												sx={{ borderRadius: 2 }}
+											>
+												{roleOptions.map((r) => (
+													<MenuItem key={`${r.value}-${r.label}`} value={r.value}>
+														{r.label}
+													</MenuItem>
+												))}
+											</Select>
+										</FormControl>
+									)}
 									<FormControl fullWidth>
 										<InputLabel id="user-form-warehouse-label">Warehouse</InputLabel>
 										<Select

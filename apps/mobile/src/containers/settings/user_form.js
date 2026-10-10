@@ -143,6 +143,10 @@ const UserForm = ({ navigation, route }) => {
         };
     }, []);
 
+    const isOwnerRoleName = (name) => String(name || '').trim().toLowerCase() === 'super admin';
+    const isOwnerAccount = isEdit && (editUser?.roles || []).some((r) => isOwnerRoleName(r?.name));
+    const assignableRoles = availableRoles.filter((r) => !isOwnerRoleName(r?.name));
+
     const handleChange = (field, value) => {
         setForm((prev) => ({ ...prev, [field]: value }));
     };
@@ -315,14 +319,25 @@ const UserForm = ({ navigation, route }) => {
 
                         <View style={styles.inputContainer}>
                             <AppText label="Role" fontSize={14} variant={1} style={[styles.inputLabel, { color: colors.text }]} />
-                            <TouchableOpacity
-                                activeOpacity={0.7}
-                                onPress={() => setShowRolePicker(true)}
-                                style={[styles.inputWrapper, styles.pickerTouch, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
-                                <Lucide name="shield" size={18} color={colors.textTertiary} style={{ marginRight: 10 }} />
-                                <AppText label={form.role || 'Select role'} fontSize={16} color={form.role ? colors.text : colors.placeholder} style={{ flex: 1 }} />
-                                <Lucide name="chevron-down" size={20} color={colors.textTertiary} />
-                            </TouchableOpacity>
+                            {isOwnerAccount ? (
+                                <>
+                                    <View style={[styles.inputWrapper, styles.pickerTouch, { backgroundColor: colors.inputBackground, borderColor: colors.border, opacity: 0.7 }]}>
+                                        <Lucide name="shield-check" size={18} color={colors.textTertiary} style={{ marginRight: 10 }} />
+                                        <AppText label="Super Admin (owner)" fontSize={16} color={colors.text} style={{ flex: 1 }} />
+                                        <Lucide name="lock" size={18} color={colors.textTertiary} />
+                                    </View>
+                                    <AppText label="The owner's role can't be changed here." fontSize={12} color={colors.textTertiary} style={{ marginTop: 6 }} />
+                                </>
+                            ) : (
+                                <TouchableOpacity
+                                    activeOpacity={0.7}
+                                    onPress={() => setShowRolePicker(true)}
+                                    style={[styles.inputWrapper, styles.pickerTouch, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
+                                    <Lucide name="shield" size={18} color={colors.textTertiary} style={{ marginRight: 10 }} />
+                                    <AppText label={form.role || 'Select role'} fontSize={16} color={form.role ? colors.text : colors.placeholder} style={{ flex: 1 }} />
+                                    <Lucide name="chevron-down" size={20} color={colors.textTertiary} />
+                                </TouchableOpacity>
+                            )}
                         </View>
 
                         {form.role && form.role.toLowerCase() !== 'admin' && (
@@ -403,7 +418,7 @@ const UserForm = ({ navigation, route }) => {
 
             <AppModal title="Assign role" visible={showRolePicker} handleClose={() => setShowRolePicker(false)} onRequestClose={() => setShowRolePicker(false)}>
                 <View style={{ padding: 16, paddingBottom: 24 }}>
-                    {availableRoles.map((role) => {
+                    {assignableRoles.map((role) => {
                         const roleName = role.name || role.code || String(role.id);
                         return (
                             <TouchableOpacity
