@@ -9,6 +9,7 @@ import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
 import { sendSmsService } from "../services/sms.js";
 import { normalizeStorefrontPhone } from "./storefront.js";
+import { allowDevOtpInResponse } from "../util/devOtp.js";
 
 const PURPOSE = "phone_login";
 const OTP_TTL_MS = 10 * 60 * 1000;
@@ -30,12 +31,6 @@ function assertValidPhone(digits) {
         err.code = "INVALID_PHONE";
         throw err;
     }
-}
-
-function allowDevOtpInResponse() {
-    if (process.env.STOREFRONT_OTP_DEV === "true") return true;
-    if (process.env.STOREFRONT_OTP_DEV === "false") return false;
-    return process.env.NODE_ENV !== "production";
 }
 
 async function findActiveUserByPhone(normalized) {
@@ -116,7 +111,7 @@ export async function sendPhoneLoginOtpService({ phone }) {
     };
     if (allowDevOtpInResponse() && !sms.ok) {
         result.dev_code = code;
-        result.dev_hint = "SMS not configured — use dev_code in non-production.";
+        result.dev_hint = "SMS not configured — use dev_code (STOREFRONT_OTP_DEV=true).";
     }
     return result;
 }

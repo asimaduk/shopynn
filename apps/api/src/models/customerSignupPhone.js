@@ -12,6 +12,7 @@ import {
     ensureStorefrontCustomer,
     normalizeStorefrontPhone,
 } from "./storefront.js";
+import { allowDevOtpInResponse } from "../util/devOtp.js";
 
 const PURPOSE = "customer_signup_phone";
 const OTP_TTL_MS = 10 * 60 * 1000;
@@ -34,12 +35,6 @@ function assertValidPhone(digits) {
         err.code = "INVALID_PHONE";
         throw err;
     }
-}
-
-function allowDevOtpInResponse() {
-    if (process.env.STOREFRONT_OTP_DEV === "true") return true;
-    if (process.env.STOREFRONT_OTP_DEV === "false") return false;
-    return process.env.NODE_ENV !== "production";
 }
 
 export async function sendCustomerSignupPhoneOtpService({ phone, reference_code }) {
@@ -93,7 +88,7 @@ export async function sendCustomerSignupPhoneOtpService({ phone, reference_code 
     };
     if (allowDevOtpInResponse() && !sms.ok) {
         result.dev_code = code;
-        result.dev_hint = "SMS not configured — use dev_code in non-production.";
+        result.dev_hint = "SMS not configured — use dev_code (STOREFRONT_OTP_DEV=true).";
     }
     return result;
 }

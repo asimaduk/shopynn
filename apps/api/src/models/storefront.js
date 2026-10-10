@@ -13,6 +13,7 @@ import { resolveStoreReferencePublicService } from "./customerProfile.js";
 import { CUSTOMER_PORTAL_PERMISSION_CODES } from "../constants/permissionCodes.js";
 import { sendSmsService } from "../services/sms.js";
 import { createOrderService, settleOrderPaymentByReference } from "./order.js";
+import { allowDevOtpInResponse } from "../util/devOtp.js";
 
 const PURPOSE_PHONE = "storefront_phone";
 const OTP_TTL_MS = 10 * 60 * 1000;
@@ -45,12 +46,6 @@ function assertValidPhone(digits) {
         err.code = "INVALID_PHONE";
         throw err;
     }
-}
-
-function allowDevOtpInResponse() {
-    if (process.env.STOREFRONT_OTP_DEV === "true") return true;
-    if (process.env.STOREFRONT_OTP_DEV === "false") return false;
-    return process.env.NODE_ENV !== "production";
 }
 
 async function ensureCustomerRoleWithPermissions(client, tenantId) {
@@ -263,7 +258,7 @@ export async function sendStorefrontPhoneOtpService({ phone, reference_code }) {
     };
     if (allowDevOtpInResponse() && !sms.ok) {
         result.dev_code = code;
-        result.dev_hint = "SMS not configured — use dev_code in non-production.";
+        result.dev_hint = "SMS not configured — use dev_code (STOREFRONT_OTP_DEV=true).";
     }
     return result;
 }
@@ -365,6 +360,28 @@ async function assertStorefrontSession(phone, sessionToken) {
     return normalized;
 }
 
+/** Staff, owners and platform admins must never receive a storefront token. */
+async function isCustomerOnlyAccount(client, userId) {
+    const r = await client.query(
+        `SELECT
+            u.user_type,
+            EXISTS (
+                SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id
+                WHERE ur.user_id = u.id AND lower(r.name) <> 'customer'
+            ) AS has_staff_role,
+            EXISTS (
+                SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id
+                WHERE ur.user_id = u.id AND lower(r.name) = 'customer'
+            ) OR EXISTS (
+                SELECT 1 FROM customer_profiles cp WHERE cp.user_id = u.id
+            ) AS is_customer
+         FROM users u WHERE u.id = $1`,
+        [userId]
+    );
+    const row = r.rows[0];
+    return Boolean(row) && row.user_type !== 1 && !row.has_staff_role && row.is_customer;
+}
+
 /**
  * Ensure user + customer profile linked to store; return JWT-ready user context.
  */
@@ -385,6 +402,14 @@ export async function ensureStorefrontCustomer({
         let userId;
         if (userRes.rowCount) {
             userId = userRes.rows[0].id;
+            if (!(await isCustomerOnlyAccount(client, userId))) {
+                const err = new Error(
+                    "This phone number belongs to a staff account. Use a different number to order."
+                );
+                err.status = 409;
+                err.code = "PHONE_NOT_CUSTOMER";
+                throw err;
+            }
             // Attach to this tenant if different? Multi-tenant phone is hard —
             // if existing user on another tenant, throw.
             if (userRes.rows[0].tenant_id && userRes.rows[0].tenant_id !== store.tenant_id) {
@@ -512,7 +537,8 @@ export async function createStorefrontOrderService(payload = {}) {
 
     const token = jwt.sign(
         { id: user.id, warehouse_id: user.warehouse_id, tenant_id: user.tenant_id },
-        process.env.JWT_SECRET
+        process.env.JWT_SECRET,
+        { expiresIn: "1d" }
     );
 
     const authUser = {
