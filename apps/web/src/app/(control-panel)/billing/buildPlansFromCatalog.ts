@@ -39,7 +39,6 @@ const PAID_FEATURES: Record<ChooseableSubscriptionType, ChooseablePlan['features
 		'Customer online orders (store queue, fulfilment & delivery)',
 		'Audit logs',
 		'Order payment history · order & report export',
-		'Product export',
 		'Order analytics & automation',
 		'Multi-store order routing'
 	]
