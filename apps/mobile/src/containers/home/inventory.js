@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { Image, Modal, StyleSheet, TouchableOpacity, View, TextInput, ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
@@ -168,23 +169,28 @@ const Inventory = ({ navigation, route }) => {
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [stockFilter, setStockFilter] = useState('all'); // all, low, inStock
 
-    useEffect(() => {
-        loadProducts();
-    }, []);
+    const hasLoadedRef = useRef(false);
+
+    useFocusEffect(
+        useCallback(() => {
+            loadProducts({ silent: hasLoadedRef.current });
+            hasLoadedRef.current = true;
+        }, []),
+    );
 
     useEffect(() => {
         filterProducts();
     }, [searchQuery, selectedCategory, stockFilter, products]);
 
-    const loadProducts = async () => {
-        setIsLoading(true);
+    const loadProducts = async ({ silent = false } = {}) => {
+        if (!silent) setIsLoading(true);
         try {
             const raw = await productsApi.list();
             // console.log('products raw', raw);
             const list = normalizeList(raw);
             setProducts(Array.isArray(list) && list.length > 0 ? list : []);
         } catch (error) {
-            setProducts([]);
+            if (!silent) setProducts([]);
         } finally {
             setIsLoading(false);
         }
