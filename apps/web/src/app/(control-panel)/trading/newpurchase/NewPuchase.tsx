@@ -165,7 +165,7 @@ function NewSale() {
         createPurchase(payload)
             .then(res=> {
                 // console.log('np then res',res);
-                if(res.data?.status === 409) {
+                if(res.data?.status === 409 || (res.error as { status?: number } | undefined)?.status === 409) {
                     toast.error(`Error: Invoice number #${invoice} already exists. Please check and try again.`)
                 }
                 else if(res.data?.status === 201) {

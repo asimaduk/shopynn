@@ -11,13 +11,15 @@ import {
 
 export const createPurchase = async (req, res, next) => {
     try {
-        const newPurchase = await createPurchaseService(req.body);
+        const invoiceNumber = typeof req.body?.invoice_number === 'string' ? req.body.invoice_number.trim() : '';
+        if (!invoiceNumber) {
+            return handleResponse(res, 400, "Invoice number is required.");
+        }
+        const newPurchase = await createPurchaseService({ ...req.body, invoice_number: invoiceNumber });
         handleResponse(res, 201, "Purchase creation success.", newPurchase);
     } catch (error) {
-        // console.log('create err',typeof error);
-        if(typeof error == 'object' && error.constraint === 'purchases_invoice_number_key') {
-            // console.log('invoice number exists');
-            handleResponse(res, 200, "Invoice number already exists.", {status: 409})
+        if (error?.code === '23505' && ['purchases_invoice_number_key', 'purchases_tenant_invoice_number_unique'].includes(error.constraint)) {
+            handleResponse(res, 409, "This invoice number is already used for another purchase in your shop.");
         }
         else {
             next(error);

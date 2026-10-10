@@ -25,6 +25,15 @@ const formatter = new Intl.NumberFormat('en-GH', {
 });
 const formatCurrency = (value) => formatter.format(Number(value)).replace('GH₵', '').trim();
 
+const toPurchaseLine = (product, orderQuantity = 1) => {
+    const cost = Number(product.actual_cost);
+    return {
+        ...product,
+        unit_price: cost > 0 ? cost : Number(product.unit_price) || 0,
+        order_quantity: orderQuantity,
+    };
+};
+
 const PAYMENT_STATUS = { UNPAID: 0, PAID: 1, PARTIAL: 2 };
 const PAYMENT_TYPE = { CASH: 1, MOMO: 2, BANK: 3, OTHER: 4 };
 
@@ -52,12 +61,14 @@ const NewPurchase = ({ navigation, route }) => {
     const [suppliers, setSuppliers] = useState([]);
     const [selectedSupplier, setSelectedSupplier] = useState(null);
     const [showSuppliers, setShowSuppliers] = useState(false);
+    const supplierIdsBeforeAddRef = useRef(null);
 
     const [storeSearch, setStoreSearch] = useState('');
     const [supplierSearch, setSupplierSearch] = useState('');
     const [showSetQuantity, setShowSetQuantity] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [quantity, setQuantity] = useState('');
+    const [unitCost, setUnitCost] = useState('');
     const [orders, setOrders] = useState([]);
     const [discountAmount, setDiscountAmount] = useState('');
     const [invoiceNumber, setInvoiceNumber] = useState('');
@@ -115,19 +126,49 @@ const NewPurchase = ({ navigation, route }) => {
     useEffect(() => {
         const product = route.params?.selectedProduct;
         if (!product) return;
-        setSelectedProduct(product);
+        const line = toPurchaseLine(product);
+        setSelectedProduct(line);
         setQuantity('1');
+        setUnitCost(String(line.unit_price));
         setOrders((prev) => {
             const fnd = prev.find((o) => o.id === product.id || o.name === product.name);
             if (fnd) {
                 setQuantity(String(fnd.order_quantity));
+                setUnitCost(String(fnd.unit_price));
                 const rest = prev.filter((o) => o.id !== product.id && o.name !== product.name);
                 return [fnd, ...rest];
             }
-            return [{ ...product, order_quantity: 1 }, ...prev];
+            return [line, ...prev];
         });
         setShowSetQuantity(true);
     }, [route.params?.selectedProduct]);
+
+    const allowLeaveRef = useRef(false);
+    const hasUnsavedPurchase =
+        orders.length > 0 || invoiceNumber.trim() !== '' || note.trim() !== '' || discountAmount.trim() !== '';
+
+    useEffect(() => {
+        return navigation.addListener('beforeRemove', (e) => {
+            if (allowLeaveRef.current || !hasUnsavedPurchase) return;
+            e.preventDefault();
+            AppAlert.alert('Discard purchase?', 'You have unsaved changes. Leaving will discard this purchase.', [
+                { text: 'Keep editing', style: 'cancel' },
+                {
+                    text: 'Discard',
+                    style: 'destructive',
+                    onPress: () => {
+                        allowLeaveRef.current = true;
+                        navigation.dispatch(e.data.action);
+                    },
+                },
+            ]);
+        });
+    }, [navigation, hasUnsavedPurchase]);
+
+    const leaveScreen = () => {
+        allowLeaveRef.current = true;
+        navigation.goBack();
+    };
 
     const backPress = () => {
         navigation.goBack();
@@ -152,13 +193,13 @@ const NewPurchase = ({ navigation, route }) => {
     const handleAddProduct = () => {
         if (!selectedProduct) return;
         const qty = Math.max(1, parseInt(quantity, 10) || 1);
+        const cost = parseFloat(unitCost);
         setOrders((prev) => {
             const fnd = prev.find((o) => o.id === selectedProduct.id || o.name === selectedProduct.name);
-            if (fnd) {
-                const rest = prev.filter((o) => o.id !== selectedProduct.id && o.name !== selectedProduct.name);
-                return [{ ...fnd, order_quantity: qty }, ...rest];
-            }
-            return [{ ...selectedProduct, order_quantity: qty }, ...prev];
+            const line = fnd || toPurchaseLine(selectedProduct);
+            const updated = { ...line, order_quantity: qty, unit_price: cost >= 0 ? cost : line.unit_price };
+            const rest = prev.filter((o) => o.id !== selectedProduct.id && o.name !== selectedProduct.name);
+            return [updated, ...rest];
         });
         setShowSetQuantity(false);
         setSelectedProduct(null);
@@ -187,12 +228,15 @@ const NewPurchase = ({ navigation, route }) => {
         if (existing) {
             setSelectedProduct(existing);
             setQuantity(String(existing.order_quantity || 1));
+            setUnitCost(String(existing.unit_price));
             setShowSetQuantity(true);
             return;
         }
-        setOrders((prev) => [{ ...record, order_quantity: 1 }, ...prev]);
-        setSelectedProduct({ ...record, order_quantity: 1 });
+        const line = toPurchaseLine(record);
+        setOrders((prev) => [line, ...prev]);
+        setSelectedProduct(line);
         setQuantity('1');
+        setUnitCost(String(line.unit_price));
         setShowSetQuantity(true);
     };
 
@@ -201,13 +245,15 @@ const NewPurchase = ({ navigation, route }) => {
         setOrders((prev) => {
             const next = [...prev];
             records.forEach((rec) => {
-                if (!next.find((o) => o.id == rec.id)) next.push({ ...rec, order_quantity: 1 });
+                if (!next.find((o) => o.id == rec.id)) next.push(toPurchaseLine(rec));
             });
             return next;
         });
         if (added.length > 0) {
-            setSelectedProduct(added[0]);
+            const line = toPurchaseLine(added[0]);
+            setSelectedProduct(line);
             setQuantity('1');
+            setUnitCost(String(line.unit_price));
             setShowSetQuantity(true);
         }
     };
@@ -218,16 +264,6 @@ const NewPurchase = ({ navigation, route }) => {
     useFocusEffect(
         React.useCallback(() => {
             let active = true;
-
-            // Clear supplier when opening a fresh purchase (from dashboard/purchases),
-            // but keep it when returning from Search with an in-progress draft.
-            const routes = navigation.getState()?.routes || [];
-            const prevRouteName = routes[routes.length - 2]?.name;
-            const returningFromProductPicker =
-                prevRouteName === 'Search' || prevRouteName === 'BarcodeScanner';
-            if (!returningFromProductPicker && !(orders?.length > 0)) {
-                setSelectedSupplier(null);
-            }
 
             const loadData = async () => {
                 try {
@@ -247,7 +283,12 @@ const NewPurchase = ({ navigation, route }) => {
                     const list = normalizeList(rawSuppliers) || [];
                     if (active) {
                         setSuppliers(list);
-                        // Never auto-pick list[0] — user must choose a supplier.
+                        const idsBeforeAdd = supplierIdsBeforeAddRef.current;
+                        if (idsBeforeAdd) {
+                            supplierIdsBeforeAddRef.current = null;
+                            const added = list.find((s) => s.id && !idsBeforeAdd.has(s.id));
+                            if (added) setSelectedSupplier(added);
+                        }
                     }
                 } catch (_) {
                     if (active) setSuppliers([]);
@@ -257,7 +298,7 @@ const NewPurchase = ({ navigation, route }) => {
             return () => {
                 active = false;
             };
-        }, [selectedStore, orders?.length, navigation])
+        }, [selectedStore])
     );
 
     const handleSavePurchase = async () => {
@@ -274,7 +315,7 @@ const NewPurchase = ({ navigation, route }) => {
             return;
         }
         else if (!invoiceNumber.trim()) {
-            AppAlert.alert('Add invoice number', 'Please enter an invoice number.');
+            AppAlert.alert('Add invoice number', "Enter the supplier's invoice number for this purchase.");
             return;
         }
 
@@ -302,7 +343,7 @@ const NewPurchase = ({ navigation, route }) => {
             await purchasesApi.create({
                 warehouse_id: selectedStore?.id,
                 supplier_id: selectedSupplier?.id,
-                invoice_number: invoiceNumber.trim() || undefined,
+                invoice_number: invoiceNumber.trim(),
                 current_status: 1,
                 notes: note.trim() || undefined,
                 discount_amount: Math.max(0, Number(discountAmount) || 0),
@@ -321,7 +362,8 @@ const NewPurchase = ({ navigation, route }) => {
                 due_date: dueDate.trim() || null,
             });
             setShowConfirm(false);
-            AppAlert.alert('Success', 'Purchase saved.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
+            allowLeaveRef.current = true;
+            AppAlert.alert('Success', 'Purchase saved.', [{ text: 'OK', onPress: leaveScreen }]);
         } catch (err) {
             const msg = err?.response?.data?.message || err?.message || 'Failed to save purchase.';
             AppAlert.alert('Error', msg);
@@ -386,9 +428,9 @@ const NewPurchase = ({ navigation, route }) => {
                             <Lucide name="file-text" size={18} color={config.THEME_COLOR} />
                         </View>
                         <View style={{ flex: 1 }}>
-                            <AppText label="Invoice number" fontSize={11} color={colors.textTertiary} style={{ marginBottom: 4 }} />
+                            <AppText label="Invoice number *" fontSize={11} color={colors.textTertiary} style={{ marginBottom: 4 }} />
                             <TextInput
-                                placeholder="e.g. PO-1001 (optional)"
+                                placeholder="e.g. PO-1001"
                                 placeholderTextColor={colors.placeholder}
                                 value={invoiceNumber}
                                 onChangeText={setInvoiceNumber}
@@ -668,7 +710,7 @@ const NewPurchase = ({ navigation, route }) => {
                             return;
                         }
                         if (!invoiceNumber.trim()) {
-                            AppAlert.alert('Add invoice number', 'Please enter an invoice number.');
+                            AppAlert.alert('Add invoice number', "Enter the supplier's invoice number for this purchase.");
                             return;
                         }
                         if (paymentStatus === PAYMENT_STATUS.PARTIAL) {
@@ -691,10 +733,10 @@ const NewPurchase = ({ navigation, route }) => {
                 <TouchableOpacity
                     activeOpacity={0.7}
                     onPress={() => {
-                        if (orders.length === 0) { backPress(); return; }
+                        if (!hasUnsavedPurchase) { backPress(); return; }
                         AppAlert.alert('Cancel purchase?', 'All items will be removed.', [
                             { text: 'Keep editing', style: 'cancel' },
-                            { text: 'Cancel', style: 'destructive', onPress: () => { setOrders([]); setSelectedProduct(null); setDiscountAmount(''); backPress(); } },
+                            { text: 'Cancel purchase', style: 'destructive', onPress: leaveScreen },
                         ]);
                     }}
                     style={styles.cancelBtn}>
@@ -717,7 +759,7 @@ const NewPurchase = ({ navigation, route }) => {
                     </View>
                 </AppModal>
 
-                <AppModal title="Select" handleClose={handleSupplierClose} onRequestClose={handleSupplierClose} visible={showSuppliers}>
+                <AppModal title="Select supplier" handleClose={handleSupplierClose} onRequestClose={handleSupplierClose} visible={showSuppliers}>
                     <View style={styles.modalContent}>
                         <TextInput placeholder="Search suppliers..." placeholderTextColor={colors.placeholder} value={supplierSearch} onChangeText={setSupplierSearch} style={[styles.modalSearch, { borderColor: colors.inputBorder, color: colors.text }]} />
                         <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 }}>
@@ -725,6 +767,7 @@ const NewPurchase = ({ navigation, route }) => {
                                 activeOpacity={0.7}
                                 onPress={() => {
                                     setShowSuppliers(false);
+                                    supplierIdsBeforeAddRef.current = new Set(suppliers.map((s) => s.id));
                                     navigation.navigate('SupplierForm');
                                 }}
                                 style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4 }}>
@@ -748,9 +791,11 @@ const NewPurchase = ({ navigation, route }) => {
                         {selectedProduct && (
                             <>
                                 <AppText label={selectedProduct.name} variant={1} fontSize={16} style={{ marginBottom: 8 }} color={colors.text} />
-                                <AppText label={`GH₵ ${selectedProduct.unit_price} each`} fontSize={13} color={colors.textSecondary} style={{ marginBottom: 12 }} />
+                                <AppText label="Quantity" fontSize={12} color={colors.textSecondary} style={{ marginBottom: 4 }} />
                                 <TextInput value={quantity} placeholder="Quantity" placeholderTextColor={colors.placeholder} keyboardType="number-pad" onChangeText={setQuantity} style={[styles.quantityInput, { borderColor: colors.inputBorder, color: colors.text }]} />
-                                <TouchableOpacity activeOpacity={0.8} disabled={!quantity || Number(quantity) < 1} onPress={handleAddProduct} style={[styles.addQtyBtn, (!quantity || Number(quantity) < 1) && [styles.addQtyBtnDisabled, { backgroundColor: colors.surfaceTertiary }]]}>
+                                <AppText label="Unit cost (GH₵)" fontSize={12} color={colors.textSecondary} style={{ marginBottom: 4 }} />
+                                <TextInput value={unitCost} placeholder="0.00" placeholderTextColor={colors.placeholder} keyboardType="decimal-pad" onChangeText={(t) => setUnitCost(t.replace(/[^0-9.]/g, ''))} style={[styles.quantityInput, { borderColor: colors.inputBorder, color: colors.text }]} />
+                                <TouchableOpacity activeOpacity={0.8} disabled={!quantity || Number(quantity) < 1 || isNaN(parseFloat(unitCost))} onPress={handleAddProduct} style={[styles.addQtyBtn, (!quantity || Number(quantity) < 1 || isNaN(parseFloat(unitCost))) && [styles.addQtyBtnDisabled, { backgroundColor: colors.surfaceTertiary }]]}>
                                     <AppText label={orders.find((o) => o.id === selectedProduct.id || o.name === selectedProduct.name) ? "Set quantity" : "Add to purchase"} color={colors.textInverse} variant={1} />
                                 </TouchableOpacity>
                             </>
@@ -762,7 +807,7 @@ const NewPurchase = ({ navigation, route }) => {
                     <View style={[styles.menuModalContent, { backgroundColor: colors.surface }]}>
                         {selectedProduct && (
                             <>
-                                <TouchableOpacity activeOpacity={0.7} onPress={() => { setQuantity(String(selectedProduct.order_quantity)); setShowMenu(false); setTimeout(() => setShowSetQuantity(true), 300); }} style={styles.menuOption}>
+                                <TouchableOpacity activeOpacity={0.7} onPress={() => { setQuantity(String(selectedProduct.order_quantity)); setUnitCost(String(selectedProduct.unit_price)); setShowMenu(false); setTimeout(() => setShowSetQuantity(true), 300); }} style={styles.menuOption}>
                                     <Lucide name="pencil" color={config.THEME_COLOR} size={20} />
                                     <AppText label="Change quantity" variant={2} fontSize={16} style={{ marginLeft: 12 }} color={colors.text} />
                                 </TouchableOpacity>
@@ -830,7 +875,7 @@ const NewPurchase = ({ navigation, route }) => {
                                             await Share.share({ message: receiptText, title: `Purchase ${poNumber}` });
                                             dispatch(incrementInvoiceNext());
                                             setShowPaymentOptions(false);
-                                            navigation.goBack();
+                                            leaveScreen();
                                         } catch (e) { AppAlert.alert('Share', 'Could not share receipt.'); }
                                     }}>
                                     <AppText label="Save & Print" color={colors.textInverse} variant={1} />
