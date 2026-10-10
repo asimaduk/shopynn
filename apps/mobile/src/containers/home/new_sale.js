@@ -504,6 +504,32 @@ const NewSale = ({ navigation, route }) => {
         };
     }, [route.params?.posCustomerRefreshAt, route.params?.newlyCreatedCustomer, navigation]);
 
+    const allowLeaveRef = useRef(false);
+    const hasUnsavedSale = orders.length > 0;
+
+    useEffect(() => {
+        return navigation.addListener('beforeRemove', (e) => {
+            if (allowLeaveRef.current || !hasUnsavedSale) return;
+            e.preventDefault();
+            AppAlert.alert('Discard sale?', 'Items in the cart will be removed. Use Hold to keep them for later.', [
+                { text: 'Keep editing', style: 'cancel' },
+                {
+                    text: 'Discard',
+                    style: 'destructive',
+                    onPress: () => {
+                        allowLeaveRef.current = true;
+                        navigation.dispatch(e.data.action);
+                    },
+                },
+            ]);
+        });
+    }, [navigation, hasUnsavedSale]);
+
+    const leaveScreen = () => {
+        allowLeaveRef.current = true;
+        navigation.goBack();
+    };
+
     const backPress = () => {
         navigation.goBack();
     }
@@ -1814,7 +1840,7 @@ const NewSale = ({ navigation, route }) => {
                             if (orders.length === 0) { backPress(); return; }
                             AppAlert.alert('Cancel sale?', 'All items will be removed.', [
                                 { text: 'Keep editing', style: 'cancel' },
-                                { text: 'Cancel sale', style: 'destructive', onPress: () => { setOrders([]); setSelectedProduct(null); backPress(); } },
+                                { text: 'Cancel sale', style: 'destructive', onPress: leaveScreen },
                             ]);
                         }}
                         style={[styles.footerBtn, { opacity: momoCartLocked ? 0.4 : 1 }]}>
@@ -2564,7 +2590,7 @@ const NewSale = ({ navigation, route }) => {
                     onClose={() => {
                         setShowInvoiceShare(false);
                         setCompletedSaleForInvoice(null);
-                        navigation.goBack();
+                        leaveScreen();
                     }}
                 />
             </SafeAreaView>
