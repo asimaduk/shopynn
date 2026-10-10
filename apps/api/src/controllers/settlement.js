@@ -13,6 +13,9 @@ import {
     getTenantPayoutProfileService,
     upsertTenantPayoutProfileService,
 } from "../models/payoutProfile.js";
+import { recordAudit } from "../util/audit.js";
+
+const lastDigits = (v) => (v ? String(v).replace(/\s+/g, "").slice(-4) : null);
 import { getPayoutBankOptionsService, resolvePayoutAccountService } from "../services/paystackPayout.js";
 import { handleResponse } from "../util/handleresponse.js";
 
@@ -79,6 +82,11 @@ export const updateMyPayoutProfile = async (req, res, next) => {
     try {
         const profile = await upsertTenantPayoutProfileService(req.user, req.user.tenant_id, req.body || {});
         handleResponse(res, 200, "Payout profile saved.", profile);
+        const body = req.body || {};
+        await recordAudit(req, "PAYOUT_PROFILE_UPDATE", "payout_profile", profile?.id, {
+            payout_method: body.payout_method ?? null,
+            account_ending: lastDigits(body.momo_number || body.bank_account_number),
+        });
     } catch (error) {
         if (
             error.message?.includes("Payout method") ||
@@ -95,6 +103,7 @@ export const requestMyWithdrawal = async (req, res, next) => {
     try {
         const created = await requestMerchantWithdrawalService(req.user, req.user.tenant_id, req.body || {});
         handleResponse(res, 201, "Withdrawal requested.", created);
+        await recordAudit(req, "WITHDRAWAL_REQUEST", "settlement", created?.id, { amount: created?.amount ?? req.body?.amount ?? null });
     } catch (error) {
         if (
             error.message?.includes("greater than zero") ||
@@ -120,6 +129,7 @@ export const retryMyWithdrawal = async (req, res, next) => {
             req.params.id
         );
         handleResponse(res, 200, "Withdrawal retried.", updated);
+        await recordAudit(req, "WITHDRAWAL_RETRY", "settlement", req.params.id, { amount: updated?.amount ?? null });
     } catch (error) {
         if (
             error.message?.includes("not found") ||
@@ -190,6 +200,7 @@ export const approveAdminSettlement = async (req, res, next) => {
         const updated = await approveTenantSettlementService(req.user, req.params.id);
         if (!updated) return handleResponse(res, 404, "Settlement not found.");
         handleResponse(res, 200, "Withdrawal approved.", updated);
+        await recordAudit(req, "WITHDRAWAL_APPROVE", "settlement", req.params.id, { amount: updated.amount ?? null }, updated.tenant_id);
     } catch (error) {
         if (
             error.message?.includes("already marked") ||
@@ -207,6 +218,7 @@ export const rejectAdminSettlement = async (req, res, next) => {
         const updated = await rejectTenantSettlementService(req.user, req.params.id, req.body || {});
         if (!updated) return handleResponse(res, 404, "Settlement not found.");
         handleResponse(res, 200, "Withdrawal rejected.", updated);
+        await recordAudit(req, "WITHDRAWAL_REJECT", "settlement", req.params.id, { amount: updated.amount ?? null }, updated.tenant_id);
     } catch (error) {
         if (
             error.message?.includes("cannot be rejected") ||
@@ -224,6 +236,7 @@ export const markAdminSettlementPaid = async (req, res, next) => {
         const updated = await markTenantSettlementPaidService(req.user, req.params.id, req.body || {});
         if (!updated) return handleResponse(res, 404, "Settlement not found.");
         handleResponse(res, 200, "Settlement marked paid.", updated);
+        await recordAudit(req, "WITHDRAWAL_PAID", "settlement", req.params.id, { amount: updated.amount ?? null }, updated.tenant_id);
     } catch (error) {
         if (
             error.message?.includes("already marked") ||

@@ -12,6 +12,7 @@ import {
 } from "../models/role.js";
 import { findUngrantablePermissionIds, isReservedRoleName } from "../util/roleGrants.js";
 import pool from "../config/db.js";
+import { recordAudit } from "../util/audit.js";
 
 const rejectRoleChange = async (req, res, { roleId, name, permissionIds }) => {
     if (name !== undefined && isReservedRoleName(name)) {
@@ -75,6 +76,7 @@ export const createRole = async (req, res, next) => {
         if (await rejectRoleChange(req, res, { name: payload.name ?? "", permissionIds })) return;
         const role = await createRoleService(payload);
         handleResponse(res, 201, "Role created.", role);
+        await recordAudit(req, "ROLE_CREATE", "role", role?.id, { name: payload.name ?? null, permission_count: permissionIds.length });
     } catch (error) {
         if (error?.status === 400 || error?.message?.includes("Customer role")) {
             return handleResponse(res, 400, error.message);
@@ -102,6 +104,10 @@ export const updateRole = async (req, res, next) => {
         const role = await updateRoleService(req.params.id, payload, req.user.tenant_id);
         if (!role) return handleResponse(res, 404, "Role not found.");
         handleResponse(res, 200, "Role updated.", role);
+        await recordAudit(req, "ROLE_UPDATE", "role", req.params.id, {
+            name: payload.name ?? null,
+            permission_count: payload.permission_ids ? payload.permission_ids.length : null,
+        });
     } catch (error) {
         if (error?.status === 400 || error?.message?.includes("Customer role")) {
             return handleResponse(res, 400, error.message);
@@ -117,6 +123,7 @@ export const deleteRole = async (req, res, next) => {
         if (!deleted) return handleResponse(res, 404, "Role not found.");
         if (deleted.status) return handleResponse(res, deleted.status, deleted.message);
         handleResponse(res, 200, "Role deleted.");
+        await recordAudit(req, "ROLE_DELETE", "role", req.params.id);
     } catch (error) {
         if (
             error?.message === "Role is assigned to users and cannot be deleted." ||
@@ -137,6 +144,7 @@ export const addPermissionToRole = async (req, res, next) => {
         const permissions = await addPermissionToRoleService(req.params.id, permission_id, req.user.tenant_id);
         if (!permissions) return handleResponse(res, 404, "Role not found.");
         handleResponse(res, 200, "Permission added to role.", permissions);
+        await recordAudit(req, "ROLE_UPDATE", "role", req.params.id, { added_permission_id: permission_id });
     } catch (error) {
         if (error?.status === 400 || error?.message?.includes("Customer role")) {
             return handleResponse(res, 400, error.message);
@@ -153,6 +161,7 @@ export const removePermissionFromRole = async (req, res, next) => {
         const removed = await removePermissionFromRoleService(req.params.id, permission_id, req.user.tenant_id);
         if (!removed) return handleResponse(res, 404, "Role or permission not found.");
         handleResponse(res, 200, "Permission removed from role.");
+        await recordAudit(req, "ROLE_UPDATE", "role", req.params.id, { removed_permission_id: permission_id });
     } catch (error) {
         if (error?.status === 400 || error?.message?.includes("Customer role")) {
             return handleResponse(res, 400, error.message);
@@ -168,6 +177,7 @@ export const setRolePermissions = async (req, res, next) => {
         const permissions = await setRolePermissionsService(req.params.id, permission_ids, req.user.tenant_id);
         if (!permissions) return handleResponse(res, 404, "Role not found.");
         handleResponse(res, 200, "Role permissions updated.", permissions);
+        await recordAudit(req, "ROLE_UPDATE", "role", req.params.id, { permission_count: Array.isArray(permission_ids) ? permission_ids.length : null });
     } catch (error) {
         if (error?.status === 400 || error?.message?.includes("Customer role")) {
             return handleResponse(res, 400, error.message);

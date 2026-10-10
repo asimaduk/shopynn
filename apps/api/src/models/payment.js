@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { createNotificationService } from "./notification.js";
 import { applyOrderPartialPayment } from "./orderInstallment.js";
 import { activatePendingSubscriptionService } from "./subscription.js";
+import { createAuditLogService } from "./auditLog.js";
 import {
     markQuotePaidService,
     finalizeMerchantCommissionForQuoteService,
@@ -815,7 +816,7 @@ export const linkPosPaymentToSaleService = async ({
  */
 export const syncSubscriptionPaymentAfterSuccess = async (transaction_ref, tenant_id = null) => {
     const paymentColumns = `p.id, p.order_id, p.sale_id, p.payment_source, p.subscription_id, p.tenant_id,
-                      p.amount, p.face_amount, p.quote_id, t.subscription_id AS tenant_subscription_id`;
+                      p.amount, p.face_amount, p.quote_id, p.creator_id, t.subscription_id AS tenant_subscription_id`;
     const paymentRes = tenant_id
         ? await pool.query(
               `SELECT ${paymentColumns}
@@ -841,7 +842,7 @@ export const syncSubscriptionPaymentAfterSuccess = async (transaction_ref, tenan
     const subscriptionId = payment.subscription_id || payment.tenant_subscription_id;
     if (!subscriptionId) return null;
 
-    const subRes = await pool.query("SELECT id, amount, features FROM subscriptions WHERE id = $1", [subscriptionId]);
+    const subRes = await pool.query("SELECT id, name, status, amount, features FROM subscriptions WHERE id = $1", [subscriptionId]);
     const sub = subRes.rows[0];
     if (!sub) return null;
     let upgradedFrom = null;
@@ -866,6 +867,27 @@ export const syncSubscriptionPaymentAfterSuccess = async (transaction_ref, tenan
     }
 
     const activated = await activatePendingSubscriptionService(subscriptionId, payment.tenant_id);
+
+    if (String(sub.status || "").toLowerCase() === "pending") {
+        try {
+            await createAuditLogService({
+                user_id: payment.creator_id || null,
+                tenant_id: payment.tenant_id,
+                action: upgradedFrom ? "PLAN_UPGRADE" : "PLAN_ACTIVATE",
+                entity_type: "subscription",
+                entity_id: subscriptionId,
+                details: JSON.stringify({
+                    plan: sub.name ?? null,
+                    amount_paid: paid,
+                    upgrade_bonus_days: activated?.upgrade_bonus_days ?? 0,
+                    transaction_ref,
+                }),
+                ip_address: null,
+            });
+        } catch (err) {
+            console.error("Plan audit log failed:", err?.message || err);
+        }
+    }
 
     // Renewals / non-quote subscription payments → residual to serving agent.
     // Quote checkouts already include residual in the acquisition commission row.

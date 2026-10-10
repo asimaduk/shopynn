@@ -186,7 +186,13 @@ export function mapAuditLogs(data: any): { cards: ReportCard[]; rows: ReportRow[
 		rows: list.map((it: any) => ({
 			Time: it.created_at ? String(it.created_at) : '—',
 			User: [it.user_first_name, it.user_last_name].filter(Boolean).join(' ') || '—',
-			Action: it.action ?? '—',
+			Action: it.action
+				? String(it.action)
+						.toLowerCase()
+						.split('_')
+						.map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+						.join(' ')
+				: '—',
 			Ref: it.ip_address ?? it.entity_id ?? '—'
 		}))
 	};

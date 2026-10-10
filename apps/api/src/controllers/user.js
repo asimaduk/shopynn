@@ -1,5 +1,6 @@
 import { createUserService, deleteUserService, getAllUsersService, getUserByIdService, updateUserService, toggleUserActiveService, loginService, resetPasswordService, forgotPasswordService, getUserDetailsService, changePasswordWithTemporaryService, assignMerchantPermissionsToUserRoleService } from "../models/user.js";
 import { createAuditLogService } from "../models/auditLog.js";
+import { recordAudit } from "../util/audit.js";
 import { getPreferencesService, updatePreferencesService } from "../models/userPreferences.js";
 import { handleResponse } from "../util/handleresponse.js";
 import { getUserPermissionsService } from "../models/userRole.js";
@@ -65,6 +66,11 @@ export const createUser = async (req, res, next) => {
         });
         if(createResponse.id) {
             handleResponse(res, 201, "User creation success.", createResponse);
+            await recordAudit(req, "USER_CREATE", "user", createResponse.id, {
+                email: body.email ?? null,
+                role_id: body.role_id ?? null,
+                warehouse_id: body.warehouse_id ?? null,
+            });
 
             // After user creation, initialize preferences to defaults.
             await updatePreferencesService(createResponse.id, {}); // This will create the row with default prefs
@@ -144,10 +150,13 @@ export const updateUser = async (req, res, next) => {
                 entity_type: "user",
                 entity_id: updatedUser.id,
                 details: JSON.stringify({
-                    updated_fields: Object.keys(req.body || {}),
+                    updated_fields: Object.keys(payload),
                 }),
                 ip_address: req.ip,
             });
+            if (payload.role_id) {
+                await recordAudit(req, "USER_ROLE_CHANGE", "user", updatedUser.id, { role_id: payload.role_id });
+            }
         }
 
         handleResponse(res, 201, "User updated.", updatedUser);
@@ -206,6 +215,7 @@ export const toggleUserActive = async (req, res, next) => {
         const updated = await toggleUserActiveService({ id, is_active });
         if (!updated) return handleResponse(res, 404, "Not found.", null);
         handleResponse(res, 200, "User status updated.", updated);
+        await recordAudit(req, is_active ? "USER_ENABLE" : "USER_DISABLE", "user", id);
     } catch (error) {
         if (error?.status === 400 || error?.message?.includes("App signup customer")) {
             return handleResponse(res, 400, error.message);
@@ -283,6 +293,7 @@ export const resetPassword = async (req, res, next) => {
         const updateResponse = await resetPasswordService(req.body.password, req.body.old_password, req.user.id);        
         if(updateResponse.status === 201) {
             handleResponse(res, 201, "Password updated.", updateResponse);
+            await recordAudit(req, "PASSWORD_CHANGE", "user", req.user.id);
         }
         else {
             handleResponse(res, updateResponse.status || 400, updateResponse.message || "Failed.", updateResponse);
@@ -323,6 +334,7 @@ export const changePasswordWithTemporary = async (req, res, next) => {
         }
 
         handleResponse(res, 200, "Password changed successfully.", null);
+        await recordAudit(req, "PASSWORD_CHANGE", "user", req.user.id, { from_temporary: true });
     } catch (error) {
         next(error);
     }
