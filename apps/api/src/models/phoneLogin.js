@@ -1,6 +1,6 @@
 /**
- * Phone OTP login — bridge for storefront customers (and any user with a phone)
- * to sign into the mobile app without knowing the synthetic email/password.
+ * Phone OTP login — lets storefront customers sign into the mobile app without knowing
+ * the synthetic email/password. Staff and owners must use email and password.
  */
 
 import pool from "../config/db.js";
@@ -10,6 +10,7 @@ import { v4 as uuidv4 } from "uuid";
 import { sendSmsService } from "../services/sms.js";
 import { normalizeStorefrontPhone } from "./storefront.js";
 import { allowDevOtpInResponse } from "../util/devOtp.js";
+import { isCustomerOnlyAccount } from "../util/customerAccount.js";
 
 const PURPOSE = "phone_login";
 const OTP_TTL_MS = 10 * 60 * 1000;
@@ -61,6 +62,12 @@ export async function sendPhoneLoginOtpService({ phone }) {
         const err = new Error("Your account is inactive. Contact the store.");
         err.status = 403;
         err.code = "ACCOUNT_INACTIVE";
+        throw err;
+    }
+    if (!(await isCustomerOnlyAccount(user.id))) {
+        const err = new Error("Phone sign-in is for customers. Staff, please sign in with your email and password.");
+        err.status = 403;
+        err.code = "PHONE_LOGIN_CUSTOMERS_ONLY";
         throw err;
     }
 
@@ -137,6 +144,12 @@ export async function verifyPhoneLoginOtpService({ phone, otp }) {
         const err = new Error("Your account is inactive.");
         err.status = 403;
         err.code = "ACCOUNT_INACTIVE";
+        throw err;
+    }
+    if (!(await isCustomerOnlyAccount(user.id))) {
+        const err = new Error("Phone sign-in is for customers. Staff, please sign in with your email and password.");
+        err.status = 403;
+        err.code = "PHONE_LOGIN_CUSTOMERS_ONLY";
         throw err;
     }
 

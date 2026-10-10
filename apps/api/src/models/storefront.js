@@ -14,6 +14,7 @@ import { CUSTOMER_PORTAL_PERMISSION_CODES } from "../constants/permissionCodes.j
 import { sendSmsService } from "../services/sms.js";
 import { createOrderService, settleOrderPaymentByReference } from "./order.js";
 import { allowDevOtpInResponse } from "../util/devOtp.js";
+import { isCustomerOnlyAccount } from "../util/customerAccount.js";
 
 const PURPOSE_PHONE = "storefront_phone";
 const OTP_TTL_MS = 10 * 60 * 1000;
@@ -360,28 +361,6 @@ async function assertStorefrontSession(phone, sessionToken) {
     return normalized;
 }
 
-/** Staff, owners and platform admins must never receive a storefront token. */
-async function isCustomerOnlyAccount(client, userId) {
-    const r = await client.query(
-        `SELECT
-            u.user_type,
-            EXISTS (
-                SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id
-                WHERE ur.user_id = u.id AND lower(r.name) <> 'customer'
-            ) AS has_staff_role,
-            EXISTS (
-                SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id
-                WHERE ur.user_id = u.id AND lower(r.name) = 'customer'
-            ) OR EXISTS (
-                SELECT 1 FROM customer_profiles cp WHERE cp.user_id = u.id
-            ) AS is_customer
-         FROM users u WHERE u.id = $1`,
-        [userId]
-    );
-    const row = r.rows[0];
-    return Boolean(row) && row.user_type !== 1 && !row.has_staff_role && row.is_customer;
-}
-
 /**
  * Ensure user + customer profile linked to store; return JWT-ready user context.
  */
@@ -402,7 +381,7 @@ export async function ensureStorefrontCustomer({
         let userId;
         if (userRes.rowCount) {
             userId = userRes.rows[0].id;
-            if (!(await isCustomerOnlyAccount(client, userId))) {
+            if (!(await isCustomerOnlyAccount(userId, client))) {
                 const err = new Error(
                     "This phone number belongs to a staff account. Use a different number to order."
                 );
