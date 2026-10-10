@@ -173,7 +173,12 @@ const MomoStatus = ({ navigation, route }) => {
                         }
                         if (mode === 'subscription') {
                             dispatch(setSubscriptionActive(true));
-                            navigation.navigate('Subscription');
+                            const routes = navigation.getState?.()?.routes || [];
+                            if (routes.slice(0, -1).some((r) => r?.name === 'Subscription')) {
+                                navigation.popTo('Subscription');
+                            } else {
+                                navigation.replace('Subscription');
+                            }
                             return;
                         }
                         navigation.pop(2);

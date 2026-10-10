@@ -6,8 +6,9 @@ import ScreenHeader from '../../components/screen_header';
 import AppText from '../../components/text';
 import useTheme from '../../hooks/useTheme';
 import config from '../../config';
-import { canManageSubscription } from '../../utils/permissions';
+import { canManageSubscription, getScreenPlanAccess } from '../../utils/permissions';
 import { useSelector } from 'react-redux';
+import { useFocusEffect } from '@react-navigation/native';
 
 const SCREEN_COPY = {
     ProductTransfers: {
@@ -100,7 +101,17 @@ const UpgradePrompt = ({ navigation, route }) => {
     const { colors } = useTheme();
     const insets = useSafeAreaInsets();
     const user = useSelector(({ user: u }) => u);
+    const subscriptionFeatures = useSelector(({ appSettings }) => appSettings?.subscriptionFeatures || []);
+    const subscriptionPlan = useSelector(({ appSettings }) => appSettings?.subscriptionPlan || null);
     const screen = route.params?.screen;
+
+    useFocusEffect(
+        React.useCallback(() => {
+            if (!screen) return;
+            const access = getScreenPlanAccess(user, screen, subscriptionFeatures, subscriptionPlan);
+            if (access.show && !access.locked) navigation.replace(screen);
+        }, [navigation, screen, user, subscriptionFeatures, subscriptionPlan]),
+    );
     const requiredPlanName = route.params?.requiredPlanName;
     const copy = SCREEN_COPY[screen] || {
         title: route.params?.featureTitle || 'This feature',
