@@ -121,7 +121,7 @@ const Subscription = ({ navigation, route }) => {
         });
     };
 
-    const formatCurrency = (value) => formatter.format(value).replace('GH₵', 'GHS ').trim();
+    const formatCurrency = (value) => formatter.format(value).replace(/GH₵\s?|GHS\s?/, 'GH₵ ').trim();
 
     const getStatusColor = () => {
         if (subscriptionStatus === 'active') return '#10b981';
@@ -337,7 +337,7 @@ const Subscription = ({ navigation, route }) => {
                                 ))}
                                 <View style={styles.planCardFooter}>
                                     <AppText
-                                        label={`GHS ${plan.amount} / ${plan.billing.toLowerCase()}`}
+                                        label={`GH₵ ${plan.amount} / ${plan.billing.toLowerCase()}`}
                                         variant={1}
                                         fontSize={15}
                                         color={config.THEME_COLOR}
@@ -408,7 +408,7 @@ const Subscription = ({ navigation, route }) => {
                                         ))}
                                         <View style={styles.planCardFooter}>
                                             <AppText
-                                                label={`GHS ${plan.amount} / ${plan.billing.toLowerCase()}`}
+                                                label={`GH₵ ${plan.amount} / ${plan.billing.toLowerCase()}`}
                                                 variant={1}
                                                 fontSize={15}
                                                 color={config.THEME_COLOR}

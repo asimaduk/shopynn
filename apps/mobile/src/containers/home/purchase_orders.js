@@ -49,7 +49,7 @@ const PurchaseOrders = ({ navigation }) => {
         return { bg: '#fef3c7', color: '#d97706' };
     };
 
-    const formatAmount = (n) => `GHS ${Number(n).toLocaleString('en-GH', { minimumFractionDigits: 2 })}`;
+    const formatAmount = (n) => `GH₵ ${Number(n).toLocaleString('en-GH', { minimumFractionDigits: 2 })}`;
 
     return (
         <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>

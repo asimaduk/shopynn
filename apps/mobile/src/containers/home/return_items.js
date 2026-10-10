@@ -83,11 +83,11 @@ const ReturnItems = ({ navigation, route }) => {
                 <View style={[styles.itemFooter, { borderTopColor: colors.border }]}>
                     <View>
                         <AppText label="Unit Price" fontSize={11} color={colors.textTertiary} />
-                        <AppText label={`GHS ${itemData.unitPrice.toFixed(2)}`} fontSize={13} color={colors.textSecondary} />
+                        <AppText label={`GH₵ ${itemData.unitPrice.toFixed(2)}`} fontSize={13} color={colors.textSecondary} />
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
                         <AppText label="Total" fontSize={11} color={colors.textTertiary} />
-                        <AppText label={`GHS ${itemData.totalPrice}`} fontSize={15} variant={1} color={colors.text} />
+                        <AppText label={`GH₵ ${itemData.totalPrice}`} fontSize={15} variant={1} color={colors.text} />
                     </View>
                 </View>
             </View>
@@ -111,7 +111,7 @@ const ReturnItems = ({ navigation, route }) => {
                         </View>
                         <View style={{ alignItems: 'flex-end' }}>
                             <AppText label="Total Amount" fontSize={13} color={colors.textTertiary} />
-                            <AppText label={`GHS ${totalAmount}`} fontSize={20} variant={1} color={config.THEME_COLOR} style={{ marginTop: 4 }} />
+                            <AppText label={`GH₵ ${totalAmount}`} fontSize={20} variant={1} color={config.THEME_COLOR} style={{ marginTop: 4 }} />
                         </View>
                     </View>
                 </View>

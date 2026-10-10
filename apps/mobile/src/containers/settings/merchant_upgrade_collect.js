@@ -156,7 +156,7 @@ const MerchantUpgradeCollect = ({ navigation, route }) => {
                                     />
                                     {p.onboardingGhs > 0 ? (
                                         <AppText
-                                            label={`+ GHS ${Number(p.onboardingGhs).toFixed(2)} onboarding`}
+                                            label={`+ GH₵ ${Number(p.onboardingGhs).toFixed(2)} onboarding`}
                                             fontSize={12}
                                             color={colors.textTertiary}
                                             style={{ marginTop: 4 }}
@@ -200,7 +200,7 @@ const MerchantUpgradeCollect = ({ navigation, route }) => {
                                     }}
                                 >
                                     <AppText
-                                        label={`${a.label} — GHS ${Number(a.amount_ghs).toFixed(2)}`}
+                                        label={`${a.label} — GH₵ ${Number(a.amount_ghs).toFixed(2)}`}
                                         fontSize={13}
                                         color={colors.text}
                                     />
@@ -212,7 +212,7 @@ const MerchantUpgradeCollect = ({ navigation, route }) => {
 
                 {quoteTotal > 0 ? (
                     <AppText
-                        label={`Total: GHS ${quoteTotal.toFixed(2)}`}
+                        label={`Total: GH₵ ${quoteTotal.toFixed(2)}`}
                         fontSize={17}
                         variant={1}
                         color={config.THEME_COLOR}

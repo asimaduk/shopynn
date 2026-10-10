@@ -165,10 +165,10 @@ const OrderDetails = ({ navigation, route }) => {
             return;
         }
         if (amt > balanceDue + 0.02) {
-            AppAlert.alert('Too high', `Amount cannot exceed remaining balance (GHS ${balanceDue.toFixed(2)}).`);
+            AppAlert.alert('Too high', `Amount cannot exceed remaining balance (GH₵ ${balanceDue.toFixed(2)}).`);
             return;
         }
-        AppAlert.alert('Record cash payment', `Record GHS ${amt.toFixed(2)} toward this order balance?`, [
+        AppAlert.alert('Record cash payment', `Record GH₵ ${amt.toFixed(2)} toward this order balance?`, [
             { text: 'Cancel', style: 'cancel' },
             {
                 text: 'Record',
@@ -332,7 +332,7 @@ const OrderDetails = ({ navigation, route }) => {
                                         <AppText label="Order total" color="rgba(255,255,255,0.85)" fontSize={11} style={{ marginLeft: 5 }} />
                                     </View>
                                     <AppText
-                                        label={`GHS ${Number(order.total_amount || 0).toFixed(2)}`}
+                                        label={`GH₵ ${Number(order.total_amount || 0).toFixed(2)}`}
                                         color="#fff"
                                         variant={1}
                                         fontSize={16}
@@ -440,7 +440,7 @@ const OrderDetails = ({ navigation, route }) => {
                                     >
                                         <AppText label={item.product_name || item.product_id} color={colors.text} />
                                         <AppText
-                                            label={`${Number(item.quantity)} x GHS ${Number(item.unit_price || 0).toFixed(2)}`}
+                                            label={`${Number(item.quantity)} x GH₵ ${Number(item.unit_price || 0).toFixed(2)}`}
                                             color={colors.textTertiary}
                                         />
                                     </View>
@@ -457,14 +457,14 @@ const OrderDetails = ({ navigation, route }) => {
                                 {isInstallmentOrder ? (
                                     <>
                                         <View style={styles.paymentSummaryRow}>
-                                            <AppText label={`Paid: GHS ${amountPaid.toFixed(2)}`} color={colors.text} fontSize={13} />
-                                            <AppText label={`Balance: GHS ${balanceDue.toFixed(2)}`} color={colors.text} fontSize={13} variant={1} />
+                                            <AppText label={`Paid: GH₵ ${amountPaid.toFixed(2)}`} color={colors.text} fontSize={13} />
+                                            <AppText label={`Balance: GH₵ ${balanceDue.toFixed(2)}`} color={colors.text} fontSize={13} variant={1} />
                                         </View>
                                         {installmentPayments.length > 0 ? (
                                             installmentPayments.slice(0, 5).map((p) => (
                                                 <View key={p.id} style={[styles.itemRow, { borderBottomColor: colors.borderLight, borderBottomWidth: 1 }]}>
                                                     <AppText
-                                                        label={`GHS ${Number(p.amount || 0).toFixed(2)} · ${formatStatusLabel(p.payment_method || p.status)}`}
+                                                        label={`GH₵ ${Number(p.amount || 0).toFixed(2)} · ${formatStatusLabel(p.payment_method || p.status)}`}
                                                         color={colors.text}
                                                         fontSize={13}
                                                     />

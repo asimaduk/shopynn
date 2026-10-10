@@ -26,7 +26,7 @@ const STATUS_TABS = [
     { id: 'failed', label: 'Failed' },
 ];
 
-const formatAmount = (amount) => `GHS ${Number(amount || 0).toFixed(2)}`;
+const formatAmount = (amount) => `GH₵ ${Number(amount || 0).toFixed(2)}`;
 
 const normalizeStatus = (raw) => String(raw || '').trim().toLowerCase();
 

@@ -338,7 +338,7 @@ const ForYouProductDetails = ({ navigation, route }) => {
                             color={stock > 0 ? '#16A34A' : '#DC2626'}
                             style={{ marginTop: 4 }}
                         />
-                        <AppText label={`GHS ${price.toFixed(2)}`} fontSize={22} variant={1} color={config.THEME_COLOR} style={{ marginTop: 8 }} />
+                        <AppText label={`GH₵ ${price.toFixed(2)}`} fontSize={22} variant={1} color={config.THEME_COLOR} style={{ marginTop: 8 }} />
                         {currentProduct?.installment_enabled ? (
                             <View style={[styles.installmentBanner, { backgroundColor: '#EDE9FE', borderColor: '#C4B5FD' }]}>
                                 <Lucide name="wallet" size={14} color="#7C3AED" />
@@ -546,7 +546,7 @@ const ForYouProductDetails = ({ navigation, route }) => {
                                                 style={{ marginTop: 8 }}
                                             />
                                             <AppText
-                                                label={`GHS ${Number(item?.base_price_per_unit || item?.unit_price || 0).toFixed(2)}`}
+                                                label={`GH₵ ${Number(item?.base_price_per_unit || item?.unit_price || 0).toFixed(2)}`}
                                                 fontSize={12}
                                                 color={config.THEME_COLOR}
                                                 style={{ marginTop: 4 }}

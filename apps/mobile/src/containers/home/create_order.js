@@ -215,7 +215,7 @@ const CreateOrder = ({ navigation }) => {
 
                     <View style={styles.rowTotal}>
                         <AppText label="Estimated total" fontSize={14} color={colors.text} />
-                        <AppText label={`GHS ${lineTotal.toFixed(2)}`} variant={1} fontSize={16} color={config.THEME_COLOR} />
+                        <AppText label={`GH₵ ${lineTotal.toFixed(2)}`} variant={1} fontSize={16} color={config.THEME_COLOR} />
                     </View>
 
                     <TouchableOpacity

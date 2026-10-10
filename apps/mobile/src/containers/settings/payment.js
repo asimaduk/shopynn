@@ -51,7 +51,7 @@ const Payment = ({ navigation, route }) => {
     const [submitting, setSubmitting] = useState(false);
     const [momoCharge, setMomoCharge] = useState({ enabled: true, percent: 2 });
 
-    const formatCurrency = (value) => formatter.format(value).replace('GH₵', 'GHS ').trim();
+    const formatCurrency = (value) => formatter.format(value).replace(/GH₵\s?|GHS\s?/, 'GH₵ ').trim();
     const isTelecel = momoNetwork === 'telecel';
 
     const isOrderFlow = flowType === 'order' || flowType === 'order_partial';
@@ -365,7 +365,7 @@ const Payment = ({ navigation, route }) => {
                     <View style={[styles.infoCard, { backgroundColor: colors.primaryShade, marginBottom: 16 }]}>
                         <Lucide name="info" size={20} color={config.THEME_COLOR} />
                         <AppText
-                            label={`Plan upgrade: about ${upgradeBonusDays} extra day${Number(upgradeBonusDays) === 1 ? '' : 's'} will be added to your new billing period${upgradeCreditGhs != null ? ` (≈ GHS ${upgradeCreditGhs} credit from remaining time on your previous plan)` : ''}.`}
+                            label={`Plan upgrade: about ${upgradeBonusDays} extra day${Number(upgradeBonusDays) === 1 ? '' : 's'} will be added to your new billing period${upgradeCreditGhs != null ? ` (≈ GH₵ ${upgradeCreditGhs} credit from remaining time on your previous plan)` : ''}.`}
                             fontSize={13}
                             color={colors.textSecondary}
                             style={{ marginLeft: 12, flex: 1 }}

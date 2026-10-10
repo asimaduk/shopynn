@@ -48,7 +48,7 @@ const ReceiveAgainstPO = ({ navigation, route }) => {
                         <View key={line.id} style={[styles.lineRow, { borderBottomColor: colors.borderLight }]}>
                             <View style={{ flex: 1 }}>
                                 <AppText label={line.name} fontSize={14} color={colors.text} />
-                                <AppText label={`Ordered: ${line.qty} · GHS ${(line.unitCost || 0).toFixed(2)} each`} fontSize={12} color={colors.textTertiary} />
+                                <AppText label={`Ordered: ${line.qty} · GH₵ ${(line.unitCost || 0).toFixed(2)} each`} fontSize={12} color={colors.textTertiary} />
                             </View>
                             <TextInput
                                 style={[styles.qtyInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
@@ -74,7 +74,7 @@ const ReceiveAgainstPO = ({ navigation, route }) => {
                 </View>
                 <View style={[styles.totalRow, { backgroundColor: colors.surface }]}>
                     <AppText label="Total received value" variant={1} fontSize={16} color={colors.text} />
-                    <AppText label={`GHS ${totalReceived.toFixed(2)}`} variant={1} fontSize={18} color={config.THEME_COLOR} />
+                    <AppText label={`GH₵ ${totalReceived.toFixed(2)}`} variant={1} fontSize={18} color={config.THEME_COLOR} />
                 </View>
                 <TouchableOpacity activeOpacity={0.8} onPress={submitReceive} style={[styles.submitBtn, { backgroundColor: config.THEME_COLOR }]}>
                     <Lucide name="package-check" size={20} color="#fff" />

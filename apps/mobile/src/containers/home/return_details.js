@@ -89,7 +89,7 @@ const ReturnDetails = ({ navigation, route }) => {
                     <View style={[styles.heroIconWrap, { backgroundColor: statusColor + '25' }]}>
                         <Lucide name={isSales ? 'rotate-ccw' : 'package-x'} size={36} color={statusColor} />
                     </View>
-                    <AppText label={`GHS ${item.amount || '0.00'}`} fontSize={28} fontFamily="FiraSans-Bold" color={colors.text} style={{ marginTop: 12 }} />
+                    <AppText label={`GH₵ ${item.amount || '0.00'}`} fontSize={28} fontFamily="FiraSans-Bold" color={colors.text} style={{ marginTop: 12 }} />
                     <AppText label="Return amount" fontSize={14} color={colors.textSecondary} style={{ marginTop: 4 }} />
                     <View style={styles.heroMeta}>
                         <View style={[styles.typePill, { backgroundColor: colors.surface }]}>

@@ -660,7 +660,7 @@ const Returns = ({ navigation }) => {
                                     <Lucide name={activeTab === 'sales' ? 'user' : 'truck'} size={14} color={colors.textTertiary} />
                                     <AppText label={activeTab === 'sales' ? item.customer : item.supplier} fontSize={14} color={colors.text} style={{ marginLeft: 6 }} numberOfLines={1} />
                                 </View>
-                                <AppText label={`GHS ${item.amount}`} fontSize={18} variant={1} color={colors.text} />
+                                <AppText label={`GH₵ ${item.amount}`} fontSize={18} variant={1} color={colors.text} />
                             </View>
                             <View style={styles.cardMetaRow}>
                                 <View style={styles.cardMeta}>

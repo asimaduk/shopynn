@@ -123,7 +123,7 @@ const CustomerDetails = ({ navigation, route }) => {
             label: 'Store credit',
             value:
                 Number(item.store_credit_balance) > 0
-                    ? `GHS ${Number(item.store_credit_balance).toFixed(2)}`
+                    ? `GH₵ ${Number(item.store_credit_balance).toFixed(2)}`
                     : '—',
             icon: 'wallet',
         },

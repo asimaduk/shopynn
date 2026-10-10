@@ -20,8 +20,8 @@ const TransactionDetails = ({ navigation, route }) => {
             return formatCurrency(Number(item._amount) || 0);
         }
         const raw = String(item.amount ?? '').trim();
-        // Already formatted upstream (e.g. "GHS 54.00") — don't prefix again.
-        if (/^(GHS|GH₵)/i.test(raw)) return raw.replace(/^GH₵/i, 'GHS').trim();
+        // Already formatted upstream (e.g. "GH₵ 54.00") — don't prefix again.
+        if (/^(GHS|GH₵)/i.test(raw)) return raw.replace(/^(GHS|GH₵)\s?/i, 'GH₵ ').trim();
         const n = Number(String(raw).replace(/[^0-9.-]/g, ''));
         return formatCurrency(Number.isFinite(n) ? n : 0);
     })();

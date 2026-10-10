@@ -309,7 +309,7 @@ const BillingCatalog = ({ navigation }) => {
                                             </View>
                                             <View style={styles.rowRight}>
                                                 <AppText
-                                                    label={`₵${formatAmount(row.amount_ghs)}`}
+                                                    label={`GH₵ ${formatAmount(row.amount_ghs)}`}
                                                     variant={1}
                                                     fontSize={15}
                                                     color={colors.text}
@@ -375,11 +375,11 @@ const BillingCatalog = ({ navigation }) => {
                             ) : null}
                         </View>
 
-                        <DetailRow label="Amount" value={`₵${formatAmount(detailItem.amount_ghs)}`} colors={colors} />
+                        <DetailRow label="Amount" value={`GH₵ ${formatAmount(detailItem.amount_ghs)}`} colors={colors} />
                         {(detailItem.min_amount_ghs != null || detailItem.max_amount_ghs != null) && (
                             <DetailRow
                                 label="Range"
-                                value={`₵${formatAmount(detailItem.min_amount_ghs)} – ₵${formatAmount(detailItem.max_amount_ghs)}`}
+                                value={`GH₵ ${formatAmount(detailItem.min_amount_ghs)} – GH₵ ${formatAmount(detailItem.max_amount_ghs)}`}
                                 colors={colors}
                             />
                         )}
@@ -466,7 +466,7 @@ const BillingCatalog = ({ navigation }) => {
                             ]}
                         />
 
-                        <AppText label="Amount (GHS)" fontSize={12} color={colors.textTertiary} style={styles.fieldLabel} />
+                        <AppText label="Amount (GH₵)" fontSize={12} color={colors.textTertiary} style={styles.fieldLabel} />
                         <TextInput
                             value={editAmount}
                             onChangeText={setEditAmount}
@@ -487,7 +487,7 @@ const BillingCatalog = ({ navigation }) => {
                         {isMigrationAddon ? (
                             <View style={styles.rangeRow}>
                                 <View style={{ flex: 1 }}>
-                                    <AppText label="Min (GHS)" fontSize={12} color={colors.textTertiary} style={styles.fieldLabel} />
+                                    <AppText label="Min (GH₵)" fontSize={12} color={colors.textTertiary} style={styles.fieldLabel} />
                                     <TextInput
                                         value={editMinAmount}
                                         onChangeText={setEditMinAmount}
@@ -507,7 +507,7 @@ const BillingCatalog = ({ navigation }) => {
                                 </View>
                                 <View style={{ width: 12 }} />
                                 <View style={{ flex: 1 }}>
-                                    <AppText label="Max (GHS)" fontSize={12} color={colors.textTertiary} style={styles.fieldLabel} />
+                                    <AppText label="Max (GH₵)" fontSize={12} color={colors.textTertiary} style={styles.fieldLabel} />
                                     <TextInput
                                         value={editMaxAmount}
                                         onChangeText={setEditMaxAmount}

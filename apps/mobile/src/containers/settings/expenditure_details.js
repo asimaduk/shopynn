@@ -54,7 +54,7 @@ const ExpenditureDetails = ({ navigation, route }) => {
                     <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: colors.errorLight, justifyContent: 'center', alignItems: 'center', marginBottom: 15 }}>
                         <Lucide name="wallet" size={40} color={colors.error} />
                     </View>
-                    <AppText label={`GHS ${item.amount}`} fontSize={32} fontFamily="FiraSans-Bold" color={colors.error} />
+                    <AppText label={`GH₵ ${item.amount}`} fontSize={32} fontFamily="FiraSans-Bold" color={colors.error} />
                     <AppText label={item.category} fontSize={16} color={colors.textSecondary} style={{ marginTop: 5, backgroundColor: colors.surfaceSecondary, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, overflow: 'hidden' }} numberOfLines={1} />
                 </View>
 

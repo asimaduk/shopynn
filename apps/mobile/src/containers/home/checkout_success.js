@@ -91,7 +91,7 @@ const CheckoutSuccess = ({ navigation, route }) => {
 							onPress={goPayNow}
 						>
 							<AppText
-								label={`Pay now · GHS ${totalAmount.toFixed(2)}`}
+								label={`Pay now · GH₵ ${totalAmount.toFixed(2)}`}
 								color="#fff"
 								variant={1}
 							/>

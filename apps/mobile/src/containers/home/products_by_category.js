@@ -258,7 +258,7 @@ const ProductsByCategory = ({ navigation, route }) => {
                             </View>
                             {/* <View style={{ alignItems: 'center' }}> */}
                                 <AppText label={formatCurrency(item.unit_price)} variant={1} color={colors.text} style={{ marginRight: 5 }} />
-                                {/* <AppText label={'GHS'} fontSize={10} color={colors.textSecondary} /> */}
+                                {/* <AppText label={'GH₵'} fontSize={10} color={colors.textSecondary} /> */}
                             {/* </View> */}
                         </TouchableOpacity>
                     )}

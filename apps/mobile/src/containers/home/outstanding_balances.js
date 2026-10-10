@@ -263,7 +263,7 @@ const OutstandingBalances = ({ navigation }) => {
                                 >
                                     {seg.icon === 'cedi' ? (
                                         <AppText
-                                            label="₵"
+                                            label="GH₵"
                                             fontSize={15}
                                             variant={1}
                                             color={active ? config.THEME_COLOR : colors.textTertiary}

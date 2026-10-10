@@ -20,28 +20,28 @@ const PLANS = [
     {
         v: 1,
         title: 'Free',
-        amountBold: 'GHS 0.00',
+        amountBold: 'GH₵ 0.00',
         amountSub: '14-day trial',
         description: 'Try all core features. Up to 3 users and 1 warehouse. Upgrade when you are ready.',
     },
     {
         v: 2,
         title: 'Starter',
-        amountBold: 'GHS 149.00',
+        amountBold: 'GH₵ 149.00',
         amountSub: 'per month',
         description: 'Single-store operations with core workflows. Up to 3 users and 1 warehouse.',
     },
     {
         v: 3,
         title: 'Business',
-        amountBold: 'GHS 349.00',
+        amountBold: 'GH₵ 349.00',
         amountSub: 'per month',
         description: 'Multi-store trading and scale. Up to 12 users and 5 warehouses.',
     },
     {
         v: 4,
         title: 'Scale',
-        amountBold: 'GHS 649.00',
+        amountBold: 'GH₵ 649.00',
         amountSub: 'per month',
         description: 'Full feature access for larger teams. Up to 25 users and 10 warehouses. Accept online orders.',
     },
@@ -646,7 +646,7 @@ const MerchantOnboard = ({ navigation }) => {
                                             borderColor: on ? config.THEME_COLOR : colors.border,
                                         }}
                                     >
-                                        <AppText label={`${a.label} — GHS ${Number(a.amount_ghs).toFixed(2)}`} fontSize={13} color={colors.text} />
+                                        <AppText label={`${a.label} — GH₵ ${Number(a.amount_ghs).toFixed(2)}`} fontSize={13} color={colors.text} />
                                     </TouchableOpacity>
                                 );
                             })}
@@ -654,7 +654,7 @@ const MerchantOnboard = ({ navigation }) => {
                     ) : null}
                     {quoteTotal > 0 ? (
                         <AppText
-                            label={`Total due at collection: GHS ${quoteTotal.toFixed(2)}`}
+                            label={`Total due at collection: GH₵ ${quoteTotal.toFixed(2)}`}
                             variant={1}
                             fontSize={16}
                             color={config.THEME_COLOR}

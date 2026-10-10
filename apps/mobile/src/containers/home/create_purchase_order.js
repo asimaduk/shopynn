@@ -107,7 +107,7 @@ const CreatePurchaseOrder = ({ navigation, route }) => {
                             <View key={line.id} style={[styles.lineRow, { borderBottomColor: colors.borderLight }]}>
                                 <View style={{ flex: 1 }}>
                                     <AppText label={line.name} fontSize={14} color={colors.text} />
-                                    <AppText label={`${line.qty} × GHS ${(line.unitCost || 0).toFixed(2)} = GHS ${((line.unitCost || 0) * line.qty).toFixed(2)}`} fontSize={12} color={colors.textTertiary} />
+                                    <AppText label={`${line.qty} × GH₵ ${(line.unitCost || 0).toFixed(2)} = GH₵ ${((line.unitCost || 0) * line.qty).toFixed(2)}`} fontSize={12} color={colors.textTertiary} />
                                 </View>
                                 <TouchableOpacity onPress={() => removeLine(line.id)} hitSlop={12}>
                                     <Lucide name="trash-2" size={18} color={colors.error} />
@@ -136,7 +136,7 @@ const CreatePurchaseOrder = ({ navigation, route }) => {
                     </View>
                     <View style={[styles.totalRow, { backgroundColor: colors.surface }]}>
                         <AppText label="Total" variant={1} fontSize={16} color={colors.text} />
-                        <AppText label={`GHS ${totalAmount.toFixed(2)}`} variant={1} fontSize={18} color={config.THEME_COLOR} />
+                        <AppText label={`GH₵ ${totalAmount.toFixed(2)}`} variant={1} fontSize={18} color={config.THEME_COLOR} />
                     </View>
                     <View style={styles.actions}>
                         <TouchableOpacity activeOpacity={0.8} onPress={saveDraft} style={[styles.btn, styles.btnSecondary, { backgroundColor: colors.surfaceSecondary }]}>
@@ -175,7 +175,7 @@ const CreatePurchaseOrder = ({ navigation, route }) => {
                                 style={[styles.modalItem, { borderBottomColor: colors.borderLight, backgroundColor: selectedProduct?.id === p.id ? colors.surfaceSecondary : 'transparent' }]}
                             >
                                 <AppText label={`${p.name} (${p.sku})`} fontSize={14} color={colors.text} />
-                                <AppText label={`GHS ${(p.unitCost || 0).toFixed(2)}`} fontSize={12} color={colors.textTertiary} />
+                                <AppText label={`GH₵ ${(p.unitCost || 0).toFixed(2)}`} fontSize={12} color={colors.textTertiary} />
                             </TouchableOpacity>
                         ))}
                     </ScrollView>

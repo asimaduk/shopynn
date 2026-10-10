@@ -17,9 +17,9 @@ const formatter = new Intl.NumberFormat('en-GH', {
 });
 
 function formatDayTotal(value) {
-    if (value >= 1000000) return `GHS ${(value / 1000000).toFixed(1)}M`;
-    if (value >= 1000) return `GHS ${(value / 1000).toFixed(1)}K`;
-    return formatter.format(value).replace('GH₵', 'GHS ').trim();
+    if (value >= 1000000) return `GH₵ ${(value / 1000000).toFixed(1)}M`;
+    if (value >= 1000) return `GH₵ ${(value / 1000).toFixed(1)}K`;
+    return formatter.format(value).replace(/GH₵\s?|GHS\s?/, 'GH₵ ').trim();
 }
 
 // Match sales.js display shape

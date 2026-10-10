@@ -341,7 +341,7 @@ const CustomerPayments = ({ navigation, route }) => {
         <p><strong>Date Range:</strong> ${dateRangeLabel}</p>
         <p><strong>Export Date:</strong> ${exportDate}</p>
         <p><strong>Total Payments:</strong> ${filteredData.length}</p>
-        <p><strong>Total Amount:</strong> ₵${filteredData.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0).toFixed(2)}</p>
+        <p><strong>Total Amount:</strong> GH₵ ${filteredData.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0).toFixed(2)}</p>
     </div>
     <table>
         <thead>
@@ -362,7 +362,7 @@ const CustomerPayments = ({ navigation, route }) => {
             <tr>
                 <td>${item.id || ''}</td>
                 <td>${item.method || ''}</td>
-                <td>₵${item.amount || ''}</td>
+                <td>GH₵ ${item.amount || ''}</td>
                 <td>${item.date || ''}</td>
                 <td class="${statusClass}">${item.status || ''}</td>
             </tr>

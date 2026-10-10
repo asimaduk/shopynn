@@ -54,7 +54,7 @@ export function buildPlansFromCatalog(catalog) {
             v: typeNum,
             title: meta?.name || tier,
             amountBold:
-                typeNum === 1 ? 'GHS 0.00' : `GHS ${monthlyAmount.toFixed(2)}`,
+                typeNum === 1 ? 'GH₵ 0.00' : `GH₵ ${monthlyAmount.toFixed(2)}`,
             amountSub: typeNum === 1 ? '14-day trial' : 'per month',
             onboardingGhs: onboardingAmount,
             monthlyGhs: monthlyAmount,
@@ -85,7 +85,7 @@ export function buildSignupPlansFromCatalog(catalog) {
         }
         return {
             ...base,
-            label: `${FEATURES_BY_KEY[value]?.name || tier} — GHS ${amount}/mo`,
+            label: `${FEATURES_BY_KEY[value]?.name || tier} — GH₵ ${amount}/mo`,
         };
     });
 }

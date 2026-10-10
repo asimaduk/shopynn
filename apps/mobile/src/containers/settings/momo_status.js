@@ -259,7 +259,7 @@ const MomoStatus = ({ navigation, route }) => {
                         <View style={[styles.divider, { backgroundColor: colors.divider }]} />
                         <View style={styles.detailRow}>
                             <AppText label="Amount" fontSize={14} color={colors.textSecondary} />
-                            <AppText label={formatter.format(amount).replace('GH₵', 'GHS ').trim()} variant={1} fontSize={16} color={colors.text} />
+                            <AppText label={formatter.format(amount).replace(/GH₵\s?|GHS\s?/, 'GH₵ ').trim()} variant={1} fontSize={16} color={colors.text} />
                         </View>
                         <View style={[styles.divider, { backgroundColor: colors.divider }]} />
                         <View style={styles.detailRow}>

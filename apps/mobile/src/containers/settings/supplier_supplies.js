@@ -332,7 +332,7 @@ const SupplierSupplies = ({ navigation, route }) => {
         <p><strong>Export Date:</strong> ${exportDate}</p>
         <p><strong>Total Supplies:</strong> ${filteredData.length}</p>
         <p><strong>Total Quantity:</strong> ${filteredData.reduce((sum, item) => sum + (item.quantity || 0), 0)}</p>
-        <p><strong>Total Amount:</strong> ₵${filteredData.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0).toFixed(2)}</p>
+        <p><strong>Total Amount:</strong> GH₵ ${filteredData.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0).toFixed(2)}</p>
     </div>
     <table>
         <thead>
@@ -353,7 +353,7 @@ const SupplierSupplies = ({ navigation, route }) => {
                 <td>${item.id || ''}</td>
                 <td>${item.productName || ''}</td>
                 <td>${item.quantity || ''}</td>
-                <td>₵${item.amount || ''}</td>
+                <td>GH₵ ${item.amount || ''}</td>
                 <td>${item.date || ''}</td>
             </tr>
             `;

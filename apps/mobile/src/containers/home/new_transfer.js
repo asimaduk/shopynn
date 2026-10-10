@@ -344,7 +344,7 @@ const NewTransfer = ({ navigation, route }) => {
                                         <View style={styles.listRowInfo}>
                                             <AppText label={item.name} numberOfLines={2} style={{ flex: 1 }} color={colors.text} />
                                             <AppText
-                                                label={`GHS ${(item.unit_price || 0)} each`}
+                                                label={`GH₵ ${(item.unit_price || 0)} each`}
                                                 fontSize={11}
                                                 color={colors.textSecondary}
                                             />

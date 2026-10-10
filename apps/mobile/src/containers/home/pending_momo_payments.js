@@ -335,7 +335,7 @@ const PendingMomoPayments = ({ navigation }) => {
             >
                 <View style={styles.cardTop}>
                     <AppText
-                        label={`₵ ${Number(item.face_amount ?? item.amount ?? 0).toFixed(2)}`}
+                        label={`GH₵ ${Number(item.face_amount ?? item.amount ?? 0).toFixed(2)}`}
                         variant={1}
                         color={colors.text}
                         fontSize={17}
@@ -441,7 +441,7 @@ const PendingMomoPayments = ({ navigation }) => {
                             <View style={{ flex: 1, paddingRight: 12 }}>
                                 <AppText label="Sale amount" fontSize={12} color={colors.textTertiary} />
                                 <AppText
-                                    label={`₵ ${face.toFixed(2)}`}
+                                    label={`GH₵ ${face.toFixed(2)}`}
                                     variant={1}
                                     color={colors.text}
                                     fontSize={28}
@@ -449,7 +449,7 @@ const PendingMomoPayments = ({ navigation }) => {
                                 />
                                 {fee > 0 ? (
                                     <AppText
-                                        label={`Customer pays ₵ ${(face + fee).toFixed(2)} incl. fee`}
+                                        label={`Customer pays GH₵ ${(face + fee).toFixed(2)} incl. fee`}
                                         color={colors.textSecondary}
                                         fontSize={12}
                                         style={{ marginTop: 4 }}
@@ -584,14 +584,14 @@ const PendingMomoPayments = ({ navigation }) => {
                                         <View style={{ flex: 1, paddingRight: 8 }}>
                                             <AppText label={line.name || 'Item'} color={colors.text} fontSize={14} />
                                             <AppText
-                                                label={`₵ ${price.toFixed(2)} each`}
+                                                label={`GH₵ ${price.toFixed(2)} each`}
                                                 color={colors.textTertiary}
                                                 fontSize={12}
                                                 style={{ marginTop: 2 }}
                                             />
                                         </View>
                                         <AppText
-                                            label={`₵ ${(qty * price).toFixed(2)}`}
+                                            label={`GH₵ ${(qty * price).toFixed(2)}`}
                                             variant={1}
                                             color={colors.text}
                                             fontSize={14}

@@ -32,7 +32,7 @@ const getBrickMetrics = (index) => {
 };
 
 const formatMoney = (n) =>
-    `GHS ${Number(n || 0).toLocaleString('en-GH', {
+    `GH₵ ${Number(n || 0).toLocaleString('en-GH', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     })}`;

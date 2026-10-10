@@ -4,7 +4,7 @@ export const formatCurrency = (amount) => {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     });
-    return `₵ ${formatted}`;
+    return `GH₵ ${formatted}`;
 };
 
 /** Drop trailing zeros from decimal quantities (e.g. 100.000 → 100). */

@@ -37,7 +37,7 @@ const resolveImageUrl = (raw) => {
     return `${config.BASE_API}/images?id=${encodeURIComponent(raw)}`;
 };
 
-const formatMoney = (n) => `GHS ${Number(n || 0).toFixed(2)}`;
+const formatMoney = (n) => `GH₵ ${Number(n || 0).toFixed(2)}`;
 
 const getSoldLabel = (product) => {
     const soldRaw = Number(product?.sold_count || product?.sold || product?.orders_count || 0);

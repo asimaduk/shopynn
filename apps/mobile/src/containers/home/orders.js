@@ -341,7 +341,7 @@ const Orders = ({ navigation }) => {
                                             <View style={[styles.metaRow, { marginTop: 8, justifyContent: 'flex-end' }]}>
                                                 <Lucide name="wallet" size={13} color={config.THEME_COLOR} />
                                                 <AppText
-                                                    label={`GHS ${Number(item.total_amount || 0).toFixed(2)}`}
+                                                    label={`GH₵ ${Number(item.total_amount || 0).toFixed(2)}`}
                                                     fontSize={13}
                                                     color={config.THEME_COLOR}
                                                     style={{ marginLeft: 6 }}

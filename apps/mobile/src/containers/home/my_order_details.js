@@ -152,7 +152,7 @@ const MyOrderDetails = ({ navigation, route }) => {
             return;
         }
         if (isInstallment && pay > balanceDue + 0.02) {
-            AppAlert.alert('Amount too high', `Maximum payment is GHS ${balanceDue.toFixed(2)}.`);
+            AppAlert.alert('Amount too high', `Maximum payment is GH₵ ${balanceDue.toFixed(2)}.`);
             return;
         }
         navigation.navigate('Payment', {
@@ -263,7 +263,7 @@ const MyOrderDetails = ({ navigation, route }) => {
                                 <AppText label="Order total" color={colors.textSecondary} fontSize={11} style={{ marginLeft: 5, textAlign: 'right' }} />
                             </View>
                             <AppText
-                                label={`GHS ${Number(order?.total_amount || 0).toFixed(2)}`}
+                                label={`GH₵ ${Number(order?.total_amount || 0).toFixed(2)}`}
                                 color={config.THEME_COLOR}
                                 variant={1}
                                 fontSize={17}
@@ -332,7 +332,7 @@ const MyOrderDetails = ({ navigation, route }) => {
                             <View style={[styles.progressFill, { width: `${payProgress}%`, backgroundColor: config.THEME_COLOR }]} />
                         </View>
                         <AppText
-                            label={`Paid GHS ${amountPaid.toFixed(2)} of GHS ${totalAmount.toFixed(2)} · Balance GHS ${balanceDue.toFixed(2)}`}
+                            label={`Paid GH₵ ${amountPaid.toFixed(2)} of GH₵ ${totalAmount.toFixed(2)} · Balance GH₵ ${balanceDue.toFixed(2)}`}
                             fontSize={12}
                             color={colors.textSecondary}
                             style={{ marginTop: 8 }}
@@ -342,7 +342,7 @@ const MyOrderDetails = ({ navigation, route }) => {
                                 {installmentPayments.map((p) => (
                                     <View key={p.id} style={[styles.paymentRow, { backgroundColor: colors.surfaceSecondary }]}>
                                         <AppText
-                                            label={`GHS ${Number(p.amount || 0).toFixed(2)} · ${String(p.payment_method || '').replace(/_/g, ' ')}`}
+                                            label={`GH₵ ${Number(p.amount || 0).toFixed(2)} · ${String(p.payment_method || '').replace(/_/g, ' ')}`}
                                             color={colors.text}
                                             fontSize={12}
                                         />
@@ -379,7 +379,7 @@ const MyOrderDetails = ({ navigation, route }) => {
                                     style={[styles.payPrimaryBtn, { backgroundColor: config.THEME_COLOR }]}
                                 >
                                     <AppText
-                                        label={`Check payment status · GHS ${Number(openPayment.amount || totalAmount).toFixed(2)}`}
+                                        label={`Check payment status · GH₵ ${Number(openPayment.amount || totalAmount).toFixed(2)}`}
                                         color="#fff"
                                         variant={1}
                                     />
@@ -397,7 +397,7 @@ const MyOrderDetails = ({ navigation, route }) => {
                                 style={[styles.payPrimaryBtn, { backgroundColor: config.THEME_COLOR }]}
                             >
                                 <AppText
-                                    label={`Pay now · GHS ${totalAmount.toFixed(2)}`}
+                                    label={`Pay now · GH₵ ${totalAmount.toFixed(2)}`}
                                     color="#fff"
                                     variant={1}
                                 />
@@ -426,14 +426,14 @@ const MyOrderDetails = ({ navigation, route }) => {
                                     style={[styles.presetChip, { borderColor: colors.border, backgroundColor: colors.surfaceSecondary }]}
                                 >
                                     <AppText label={`${p.label}`} fontSize={12} color={colors.text} />
-                                    <AppText label={`GHS ${p.value.toFixed(2)}`} fontSize={11} color={config.THEME_COLOR} />
+                                    <AppText label={`GH₵ ${p.value.toFixed(2)}`} fontSize={11} color={config.THEME_COLOR} />
                                 </TouchableOpacity>
                             ))}
                         </View>
                         <TextInput
                             value={payAmount}
                             onChangeText={setPayAmount}
-                            placeholder={`Amount (max GHS ${balanceDue.toFixed(2)})`}
+                            placeholder={`Amount (max GH₵ ${balanceDue.toFixed(2)})`}
                             placeholderTextColor={colors.placeholder}
                             keyboardType="decimal-pad"
                             style={[styles.amountInput, { borderColor: colors.border, color: colors.text }]}
@@ -443,7 +443,7 @@ const MyOrderDetails = ({ navigation, route }) => {
                             style={[styles.payPrimaryBtn, { backgroundColor: config.THEME_COLOR, marginTop: 10 }]}
                         >
                             <AppText
-                                label={`Pay ${Number(payAmount || balanceDue).toFixed(2)} GHS`}
+                                label={`Pay ${Number(payAmount || balanceDue).toFixed(2)} GH₵`}
                                 color="#fff"
                                 variant={1}
                             />
@@ -526,10 +526,10 @@ const MyOrderDetails = ({ navigation, route }) => {
                                     <AppText label="Qty" color={colors.textSecondary} fontSize={11} variant={1} />
                                 </View>
                                 <View style={[styles.colUnit]}>
-                                    <AppText label="Unit (GHS)" color={colors.textSecondary} fontSize={11} variant={1} />
+                                    <AppText label="Unit (GH₵)" color={colors.textSecondary} fontSize={11} variant={1} />
                                 </View>
                                 <View style={[styles.colTotal]}>
-                                    <AppText label="Line total (GHS)" color={colors.textSecondary} fontSize={11} variant={1} />
+                                    <AppText label="Line total (GH₵)" color={colors.textSecondary} fontSize={11} variant={1} />
                                 </View>
                             </View>
                             {order.items.map((item, idx) => {

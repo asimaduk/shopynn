@@ -172,14 +172,14 @@ const Checkout = ({ navigation }) => {
         if (storeMinAmount > 0 && total < storeMinAmount) {
             AppAlert.alert(
                 'Minimum order',
-                `This store requires a minimum order of GHS ${storeMinAmount.toFixed(2)}. Your total is GHS ${total.toFixed(2)}.`,
+                `This store requires a minimum order of GH₵ ${storeMinAmount.toFixed(2)}. Your total is GH₵ ${total.toFixed(2)}.`,
             );
             return;
         }
         const initialAmt = paymentMode === 'installment' ? Number(initialPayment || 0) : 0;
         if (paymentMode === 'installment') {
             if (initialAmt < requiredInitial - 0.02) {
-                AppAlert.alert('Initial payment', `Minimum initial payment is GHS ${requiredInitial.toFixed(2)}.`);
+                AppAlert.alert('Initial payment', `Minimum initial payment is GH₵ ${requiredInitial.toFixed(2)}.`);
                 return;
             }
             if (initialAmt > total + 0.02) {
@@ -243,8 +243,8 @@ const Checkout = ({ navigation }) => {
         : paymentMode === 'installment'
           ? 'Place pay-over-time order'
           : payTiming === 'now'
-            ? `Place order & pay · GHS ${total.toFixed(2)}`
-            : `Place order · GHS ${total.toFixed(2)}`;
+            ? `Place order & pay · GH₵ ${total.toFixed(2)}`
+            : `Place order · GH₵ ${total.toFixed(2)}`;
 
     return (
         <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
@@ -260,7 +260,7 @@ const Checkout = ({ navigation }) => {
                     showsVerticalScrollIndicator={false}
                 >
                     <AppText
-                        label={`${totalItems} item${totalItems === 1 ? '' : 's'} · GHS ${total.toFixed(2)}`}
+                        label={`${totalItems} item${totalItems === 1 ? '' : 's'} · GH₵ ${total.toFixed(2)}`}
                         fontSize={13}
                         color={colors.textSecondary}
                         style={{ marginBottom: 14 }}
@@ -285,9 +285,9 @@ const Checkout = ({ navigation }) => {
                                 color={total >= storeMinAmount ? config.THEME_COLOR : colors.error || '#DC2626'}
                             />
                             <AppText
-                                label={`Minimum order GHS ${storeMinAmount.toFixed(2)}${
+                                label={`Minimum order GH₵ ${storeMinAmount.toFixed(2)}${
                                     total < storeMinAmount
-                                        ? ` · add GHS ${(storeMinAmount - total).toFixed(2)} more`
+                                        ? ` · add GH₵ ${(storeMinAmount - total).toFixed(2)} more`
                                         : ''
                                 }`}
                                 fontSize={12}
@@ -343,14 +343,14 @@ const Checkout = ({ navigation }) => {
                                                 numberOfLines={2}
                                             />
                                             <AppText
-                                                label={`${Number(it.quantity || 0)} × GHS ${Number(it.unit_price || 0).toFixed(2)}`}
+                                                label={`${Number(it.quantity || 0)} × GH₵ ${Number(it.unit_price || 0).toFixed(2)}`}
                                                 color={colors.textSecondary}
                                                 fontSize={12}
                                                 style={{ marginTop: 2 }}
                                             />
                                         </View>
                                         <AppText
-                                            label={`GHS ${(Number(it.quantity || 0) * Number(it.unit_price || 0)).toFixed(2)}`}
+                                            label={`GH₵ ${(Number(it.quantity || 0) * Number(it.unit_price || 0)).toFixed(2)}`}
                                             color={colors.text}
                                             variant={1}
                                             fontSize={13}
@@ -443,7 +443,7 @@ const Checkout = ({ navigation }) => {
                                 >
                                     {requiredInitial > 0 ? (
                                         <AppText
-                                            label={`Minimum initial payment: GHS ${requiredInitial.toFixed(2)}`}
+                                            label={`Minimum initial payment: GH₵ ${requiredInitial.toFixed(2)}`}
                                             fontSize={12}
                                             color={colors.textSecondary}
                                             style={{ marginBottom: 8 }}
@@ -466,7 +466,7 @@ const Checkout = ({ navigation }) => {
                                         ]}
                                     />
                                     <AppText
-                                        label={`Balance after checkout: GHS ${Math.max(0, total - Number(initialPayment || 0)).toFixed(2)}`}
+                                        label={`Balance after checkout: GH₵ ${Math.max(0, total - Number(initialPayment || 0)).toFixed(2)}`}
                                         fontSize={12}
                                         color={config.THEME_COLOR}
                                         style={{ marginTop: 8 }}
@@ -542,7 +542,7 @@ const Checkout = ({ navigation }) => {
                         <View>
                             <AppText label="Total" fontSize={12} color={colors.textSecondary} />
                             <AppText
-                                label={`GHS ${total.toFixed(2)}`}
+                                label={`GH₵ ${total.toFixed(2)}`}
                                 variant={1}
                                 fontSize={20}
                                 color={colors.text}

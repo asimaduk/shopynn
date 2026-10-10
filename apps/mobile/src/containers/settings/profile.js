@@ -537,7 +537,7 @@ const Profile = ({ navigation, route }) => {
                                             <InfoRow
                                                 icon="clock"
                                                 label="Latest payment"
-                                                val={`GHS ${Number(billingPayments[0]?.amount || 0).toFixed(2)} · ${String(
+                                                val={`GH₵ ${Number(billingPayments[0]?.amount || 0).toFixed(2)} · ${String(
                                                     billingPayments[0]?.status || '—',
                                                 )}`}
                                             />

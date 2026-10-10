@@ -130,7 +130,7 @@ const PaymentHistory = ({ navigation }) => {
                     item.invoice.toLowerCase().includes(q) ||
                     item.method.toLowerCase().includes(q) ||
                     item.status.toLowerCase().includes(q) ||
-                    formatter.format(item.amount).replace('GH₵', 'GHS ')
+                    formatter.format(item.amount).replace(/GH₵\s?|GHS\s?/, 'GH₵ ')
             );
         }
 
@@ -227,7 +227,7 @@ const PaymentHistory = ({ navigation }) => {
             return [
                 escapeCSV(formatDateDisplay(item.date)),
                 escapeCSV(item.invoice),
-                escapeCSV(formatter.format(item.amount).replace('GH₵', 'GHS ')),
+                escapeCSV(formatter.format(item.amount).replace(/GH₵\s?|GHS\s?/, 'GH₵ ')),
                 escapeCSV(item.status),
                 escapeCSV(item.method),
             ].join(',');
@@ -323,7 +323,7 @@ const PaymentHistory = ({ navigation }) => {
                 <tr>
                     <td>${formatDateDisplay(item.date)}</td>
                     <td>${item.invoice}</td>
-                    <td>${formatter.format(item.amount).replace('GH₵', 'GHS ')}</td>
+                    <td>${formatter.format(item.amount).replace(/GH₵\s?|GHS\s?/, 'GH₵ ')}</td>
                     <td>${item.status.toUpperCase()}</td>
                     <td>${item.method}</td>
                 </tr>
@@ -338,7 +338,7 @@ const PaymentHistory = ({ navigation }) => {
         </div>
         <div class="summary-row">
             <span class="label">Total Amount:</span>
-            <span class="value">${formatter.format(totalAmount).replace('GH₵', 'GHS ')}</span>
+            <span class="value">${formatter.format(totalAmount).replace(/GH₵\s?|GHS\s?/, 'GH₵ ')}</span>
         </div>
     </div>
     
@@ -422,7 +422,7 @@ const PaymentHistory = ({ navigation }) => {
                     </View>
                 </View>
                 <View style={localStyles.paymentRight}>
-                    <AppText label={formatter.format(item.amount).replace('GH₵', 'GHS ')} variant={1} fontSize={16} color={colors.text} />
+                    <AppText label={formatter.format(item.amount).replace(/GH₵\s?|GHS\s?/, 'GH₵ ')} variant={1} fontSize={16} color={colors.text} />
                     <View style={[localStyles.paidBadge, { backgroundColor: statusBadge.backgroundColor }]}>
                         <AppText
                             label={String(item.status || '—').toUpperCase()}

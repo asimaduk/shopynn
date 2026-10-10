@@ -85,7 +85,7 @@ const PurchaseOrderDetails = ({ navigation, route }) => {
                         </View>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                             <AppText label="Total amount" fontSize={12} color={colors.textTertiary} />
-                            <AppText label={`GHS ${Number(item.totalAmount || 0).toLocaleString('en-GH', { minimumFractionDigits: 2 })}`} variant={1} fontSize={16} color={config.THEME_COLOR} />
+                            <AppText label={`GH₵ ${Number(item.totalAmount || 0).toLocaleString('en-GH', { minimumFractionDigits: 2 })}`} variant={1} fontSize={16} color={config.THEME_COLOR} />
                         </View>
                     </View>
                 </DetailSection>
@@ -97,7 +97,7 @@ const PurchaseOrderDetails = ({ navigation, route }) => {
                                 <AppText label={line.name} fontSize={14} color={colors.text} />
                                 <AppText label={`${line.sku} · Ordered: ${line.qty}${line.received != null ? ` · Received: ${line.received}` : ''}`} fontSize={12} color={colors.textTertiary} />
                             </View>
-                            <AppText label={`GHS ${((line.unitCost || 0) * line.qty).toFixed(2)}`} fontSize={13} color={colors.text} />
+                            <AppText label={`GH₵ ${((line.unitCost || 0) * line.qty).toFixed(2)}`} fontSize={13} color={colors.text} />
                         </View>
                     ))}
                 </DetailSection>

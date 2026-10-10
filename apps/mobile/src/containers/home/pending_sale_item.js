@@ -89,7 +89,7 @@ const PendingSaleItem = ({ item, index, onPress, formatter }) => {
 
             {/* Minimal chevron */}
             <View style={{ flexDirection: 'row' }}>
-                <AppText label={`GHS ${price}`} variant={1} fontSize={16} color={colors.text} />
+                <AppText label={`GH₵ ${price}`} variant={1} fontSize={16} color={colors.text} />
                 <Lucide name="chevron-right" size={18} color={colors.textTertiary} />
             </View>
         </TouchableOpacity>

@@ -735,7 +735,7 @@ const OrderSettlements = ({ navigation }) => {
                         color={colors.textSecondary}
                         style={{ marginTop: 4, marginBottom: 12 }}
                     />
-                    <TextInput value={withdrawAmount} onChangeText={setWithdrawAmount} placeholder="Amount (GHS)" keyboardType="decimal-pad" placeholderTextColor={colors.textTertiary} style={inputStyle} />
+                    <TextInput value={withdrawAmount} onChangeText={setWithdrawAmount} placeholder="Amount (GH₵)" keyboardType="decimal-pad" placeholderTextColor={colors.textTertiary} style={inputStyle} />
                     <TextInput value={withdrawNote} onChangeText={setWithdrawNote} placeholder="Note (optional)" placeholderTextColor={colors.textTertiary} style={inputStyle} />
                     <TouchableOpacity
                         activeOpacity={0.7}

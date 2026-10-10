@@ -525,7 +525,7 @@ const TenantDirectoryDetail = ({ navigation, route }) => {
                             <TextInput
                                 value={settlementAmount}
                                 onChangeText={setSettlementAmount}
-                                placeholder="Payout amount (GHS)"
+                                placeholder="Payout amount (GH₵)"
                                 placeholderTextColor={colors.textTertiary}
                                 keyboardType="decimal-pad"
                                 style={{

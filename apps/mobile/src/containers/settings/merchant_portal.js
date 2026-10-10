@@ -397,7 +397,7 @@ const MerchantPortal = ({ navigation }) => {
                             <AppText label={t.subscription_name || '—'} fontSize={12} color={colors.textSecondary} numberOfLines={2} />
                         </View>
                         <View style={{ flex: 1, paddingRight: 6, justifyContent: 'center' }}>
-                            <AppText label={`₵${fmtMoney(t.subscription_amount)}`} fontSize={12} color={colors.text} />
+                            <AppText label={`GH₵ ${fmtMoney(t.subscription_amount)}`} fontSize={12} color={colors.text} />
                         </View>
                         <View style={{ flex: 1.1, justifyContent: 'center', gap: 6 }}>
                             {t.quote_status === 'pending_payment' ? (
@@ -554,13 +554,13 @@ const MerchantPortal = ({ navigation }) => {
                             <AppText label={c.tenant_name || String(c.tenant_id || '—')} fontSize={12} color={colors.text} numberOfLines={2} />
                         </View>
                         <View style={{ flex: 1, paddingRight: 4 }}>
-                            <AppText label={`₵${fmtMoney(c.base_amount)}`} fontSize={11} color={colors.textSecondary} />
+                            <AppText label={`GH₵ ${fmtMoney(c.base_amount)}`} fontSize={11} color={colors.textSecondary} />
                         </View>
                         <View style={{ flex: 0.6, paddingRight: 4 }}>
                             <AppText label={`${fmtMoney(c.commission_percent)}`} fontSize={11} color={colors.textSecondary} />
                         </View>
                         <View style={{ flex: 1, paddingRight: 4 }}>
-                            <AppText label={`₵${fmtMoney(c.commission_amount)}`} fontSize={11} color={colors.text} />
+                            <AppText label={`GH₵ ${fmtMoney(c.commission_amount)}`} fontSize={11} color={colors.text} />
                         </View>
                         <View style={{ flex: 0.85, paddingRight: 4 }}>
                             <View

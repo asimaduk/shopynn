@@ -76,7 +76,7 @@ const formatOrderWhen = (value) => {
 };
 
 const formatMoney = (n) =>
-    `GHS ${Number(n || 0).toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    `GH₵ ${Number(n || 0).toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const MyOrders = ({ navigation }) => {
     const { colors } = useTheme();

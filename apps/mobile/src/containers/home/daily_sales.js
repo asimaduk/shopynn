@@ -234,9 +234,9 @@ const DailySales = ({ navigation }) => {
     };
 
     const formatCurrency = (value) => {
-        if (value >= 1000000) return `GHS ${(value / 1000000).toFixed(1)}M`;
-        if (value >= 1000) return `GHS ${(value / 1000).toFixed(1)}K`;
-        return formatter.format(value).replace('GH₵', 'GHS ').trim();
+        if (value >= 1000000) return `GH₵ ${(value / 1000000).toFixed(1)}M`;
+        if (value >= 1000) return `GH₵ ${(value / 1000).toFixed(1)}K`;
+        return formatter.format(value).replace(/GH₵\s?|GHS\s?/, 'GH₵ ').trim();
     };
 
     const totalSales = data.reduce((sum, d) => sum + (d.value || 0), 0);

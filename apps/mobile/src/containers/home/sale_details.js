@@ -904,7 +904,7 @@ const SaleDetails = ({ navigation, route }) => {
                         style={{ marginBottom: 12 }}
                     />
                 ) : null}
-                <AppText label="Amount (GHS)" fontSize={13} color={colors.text} style={{ marginBottom: 6 }} />
+                <AppText label="Amount (GH₵)" fontSize={13} color={colors.text} style={{ marginBottom: 6 }} />
                 <TextInput
                     value={collectAmount}
                     onChangeText={setCollectAmount}

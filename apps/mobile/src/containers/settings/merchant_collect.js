@@ -119,11 +119,11 @@ const MerchantCollect = ({ navigation, route }) => {
         <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader title="Collect payment" navigation={navigation} />
             <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 + insets.bottom }}>
-                <AppText label={`Total: GHS ${Number(quote.total_ghs).toFixed(2)}`} fontSize={22} variant={1} color={colors.text} />
+                <AppText label={`Total: GH₵ ${Number(quote.total_ghs).toFixed(2)}`} fontSize={22} variant={1} color={colors.text} />
                 {(quote.lines || []).map((l) => (
                     <AppText
                         key={l.code}
-                        label={`• ${l.label}: GHS ${Number(l.amount_ghs).toFixed(2)}`}
+                        label={`• ${l.label}: GH₵ ${Number(l.amount_ghs).toFixed(2)}`}
                         fontSize={13}
                         color={colors.textSecondary}
                         style={{ marginTop: 4 }}

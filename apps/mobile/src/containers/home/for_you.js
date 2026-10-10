@@ -356,7 +356,7 @@ const ForYou = ({ navigation, route }) => {
 
                                     <View style={{ flexDirection:'row',justifyContent:'space-between',alignItems:'center' }}>
                                         <AppText
-                                            label={`GHS ${Number(item.base_price_per_unit || item.unit_price || 0).toFixed(2)}`}
+                                            label={`GH₵ ${Number(item.base_price_per_unit || item.unit_price || 0).toFixed(2)}`}
                                             fontSize={14}
                                             color={config.THEME_COLOR}
                                             style={{ marginTop: 2 }}

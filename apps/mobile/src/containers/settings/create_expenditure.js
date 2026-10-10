@@ -223,7 +223,7 @@ const CreateExpenditure = ({ navigation }) => {
                         colors={colors}
                     />
                     <InputField
-                        label="Amount (GHS) *"
+                        label="Amount (GH₵) *"
                         value={amount}
                         onChangeText={handleAmountChange}
                         placeholder="0.00"

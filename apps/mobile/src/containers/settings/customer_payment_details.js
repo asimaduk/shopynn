@@ -44,7 +44,7 @@ const CustomerPaymentDetails = ({ navigation, route }) => {
                     <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: colors.successLight, justifyContent: 'center', alignItems: 'center', marginBottom: 15 }}>
                         <Lucide name="credit-card" size={40} color={config.GREEN_COLOR || colors.success} />
                     </View>
-                    <AppText label={`GHS ${item.amount}`} fontSize={32} fontFamily="FiraSans-Bold" color={config.GREEN_COLOR || colors.success} />
+                    <AppText label={`GH₵ ${item.amount}`} fontSize={32} fontFamily="FiraSans-Bold" color={config.GREEN_COLOR || colors.success} />
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
                         <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: config.GREEN_COLOR || colors.success, marginRight: 6 }} />
                         <AppText label={item.status} fontSize={14} color={config.GREEN_COLOR || colors.success} fontFamily="FiraSans-Medium" />

@@ -150,7 +150,7 @@ const MerchantAddServices = ({ navigation, route }) => {
                                     <View style={{ flex: 1, marginLeft: 10 }}>
                                         <AppText label={a.label} fontSize={14} color={colors.text} />
                                         <AppText
-                                            label={`GHS ${Number(a.amount_ghs).toFixed(2)}`}
+                                            label={`GH₵ ${Number(a.amount_ghs).toFixed(2)}`}
                                             fontSize={13}
                                             color={colors.textSecondary}
                                         />
@@ -163,7 +163,7 @@ const MerchantAddServices = ({ navigation, route }) => {
 
                 {total > 0 ? (
                     <AppText
-                        label={`Total: GHS ${total.toFixed(2)}`}
+                        label={`Total: GH₵ ${total.toFixed(2)}`}
                         fontSize={17}
                         variant={1}
                         color={config.THEME_COLOR}

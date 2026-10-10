@@ -22,7 +22,7 @@ import {
 import AppAlert from '../../utils/appAlert';
 
 const formatter = new Intl.NumberFormat('en-GH', { style: 'currency', currency: 'GHS' });
-const formatCurrency = (value) => formatter.format(Number(value)).replace('GH₵', 'GHS ').trim();
+const formatCurrency = (value) => formatter.format(Number(value)).replace(/GH₵\s?|GHS\s?/, 'GH₵ ').trim();
 
 // Sample data per report type
 // const SAMPLE = {

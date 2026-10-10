@@ -1576,8 +1576,8 @@ const NewSale = ({ navigation, route }) => {
                         <AppText
                             label={
                                 selectedPaymentOption.paid
-                                    ? `MoMo paid for ₵ ${Number(selectedPaymentOption.chargedFaceAmount || totalAmount).toFixed(2)}. Cart locked — complete the sale.`
-                                    : `MoMo charge open for ₵ ${Number(selectedPaymentOption.chargedFaceAmount || totalAmount).toFixed(2)}. Cart locked until paid or abandoned.`
+                                    ? `MoMo paid for GH₵ ${Number(selectedPaymentOption.chargedFaceAmount || totalAmount).toFixed(2)}. Cart locked — complete the sale.`
+                                    : `MoMo charge open for GH₵ ${Number(selectedPaymentOption.chargedFaceAmount || totalAmount).toFixed(2)}. Cart locked until paid or abandoned.`
                             }
                             fontSize={12}
                             color={selectedPaymentOption.paid ? '#166534' : '#9a3412'}
@@ -1937,7 +1937,7 @@ const NewSale = ({ navigation, route }) => {
                         {selectedProduct && (
                             <>
                                 <AppText label={selectedProduct.name} variant={1} fontSize={16} style={{ marginBottom: 8 }} color={colors.text} />
-                                <AppText label={`GHS ${resolveSaleUnitPrice(quantity || selectedProduct.order_quantity || 1, selectedProduct.unit_price, selectedProduct.alt_price, bulkDiscount)} each`} fontSize={13} color={colors.textSecondary} style={{ marginBottom: 12 }} />
+                                <AppText label={`GH₵ ${resolveSaleUnitPrice(quantity || selectedProduct.order_quantity || 1, selectedProduct.unit_price, selectedProduct.alt_price, bulkDiscount)} each`} fontSize={13} color={colors.textSecondary} style={{ marginBottom: 12 }} />
                                 <TextInput
                                     value={quantity}
                                     placeholder="Quantity"
@@ -2161,7 +2161,7 @@ const NewSale = ({ navigation, route }) => {
                         <AppText
                             label={
                                 selectedPaymentOption.method === 'cash'
-                                    ? 'Amount tendered (GHS)'
+                                    ? 'Amount tendered (GH₵)'
                                     : 'Mobile money number'
                             }
                             style={{ marginBottom: 8 }}

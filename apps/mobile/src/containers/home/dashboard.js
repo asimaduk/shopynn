@@ -217,11 +217,11 @@ const Dashboard = ({ navigation, route }) => {
 
     const formatCurrency = (value) => {
         if (value >= 1000000) {
-            return `GHS ${(value / 1000000).toFixed(1)}M`;
+            return `GH₵ ${(value / 1000000).toFixed(1)}M`;
         } else if (value >= 1000) {
-            return `GHS ${(value / 1000).toFixed(1)}K`;
+            return `GH₵ ${(value / 1000).toFixed(1)}K`;
         }
-        return formatter.format(value).replace('GH₵', 'GHS ');
+        return formatter.format(value).replace(/GH₵\s?|GHS\s?/, 'GH₵ ');
     }
 
     const MetricCard = ({ icon, iconColor, iconBg, title, value, change, changeType, isCurrency = false }) => {

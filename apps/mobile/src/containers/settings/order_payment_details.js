@@ -79,7 +79,7 @@ export default function OrderPaymentDetails({ navigation, route }) {
 				<ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 24 }}>
 					<View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
 						<AppText label={`Order: ${receipt?.order_number || receipt?.order_id || '—'}`} color={colors.text} />
-						<AppText label={`Amount: GHS ${Number(receipt?.amount || 0).toFixed(2)}`} color={colors.text} style={{ marginTop: 6 }} />
+						<AppText label={`Amount: GH₵ ${Number(receipt?.amount || 0).toFixed(2)}`} color={colors.text} style={{ marginTop: 6 }} />
 						<AppText label={`Method: ${receipt?.payment_method_type || '—'}`} color={colors.textSecondary} style={{ marginTop: 6 }} />
 						<AppText label={`Status: ${String(receipt?.status || '').toUpperCase() || '—'}`} color={config.THEME_COLOR} style={{ marginTop: 6 }} />
 						<AppText label={`Ref: ${receipt?.transaction_ref || '—'}`} color={colors.textTertiary} style={{ marginTop: 6 }} />

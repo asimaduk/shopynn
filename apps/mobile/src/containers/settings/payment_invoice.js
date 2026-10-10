@@ -42,7 +42,7 @@ const PaymentInvoice = ({ navigation, route }) => {
         });
     };
 
-    const formatCurrency = (value) => formatter.format(value).replace('GH₵', 'GHS ').trim();
+    const formatCurrency = (value) => formatter.format(value).replace(/GH₵\s?|GHS\s?/, 'GH₵ ').trim();
 
     const getStatusColor = () => {
         const s = (payment.status || '').toLowerCase();

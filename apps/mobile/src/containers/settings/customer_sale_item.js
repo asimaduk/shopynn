@@ -59,7 +59,7 @@ const CustomerSaleItem = ({ item, index, navigation }) => {
             </View>
 
             <View style={{ alignItems: 'flex-end' }}>
-                <AppText label={`GHS ${formatCurrency(item.total_amount)}`} fontSize={15} fontFamily="FiraSans-Bold" color={config.THEME_COLOR} />
+                <AppText label={formatCurrency(item.total_amount)} fontSize={15} fontFamily="FiraSans-Bold" color={config.THEME_COLOR} />
                 <AppText label={`${item.number_of_items} units`} fontSize={12} color={colors.textTertiary} />
             </View>
         </TouchableOpacity>

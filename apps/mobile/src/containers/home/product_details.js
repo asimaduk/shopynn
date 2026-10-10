@@ -105,7 +105,7 @@ const ProductDetails = ({ navigation, route }) => {
     const [activeImage, setActiveImage] = useState(null);
     const isActive = product.is_active === true;
     const isLowStock = reorderLevel > 0 && totalQty <= reorderLevel;
-    const formatGhs = (amount) => formatter.format(amount).replace('GH₵', 'GHS ');
+    const formatGhs = (amount) => formatter.format(amount).replace(/GH₵\s?|GHS\s?/, 'GH₵ ');
     const priceStr = formatGhs(price);
     const altPriceStr = altPrice > 0 ? formatGhs(altPrice) : '—';
     const costStr =
