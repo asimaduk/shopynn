@@ -140,6 +140,14 @@ axios.interceptors.response.use(
         }
         const originalRequest = error.config;
 
+        if (error && !error.response && !axios.isCancel(error)) {
+            if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT' || /timeout/i.test(error.message || '')) {
+                error.message = 'This is taking longer than expected. Check your connection and try again.';
+            } else if (error.message === 'Network Error') {
+                error.message = "Can't reach Shopynn right now. Check your internet connection and try again.";
+            }
+        }
+
         if (error && error.response === undefined) {
             const isGet = originalRequest?.method?.toLowerCase() === 'get';
             const retries = originalRequest._retryCount ?? 0;
