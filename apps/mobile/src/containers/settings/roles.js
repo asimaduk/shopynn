@@ -24,11 +24,15 @@ const roleInitials = (name) => {
     return `${parts[0][0] || ''}${parts[parts.length - 1][0] || ''}`.toUpperCase();
 };
 
-/** Built-in B2C portal role — not editable/deletable from Roles UI. */
-const isProtectedSystemRole = (role) =>
+const roleKey = (role) =>
     String(role?.name || role?.code || '')
         .trim()
-        .toLowerCase() === 'customer';
+        .toLowerCase();
+
+const isOwnerRole = (role) => roleKey(role) === 'super admin';
+
+/** Built-in roles — not editable/deletable from Roles UI (the API refuses too). */
+const isProtectedSystemRole = (role) => roleKey(role) === 'customer' || isOwnerRole(role);
 
 const moduleFromPermission = (perm) => {
     const code = String(perm?.code || '').trim();
@@ -159,7 +163,9 @@ const Roles = ({ navigation }) => {
             if (isProtectedSystemRole(role)) {
                 AppAlert.alert(
                     'System role',
-                    'The Customer role is managed by Shopynn and cannot be edited.',
+                    isOwnerRole(role)
+                        ? 'The Super Admin role belongs to the shop owner and always has full access. It cannot be edited.'
+                        : 'The Customer role is managed by Shopynn and cannot be edited.',
                 );
                 return;
             }
@@ -285,7 +291,9 @@ const Roles = ({ navigation }) => {
             if (isProtectedSystemRole(role)) {
                 AppAlert.alert(
                     'System role',
-                    'The Customer role is managed by Shopynn and cannot be deleted.',
+                    isOwnerRole(role)
+                        ? 'The Super Admin role belongs to the shop owner and always has full access. It cannot be deleted.'
+                        : 'The Customer role is managed by Shopynn and cannot be deleted.',
                 );
                 return;
             }
@@ -464,7 +472,9 @@ const Roles = ({ navigation }) => {
                                     <AppText
                                         label={
                                             isProtected
-                                                ? 'Managed by Shopynn · not editable'
+                                                ? isOwnerRole(item)
+                                                    ? 'Owner · full access, not editable'
+                                                    : 'Managed by Shopynn · not editable'
                                                 : isFullAccess
                                                   ? `Full access · ${summary.count} permissions`
                                                   : `${summary.count} permission${summary.count === 1 ? '' : 's'}`

@@ -37,6 +37,10 @@ import {
 } from './RolesPermissionsApi';
 import { appConfirm } from '@/utils/appConfirm';
 
+/** Built-in roles the API refuses to edit or delete. */
+const isSystemRole = (role: { name?: string | null }) =>
+	['super admin', 'customer'].includes(String(role?.name ?? '').trim().toLowerCase());
+
 /** Parity with `cheqstock/src/containers/settings/roles.js` — `/api/roles`, `/api/permissions`. */
 export default function RolesPermissionsTab() {
 	const theme = useTheme();
@@ -343,6 +347,12 @@ export default function RolesPermissionsTab() {
 								</TableCell>
 								<TableCell align="right">{row.user_count ?? '—'}</TableCell>
 								<TableCell align="right">
+									{isSystemRole(row) ? (
+										<Typography variant="caption" color="text.secondary">
+											{String(row.name).trim().toLowerCase() === 'super admin' ? 'Owner · not editable' : 'Not editable'}
+										</Typography>
+									) : (
+									<>
 									<IconButton
 										size="small"
 										onClick={canUpdate ? () => openEdit(row) : () => enqueueSnackbar('You cannot update roles.', { variant: 'warning' })}
@@ -360,6 +370,8 @@ export default function RolesPermissionsTab() {
 									>
 										<FuseSvgIcon size={20}>heroicons-outline:trash</FuseSvgIcon>
 									</IconButton>
+									</>
+									)}
 								</TableCell>
 							</TableRow>
 						))}
