@@ -10,7 +10,7 @@
     "start": "bash scripts/db-migrate.sh && node src/app.js",
     "start:app": "node src/app.js",
     "build": "node -e \"console.log(\\\"@shopynn/api: no build step\\\")\"",
-    "lint": "node scripts/check-sql-safety.mjs",
+    "lint": "node scripts/check-sql-safety.mjs && node scripts/check-route-guards.mjs",
     "db:bootstrap": "bash scripts/bootstrap-db.sh",
     "db:migrate": "bash scripts/db-migrate.sh",
     "seed:test": "node --env-file=.env scripts/seed-test-account.mjs",

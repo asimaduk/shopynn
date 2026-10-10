@@ -346,7 +346,7 @@ Updates the caller's tenant. Only provided fields are changed; omitted fields ar
 |--------|------|------|-------------|
 | GET | `/api/industries` | ✓ + subscription | List industries (optional search with `name`/`search`/`q`). |
 | GET | `/api/industries/:id` | ✓ + subscription | Get a single industry by ID. |
-| POST | `/api/industries` | ✓ + subscription | Create an industry. Body: `name` (required), optional `code`, `description`, `product_categorization`. |
+| POST | `/api/industries` | ✓ + subscription + `tenants.directory.view` | Create an industry. Body: `name` (required), optional `code`, `description`, `product_categorization`. |
 
 Industries are reference data used by tenants via the `industry_id` field on tenant records (for example through `PUT /api/tenants/update-my-company-info`).
 
@@ -374,8 +374,8 @@ Industries are reference data used by tenants via the `industry_id` field on ten
 | POST | `/api/roles/:id/permissions` | ✓ | Add permission to role. Body: `permissionId`. |
 | DELETE | `/api/roles/:id/permissions/:permissionId` | ✓ | Remove permission from role. |
 | PUT | `/api/roles/:id/permissions` | ✓ | Set role permissions. Body: `permissionIds[]`. |
-| GET | `/api/permissions` | ✓ + subscription | List all permissions. |
-| GET | `/api/permissions/:id` | ✓ | Get permission by ID. |
+| GET | `/api/permissions` | ✓ + subscription + role/user read permission | List all permissions. |
+| GET | `/api/permissions/:id` | ✓ + role/user read permission | Get permission by ID. |
 
 ---
 

@@ -19,7 +19,7 @@ async function getCachedPermissions(user_id, tenant_id) {
  */
 export function requirePermission(...permissionCodes) {
     const required = permissionCodes.filter(Boolean);
-    return async (req, res, next) => {
+    const requirePermissionGuard = async (req, res, next) => {
         if (!req.user?.id || !req.user?.tenant_id) {
             return res.status(401).json({ error: "Unauthorized" });
         }
@@ -41,6 +41,7 @@ export function requirePermission(...permissionCodes) {
             next(err);
         }
     };
+    return requirePermissionGuard;
 }
 
 /**
@@ -48,7 +49,7 @@ export function requirePermission(...permissionCodes) {
  */
 export function requireAnyPermission(...permissionCodes) {
     const allowed = permissionCodes.filter(Boolean);
-    return async (req, res, next) => {
+    const requireAnyPermissionGuard = async (req, res, next) => {
         if (!req.user?.id || !req.user?.tenant_id) {
             return res.status(401).json({ error: "Unauthorized" });
         }
@@ -69,6 +70,7 @@ export function requireAnyPermission(...permissionCodes) {
             next(err);
         }
     };
+    return requireAnyPermissionGuard;
 }
 
 /**

@@ -1,6 +1,7 @@
 import express from "express";
 import auth from "../middleware/auth.js";
 import requireActiveSubscription from "../middleware/requireActiveSubscription.js";
+import { requirePermission } from "../middleware/requirePermission.js";
 import {
     createIndustry,
     getIndustries,
@@ -11,7 +12,7 @@ const router = express.Router();
 
 router.get("/", auth, requireActiveSubscription, getIndustries);
 router.get("/:id", auth, requireActiveSubscription, getIndustryById);
-router.post("/", auth, requireActiveSubscription, createIndustry);
+router.post("/", auth, requireActiveSubscription, requirePermission("tenants.directory.view"), createIndustry);
 
 export default router;
 
