@@ -419,9 +419,15 @@ const Login = ({ navigation, route }) => {
                 (typeof err?.response?.data?.error === 'string' && err.response.data.error) ||
                 err?.message ||
                 'Invalid email or password.';
-            const detail = `${serverMsg}\nAPI: ${config.BASE_API}\nHTTP: ${status || 'network'}`;
-            setLoginError(detail);
-            AppAlert.alert('Sign-in failed', detail);
+            if (__DEV__) {
+                console.log(`Sign-in failed: ${serverMsg} | API: ${config.BASE_API} | HTTP: ${status || 'network'}`);
+            }
+            const message =
+                status === 400 || status === 401
+                    ? 'Incorrect email or password. Check them and try again.'
+                    : serverMsg;
+            setLoginError('');
+            AppAlert.alert('Sign-in failed', message);
         } finally {
             setLoading(false);
         }
