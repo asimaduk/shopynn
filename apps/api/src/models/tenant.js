@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { onboardSubscriptionService } from "./subscription.js";
 import { createUserService } from "./user.js";
 import { ensureWalkInCustomerService } from "./customer.js";
+import { seedDefaultStaffRolesService } from "./role.js";
 import { assertShopOwnerEmailVerified } from "./emailVerification.js";
 import { mergeTenantSettings, getBulkDiscountFromSettings } from "../utils/bulkDiscount.js";
 import { sendEmailService } from "./mail.js";
@@ -183,6 +184,7 @@ export const createTenantService = async (payload) => {
     }
 
     await ensureWalkInCustomerService(id, userResult.id);
+    await seedDefaultStaffRolesService(id);
 
     if (password) {
         sendShopOwnerWelcomeEmail({

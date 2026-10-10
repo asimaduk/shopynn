@@ -1,5 +1,6 @@
 import pool from "../config/db.js";
 import { v4 as uuidv4 } from "uuid";
+import { DEFAULT_STAFF_ROLES } from "../constants/defaultRoles.js";
 
 const PROTECTED_ROLE_NAMES = new Set(["customer"]);
 
@@ -240,3 +241,27 @@ export const setRolePermissionsService = async (role_id, permission_ids, tenant_
     }
     return getRolePermissionsService(role_id, tenant_id);
 }
+
+/**
+ * Creates the ready-made staff roles (Manager, Cashier) for a shop if they're missing.
+ * Existing roles with the same name are left untouched.
+ */
+export const seedDefaultStaffRolesService = async (tenant_id) => {
+    for (const role of DEFAULT_STAFF_ROLES) {
+        const existing = await pool.query(
+            `SELECT id FROM roles WHERE tenant_id = $1 AND lower(name) = lower($2) LIMIT 1`,
+            [tenant_id, role.name]
+        );
+        if (existing.rowCount > 0) continue;
+        const roleId = uuidv4();
+        await pool.query(
+            `INSERT INTO roles (id, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, now())`,
+            [roleId, role.name, role.description, tenant_id]
+        );
+        await pool.query(
+            `INSERT INTO role_permissions (id, role_id, permission_id)
+             SELECT gen_random_uuid()::text, $1, p.id FROM permissions p WHERE p.code = ANY($2::text[])`,
+            [roleId, role.permissionCodes]
+        );
+    }
+};
