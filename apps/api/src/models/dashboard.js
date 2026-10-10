@@ -11,13 +11,16 @@ export const getDashboardDataService = async (user, options = {}) => {
     const limit = Math.min(Number(options.recentLimit) || 5, 20);
 
     let canViewAllSales = false;
+    let canViewFinancials = false;
     if (user_type === 1) {
         canViewAllSales = true;
+        canViewFinancials = true;
     } else {
         const permissionCodes = Array.isArray(user.permissions)
             ? user.permissions
             : await getUserPermissionsService(user.id, tenant_id).catch(() => []);
         canViewAllSales = permissionCodes.includes("sales.view_all");
+        canViewFinancials = permissionCodes.includes("dashboard.financials.view");
     }
 
     const baseSalesWhere = "s.tenant_id = $1";
@@ -120,7 +123,9 @@ export const getDashboardDataService = async (user, options = {}) => {
     const inventoryCount = Number(valuation.inventory_count);
     const averageValuePerProduct = productCount > 0 ? totalValueAtCost / productCount : 0;
 
-    const grossProfitTotals = await getGrossProfitTotalsService(user);
+    const grossProfitTotals = canViewFinancials
+        ? await getGrossProfitTotalsService(user)
+        : { revenue: 0, grossProfit: 0, monthRevenue: 0, monthGrossProfit: 0 };
     const totalExpensesAllTime = Number(expenses.total_amount || 0);
     const totalExpensesMonth = Number(expenses.month_amount || 0);
 
@@ -212,18 +217,18 @@ export const getDashboardDataService = async (user, options = {}) => {
             monthRevenue: Number(sales.month_revenue),
             last7DaysByDay,
         },
-        purchases: {
+        purchases: canViewFinancials ? {
             totalCount: Number(purchases.total_count),
             totalAmount: Number(purchases.total_amount),
             monthCount: Number(purchases.month_count),
             monthAmount: Number(purchases.month_amount),
-        },
-        expenses: {
+        } : null,
+        expenses: canViewFinancials ? {
             totalCount: Number(expenses.total_count),
             totalAmount: Number(expenses.total_amount),
             monthCount: Number(expenses.month_count),
             monthAmount: Number(expenses.month_amount),
-        },
+        } : null,
         products: {
             totalCount: productCount,
             activeProducts,
@@ -232,26 +237,26 @@ export const getDashboardDataService = async (user, options = {}) => {
             expiringSoonCount,
             expiringSoonItems,
         },
-        stockValuation: {
+        stockValuation: canViewFinancials ? {
             totalValue: totalValueAtCost,
             totalValueAtCost,
             totalValueAtRetail,
             averageValuePerProduct,
             inventoryCount,
-        },
+        } : null,
         stockStatus: {
             highStockTotal: Number(status.high_stock_total),
             nearLowTotal: Number(status.near_low_total),
             lowStockTotal: Number(status.low_stock_total),
         },
-        profit: {
+        profit: canViewFinancials ? {
             revenue: grossProfitTotals.revenue,
             grossProfit: grossProfitTotals.grossProfit,
             monthRevenue: grossProfitTotals.monthRevenue,
             monthGrossProfit: grossProfitTotals.monthGrossProfit,
             net: grossProfitTotals.grossProfit - totalExpensesAllTime,
             monthNet: grossProfitTotals.monthGrossProfit - totalExpensesMonth,
-        },
+        } : null,
     };
 };
 

@@ -27,6 +27,7 @@ const CASHIER_PERMISSION_CODES = [
 
 const MANAGER_PERMISSION_CODES = [
     ...CASHIER_PERMISSION_CODES,
+    "dashboard.financials.view",
     "sales.view_all",
     "sales.by_date.view",
     "sales.daily_summary.view",

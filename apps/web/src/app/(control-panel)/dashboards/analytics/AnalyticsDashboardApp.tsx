@@ -42,6 +42,8 @@ function AnalyticsDashboardApp() {
 		return <FuseLoading />;
 	}
 
+	/** The API omits shop-wide money figures for staff without dashboard.financials.view. */
+	const showFinancials = Boolean(dash?.profit && dash?.purchases);
 	const totalSales = Number(dash?.sales?.totalRevenue ?? 0);
 	const totalPurchases = Number(dash?.purchases?.totalAmount ?? 0);
 	const totalExpenses = Number(dash?.expenses?.totalAmount ?? 0);
@@ -110,6 +112,8 @@ function AnalyticsDashboardApp() {
 								</Box>
 								<Chip size="small" className="mt-3" color="success" label="Sales" />
 							</Paper>
+							{showFinancials && (
+							<>
 							<Paper className="p-5 rounded-xl shadow-sm border-l-4 border-blue-500">
 								<Typography variant="caption" color="text.secondary">Total Purchases</Typography>
 								<Typography className="text-2xl font-semibold mt-1">{formatGhsCurrency(totalPurchases, 2, 2)}</Typography>
@@ -141,6 +145,8 @@ function AnalyticsDashboardApp() {
 									label={netProfit >= 0 ? 'Healthy' : 'Needs attention'}
 								/>
 							</Paper>
+							</>
+							)}
 						</div>
 
 						{/* Sales chart */}
@@ -165,7 +171,8 @@ function AnalyticsDashboardApp() {
 						</Paper>
 
 						{/* Stock valuation + status */}
-						<div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+						<div className={`grid grid-cols-1 gap-4 ${showFinancials ? 'lg:grid-cols-2' : ''}`}>
+							{showFinancials && (
 							<Paper className="p-5 rounded-xl shadow-sm">
 								<Box className="flex items-center justify-between">
 									<Box>
@@ -181,6 +188,7 @@ function AnalyticsDashboardApp() {
 									Avg per product: {formatGhsCurrency(avgValuePerProduct, 2, 2)}
 								</Typography>
 							</Paper>
+							)}
 
 							<Paper className="p-5 rounded-xl shadow-sm">
 								<Box className="flex items-center justify-between">
@@ -295,7 +303,8 @@ function AnalyticsDashboardApp() {
 							</Paper>
 						</div>
 						{/* Performance snapshot */}
-						<div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+						<div className={`grid grid-cols-1 gap-4 ${showFinancials ? 'lg:grid-cols-3' : ''}`}>
+							{showFinancials && (
 							<Paper className="p-5 rounded-xl shadow-sm">
 								<Box className="flex items-center justify-between">
 									<Typography className="text-base font-semibold">Profitability</Typography>
@@ -315,6 +324,7 @@ function AnalyticsDashboardApp() {
 									className="mt-4 h-8 rounded-full"
 								/>
 							</Paper>
+							)}
 							<Paper className="p-5 rounded-xl shadow-sm">
 								<Box className="flex items-center justify-between">
 									<Typography className="text-base font-semibold">Inventory health</Typography>
@@ -334,6 +344,7 @@ function AnalyticsDashboardApp() {
 									className="mt-4 h-8 rounded-full"
 								/>
 							</Paper>
+							{showFinancials && (
 							<Paper className="p-5 rounded-xl shadow-sm">
 								<Box className="flex items-center justify-between">
 									<Typography className="text-base font-semibold">Cost efficiency</Typography>
@@ -353,6 +364,7 @@ function AnalyticsDashboardApp() {
 									Purchases + expenditures combined
 								</Typography>
 							</Paper>
+							)}
 						</div>
 					</div>
 				</div>

@@ -67,6 +67,8 @@ const Dashboard = ({ navigation, route }) => {
     const canExpiring = canAccessScreen(user, 'ExpiringSoon', subscriptionFeatures);
     const canInventory = canAccessScreen(user, 'Inventory', subscriptionFeatures);
     const canDailySales = canAccessScreen(user, 'DailySales', subscriptionFeatures);
+    /** The API omits shop-wide money figures for staff without dashboard.financials.view. */
+    const showFinancials = Boolean(metrics.profit && metrics.purchases);
 
     useEffect(()=> {
         loadDashboardData();
@@ -345,6 +347,7 @@ const Dashboard = ({ navigation, route }) => {
                                 changeType="positive"
                                 isCurrency={true}
                             />
+                            {showFinancials && (
                             <MetricCard
                                 icon="package"
                                 iconColor={config.THEME_COLOR}
@@ -355,7 +358,9 @@ const Dashboard = ({ navigation, route }) => {
                                 changeType="positive"
                                 isCurrency={true}
                             />
+                            )}
                         </View>
+                        {showFinancials && (
                         <View style={styles.metricsRow}>
                             <MetricCard
                                 icon="wallet"
@@ -378,6 +383,7 @@ const Dashboard = ({ navigation, route }) => {
                                 isCurrency={true}
                             />
                         </View>
+                        )}
                     </View>
 
                     {/* Reorder alerts - urgent, actionable; visible without scrolling */}
@@ -443,6 +449,7 @@ const Dashboard = ({ navigation, route }) => {
                     )}
 
                     {/* Stock valuation - key inventory metric */}
+                    {showFinancials && (
                     <View
                         // activeOpacity={0.7}
                         // onPress={() => navigation.navigate('ReportDetail', { reportId: 'stock-valuation', title: 'Stock valuation' })}
@@ -480,6 +487,7 @@ const Dashboard = ({ navigation, route }) => {
                             </View>
                         </View>
                     </View>
+                    )}
 
                     {/* Stock Status - inventory health (grouped with valuation) */}
                     <View style={[styles.stockContainer, { backgroundColor: colors.surface }]}>
