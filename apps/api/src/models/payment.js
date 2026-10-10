@@ -321,7 +321,7 @@ export const createPendingPaymentForCheckoutService = async (payload) => {
         payment_source,
         payment_number,
     } = payload;
-    if (!subscription_id && !order_id && !sale_id && tenant_id) {
+    if (!subscription_id && !order_id && !sale_id && tenant_id && payment_source !== "pos_sale") {
         const tenantRow = await pool.query(
             "SELECT subscription_id FROM tenants WHERE id = $1",
             [tenant_id]
@@ -814,10 +814,11 @@ export const linkPosPaymentToSaleService = async ({
  * Idempotent when subscription is already active.
  */
 export const syncSubscriptionPaymentAfterSuccess = async (transaction_ref, tenant_id = null) => {
+    const paymentColumns = `p.id, p.order_id, p.sale_id, p.payment_source, p.subscription_id, p.tenant_id,
+                      p.amount, p.face_amount, p.quote_id, t.subscription_id AS tenant_subscription_id`;
     const paymentRes = tenant_id
         ? await pool.query(
-              `SELECT p.id, p.order_id, p.subscription_id, p.tenant_id, p.amount, p.quote_id,
-                      t.subscription_id AS tenant_subscription_id
+              `SELECT ${paymentColumns}
                FROM payments p
                LEFT JOIN tenants t ON t.id = p.tenant_id
                WHERE p.transaction_ref = $1 AND p.tenant_id = $2
@@ -825,8 +826,7 @@ export const syncSubscriptionPaymentAfterSuccess = async (transaction_ref, tenan
               [transaction_ref, tenant_id]
           )
         : await pool.query(
-              `SELECT p.id, p.order_id, p.subscription_id, p.tenant_id, p.amount, p.quote_id,
-                      t.subscription_id AS tenant_subscription_id
+              `SELECT ${paymentColumns}
                FROM payments p
                LEFT JOIN tenants t ON t.id = p.tenant_id
                WHERE p.transaction_ref = $1
@@ -835,10 +835,35 @@ export const syncSubscriptionPaymentAfterSuccess = async (transaction_ref, tenan
           );
     const payment = paymentRes.rows[0];
     if (!payment?.tenant_id) return null;
-    if (payment.order_id) return null;
+    if (payment.order_id || payment.sale_id) return null;
+    if (String(payment.payment_source || "").toLowerCase() === "pos_sale") return null;
 
     const subscriptionId = payment.subscription_id || payment.tenant_subscription_id;
     if (!subscriptionId) return null;
+
+    const subRes = await pool.query("SELECT id, amount, features FROM subscriptions WHERE id = $1", [subscriptionId]);
+    const sub = subRes.rows[0];
+    if (!sub) return null;
+    let upgradedFrom = null;
+    try {
+        const meta = typeof sub.features === "string" ? JSON.parse(sub.features) : sub.features;
+        upgradedFrom = meta?.upgraded_from_subscription_id ?? null;
+    } catch {
+        upgradedFrom = null;
+    }
+    const ownedByTenant =
+        subscriptionId === payment.tenant_subscription_id ||
+        (upgradedFrom && upgradedFrom === payment.tenant_subscription_id);
+    if (!ownedByTenant) {
+        console.warn("[payments] Ignoring subscription payment for a plan the shop doesn't own", payment.id);
+        return null;
+    }
+    // Quote checkouts are priced server-side by the agent; direct plan payments must cover the plan price.
+    const paid = Number(payment.face_amount ?? payment.amount) || 0;
+    if (!payment.quote_id && paid + 0.005 < (Number(sub.amount) || 0)) {
+        console.warn("[payments] Subscription payment below plan price", payment.id, paid, sub.amount);
+        return null;
+    }
 
     const activated = await activatePendingSubscriptionService(subscriptionId, payment.tenant_id);
 

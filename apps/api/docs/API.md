@@ -261,7 +261,6 @@ Endpoints that require an active subscription are marked with **(+ subscription)
 | GET | `/api/payments/verify` | ✓ | Verify transaction (query: `reference`). |
 | GET | `/api/payments/verify/:reference` | ✓ | Verify transaction by reference. |
 | GET | `/api/payments/:id` | ✓ | Get payment by ID. |
-| POST | `/api/payments` | ✓ | Create payment record. |
 | POST | `/api/payments/initiate` | ✓ | Initiate payment (card redirect or mobile money). Body: `amount`, `payment_method` (card | mobile_money), `email`, etc. For mobile_money: `phone`, `provider`. |
 | POST | `/api/payments/submit-otp` | ✓ | Submit OTP for mobile money charge. |
 

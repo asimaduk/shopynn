@@ -5,7 +5,6 @@ import {
     getPaymentsByTenantId,
     getPaymentsByCustomerId,
     getPaymentById,
-    createPayment,
     initiatePayment,
     submitOtp,
     verifyPayment,
@@ -34,20 +33,23 @@ const requirePosSalePaymentHistory = [
 
 router.get("/", ...requireOrderPaymentHistory, getPaymentsHistory);
 router.get("/pos-sale", ...requirePosSalePaymentHistory, getPosSalePayments);
-router.post("/initiate", initiatePayment); //requirePermission("payments.initiate")
-router.post("/submit-otp", requirePermission("payments.initiate"), submitOtp);
-router.get("/pos-open", getOpenPosMomoPayment);
-router.post("/pos-abandon", abandonPosMomoPayment);
-router.post("/pos-park", parkPosMomoPayment);
-router.get("/pos-pending", listPendingPosMomoPayments);
-router.get("/verify", verifyPayment); //requirePermission("payments.verify"),
-router.get("/verify/:reference", verifyPayment); //requirePermission("payments.verify"),
+// Plan payments must work on an expired plan, so only POS MoMo routes need an active subscription.
+const canStartPayment = requireAnyPermission("sales.create", "payments.initiate", "subscription.manage", "orders.create");
+const posMomo = [requireActiveSubscription, requireAnyPermission("sales.create", "payments.initiate")];
+
+router.post("/initiate", canStartPayment, initiatePayment);
+router.post("/submit-otp", canStartPayment, submitOtp);
+router.get("/pos-open", ...posMomo, getOpenPosMomoPayment);
+router.post("/pos-abandon", ...posMomo, abandonPosMomoPayment);
+router.post("/pos-park", ...posMomo, parkPosMomoPayment);
+router.get("/pos-pending", ...posMomo, listPendingPosMomoPayments);
+router.get("/verify", canStartPayment, verifyPayment);
+router.get("/verify/:reference", canStartPayment, verifyPayment);
 router.get("/tenant/:tenantId", ...requireOrderPaymentHistory, getPaymentsByTenantId);
 router.get("/customer/:customerId", ...requireOrderPaymentHistory, getPaymentsByCustomerId);
 router.get("/:id/receipt", requireActiveSubscription, requireAnyPermission("payments.view", "sales.view"), getPaymentReceipt);
 router.get("/:id/events", requireActiveSubscription, requireAnyPermission("payments.view", "sales.view"), getPaymentEvents);
-router.post("/:id/reverse", requirePermission("payments.initiate"), reverseCashPayment);
+router.post("/:id/reverse", requireActiveSubscription, requirePermission("payments.initiate"), reverseCashPayment);
 router.get("/:id", requireActiveSubscription, requireAnyPermission("payments.view", "sales.view"), getPaymentById);
-router.post("/", requirePermission("payments.initiate"), createPayment);
 
 export default router;

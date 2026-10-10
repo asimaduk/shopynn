@@ -4,7 +4,6 @@ import {
     getPaymentsByTenantIdService,
     getPaymentsByCustomerIdService,
     getPaymentByIdService,
-    createPaymentService,
     createPendingPaymentForCheckoutService,
     getPaymentByTransactionRefService,
     updatePaymentStatusByTransactionRefService,
@@ -114,20 +113,6 @@ export const reverseCashPayment = async (req, res, next) => {
         ) {
             return handleResponse(res, 400, message);
         }
-        next(error);
-    }
-};
-
-export const createPayment = async (req, res, next) => {
-    try {
-        const payload = {
-            ...req.body,
-            creator_id: req.user?.id,
-            tenant_id: req.user?.tenant_id,
-        };
-        const created = await createPaymentService(payload);
-        handleResponse(res, 201, "Payment created.", created);
-    } catch (error) {
         next(error);
     }
 };
