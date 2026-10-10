@@ -429,6 +429,8 @@ JOIN (
             'dashboard.view',
             'inventory.view',
             'products.view',
+            'products.create',
+            'products.update',
             'categories.view',
             'sales.view',
             'sales.create',

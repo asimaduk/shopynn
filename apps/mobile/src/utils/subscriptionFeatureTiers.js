@@ -20,7 +20,7 @@ export function getTierBadgeLetterForPlanName(planName) {
 
 const FREE_TIER_FEATURES = new Set([
     'profile.view', 'profile.update', 'auth.reset_password', 'dashboard.view', 'inventory.view',
-    'products.view', 'categories.view', 'sales.view', 'sales.create', 'purchases.view', 'purchases.create',
+    'products.view', 'products.create', 'products.update', 'categories.view', 'sales.view', 'sales.create', 'purchases.view', 'purchases.create',
     'customers.view', 'suppliers.view', 'company_profile.view', 'subscription.view', 'payments.initiate', 'payments.verify',
 ]);
 
