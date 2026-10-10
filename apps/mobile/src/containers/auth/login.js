@@ -30,6 +30,7 @@ import { normalizePermissionCodes } from '../../utils/permissions';
 
 import {
     isTenantSubscriptionActive,
+    subscriptionStateFromResponse,
     SUBSCRIPTION_RENEWAL_CODES as SUBSCRIPTION_ERROR_CODES,
 } from '../../utils/subscriptionAccess';
 import AppAlert from '../../utils/appAlert';
@@ -309,25 +310,12 @@ const Login = ({ navigation, route }) => {
             let active = isTenantSubscriptionActive(meSub);
             try {
                 const subResponse = await subscriptionsApi.current();
-                const sub = subResponse?.subscription ?? subResponse;
+                const { sub, plan, features: subFeatures } = subscriptionStateFromResponse(subResponse, meSubscriptionFeatures);
                 if (sub?.status != null) {
                     active = isTenantSubscriptionActive(sub);
                 }
-                const subFeatures = Array.isArray(sub?.features)
-                    ? sub.features.map((f) => String(f).trim().toLowerCase()).filter(Boolean)
-                    : meSubscriptionFeatures;
                 resolvedFeatures = subFeatures;
                 dispatch(setSubscriptionActive(active));
-                const plan = sub
-                    ? {
-                          name: sub.name ?? sub.planName ?? sub.plan?.name ?? 'Scale',
-                          id: sub.id ?? sub.plan_id ?? sub.plan?.id,
-                          amount: sub.amount != null ? Number(sub.amount) : undefined,
-                          billingInterval: sub.billing_interval ?? sub.billingCycle ?? sub.plan?.billing_interval,
-                          endAt: sub.end_at ?? sub.nextBillingDate ?? sub.plan?.end_at,
-                          status: sub.status ?? sub.state,
-                      }
-                    : null;
                 dispatch(setSubscriptionPlan(plan));
                 dispatch(setSubscriptionFeatures(subFeatures));
             } catch (_) {

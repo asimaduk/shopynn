@@ -15,7 +15,9 @@ import AuthNavigator from './auth';
 import MainNavigator from './main';
 import SubscriptionNavigator from './subscription';
 import { SET_USER, SET_LOGGED_IN } from '../store/actions/user';
-import { products as productsApi } from '../services/api';
+import { products as productsApi, subscriptions as subscriptionsApi } from '../services/api';
+import { isTenantSubscriptionActive, subscriptionStateFromResponse } from '../utils/subscriptionAccess';
+import { setSubscriptionPlan, setSubscriptionFeatures } from '../store/actions/appSettings';
 import { syncPendingSales } from '../utils/syncPendingSales';
 import useInactivityTimer from '../hooks/useInactivityTimer';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -178,6 +180,28 @@ const ApplicationNavigator = () => {
         };
     }, []);
 
+    // Plan changes (paid in-app or on the web) must unlock features without signing in again.
+    const isLoggedIn = Boolean(user?.isLoggedIn);
+    useEffect(() => {
+        if (!isLoggedIn) return undefined;
+        const refreshSubscription = () => {
+            subscriptionsApi
+                .current(undefined, { skipErrorAlert: true })
+                .then((res) => {
+                    const { sub, plan, features } = subscriptionStateFromResponse(res);
+                    if (!isTenantSubscriptionActive(sub)) return;
+                    dispatch(setSubscriptionPlan(plan));
+                    if (features.length > 0) dispatch(setSubscriptionFeatures(features));
+                })
+                .catch(() => {});
+        };
+        refreshSubscription();
+        const appSub = AppState.addEventListener('change', (next) => {
+            if (next === 'active') refreshSubscription();
+        });
+        return () => appSub?.remove?.();
+    }, [isLoggedIn, dispatch]);
+
     const checkFCMToken = async () => {
         // if(Platform.OS == 'android'){
         //     if(Platform.Version >= 33){
@@ -213,7 +237,6 @@ const ApplicationNavigator = () => {
         }
     }
 
-    const isLoggedIn = user?.isLoggedIn;
     const {
         onNavigationStateChange,
         warningVisible,

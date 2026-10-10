@@ -11,9 +11,9 @@ import ScreenHeader from '../../components/screen_header';
 import { useSelector } from 'react-redux';
 import { subscriptions as subscriptionsApi, billing as billingApi } from '../../services/api';
 import { buildPlansFromCatalog } from '../../utils/billingCatalog';
-import { setSubscriptionActive } from '../../store/actions/appSettings';
+import { setSubscriptionActive, setSubscriptionPlan, setSubscriptionFeatures } from '../../store/actions/appSettings';
 import { canManageSubscription } from '../../utils/permissions';
-import { SUBSCRIPTION_INACTIVE_MESSAGE } from '../../utils/subscriptionAccess';
+import { SUBSCRIPTION_INACTIVE_MESSAGE, subscriptionStateFromResponse } from '../../utils/subscriptionAccess';
 import { CHOOSEABLE_SUBSCRIPTION_PLANS, PLAN_RANK_BY_NAME, displayPlanName } from '../../constants/subscriptionPlans';
 import AppAlert from '../../utils/appAlert';
 
@@ -36,6 +36,8 @@ const Subscription = ({ navigation, route }) => {
     const dispatch = useDispatch();
     const user = useSelector((state) => state.user);
     const subscriptionFeatures = useSelector((state) => state.appSettings?.subscriptionFeatures || []);
+    const subscriptionFeaturesRef = useRef(subscriptionFeatures);
+    subscriptionFeaturesRef.current = subscriptionFeatures;
     const requiredPayment = route?.params?.requiredPayment === true;
     const scrollToPlans = route?.params?.scrollToPlans === true;
     const scrollRef = useRef(null);
@@ -88,7 +90,12 @@ const Subscription = ({ navigation, route }) => {
             const history = subResponse?.recentPayments;
             console.log('history', history);
             if (Array.isArray(history)) setPaymentHistory(history.slice(0, 10));
-            if (status === 'active') dispatch(setSubscriptionActive(true));
+            if (status === 'active') {
+                const { plan, features } = subscriptionStateFromResponse(subResponse, subscriptionFeaturesRef.current);
+                dispatch(setSubscriptionActive(true));
+                dispatch(setSubscriptionPlan(plan));
+                dispatch(setSubscriptionFeatures(features));
+            }
         } catch (_) {
             setSubscriptionStatus('expired');
             setPaymentHistory([]);

@@ -553,7 +553,7 @@ export const notifications = {
 
 // —— Subscriptions ——
 export const subscriptions = {
-    current: (params) => axios.get('/subscriptions/current', { params }).then((res) => getData(res)),
+    current: (params, options) => axios.get('/subscriptions/current', { params, ...options }).then((res) => getData(res)),
     onboard: (body) => axios.post('/subscriptions/onboard', body).then((res) => getData(res)),
 };
 
