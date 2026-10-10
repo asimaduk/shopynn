@@ -30,6 +30,7 @@ import {
 } from '../../billing/SubscriptionApi';
 import { MOMO_NETWORK_OPTIONS } from '@/utils/momoNetworks';
 import { normalizeWarehousePrinterType } from '../../setups/warehouses/models/WarehouseModel';
+import { appConfirm } from '@/utils/appConfirm';
 
 function toMoney(n: number) {
 	return Math.round((Number(n) || 0) * 100) / 100;
@@ -148,11 +149,16 @@ export default function PaymentDialog({
 		}
 	}, []);
 
-	const requestClose = (data: false | Record<string, unknown>) => {
+	const requestClose = async (data: false | Record<string, unknown>) => {
 		if (data === false && chargePaid && transactionRef) {
-			const ok = window.confirm(
-				'MoMo payment is already confirmed. Closing without completing leaves an unlinked payment.\n\nPrefer “Complete & print”, or “Park & serve next”. Close anyway?'
-			);
+			const ok = await appConfirm({
+				title: 'Close without completing?',
+				message:
+					'MoMo payment is already confirmed. Closing without completing leaves an unlinked payment.\n\nPrefer “Complete & print”, or “Park & serve next”.',
+				cancelLabel: 'Keep open',
+				confirmLabel: 'Close anyway',
+				destructive: true
+			});
 			if (!ok) return;
 		}
 		stopPolling();
@@ -371,9 +377,11 @@ export default function PaymentDialog({
 			void handleSend({ forceNew: true });
 			return;
 		}
-		const ok = window.confirm(
-			'Start a new MoMo prompt? The customer may still approve the previous one. Only continue if that prompt failed or timed out.'
-		);
+		const ok = await appConfirm({
+			title: 'Start a new MoMo prompt?',
+			message: 'The customer may still approve the previous one. Only continue if that prompt failed or timed out.',
+			confirmLabel: 'Send new prompt'
+		});
 		if (!ok) return;
 		setSending(true);
 		try {

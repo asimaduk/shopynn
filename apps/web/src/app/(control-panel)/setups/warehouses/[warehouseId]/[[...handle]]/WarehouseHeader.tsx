@@ -10,6 +10,7 @@ import { useParams } from 'next/navigation';
 import _ from 'lodash';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import Link from '@fuse/core/Link';
+import toast from 'react-hot-toast';
 import useNavigate from '@fuse/hooks/useNavigate';
 import type { Location } from '../../../../locations/LocationApi';
 import { Warehouse, useCreateWarehouseMutation, useUpdateWarehouseMutation } from '../../WarehouseApi';
@@ -73,7 +74,7 @@ function WarehouseHeader({ locations = [], updateProcessing, blockCreate = false
 				if (res.data && res.data.id) {
 					navigate('/setups/warehouses');
 				} else {
-					window.alert('Save failed.');
+					toast.error('Save failed.');
 				}
 			})
 			.catch((err) => {
@@ -82,7 +83,7 @@ function WarehouseHeader({ locations = [], updateProcessing, blockCreate = false
 					(err as { data?: { message?: string } })?.data?.message ||
 					(err as Error)?.message ||
 					'Save failed.';
-				window.alert(msg);
+				toast.error(msg);
 			})
 			.finally(() => updateProcessing(false));
 	}
@@ -96,7 +97,7 @@ function WarehouseHeader({ locations = [], updateProcessing, blockCreate = false
 				if (data?.id) {
 					navigate('/setups/warehouses');
 				} else {
-					window.alert('Create failed.');
+					toast.error('Create failed.');
 				}
 			})
 			.catch((err) => {
@@ -105,7 +106,7 @@ function WarehouseHeader({ locations = [], updateProcessing, blockCreate = false
 					(err as { data?: { message?: string } })?.data?.message ||
 					(err as Error)?.message ||
 					'Create failed.';
-				window.alert(msg);
+				toast.error(msg);
 			})
 			.finally(() => updateProcessing(false));
 	}

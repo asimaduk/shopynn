@@ -26,6 +26,7 @@ import {
 import { useCreateSaleMutation } from '../TradingApi';
 import { allocateNextInvoiceNumber } from '@/utils/invoiceNumbering';
 import { writeResumeParkedMomo } from './resumeParkedMomo';
+import { appConfirm } from '@/utils/appConfirm';
 
 function toMoney(n: number) {
 	return Math.round((Number(n) || 0) * 100) / 100;
@@ -205,9 +206,12 @@ export default function PosMomoPaymentsPage() {
 	const handleAbandon = async (row: any) => {
 		const ref = row?.transaction_ref;
 		if (!ref || isSuccessStatus(row?.status)) return;
-		const ok = window.confirm(
-			'Abandon this MoMo prompt? We will check the network first. If the customer already paid, abandon will be blocked.'
-		);
+		const ok = await appConfirm({
+			title: 'Abandon this MoMo prompt?',
+			message: 'We will check the network first. If the customer already paid, abandon will be blocked.',
+			confirmLabel: 'Abandon',
+			destructive: true
+		});
 		if (!ok) return;
 		setBusyRef(ref);
 		try {

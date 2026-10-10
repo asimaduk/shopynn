@@ -35,6 +35,7 @@ import {
 	useUpdateRoleMutation,
 	useDeleteRoleMutation
 } from './RolesPermissionsApi';
+import { appConfirm } from '@/utils/appConfirm';
 
 /** Parity with `cheqstock/src/containers/settings/roles.js` — `/api/roles`, `/api/permissions`. */
 export default function RolesPermissionsTab() {
@@ -180,7 +181,12 @@ export default function RolesPermissionsTab() {
 			}
 			const id = role?.id;
 			if (!id) return;
-			const ok = window.confirm(`Delete role "${role?.name ?? id}"?`);
+			const ok = await appConfirm({
+				title: 'Delete role?',
+				message: `"${role?.name ?? id}" will be removed.`,
+				confirmLabel: 'Delete',
+				destructive: true
+			});
 			if (!ok) return;
 			try {
 				await deleteRole(id).unwrap();

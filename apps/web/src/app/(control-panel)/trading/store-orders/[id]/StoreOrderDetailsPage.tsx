@@ -38,6 +38,7 @@ import {
 	useUpdateStoreOrderStatusMutation
 } from '../../TradingApi';
 import { formatGhsCurrency } from '@/app/(control-panel)/dashboards/analytics/daily-sales/formatGhsCurrency';
+import { appConfirm } from '@/utils/appConfirm';
 
 const TRANSITIONS: Record<string, string[]> = {
 	pending: ['confirmed'],
@@ -255,7 +256,11 @@ export default function StoreOrderDetailsPage() {
 
 	const onMarkCashPaid = async () => {
 		setLocalError('');
-		const ok = window.confirm('Mark this order as paid in cash? This cannot be undone automatically.');
+		const ok = await appConfirm({
+			title: 'Mark as paid in cash?',
+			message: 'This cannot be undone automatically.',
+			confirmLabel: 'Mark paid'
+		});
 		if (!ok) return;
 		try {
 			await markOrderPaid({ id: orderId }).unwrap();

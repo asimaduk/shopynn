@@ -9,6 +9,7 @@ import FuseLoading from '@fuse/core/FuseLoading';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import PageBreadcrumb from 'src/components/PageBreadcrumb';
 import { useGetPaymentReceiptQuery, useReversePaymentMutation } from '../../billing/SubscriptionApi';
+import { appConfirm } from '@/utils/appConfirm';
 
 const formatMoney = (amount: any) => `GHS ${Number(amount || 0).toFixed(2)}`;
 const formatDateTime = (value?: string) => (value ? new Date(value).toLocaleString() : '—');
@@ -71,7 +72,12 @@ export default function OrderPaymentDetailsPage() {
 			setError('Reason is required before reversing this payment.');
 			return;
 		}
-		const ok = window.confirm('Are you sure you want to reverse this cash payment?');
+		const ok = await appConfirm({
+			title: 'Reverse cash payment?',
+			message: 'Are you sure you want to reverse this cash payment?',
+			confirmLabel: 'Reverse',
+			destructive: true
+		});
 		if (!ok) return;
 		try {
 			await reversePayment({ id: paymentId, reason: trimmedReason }).unwrap();

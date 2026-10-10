@@ -18,6 +18,7 @@ import {
 	useSubmitPaymentOtpMutation
 } from '../../../../../billing/SubscriptionApi';
 import { formatGhsCurrency } from '../../../../../dashboards/analytics/daily-sales/formatGhsCurrency';
+import { appConfirm } from '@/utils/appConfirm';
 
 type MomoState = {
 	ref: string | null;
@@ -309,9 +310,11 @@ function CollectPaymentDialog({
 	};
 
 	const resendPrompt = async () => {
-		const ok = window.confirm(
-			'Send a new prompt? This cancels the open one. Only do this if the customer did not get it or it timed out.'
-		);
+		const ok = await appConfirm({
+			title: 'Send a new prompt?',
+			message: 'This cancels the open one. Only do this if the customer did not get it or it timed out.',
+			confirmLabel: 'Send new prompt'
+		});
 		if (!ok) return;
 		if (momo.ref) {
 			try {
@@ -343,12 +346,16 @@ function CollectPaymentDialog({
 		}
 	};
 
-	const handleClose = () => {
+	const handleClose = async () => {
 		if (saving || busy) return;
 		if (momo.paid && momo.ref) {
-			const close = window.confirm(
-				`${formatGhsCurrency(momo.face, 2, 2)} was received by MoMo but is not yet recorded on this sale. Close anyway?`
-			);
+			const close = await appConfirm({
+				title: 'Close without recording?',
+				message: `${formatGhsCurrency(momo.face, 2, 2)} was received by MoMo but is not yet recorded on this sale.`,
+				cancelLabel: 'Keep open',
+				confirmLabel: 'Close anyway',
+				destructive: true
+			});
 			if (!close) return;
 		}
 		onClose();

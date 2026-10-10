@@ -22,6 +22,7 @@ import {
 	type NewsletterCampaign
 } from '../MarketingApi';
 import NewsletterCampaignDialog from './NewsletterCampaignDialog';
+import { appConfirm } from '@/utils/appConfirm';
 
 export default function NewslettersPage() {
 	const { data: user } = useUser();
@@ -97,7 +98,12 @@ export default function NewslettersPage() {
 
 	const handleSend = async () => {
 		if (!selected) return;
-		if (!window.confirm('Send this newsletter to all active subscribers? This cannot be undone.')) return;
+		const ok = await appConfirm({
+			title: 'Send newsletter?',
+			message: 'It will go to all active subscribers. This cannot be undone.',
+			confirmLabel: 'Send'
+		});
+		if (!ok) return;
 		try {
 			const res = await sendCampaign(selected.id).unwrap();
 			setSelected(res.campaign);
