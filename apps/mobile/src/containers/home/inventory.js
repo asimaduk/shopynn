@@ -349,6 +349,7 @@ const Inventory = ({ navigation, route }) => {
                     data={filteredProducts}
                     keyExtractor={(item) => `product-${item.id}`}
                     estimatedItemSize={90}
+                    maintainVisibleContentPosition={{ disabled: true }}
                     refreshControl={
                         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={config.THEME_COLOR} />
                     }
