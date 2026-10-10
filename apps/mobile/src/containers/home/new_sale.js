@@ -158,6 +158,12 @@ const NewSale = ({ navigation, route }) => {
     const selectedStoreRef = useRef(selectedStore);
     selectedStoreRef.current = selectedStore;
 
+    useEffect(() => {
+        if (selectedCustomer) return;
+        const walkIn = customers.find((c) => c?.is_walk_in);
+        if (walkIn) setSelectedCustomer(walkIn);
+    }, [customers, selectedCustomer]);
+
     const [showMenu,setShowMenu] = useState(false);
     const [showHeldItems, setShowHeldItems] = useState(false)
     const [heldItems, setHeldItems] = useState([])
@@ -684,7 +690,7 @@ const NewSale = ({ navigation, route }) => {
                 prevRouteName === 'BarcodeScanner' ||
                 prevRouteName === 'CustomerForm';
             const hasDraft =
-                Boolean(selectedCustomerRef.current) ||
+                Boolean(selectedCustomerRef.current && !selectedCustomerRef.current.is_walk_in) ||
                 (ordersRef.current?.length > 0);
             if (
                 !returningFromDraftFlow &&
@@ -723,7 +729,6 @@ const NewSale = ({ navigation, route }) => {
                     const list = normalizeList(rawCustomers) || [];
                     if (active) {
                         setCustomers(list);
-                        // Never auto-pick list[0] — user must choose a customer.
                     }
                 } catch (_) {
                     if (active) setCustomers([]);
@@ -810,7 +815,7 @@ const NewSale = ({ navigation, route }) => {
         cashTenderedParsed != null && Number.isFinite(cashTenderedParsed)
             ? Math.round(cashTenderedParsed * 100) / 100
             : null;
-    const hasCustomerForCredit = Boolean(selectedCustomer?.id);
+    const hasCustomerForCredit = Boolean(selectedCustomer?.id) && !selectedCustomer?.is_walk_in;
     const cashIsPartialOrCredit =
         selectedPaymentOption.method === 'cash' &&
         cashTenderedAmount != null &&

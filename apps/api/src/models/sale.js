@@ -1597,10 +1597,19 @@ export const createSaleService = async (payload) => {
             resolvedChange = Math.max(0, change);
         }
 
+        let creditCustomerId = customer_id || null;
+        if (creditCustomerId) {
+            const walkIn = await client.query(
+                `SELECT 1 FROM customers WHERE id = $1 AND tenant_id = $2 AND is_walk_in`,
+                [creditCustomerId, tenant_id]
+            );
+            if (walkIn.rowCount) creditCustomerId = null;
+        }
+
         const credit = resolveSaleCreditAmounts({
             totalAmount: total_amount,
             amount_paid,
-            customer_id,
+            customer_id: creditCustomerId,
             isMomo,
             isCash,
             resolvedTendered: wantsPartialOrCredit

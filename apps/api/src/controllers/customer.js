@@ -66,6 +66,9 @@ export const deleteCustomer = async (req, res, next) => {
         if (existing.source === "account") {
             return handleResponse(res, 400, "Account customers cannot be deleted from the customer directory. Deactivate the user instead.");
         }
+        if (existing.is_walk_in) {
+            return handleResponse(res, 400, "The Walk-in customer is built in and cannot be deleted.");
+        }
         const deletedCustomer = await deleteCustomerService(req.user.tenant_id, req.params.id);
         if(!deletedCustomer) return handleResponse(res, 404, "Not found.")
         handleResponse(res, 201, "Customer deleted.", deletedCustomer);

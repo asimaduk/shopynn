@@ -98,6 +98,28 @@ function dedupeMergedCustomers(rows = []) {
  * With `limit`/`pageSize`: returns `{ items, total, limit, offset }`.
  * Without: returns a plain array (backward compatible).
  */
+const compareCustomersWalkInFirst = (a, b) => {
+	if (Boolean(a.is_walk_in) !== Boolean(b.is_walk_in)) return a.is_walk_in ? -1 : 1;
+	return new Date(b.created_at) - new Date(a.created_at);
+};
+
+export const WALK_IN_CUSTOMER_NAME = "Walk-in";
+
+export const ensureWalkInCustomerService = async (tenantId, creatorId = null) => {
+	if (!tenantId) return null;
+	await pool.query(
+		`INSERT INTO customers (id, name, tenant_id, creator_id, created_at, updated_at, is_active, is_walk_in, notes)
+         VALUES ($1, $2, $3, $4, now(), now(), true, true, 'Default customer for counter sales')
+         ON CONFLICT (tenant_id) WHERE is_walk_in DO NOTHING`,
+		[uuidv4(), WALK_IN_CUSTOMER_NAME, tenantId, creatorId]
+	);
+	const { rows } = await pool.query(
+		`SELECT id FROM customers WHERE tenant_id = $1 AND is_walk_in LIMIT 1`,
+		[tenantId]
+	);
+	return rows[0] || null;
+};
+
 export const getAllCustomersService = async (user, requestQuery = {}) => {
 	const tenantId = user.tenant_id;
 	const nameSearch = requestQuery.name ?? requestQuery.search ?? requestQuery.q;
@@ -159,7 +181,8 @@ export const getAllCustomersService = async (user, requestQuery = {}) => {
             COALESCE(c.store_credit_balance, 0)::numeric AS store_credit_balance,
             COALESCE(c.loyalty_points, 0)::int AS loyalty_points,
             'pos'::text AS source,
-            NULL::varchar AS user_id
+            NULL::varchar AS user_id,
+            COALESCE(c.is_walk_in, false) AS is_walk_in
         FROM customers c
         WHERE ${posWhere}`;
 
@@ -213,7 +236,8 @@ export const getAllCustomersService = async (user, requestQuery = {}) => {
                 LIMIT 1
             ), 0)::int AS loyalty_points,
             'account'::text AS source,
-            u.id AS user_id
+            u.id AS user_id,
+            false AS is_walk_in
         FROM customer_profiles cp
         INNER JOIN users u ON u.id = cp.user_id
         WHERE ${accWhere}`;
@@ -223,9 +247,7 @@ export const getAllCustomersService = async (user, requestQuery = {}) => {
 			pool.query(posSelect, posParams),
 			pool.query(accSelect, accParams),
 		]);
-		return dedupeMergedCustomers([...posResult.rows, ...accResult.rows]).sort(
-			(a, b) => new Date(b.created_at) - new Date(a.created_at)
-		);
+		return dedupeMergedCustomers([...posResult.rows, ...accResult.rows]).sort(compareCustomersWalkInFirst);
 	}
 
 	// Single UNION with remapped account placeholders ($1..$n → $(n+posLen)..)
@@ -241,9 +263,7 @@ export const getAllCustomersService = async (user, requestQuery = {}) => {
 		 ORDER BY created_at DESC NULLS LAST`,
 		unionParams
 	);
-	const deduped = dedupeMergedCustomers(allMerged.rows).sort(
-		(a, b) => new Date(b.created_at) - new Date(a.created_at)
-	);
+	const deduped = dedupeMergedCustomers(allMerged.rows).sort(compareCustomersWalkInFirst);
 	const total = deduped.length;
 	const items = deduped.slice(pagination.offset, pagination.offset + pagination.limit);
 
@@ -260,7 +280,8 @@ export const getCustomerByIdService = async (tenantId, id) => {
 		`SELECT id, name, email, address, notes, phone, customer_group, is_active, created_at,
                 COALESCE(store_credit_balance, 0)::numeric AS store_credit_balance,
                 COALESCE(loyalty_points, 0)::int AS loyalty_points,
-                'pos'::text AS source, NULL::varchar AS user_id
+                'pos'::text AS source, NULL::varchar AS user_id,
+                COALESCE(is_walk_in, false) AS is_walk_in
          FROM customers
          WHERE id = $1 AND tenant_id = $2`,
 		[id, tenantId]

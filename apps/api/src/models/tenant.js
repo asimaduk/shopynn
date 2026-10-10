@@ -2,6 +2,7 @@ import pool from "../config/db.js";
 import { v4 as uuidv4 } from "uuid";
 import { onboardSubscriptionService } from "./subscription.js";
 import { createUserService } from "./user.js";
+import { ensureWalkInCustomerService } from "./customer.js";
 import { assertShopOwnerEmailVerified } from "./emailVerification.js";
 import { mergeTenantSettings, getBulkDiscountFromSettings } from "../utils/bulkDiscount.js";
 import { sendEmailService } from "./mail.js";
@@ -180,6 +181,8 @@ export const createTenantService = async (payload) => {
     if (!userResult || !userResult.id) {
         throw new Error(userResult?.message || "User creation failed.");
     }
+
+    await ensureWalkInCustomerService(id, userResult.id);
 
     if (password) {
         sendShopOwnerWelcomeEmail({
