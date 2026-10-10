@@ -4,6 +4,50 @@ import { onboardSubscriptionService } from "./subscription.js";
 import { createUserService } from "./user.js";
 import { assertShopOwnerEmailVerified } from "./emailVerification.js";
 import { mergeTenantSettings, getBulkDiscountFromSettings } from "../utils/bulkDiscount.js";
+import { sendEmailService } from "./mail.js";
+
+const escapeHtml = (value) =>
+    String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+async function sendShopOwnerWelcomeEmail({ email, firstName, shopName, subscription }) {
+    const name = escapeHtml(firstName || "there");
+    const shop = escapeHtml(shopName || "your shop");
+    const planLabel =
+        { basic: "Starter", standard: "Business", premium: "Scale" }[String(subscription?.name || "").toLowerCase()] ||
+        subscription?.name ||
+        "Free";
+    const plan = escapeHtml(planLabel);
+    const isActive = subscription?.status === "active";
+    const endsOn = subscription?.end_at
+        ? new Date(subscription.end_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+        : null;
+    const planLine = isActive
+        ? `Your <strong>${plan}</strong> plan is active${endsOn ? ` until <strong>${endsOn}</strong>` : ""}.`
+        : `Your <strong>${plan}</strong> plan is reserved. Open <strong>Subscription</strong> in the app to pay and activate it.`;
+
+    await sendEmailService({
+        sender_name: "Shopynn",
+        receipient: email,
+        subject: `Welcome to Shopynn, ${firstName || "there"}!`,
+        text: `Hi ${firstName || "there"}, welcome to Shopynn. ${shopName || "Your shop"} is set up. Sign in with ${email} and the password you chose. ${isActive ? `Your ${planLabel} plan is active${endsOn ? ` until ${endsOn}` : ""}.` : "Open Subscription in the app to pay and activate your plan."}`,
+        html: `
+            <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#0f172a">
+                <h2 style="color:#0A74DA;margin-bottom:4px">Welcome to Shopynn, ${name}!</h2>
+                <p style="margin-top:0;color:#475569">${shop} is set up and ready to go.</p>
+                <p>${planLine}</p>
+                <p>Sign in with <strong>${escapeHtml(email)}</strong> and the password you chose at signup.</p>
+                <p style="margin-bottom:6px"><strong>Get started in a few minutes:</strong></p>
+                <ol style="padding-left:20px;line-height:1.7;margin-top:0">
+                    <li>Add your products, or import them in bulk from Inventory.</li>
+                    <li>Record stock you buy under Purchases.</li>
+                    <li>Make your first sale and share the receipt on WhatsApp.</li>
+                    <li>Add staff and give each person the right role.</li>
+                </ol>
+                <p>Need help? Just reply to this email.</p>
+                <p style="color:#64748b">— The Shopynn team</p>
+            </div>`,
+    });
+}
 
 /**
  * Create a tenant, then create and link a subscription (onboardSubscriptionService flow), then create a user.
@@ -135,6 +179,17 @@ export const createTenantService = async (payload) => {
     const userResult = await createUserService(userPayload);
     if (!userResult || !userResult.id) {
         throw new Error(userResult?.message || "User creation failed.");
+    }
+
+    if (password) {
+        sendShopOwnerWelcomeEmail({
+            email: normalizedUserEmail,
+            firstName: first_name,
+            shopName: name || organization,
+            subscription,
+        }).catch((err) => {
+            console.info(`[shop owner welcome] email=${normalizedUserEmail} mail=${err?.message || "n/a"}`);
+        });
     }
 
     const row = await pool.query("SELECT * FROM tenants WHERE id = $1", [id]);
