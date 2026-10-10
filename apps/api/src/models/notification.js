@@ -5,8 +5,9 @@ import { v4 as uuidv4 } from "uuid";
  * List notifications for the tenant. Shows notifications where user_id is null (tenant-wide) or user_id = current user.
  * Optional filters: startDate, endDate, read (true/false).
  */
+/** Shop-wide notifications (no user_id) are for staff; customers only see their own. */
 export const getNotificationsService = async (user, requestQuery = {}) => {
-    const conditions = ["(n.tenant_id = $1 AND (n.user_id IS NULL OR n.user_id = $2))"];
+    const conditions = ["(n.tenant_id = $1 AND (n.user_id = $2 OR (n.user_id IS NULL AND EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = $2 AND lower(r.name) <> 'customer'))))"];
     const params = [user.tenant_id, user.id];
     let paramIndex = 3;
 
@@ -42,7 +43,7 @@ export const getNotificationsService = async (user, requestQuery = {}) => {
 export const getNotificationByIdService = async (id, tenant_id, user_id) => {
     const result = await pool.query(
         `SELECT n.* FROM notifications n
-         WHERE n.id = $1 AND n.tenant_id = $2 AND (n.user_id IS NULL OR n.user_id = $3)`,
+         WHERE n.id = $1 AND n.tenant_id = $2 AND (n.user_id = $3 OR (n.user_id IS NULL AND EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = $3 AND lower(r.name) <> 'customer')))`,
         [id, tenant_id, user_id]
     );
     return result.rows[0];
@@ -64,7 +65,7 @@ export const createNotificationService = async (payload) => {
 export const markNotificationReadService = async (id, tenant_id, user_id) => {
     const result = await pool.query(
         `UPDATE notifications SET read_at = $1, updated_at = $1
-         WHERE id = $2 AND tenant_id = $3 AND (user_id IS NULL OR user_id = $4)
+         WHERE id = $2 AND tenant_id = $3 AND (user_id = $4 OR (user_id IS NULL AND EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = $4 AND lower(r.name) <> 'customer')))
          RETURNING read_at`,
         [new Date(), id, tenant_id, user_id]
     );
