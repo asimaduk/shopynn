@@ -440,11 +440,13 @@ export const getCurrentSubscriptionWithPaymentsService = async (user, options = 
     };
 
     const paymentsResult = await pool.query(
-        `SELECT id, amount, payment_method_type, transaction_ref, status, created_at
-         FROM payments
-         WHERE tenant_id = $1
-           AND order_id IS NULL
-         ORDER BY created_at DESC
+        `SELECT p.id, p.amount, p.payment_method_type, p.transaction_ref, p.status, p.created_at,
+                s.name AS plan_name
+         FROM payments p
+         LEFT JOIN subscriptions s ON s.id = p.subscription_id
+         WHERE p.tenant_id = $1
+           AND p.order_id IS NULL
+         ORDER BY p.created_at DESC
          LIMIT $2`,
         [tenant_id, paymentsLimit]
     );
@@ -456,6 +458,7 @@ export const getCurrentSubscriptionWithPaymentsService = async (user, options = 
         transaction_ref: row.transaction_ref,
         status: row.status,
         created_at: row.created_at,
+        plan_name: row.plan_name ?? null,
     }));
 
     return { subscription, recentPayments };

@@ -7,6 +7,7 @@ import config from '../../config';
 import useTheme from '../../hooks/useTheme';
 import ScreenHeader from '../../components/screen_header';
 import AppAlert from '../../utils/appAlert';
+import { getPaymentStatusBadgeStyle } from '../../utils/paymentStatus';
 
 const formatter = new Intl.NumberFormat('en-GH', {
     style: 'currency',
@@ -16,7 +17,8 @@ const formatter = new Intl.NumberFormat('en-GH', {
 const PaymentInvoice = ({ navigation, route }) => {
     const { colors } = useTheme();
     const insets = useSafeAreaInsets();
-    const { payment, planName = 'Scale' } = route.params || {};
+    const { payment, planName: fallbackPlanName } = route.params || {};
+    const planName = payment?.planName || payment?.plan_name || fallbackPlanName || 'Shopynn';
 
     if (!payment) {
         return (
@@ -44,12 +46,7 @@ const PaymentInvoice = ({ navigation, route }) => {
 
     const formatCurrency = (value) => formatter.format(value).replace(/GH₵\s?|GHS\s?/, 'GH₵ ').trim();
 
-    const getStatusColor = () => {
-        const s = (payment.status || '').toLowerCase();
-        if (s === 'paid') return '#10b981';
-        if (s === 'failed' || s === 'cancelled') return '#ef4444';
-        return '#f59e0b';
-    };
+    const getStatusColor = () => getPaymentStatusBadgeStyle(payment.status).color;
 
     const getStatusLabel = () => (payment.status || 'Unknown').toUpperCase();
 

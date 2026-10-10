@@ -32,6 +32,7 @@ function mapBillingPayment(row) {
         status: row?.status || '—',
         invoice: row?.transaction_ref || row?.reference || '—',
         method,
+        planName: row?.plan_name || null,
     };
 }
 
@@ -396,7 +397,7 @@ const PaymentHistory = ({ navigation }) => {
         return (
             <TouchableOpacity
                 activeOpacity={0.6}
-                onPress={() => navigation.navigate('PaymentInvoice', { payment: item, planName: 'Scale' })}
+                onPress={() => navigation.navigate('PaymentInvoice', { payment: item })}
                 style={[localStyles.paymentRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <View style={localStyles.paymentLeft}>
                     <View style={[localStyles.paymentIcon, { backgroundColor: colors.surfaceSecondary }]}>
