@@ -414,7 +414,7 @@ const CompanyDetailsSetup = ({ navigation }) => {
                 throw err;
             }
         },
-        [dispatch]
+        [dispatch, navigation, appSettings.subscriptionActive]
     );
 
     return (

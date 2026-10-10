@@ -144,11 +144,14 @@ const ProductForm = ({ navigation, route }) => {
             setEditMode(false);
             setImages([]);
         }
+    }, [route.params?.product]);
 
-        if (route.params?.scannedBarcode) {
-            updateFormData('barcode', route.params.initialBarcode);
-        }
-    }, [route.params?.product, route.params?.scannedBarcode]);
+    useEffect(() => {
+        const scanned = route.params?.scannedBarcode;
+        if (!scanned) return;
+        updateFormData('barcode', scanned);
+        navigation.setParams({ scannedBarcode: undefined });
+    }, [route.params?.scannedBarcode]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Load warehouses on mount for per-warehouse quantities
     useEffect(() => {

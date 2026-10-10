@@ -45,7 +45,7 @@ const BarcodeScanner = ({ navigation, route }) => {
         const trimmed = (code || barcode).trim();
         if (!trimmed) return;
         const params = returnScreen === 'Search' ? { barcodeFilter: trimmed } : { scannedBarcode: trimmed };
-        navigation.navigate(returnScreen, params);
+        navigation.navigate({ name: returnScreen, params, merge: true });
     };
 
     const handleManualInput = () => {
