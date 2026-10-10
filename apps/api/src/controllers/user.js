@@ -2,10 +2,56 @@ import { createUserService, deleteUserService, getAllUsersService, getUserByIdSe
 import { createAuditLogService } from "../models/auditLog.js";
 import { getPreferencesService, updatePreferencesService } from "../models/userPreferences.js";
 import { handleResponse } from "../util/handleresponse.js";
+import { getUserPermissionsService } from "../models/userRole.js";
+import pool from "../config/db.js";
+
+const isTenantUser = async (userId, tenantId) => {
+    if (!userId || !tenantId) return false;
+    const r = await pool.query(`SELECT 1 FROM users WHERE id = $1 AND tenant_id = $2 LIMIT 1`, [userId, tenantId]);
+    return r.rowCount > 0;
+};
+
+const isTenantRole = async (roleId, tenantId) => {
+    if (!roleId || !tenantId) return false;
+    const r = await pool.query(`SELECT 1 FROM roles WHERE id = $1 AND tenant_id = $2 LIMIT 1`, [roleId, tenantId]);
+    return r.rowCount > 0;
+};
+
+const isTenantWarehouse = async (warehouseId, tenantId) => {
+    if (!warehouseId || !tenantId) return false;
+    const r = await pool.query(`SELECT 1 FROM warehouses WHERE id = $1 AND tenant_id = $2 LIMIT 1`, [warehouseId, tenantId]);
+    return r.rowCount > 0;
+};
+
+const pickDefined = (source, keys) =>
+    Object.fromEntries(keys.filter((k) => source?.[k] !== undefined).map((k) => [k, source[k]]));
 
 export const createUser = async (req, res, next) => {
     try {
-        const createResponse = await createUserService(req.body);
+        const tenantId = req.user.tenant_id;
+        const body = req.body || {};
+        if (body.role_id && !(await isTenantRole(body.role_id, tenantId))) {
+            return handleResponse(res, 400, "Choose a role from your shop.");
+        }
+        if (body.warehouse_id && !(await isTenantWarehouse(body.warehouse_id, tenantId))) {
+            return handleResponse(res, 400, "Choose a branch from your shop.");
+        }
+        const createResponse = await createUserService({
+            ...pickDefined(body, [
+                "first_name",
+                "last_name",
+                "email",
+                "phone",
+                "password",
+                "role_id",
+                "warehouse_id",
+                "registration_method",
+                "email_credentials",
+            ]),
+            tenant_id: tenantId,
+            assigned_by_user_id: req.user.id,
+            isOnboarding: false,
+        });
         if(createResponse.id) {
             handleResponse(res, 201, "User creation success.", createResponse);
 
@@ -47,9 +93,32 @@ export const getUserById = async (req, res, next) => {
     }
 }
 
+const SELF_EDITABLE_USER_FIELDS = ["first_name", "last_name", "phone", "fcm_token"];
+const ADMIN_EDITABLE_USER_FIELDS = ["first_name", "last_name", "email", "phone", "is_active", "warehouse_id", "role_id"];
+
 export const updateUser = async (req, res, next) => {
     try {
-        const updatedUser = await updateUserService({ ...req.body, id: req.body.id || req.user.id });
+        const tenantId = req.user.tenant_id;
+        const targetId = req.params.id === "me" ? req.user.id : req.params.id;
+        const body = req.body || {};
+        let payload;
+        if (targetId === req.user.id) {
+            payload = pickDefined(body, SELF_EDITABLE_USER_FIELDS);
+        } else {
+            const permissions = await getUserPermissionsService(req.user.id, tenantId);
+            if (!permissions.includes("users.update")) {
+                return res.status(403).json({ error: "Forbidden", code: "INSUFFICIENT_PERMISSIONS", required: ["users.update"] });
+            }
+            if (!(await isTenantUser(targetId, tenantId))) return handleResponse(res, 404, "Not found.");
+            if (body.role_id && !(await isTenantRole(body.role_id, tenantId))) {
+                return handleResponse(res, 400, "Choose a role from your shop.");
+            }
+            if (body.warehouse_id && !(await isTenantWarehouse(body.warehouse_id, tenantId))) {
+                return handleResponse(res, 400, "Choose a branch from your shop.");
+            }
+            payload = pickDefined(body, ADMIN_EDITABLE_USER_FIELDS);
+        }
+        const updatedUser = await updateUserService({ ...payload, id: targetId });
         if (!updatedUser) return handleResponse(res, 404, "Not found.");
 
         if (req.user && updatedUser?.id) {
@@ -77,6 +146,8 @@ export const updateUser = async (req, res, next) => {
 
 export const deleteUser = async (req, res, next) => {
     try {
+        if (req.params.id === req.user.id) return handleResponse(res, 400, "You can't delete your own account here.");
+        if (!(await isTenantUser(req.params.id, req.user.tenant_id))) return handleResponse(res, 404, "Not found.");
         const deletedUser = await deleteUserService({
             id: req.params.id,
             deleted_by: req.user?.id ?? null,
@@ -113,6 +184,8 @@ export const toggleUserActive = async (req, res, next) => {
         if (!id || typeof is_active !== "boolean") {
             return handleResponse(res, 400, "id and is_active (boolean) are required.", null);
         }
+        if (id === req.user.id) return handleResponse(res, 400, "You can't deactivate your own account.", null);
+        if (!(await isTenantUser(id, req.user.tenant_id))) return handleResponse(res, 404, "Not found.", null);
         const updated = await toggleUserActiveService({ id, is_active });
         if (!updated) return handleResponse(res, 404, "Not found.", null);
         handleResponse(res, 200, "User status updated.", updated);
@@ -275,7 +348,7 @@ export const updateMyFcmToken = async (req, res, next) => {
 export const getUserDetails = async (req, res, next) => {
     try {
         const user = await getUserDetailsService(req.params.id);
-        if(!user) return handleResponse(res, 404, "Not found.");
+        if (!user || user.tenant_id !== req.user.tenant_id) return handleResponse(res, 404, "Not found.");
         handleResponse(res, 200, "User details.", user);
     } catch (error) {
         next(error);

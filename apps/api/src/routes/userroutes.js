@@ -11,6 +11,8 @@ import { sendChangePhoneOtp, verifyChangePhoneOtp } from "../controllers/changeP
 import { removeMyProfileImage, setMyProfileImage, uploadProfileImage } from "../controllers/userProfileImage.js";
 import auth from "../middleware/auth.js";
 import requireActiveSubscription from "../middleware/requireActiveSubscription.js";
+import requireFeature from "../middleware/requireFeature.js";
+import { requirePermission, requireAnyPermission } from "../middleware/requirePermission.js";
 
 const router = express.Router();
 
@@ -25,10 +27,9 @@ router.post('/customer-signup/verify-otp', verifyCustomerSignupPhoneOtp);
 router.post('/customer-signup', signupCustomerAccount);
 router.post('/shop-owner-signup/send-email-otp', sendShopOwnerSignupEmailOtp);
 router.post('/shop-owner-signup/verify-email-otp', verifyShopOwnerSignupEmailOtp);
-router.post('/system-add', createUser);
 
-router.post('/', auth, requireActiveSubscription, createUser);
-router.get('/', auth, requireActiveSubscription, getAllUsers);
+router.post('/', auth, requireActiveSubscription, requireFeature('users.create'), requirePermission('users.create'), createUser);
+router.get('/', auth, requireActiveSubscription, requireAnyPermission('users.view', 'users.create', 'users.update'), getAllUsers);
 /** Allow inactive subscriptions so clients can show profile/billing renewal (session + RTK still gate the rest of the app). */
 router.get('/me', auth, getUserById);
 router.post('/me/profile-image', auth, requireActiveSubscription, uploadProfileImage.single("image"), setMyProfileImage);
@@ -42,12 +43,12 @@ router.post('/me/change-email/send-otp', auth, sendCustomerChangeEmailOtp);
 router.post('/me/change-email/verify', auth, verifyCustomerChangeEmailOtp);
 router.post('/me/change-phone/send-otp', auth, sendChangePhoneOtp);
 router.post('/me/change-phone/verify', auth, verifyChangePhoneOtp);
-router.put('/toggle-active', auth, requireActiveSubscription, toggleUserActive);
-router.post('/assign-merchant-permissions', auth, requireActiveSubscription, assignMerchantPermissionsToUserRole);
+router.put('/toggle-active', auth, requireActiveSubscription, requirePermission('users.toggle_active'), toggleUserActive);
+router.post('/assign-merchant-permissions', auth, requireActiveSubscription, requirePermission('users.update'), assignMerchantPermissionsToUserRole);
 router.post('/reset-password', auth, requireActiveSubscription, resetPassword);
 router.post('/change-password', auth, requireActiveSubscription, changePasswordWithTemporary);
-router.put('/:id/delete', auth, requireActiveSubscription, deleteUser);
+router.put('/:id/delete', auth, requireActiveSubscription, requirePermission('users.delete'), deleteUser);
 router.put('/:id', auth, requireActiveSubscription, updateUser);
-router.get('/:id', auth, requireActiveSubscription, getUserDetails);
+router.get('/:id', auth, requireActiveSubscription, requireAnyPermission('users.details.view', 'users.view'), getUserDetails);
 
 export default router;

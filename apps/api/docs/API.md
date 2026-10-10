@@ -46,8 +46,6 @@ Endpoints that require an active subscription are marked with **(+ subscription)
 | PUT | `/api/users/toggle-active` | ✓ + subscription | Toggle a user's `is_active` flag. Body: `{ id, is_active }`. |
 | PUT | `/api/users/:id` | ✓ + subscription | Update user. |
 | DELETE | `/api/users/:id` | ✓ + subscription | Delete (deactivate) user. |
-| POST | `/api/users/system-add` | public | System user creation (no auth). |
-
 ---
 
 ## App Versions
