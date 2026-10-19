@@ -31,7 +31,17 @@ const AdjustmentItem = ({ item, index, onPress }) => {
         Array.isArray(item.products) && item.products.some((p) => (p.adjustment_type || p.type) === 'addition');
     const hasSubtraction =
         Array.isArray(item.products) && item.products.some((p) => (p.adjustment_type || p.type) === 'subtraction');
-    const typeColor = hasSubtraction && !hasAddition ? colors.error || '#ef4444' : config.GREEN_COLOR || colors.success;
+    const isRemoval = hasSubtraction && !hasAddition;
+    const typeColor = isRemoval ? colors.error || '#ef4444' : config.GREEN_COLOR || colors.success;
+    const typeBg = isRemoval ? colors.errorLight : colors.successLight;
+    const netUnits = Array.isArray(item.products) && item.products.length
+        ? item.products.reduce((sum, p) => {
+            const qty = Number(p.quantity) || 0;
+            return (p.adjustment_type || p.type) === 'addition' ? sum + qty : sum - qty;
+        }, 0)
+        : null;
+    const unitsLabel = netUnits == null ? String(count) : String(Number(Math.abs(netUnits).toFixed(3)));
+    const pillIcon = netUnits == null ? (isRemoval ? 'minus' : 'plus') : netUnits < 0 ? 'minus' : 'plus';
 
     return (
         <TouchableOpacity
@@ -40,9 +50,9 @@ const AdjustmentItem = ({ item, index, onPress }) => {
             style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
         >
             <View style={styles.topRow}>
-                <View style={[styles.iconWrap, { backgroundColor: `${typeColor}18` }]}>
+                <View style={[styles.iconWrap, { backgroundColor: typeBg }]}>
                     <Lucide
-                        name={hasSubtraction && !hasAddition ? 'minus' : 'plus'}
+                        name={isRemoval ? 'minus' : 'plus'}
                         size={18}
                         color={typeColor}
                     />
@@ -64,12 +74,12 @@ const AdjustmentItem = ({ item, index, onPress }) => {
                 <View style={styles.trailing}>
                     <View style={[styles.countPill, { backgroundColor: typeColor }]}>
                         <Lucide
-                            name={hasSubtraction && !hasAddition ? 'minus' : 'plus'}
+                            name={pillIcon}
                             size={12}
                             color="#fff"
                             style={{ marginRight: 2 }}
                         />
-                        <AppText label={String(count)} fontSize={13} color="#fff" variant={1} />
+                        <AppText label={unitsLabel} fontSize={13} color="#fff" variant={1} />
                     </View>
                     <AppText
                         label={`${count} item${count === 1 ? '' : 's'}`}
