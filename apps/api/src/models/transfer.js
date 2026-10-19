@@ -480,13 +480,17 @@ export const receiveTransferService = async (user, transferId, body = {}) => {
                     [got, now, invRes.rows[0].id]
                 );
             } else {
+                const srcMin = await client.query(
+                    `SELECT minimum_stock_level FROM inventories WHERE product_id = $1 AND warehouse_id = $2`,
+                    [d.product_id, transfer.source_warehouse_id]
+                );
                 const newId = uuidv4();
                 await client.query(
                     `INSERT INTO inventories (
                         id, quantity_available, minimum_stock_level, product_id, warehouse_id,
                         creator_id, tenant_id, created_at
                      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-                    [newId, got, 10, d.product_id, destId, user.id, user.tenant_id, now]
+                    [newId, got, srcMin.rows[0]?.minimum_stock_level ?? 0, d.product_id, destId, user.id, user.tenant_id, now]
                 );
             }
         }
