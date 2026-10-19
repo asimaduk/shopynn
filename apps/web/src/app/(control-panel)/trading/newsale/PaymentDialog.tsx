@@ -232,7 +232,7 @@ export default function PaymentDialog({
 	const startPolling = React.useCallback(
 		(ref: string) => {
 			stopPolling();
-			const delaysMs = [5000, 5000, 5000, 10000, 10000, 10000, 10000, 20000, 20000, 20000, 20000, 20000, 20000];
+			const delaysMs = [10000, 5000, 5000, 10000, 10000, 10000, 10000, 20000, 20000, 20000, 20000, 20000, 20000];
 			let step = 0;
 			const tick = async () => {
 				try {

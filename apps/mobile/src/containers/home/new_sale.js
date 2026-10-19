@@ -793,7 +793,7 @@ const NewSale = ({ navigation, route }) => {
         : null;
     useEffect(() => {
         if (!showPaymentOptions || !momoOpenRef) return undefined;
-        const delaysMs = [5000, 5000, 5000, 10000, 10000, 10000, 10000, 20000, 20000, 20000, 20000, 20000, 20000];
+        const delaysMs = [10000, 5000, 5000, 10000, 10000, 10000, 10000, 20000, 20000, 20000, 20000, 20000, 20000];
         let cancelled = false;
         let timer = null;
         let step = 0;
