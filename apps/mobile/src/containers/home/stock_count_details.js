@@ -24,6 +24,11 @@ import { stockCounts as stockCountsApi } from '../../services/api';
 //     varianceCount: 3,
 // };
 
+const formatQty = (value) => {
+    const n = Number(value);
+    return Number.isFinite(n) ? String(Number(n.toFixed(3))) : String(value ?? '');
+};
+
 const StockCountDetails = ({ navigation, route }) => {
     const { colors } = useTheme();
     const { stockCount: paramStockCount, stockCountId } = route.params || {};
@@ -37,8 +42,6 @@ const StockCountDetails = ({ navigation, route }) => {
         let mounted = true;
         setLoading(true);
         stockCountsApi.get(id).then((data) => {
-            console.log('stock count details', data);
-            
             if (mounted && data) {
                 setStockCount((prev) => ({ ...prev, ...data }));
                 if (Array.isArray(data.items)) setItems(data.items);
@@ -101,8 +104,8 @@ const StockCountDetails = ({ navigation, route }) => {
                 <View style={[styles.statusHeader, { backgroundColor: config.GREEN_COLOR }]}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                         <View>
-                            <AppText label={stockCount.reference_number} fontSize={20} variant={2} color="#fff" />
-                            <AppText label={stockCount.status.toUpperCase()} fontSize={12} color="rgba(255,255,255,0.9)" style={{ marginTop: 2 }} />
+                            <AppText label={stockCount.reference_number || 'Stock count'} fontSize={20} variant={2} color="#fff" />
+                            <AppText label={String(stockCount.status || 'Completed').toUpperCase()} fontSize={12} color="rgba(255,255,255,0.9)" style={{ marginTop: 2 }} />
                             <AppText label={formatDateAndTime(stockCount.created_at)} fontSize={13} color="rgba(255,255,255,0.8)" />
                         </View>
                         <Lucide name="clipboard-check" size={32} color="#fff" />
@@ -132,7 +135,8 @@ const StockCountDetails = ({ navigation, route }) => {
 
                 <DetailSection title="Counted items">
                     {items.map((item, index) => {
-                        const hasVariance = item.variance !== 0;
+                        const variance = Number(item.variance) || 0;
+                        const hasVariance = variance !== 0;
                         return (
                             <View key={item.id} style={[styles.itemRow, { borderBottomColor: index === items.length - 1 ? 'transparent' : colors.borderLight }]}>
                                 <View style={{ flex: 1 }}>
@@ -142,16 +146,16 @@ const StockCountDetails = ({ navigation, route }) => {
                                 <View style={{ alignItems: 'flex-end' }}>
                                     <View style={styles.qtyRow}>
                                         <AppText label="System:" fontSize={11} color={colors.textTertiary} />
-                                        <AppText label={String(item.expected_quantity)} fontSize={13} color={colors.text} style={{ marginLeft: 4 }} />
+                                        <AppText label={formatQty(item.expected_quantity)} fontSize={13} color={colors.text} style={{ marginLeft: 4 }} />
                                     </View>
                                     <View style={styles.qtyRow}>
                                         <AppText label="Actual:" fontSize={11} color={colors.textTertiary} />
-                                        <AppText label={String(item.counted_quantity)} fontSize={13} color={colors.text} style={{ marginLeft: 4 }} />
+                                        <AppText label={formatQty(item.counted_quantity)} fontSize={13} color={colors.text} style={{ marginLeft: 4 }} />
                                     </View>
                                     {hasVariance && (
-                                        <View style={[styles.varianceBadge, { backgroundColor: item.variance > 0 ? config.GREEN_COLOR + '18' : colors.error + '18' }]}>
-                                            <Lucide name={item.variance > 0 ? 'arrow-up' : 'arrow-down'} size={12} color={item.variance > 0 ? config.GREEN_COLOR : colors.error} />
-                                            <AppText label={item.variance > 0 ? `+${item.variance}` : String(item.variance)} fontSize={11} color={item.variance > 0 ? colors.successLight : colors.error} style={{ marginLeft: 4 }} />
+                                        <View style={[styles.varianceBadge, { backgroundColor: variance > 0 ? colors.successLight : colors.errorLight }]}>
+                                            <Lucide name={variance > 0 ? 'arrow-up' : 'arrow-down'} size={12} color={variance > 0 ? config.GREEN_COLOR : colors.error} />
+                                            <AppText label={variance > 0 ? `+${formatQty(variance)}` : formatQty(variance)} fontSize={11} color={variance > 0 ? config.GREEN_COLOR : colors.error} style={{ marginLeft: 4 }} />
                                         </View>
                                     )}
                                 </View>
