@@ -530,6 +530,11 @@ const NewSale = ({ navigation, route }) => {
         navigation.goBack();
     };
 
+    const goToSalesAfterSale = () => {
+        allowLeaveRef.current = true;
+        navigation.navigate('Home', { screen: 'Sales' });
+    };
+
     const backPress = () => {
         navigation.goBack();
     }
@@ -782,7 +787,51 @@ const NewSale = ({ navigation, route }) => {
         };
     }, [showPaymentOptions]);
 
-    // MoMo status via FCM push (webhook) — no auto-polling; Check status still verifies on demand.
+    // Fallback while a charge is open: push (FCM) is the primary signal but isn't delivered everywhere yet (e.g. iOS).
+    const momoOpenRef = selectedPaymentOption.method === 'momo' && !selectedPaymentOption.paid
+        ? selectedPaymentOption.transactionRef || null
+        : null;
+    useEffect(() => {
+        if (!showPaymentOptions || !momoOpenRef) return undefined;
+        const delaysMs = [5000, 5000, 5000, 10000, 10000, 10000, 10000, 20000, 20000, 20000, 20000, 20000, 20000];
+        let cancelled = false;
+        let timer = null;
+        let step = 0;
+        const tick = async () => {
+            if (cancelled) return;
+            try {
+                const v = await paymentsApi.verify(momoOpenRef);
+                if (cancelled) return;
+                const st = String(v?.status || '').toLowerCase();
+                if (['success', 'paid', 'completed'].includes(st)) {
+                    setSelectedPaymentOption((p) =>
+                        p.transactionRef === momoOpenRef ? { ...p, paid: true } : p,
+                    );
+                    setMomoNeedsOtp(false);
+                    setMomoStatusText('Payment confirmed.');
+                    return;
+                }
+                if (['failed', 'abandoned', 'reversed', 'cancelled'].includes(st)) {
+                    setMomoStatusText(v?.display_text || 'MoMo payment failed. Tap Send again or use Cash.');
+                    return;
+                }
+                if (momoStatusNeedsOtp(st, v?.display_text)) setMomoNeedsOtp(true);
+            } catch (_) {
+                // Network blips are fine; the next check or Check status will catch up.
+            }
+            if (!cancelled && step < delaysMs.length) {
+                timer = setTimeout(tick, delaysMs[step++]);
+            }
+        };
+        timer = setTimeout(tick, delaysMs[step++]);
+        return () => {
+            cancelled = true;
+            if (timer) clearTimeout(timer);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [showPaymentOptions, momoOpenRef]);
+
+    // MoMo status via FCM push (webhook); Check status still verifies on demand.
     useEffect(() => {
         if (!showPaymentOptions) return undefined;
         const sub = DeviceEventEmitter.addListener(POS_MOMO_STATUS_EVENT, (payload) => {
@@ -2689,7 +2738,7 @@ const NewSale = ({ navigation, route }) => {
                     onClose={() => {
                         setShowInvoiceShare(false);
                         setCompletedSaleForInvoice(null);
-                        leaveScreen();
+                        goToSalesAfterSale();
                     }}
                 />
             </SafeAreaView>
