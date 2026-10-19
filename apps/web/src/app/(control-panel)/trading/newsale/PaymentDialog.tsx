@@ -100,7 +100,7 @@ export default function PaymentDialog({
 	const [statusText, setStatusText] = React.useState('');
 	const [sending, setSending] = React.useState(false);
 	const [parking, setParking] = React.useState(false);
-	const pollRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+	const pollRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 	const resumeAppliedRef = React.useRef(false);
 
 	const dispatch = useAppDispatch();
@@ -152,7 +152,7 @@ export default function PaymentDialog({
 
 	const stopPolling = React.useCallback(() => {
 		if (pollRef.current) {
-			clearInterval(pollRef.current);
+			clearTimeout(pollRef.current);
 			pollRef.current = null;
 		}
 	}, []);
@@ -232,24 +232,28 @@ export default function PaymentDialog({
 	const startPolling = React.useCallback(
 		(ref: string) => {
 			stopPolling();
-			let attempts = 0;
-			pollRef.current = setInterval(async () => {
-				attempts += 1;
-				if (attempts > 40) {
-					stopPolling();
-					setStatusText('Still waiting for approval. You can keep this open or tap Check status.');
-					return;
-				}
+			const delaysMs = [5000, 5000, 5000, 10000, 10000, 10000, 10000, 20000, 20000, 20000, 20000, 20000, 20000];
+			let step = 0;
+			const tick = async () => {
 				try {
 					const res: any = await verifyPayment(ref).unwrap();
 					const status = String(res?.status || res?.data?.status || '').toLowerCase();
 					if (status === 'success' || status === 'paid' || status === 'completed') {
 						markPaid(ref);
+						return;
 					}
 				} catch {
 					/* keep polling */
 				}
-			}, 3000);
+				if (!pollRef.current) return;
+				if (step >= delaysMs.length) {
+					pollRef.current = null;
+					setStatusText('Still waiting for approval. You can keep this open or tap Check status.');
+					return;
+				}
+				pollRef.current = setTimeout(tick, delaysMs[step++]);
+			};
+			pollRef.current = setTimeout(tick, delaysMs[step++]);
 		},
 		[markPaid, stopPolling, verifyPayment]
 	);
