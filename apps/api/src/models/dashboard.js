@@ -129,21 +129,22 @@ export const getDashboardDataService = async (user, options = {}) => {
     const totalExpensesAllTime = Number(expenses.total_amount || 0);
     const totalExpensesMonth = Number(expenses.month_amount || 0);
 
-    // Stock status by product count (inventory rows): high (>2x min), near low (min..2x], low (<=min)
+    // Stock status by product (all stores combined): high (>2x min), near low (min..2x], low (<=min)
     const stockStatusResult = await pool.query(
-        `SELECT
-            COUNT(*) FILTER (
-                WHERE quantity_available > 2 * COALESCE(minimum_stock_level, 0)
-            )::int AS high_stock_total,
-            COUNT(*) FILTER (
-                WHERE quantity_available > COALESCE(minimum_stock_level, 0)
-                  AND quantity_available <= 2 * COALESCE(minimum_stock_level, 0)
-            )::int AS near_low_total,
-            COUNT(*) FILTER (
-                WHERE quantity_available <= COALESCE(minimum_stock_level, 0)
-            )::int AS low_stock_total,
+        `WITH per_product AS (
+            SELECT product_id,
+                   SUM(quantity_available) AS qty,
+                   SUM(COALESCE(minimum_stock_level, 0)) AS min_level
+            FROM inventories
+            WHERE tenant_id = $1
+            GROUP BY product_id
+        )
+        SELECT
+            COUNT(*) FILTER (WHERE qty > 2 * min_level)::int AS high_stock_total,
+            COUNT(*) FILTER (WHERE qty > min_level AND qty <= 2 * min_level)::int AS near_low_total,
+            COUNT(*) FILTER (WHERE qty <= min_level)::int AS low_stock_total,
             COUNT(*)::int AS active_products
-         FROM inventories WHERE tenant_id = $1`,
+         FROM per_product`,
         [tenant_id]
     );
     const status = stockStatusResult.rows[0] || {
