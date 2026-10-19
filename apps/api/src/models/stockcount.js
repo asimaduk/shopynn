@@ -65,28 +65,80 @@ export const getStockCountDetailsService = async (stock_count_id, tenant_id) => 
     return result.rows;
 };
 
-export const createStockCountService = async (payload) => {
-    console.log('createStockCountService payload', payload);
+const badRequest = (message) => {
+    const err = new Error(message);
+    err.status = 400;
+    return err;
+};
 
+export const createStockCountService = async (payload) => {
     const { warehouse_id, tenant_id, creator_id, reference_number, status, notes, items } = payload;
+    if (!warehouse_id) throw badRequest("Select a store to count.");
+    if (!Array.isArray(items) || items.length === 0) throw badRequest("Enter the actual count for at least one product.");
+    for (const d of items) {
+        const counted = Number(d?.counted_quantity);
+        if (!d?.product_id || !Number.isFinite(counted) || counted < 0) {
+            throw badRequest("Each counted product needs a quantity of zero or more.");
+        }
+    }
+
     const client = await pool.connect();
     try {
         await client.query("BEGIN");
         const id = uuidv4();
-        const numberOfItems = Array.isArray(items) ? items.length : 0;
+        const now = new Date();
         await client.query(
             `INSERT INTO stock_counts (id, warehouse_id, tenant_id, creator_id, reference_number, status, number_of_items, notes, created_at, updated_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)`,
-            [id, warehouse_id, tenant_id, creator_id, reference_number || null, status || "Completed", numberOfItems, notes || null, new Date()]
+            [id, warehouse_id, tenant_id, creator_id, reference_number || null, status || "Completed", items.length, notes || null, now]
         );
-        if (items && items.length > 0) {
-            for (const d of items) {
-                const detailId = uuidv4();
-                const variance = (d.counted_quantity ?? 0) - (d.expected_quantity ?? 0);
+
+        const adjustmentLines = [];
+        for (const d of items) {
+            const counted = Number(d.counted_quantity);
+            const inv = await client.query(
+                "SELECT id, quantity_available FROM inventories WHERE product_id = $1 AND warehouse_id = $2 FOR UPDATE",
+                [d.product_id, warehouse_id]
+            );
+            const inventoryId = inv.rows[0]?.id || null;
+            const expected = inv.rowCount ? Number(inv.rows[0].quantity_available) || 0 : 0;
+            const variance = counted - expected;
+
+            await client.query(
+                `INSERT INTO stock_count_details (id, stock_count_id, product_id, inventory_id, expected_quantity, counted_quantity, variance, notes, created_at, updated_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)`,
+                [uuidv4(), id, d.product_id, inventoryId, expected, counted, variance, d.notes || null, now]
+            );
+
+            if (Math.abs(variance) < 1e-9) continue;
+            if (inventoryId) {
                 await client.query(
-                    `INSERT INTO stock_count_details (id, stock_count_id, product_id, inventory_id, expected_quantity, counted_quantity, variance, notes, created_at, updated_at)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)`,
-                    [detailId, id, d.product_id, d.inventory_id || null, d.expected_quantity ?? 0, d.counted_quantity ?? 0, variance, d.notes || null, new Date()]
+                    "UPDATE inventories SET quantity_available = $1, updated_at = $2 WHERE id = $3",
+                    [counted, now, inventoryId]
+                );
+            } else {
+                await client.query(
+                    `INSERT INTO inventories (id, quantity_available, minimum_stock_level, product_id, warehouse_id, tenant_id, creator_id, created_at, updated_at)
+                     VALUES ($1, $2, 0, $3, $4, $5, $6, $7, $7)`,
+                    [uuidv4(), counted, d.product_id, warehouse_id, tenant_id, creator_id, now]
+                );
+            }
+            adjustmentLines.push({ product_id: d.product_id, variance, expected });
+        }
+
+        if (adjustmentLines.length) {
+            const adjustmentId = uuidv4();
+            const label = reference_number ? `Stock count ${reference_number}` : "Stock count";
+            await client.query(
+                `INSERT INTO adjustments (id, number_of_items, total_amount, reference_number, tenant_id, warehouse_id, notes, creator_id, created_at)
+                 VALUES ($1, $2, 0, $3, $4, $5, $6, $7, $8)`,
+                [adjustmentId, adjustmentLines.length, reference_number || null, tenant_id, warehouse_id, notes ? `${label}: ${notes}` : label, creator_id, now]
+            );
+            for (const line of adjustmentLines) {
+                await client.query(
+                    `INSERT INTO adjustmentdetails (id, adjustment_id, product_id, quantity, system_quantity, adjustment_type, category, comment, created_at)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                    [uuidv4(), adjustmentId, line.product_id, Math.abs(line.variance), line.expected, line.variance > 0 ? "addition" : "subtraction", null, label, now]
                 );
             }
         }
