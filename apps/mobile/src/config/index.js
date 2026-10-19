@@ -20,7 +20,7 @@ export default {
     OTHER_COLOR: 'rgba(91,127,112)',
     GOLD_COLOR: 'rgba(191,156,106)',
     LIGHT_GREEN_COLOR: 'rgb(238,252,244)',
-    GREEN_COLOR: 'rgb(98,178,112)',
+    GREEN_COLOR: '#62B270',
     /** One-time Whisper STT model (ggml-base.en.bin, ~150MB). Override to host on your CDN in production. */
     VOICE_WHISPER_MODEL_URL:
         'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin',
