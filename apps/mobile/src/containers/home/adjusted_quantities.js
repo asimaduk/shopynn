@@ -512,6 +512,7 @@ const AdjustedQuantities = ({ navigation }) => {
             ) : (
                 <View style={localStyles.listWrap}>
                     <FlashList
+                        maintainVisibleContentPosition={{ disabled: true }}
                         style={localStyles.list}
                         contentContainerStyle={localStyles.listContent}
                         data={filteredData}

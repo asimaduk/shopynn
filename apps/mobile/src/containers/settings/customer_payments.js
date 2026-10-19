@@ -527,6 +527,7 @@ const CustomerPayments = ({ navigation, route }) => {
             </View>
 
             <FlashList
+                maintainVisibleContentPosition={{ disabled: true }}
                 contentContainerStyle={styles.listContent}
                 data={filteredData}
                 estimatedItemSize={80}

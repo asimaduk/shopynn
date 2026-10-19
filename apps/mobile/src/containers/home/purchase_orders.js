@@ -70,6 +70,7 @@ const PurchaseOrders = ({ navigation }) => {
                 </View>
             ) : (
                 <FlashList
+                    maintainVisibleContentPosition={{ disabled: true }}
                     data={list}
                     estimatedItemSize={100}
                     keyExtractor={(item) => item.id}

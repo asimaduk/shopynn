@@ -356,6 +356,7 @@ const Purchases = ({ navigation }) => {
                     </View>
                 ) : (
                     <FlashList
+                        maintainVisibleContentPosition={{ disabled: true }}
                         contentContainerStyle={{ padding: 10, paddingBottom: TAB_BAR_HEIGHT + 56 + 24 }}
                         data={filteredData}
                         numColumns={2}

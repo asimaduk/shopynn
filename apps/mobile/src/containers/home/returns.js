@@ -627,6 +627,7 @@ const Returns = ({ navigation }) => {
 
             {/* List */}
             <FlashList
+                maintainVisibleContentPosition={{ disabled: true }}
                 data={filteredData}
                 estimatedItemSize={120}
                 keyExtractor={(item) => item.id}

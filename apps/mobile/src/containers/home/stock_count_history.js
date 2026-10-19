@@ -117,6 +117,7 @@ const StockCountHistory = ({ navigation }) => {
             ) : (
                 <View style={styles.listWrap}>
                     <FlashList
+                        maintainVisibleContentPosition={{ disabled: true }}
                         style={styles.list}
                         data={filteredData}
                         estimatedItemSize={120}
