@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { StyleSheet, TouchableOpacity, ScrollView, View, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
@@ -34,6 +34,7 @@ const CreateWarehouse = ({ navigation }) => {
     const [locationOptions, setLocationOptions] = useState([]);
     const [loadingLocations, setLoadingLocations] = useState(false);
     const [locationsError, setLocationsError] = useState('');
+    const knownLocationIdsRef = useRef(null);
 
     const fetchLocations = useCallback(async () => {
         setLoadingLocations(true);
@@ -45,6 +46,16 @@ const CreateWarehouse = ({ navigation }) => {
                 .map((item) => ({ id: item.id, name: item.name ?? item.label ?? String(item.id ?? '') }))
                 .filter((o) => o.name);
             setLocationOptions(options);
+            const known = knownLocationIdsRef.current;
+            if (known) {
+                knownLocationIdsRef.current = null;
+                const added = options.find((o) => !known.has(String(o.id)));
+                if (added) {
+                    setFormData((prev) => ({ ...prev, location: added.name, location_id: added.id ?? null }));
+                    setHasChanges(true);
+                    setErrors((prev) => ({ ...prev, location: undefined }));
+                }
+            }
         } catch (e) {
             setLocationOptions([]);
             setLocationsError(e?.response?.data?.message || e?.message || 'Could not load locations.');
@@ -365,6 +376,7 @@ const CreateWarehouse = ({ navigation }) => {
                             activeOpacity={0.7}
                             onPress={() => {
                                 setShowLocationPicker(false);
+                                knownLocationIdsRef.current = new Set(locationOptions.map((o) => String(o.id)));
                                 navigation.navigate('CreateLocation');
                             }}
                             style={[styles.modalRow, styles.addLocationRow, { backgroundColor: colors.primaryShade, borderColor: colors.border }]}>
