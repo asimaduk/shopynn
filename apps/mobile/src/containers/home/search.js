@@ -465,6 +465,9 @@ const Search = ({ navigation, route }) => {
                                 } else if (onSelect) {
                                     onSelect(item);
                                     navigation.goBack();
+                                } else if (onMultiSelect) {
+                                    onMultiSelect([item]);
+                                    navigation.goBack();
                                 } else if (searchOnly) {
                                     navigation.goBack();
                                     navigation.navigate('NewSale', { selectedProduct: item });

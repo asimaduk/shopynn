@@ -292,6 +292,7 @@ const NewSale = ({ navigation, route }) => {
         const product = route.params?.selectedProduct;
         console.log('product', product);
         if (!product) return;
+        if (!selectedStore?.id && stores.length === 0) return;
         // Clear param so it doesn't re-trigger on focus/back.
         navigation.setParams({ selectedProduct: undefined });
 
@@ -335,7 +336,7 @@ const NewSale = ({ navigation, route }) => {
             return [{ ...product, order_quantity: 1 }, ...prev];
         });
         setShowSetQuantity(true);
-    }, [route.params?.selectedProduct, navigation, selectedStore?.id, selectedStore?.name, currentUser]);
+    }, [route.params?.selectedProduct, navigation, selectedStore?.id, selectedStore?.name, currentUser, stores.length]);
 
     useEffect(() => {
         const scanned = route.params?.scannedBarcode;
@@ -748,7 +749,10 @@ const NewSale = ({ navigation, route }) => {
                                     setSelectedStore(desiredStore);
                                 }
                             } else if (!currentStore) {
-                                setSelectedStore(list[0]);
+                                const home = userWarehouseId
+                                    ? list.find((s) => String(s?.id) === String(userWarehouseId))
+                                    : null;
+                                setSelectedStore(home || list[0]);
                             }
                         }
                     }
