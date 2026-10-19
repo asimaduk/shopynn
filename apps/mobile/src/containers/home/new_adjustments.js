@@ -51,7 +51,10 @@ const NewAdjustments = ({ navigation, route }) => {
                     const list = normalizeList(rawStores) || [];
                     if (!active) return;
                     setStores(list);
-                    setSelectedStore((prev) => prev || list[0] || null);
+                    const home = currentUser?.warehouse_id
+                        ? list.find((s) => String(s?.id) === String(currentUser.warehouse_id))
+                        : null;
+                    setSelectedStore((prev) => prev || home || list[0] || null);
                 } catch (_) {
                     if (active) setStores([]);
                 }
@@ -60,7 +63,7 @@ const NewAdjustments = ({ navigation, route }) => {
             return () => {
                 active = false;
             };
-        }, [])
+        }, [currentUser?.warehouse_id])
     );
 
     const openProductSearch = () => {
