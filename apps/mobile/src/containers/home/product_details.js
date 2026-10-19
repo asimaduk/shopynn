@@ -77,7 +77,9 @@ const ProductDetails = ({ navigation, route }) => {
     const reorderLevel = Number(product.reorder_quantity) || 0;
     const batchNumber = product.batch_number || '';
     const expiryDate = product.expiry_date || '';
-    const tagList = Array.isArray(product.tags) ? product.tags : (product.tags ? String(product.tags).split(',').map((t) => t.trim()).filter(Boolean) : []);
+    const tagList = (Array.isArray(product.tags) ? product.tags : String(product.tags || '').split(','))
+        .map((t) => String(t ?? '').trim())
+        .filter(Boolean);
 
     const categoryNames =
         Array.isArray(product.category_names) && product.category_names.length > 0
