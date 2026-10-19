@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Dimensions, StyleSheet, TouchableOpacity, View, TextInput, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSelector } from 'react-redux';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
 import config from '../../config';
@@ -31,6 +32,7 @@ const sameWarehouse = (a, b) => {
 
 const NewTransfer = ({ navigation, route }) => {
     const { colors } = useTheme();
+    const currentUser = useSelector(({ user }) => user);
     const [warehouses, setWarehouses] = useState([]);
     const [sourceWarehouse, setSourceWarehouse] = useState(null);
     const [destinationWarehouse, setDestinationWarehouse] = useState(null);
@@ -49,14 +51,12 @@ const NewTransfer = ({ navigation, route }) => {
     const [notes, setNotes] = useState('');
     const [saving, setSaving] = useState(false);
 
-    const filteredSource = warehouses.filter((w) => {
-        if (sameWarehouse(w, destinationWarehouse)) return false;
-        return !sourceSearch.trim() || (w.name && w.name.toLowerCase().includes(sourceSearch.toLowerCase()));
-    });
-    const filteredDestination = warehouses.filter((w) => {
-        if (sameWarehouse(w, sourceWarehouse)) return false;
-        return !destinationSearch.trim() || (w.name && w.name.toLowerCase().includes(destinationSearch.toLowerCase()));
-    });
+    const filteredSource = warehouses.filter(
+        (w) => !sourceSearch.trim() || (w.name && w.name.toLowerCase().includes(sourceSearch.toLowerCase()))
+    );
+    const filteredDestination = warehouses.filter(
+        (w) => !destinationSearch.trim() || (w.name && w.name.toLowerCase().includes(destinationSearch.toLowerCase()))
+    );
     const warehousesConflict = sameWarehouse(sourceWarehouse, destinationWarehouse);
 
     // Load warehouses from API when screen is focused
@@ -69,11 +69,14 @@ const NewTransfer = ({ navigation, route }) => {
                     const list = normalizeList(raw) || [];
                     if (active) {
                         setWarehouses(list);
-                        if (!sourceWarehouse && list.length > 0) {
-                            setSourceWarehouse(list[0]);
+                        const homeWarehouse =
+                            list.find((w) => currentUser?.warehouse_id != null && String(w.id) === String(currentUser.warehouse_id)) ||
+                            list[0];
+                        if (!sourceWarehouse && homeWarehouse) {
+                            setSourceWarehouse(homeWarehouse);
                         }
                         if (!destinationWarehouse && list.length > 1) {
-                            const src = sourceWarehouse || list[0];
+                            const src = sourceWarehouse || homeWarehouse;
                             const other = list.find((w) => !sameWarehouse(w, src));
                             if (other) setDestinationWarehouse(other);
                         }
@@ -86,7 +89,7 @@ const NewTransfer = ({ navigation, route }) => {
             return () => {
                 active = false;
             };
-        }, [sourceWarehouse, destinationWarehouse])
+        }, [sourceWarehouse, destinationWarehouse, currentUser?.warehouse_id])
     );
 
     useEffect(() => {
@@ -199,21 +202,26 @@ const NewTransfer = ({ navigation, route }) => {
     const subtotal = orders.reduce((s, c) => s + (c.order_quantity || 0) * (c.unit_price || 0), 0);
     const itemCount = orders.reduce((s, c) => s + (c.order_quantity || 0), 0);
 
+    const swapWarehouses = () => {
+        setSourceWarehouse(destinationWarehouse);
+        setDestinationWarehouse(sourceWarehouse);
+    };
+
     const pickWarehouse = (item, isSource) => {
         if (isSource) {
             if (sameWarehouse(item, destinationWarehouse)) {
-                AppAlert.alert('Invalid warehouse', 'From and To must be different. Choose another source warehouse.');
-                return;
+                swapWarehouses();
+            } else {
+                setSourceWarehouse(item);
             }
-            setSourceWarehouse(item);
             setShowSourcePicker(false);
             return;
         }
         if (sameWarehouse(item, sourceWarehouse)) {
-            AppAlert.alert('Invalid warehouse', 'From and To must be different. Choose another destination warehouse.');
-            return;
+            swapWarehouses();
+        } else {
+            setDestinationWarehouse(item);
         }
-        setDestinationWarehouse(item);
         setShowDestinationPicker(false);
     };
 
@@ -276,9 +284,15 @@ const NewTransfer = ({ navigation, route }) => {
                             <Lucide name="chevron-down" color={colors.textTertiary} size={20} />
                         </TouchableOpacity>
 
-                        <View style={styles.arrowWrap}>
-                            <Lucide name="arrow-down" color={config.THEME_COLOR} size={22} />
-                        </View>
+                        <TouchableOpacity
+                            activeOpacity={0.7}
+                            onPress={swapWarehouses}
+                            disabled={!sourceWarehouse || !destinationWarehouse}
+                            accessibilityLabel="Swap From and To"
+                            hitSlop={{ top: 6, bottom: 6, left: 20, right: 20 }}
+                            style={styles.arrowWrap}>
+                            <Lucide name="arrow-down-up" color={config.THEME_COLOR} size={22} />
+                        </TouchableOpacity>
 
                         <TouchableOpacity
                             activeOpacity={0.7}
@@ -316,6 +330,7 @@ const NewTransfer = ({ navigation, route }) => {
                                 navigation.navigate('Search', {
                                     source_nav: 'inventory',
                                     searchOnly: true,
+                                    onSelect: handleSingleSelect,
                                     onMultiSelect: handleMultiSelect,
                                 })
                             }

@@ -17,7 +17,7 @@ import AppAlert from '../../utils/appAlert';
 
 const CreateWarehouse = ({ navigation }) => {
     const { colors } = useTheme();
-    const currentUser = useSelector(({ user }) => user?.data);
+    const currentUser = useSelector(({ user }) => user);
     const subscriptionFeatures = useSelector(({ appSettings }) => appSettings?.subscriptionFeatures || []);
     const canCustomerSignupCodes = canManageCustomerSignupCodes(currentUser, subscriptionFeatures);
     const [formData, setFormData] = useState({

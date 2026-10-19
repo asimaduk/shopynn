@@ -9,7 +9,7 @@ import { canManageCustomerSignupCodes } from '../../utils/permissions';
 
 const WarehouseItem = ({ item, navigation }) => {
     const { colors } = useTheme();
-    const currentUser = useSelector(({ user }) => user?.data);
+    const currentUser = useSelector(({ user }) => user);
     const subscriptionFeatures = useSelector(({ appSettings }) => appSettings?.subscriptionFeatures || []);
     const canCustomerSignupCodes = canManageCustomerSignupCodes(currentUser, subscriptionFeatures);
     const location = item.location || item.address || '';
