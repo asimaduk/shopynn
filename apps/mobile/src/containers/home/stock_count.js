@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { StyleSheet, TouchableOpacity, View, TextInput, ActivityIndicator } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, TextInput, ActivityIndicator, Keyboard, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import { FlashList } from '@shopify/flash-list';
@@ -173,7 +173,7 @@ const StockCount = ({ navigation }) => {
     return (
         <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.safe, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={() => navigation.goBack()} label="Stock count / Audit" />
-            <View style={[styles.banner, { backgroundColor: colors.primaryShade }]}>
+            <Pressable onPress={Keyboard.dismiss} style={[styles.banner, { backgroundColor: colors.primaryShade }]}>
                 <Lucide name="clipboard-check" color={config.THEME_COLOR} size={24} />
                 <View style={{ marginLeft: 12, flex: 1 }}>
                     <AppText label="Count actual stock" variant={1} fontSize={16} color={colors.text} />
@@ -184,7 +184,7 @@ const StockCount = ({ navigation }) => {
                         style={{ marginTop: 2 }}
                     />
                 </View>
-            </View>
+            </Pressable>
             {canPickStore && warehouses.length > 1 && (
                 <TouchableOpacity
                     activeOpacity={0.7}
@@ -280,6 +280,9 @@ const StockCount = ({ navigation }) => {
                     <FlashList
                         data={filteredItems}
                         estimatedItemSize={72}
+                        keyboardShouldPersistTaps="handled"
+                        keyboardDismissMode="on-drag"
+                        automaticallyAdjustKeyboardInsets
                         keyExtractor={(item) => String(item.id)}
                         contentContainerStyle={styles.listContent}
                         renderItem={({ item }) => (
