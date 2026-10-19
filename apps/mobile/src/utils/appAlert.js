@@ -39,13 +39,25 @@ export const appAlert = (title, message, buttons, options = {}) => {
         return;
     }
     const list = Array.isArray(buttons) && buttons.length ? buttons : [{ text: 'OK' }];
-    queue.push({
+    const entry = {
         id: nextId++,
         title: title == null ? '' : String(title),
         message: message == null ? '' : String(message),
         buttons: list.map((b) => ({ text: b?.text || 'OK', style: b?.style || 'default', onPress: b?.onPress })),
         options: options || {},
-    });
+    };
+    // The API interceptor and the calling screen often report the same error.
+    const same = queue.find((a) => a.title === entry.title && a.message === entry.message);
+    if (same) {
+        const hasHandlers = (btns) => btns.some((b) => typeof b.onPress === 'function');
+        if (hasHandlers(entry.buttons) && !hasHandlers(same.buttons)) {
+            same.buttons = entry.buttons;
+            same.options = entry.options;
+            emit();
+        }
+        return;
+    }
+    queue.push(entry);
     emit();
 };
 
