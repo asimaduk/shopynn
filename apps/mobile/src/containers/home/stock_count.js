@@ -11,17 +11,14 @@ import useTheme from '../../hooks/useTheme';
 import AppModal from '../../components/app_modal';
 import { products as productsApi, warehouses as warehousesApi, stockCounts as stockCountsApi, normalizeList } from '../../services/api';
 import AppAlert from '../../utils/appAlert';
+import { hasFeature, hasPermission } from '../../utils/permissions';
 
 const StockCount = ({ navigation }) => {
     const { colors } = useTheme();
     const user = useSelector(({ user }) => user);
-
-    const isAdmin =
-        typeof user?.roles === 'string' &&
-        user.roles
-            .split(',')
-            .map(role => role.trim().toLowerCase())
-            .includes('admin');
+    const subscriptionFeatures = useSelector(({ appSettings }) => appSettings?.subscriptionFeatures || []);
+    const canPickStore =
+        hasPermission(user, 'stores.multi_access') && hasFeature(user, 'stores.multi_access', subscriptionFeatures);
 
     const [items, setItems] = useState([]);
     const [warehouseName, setWarehouseName] = useState('Main store');
@@ -44,8 +41,9 @@ const StockCount = ({ navigation }) => {
                 if (!mounted) return;
                 setWarehouses(Array.isArray(wList) ? wList : []);
                 if (!warehouseId && Array.isArray(wList) && wList.length > 0) {
-                    setWarehouseName(wList[0].name || 'Main store');
-                    setWarehouseId(wList[0].id || null);
+                    const home = wList.find((w) => String(w.id) === String(user?.warehouse_id)) || wList[0];
+                    setWarehouseName(home.name || 'Main store');
+                    setWarehouseId(home.id || null);
                 }
             } catch (_) {
                 if (!mounted) return;
@@ -67,18 +65,22 @@ const StockCount = ({ navigation }) => {
             try {
                 const params = warehouseId ? { warehouse_id: warehouseId } : {};
                 const rawProducts = await productsApi.list(params);
-                console.log('rawProducts', rawProducts);
                 const list = normalizeList(rawProducts) || [];
                 if (!mounted) return;
                 const mapped = Array.isArray(list)
-                    ? list.map((p) => ({
-                          id: p.id,
-                          name: p.name,
-                          sku: p.sku,
-                          systemQty: p.inventory ?? p.initial_stock ?? 0,
-                          actualQty: '',
-                          inventoryId: p.stores_quantities[0]?.id,
-                      }))
+                    ? list.map((p) => {
+                          const storeRow = (p.stores_quantities || []).find(
+                              (s) => String(s.warehouse_id) === String(warehouseId)
+                          );
+                          return {
+                              id: p.id,
+                              name: p.name,
+                              sku: p.sku,
+                              systemQty: storeRow ? Number(storeRow.quantity_available) || 0 : 0,
+                              actualQty: '',
+                              inventoryId: storeRow?.id,
+                          };
+                      })
                     : [];
                 setItems(mapped);
             } catch (_) {
@@ -183,7 +185,7 @@ const StockCount = ({ navigation }) => {
                     />
                 </View>
             </View>
-            {isAdmin && (
+            {canPickStore && warehouses.length > 1 && (
                 <TouchableOpacity
                     activeOpacity={0.7}
                     onPress={() => setShowWarehousePicker(true)}
@@ -285,7 +287,7 @@ const StockCount = ({ navigation }) => {
                                 <View style={{ flex: 1 }}>
                                     <AppText label={item.name} variant={1} fontSize={15} color={colors.text} />
                                     <AppText
-                                        label={`${item.sku} · System: ${item.systemQty}`}
+                                        label={item.sku ? `${item.sku} · System: ${item.systemQty}` : `System: ${item.systemQty}`}
                                         fontSize={12}
                                         color={colors.textSecondary}
                                         style={{ marginTop: 4 }}
