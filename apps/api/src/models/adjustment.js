@@ -233,8 +233,24 @@ export const createAdjustmentService = async (payload) => {
         await client.query('BEGIN');
         const { reference_number, tenant_id, warehouse_id, products, notes, creator_id } = payload;
         
-        if(!products) {
-            throw new Error("Products list cannot be empty.");
+        if (!Array.isArray(products) || !products.length) {
+            const err = new Error("Products list cannot be empty.");
+            err.status = 400;
+            throw err;
+        }
+        for (const prod of products) {
+            const qty = Number(prod?.quantity);
+            const type = String(prod?.adjustment_type || "subtraction").toLowerCase();
+            if (!Number.isFinite(qty) || qty <= 0) {
+                const err = new Error("Each item needs a quantity above zero.");
+                err.status = 400;
+                throw err;
+            }
+            if (type !== "addition" && type !== "subtraction") {
+                const err = new Error("Adjustment type must be addition or subtraction.");
+                err.status = 400;
+                throw err;
+            }
         }
 
         const total_amount = products.reduce(
@@ -255,10 +271,23 @@ export const createAdjustmentService = async (payload) => {
             const qty = Number(prod.quantity) || 0;
 
             const r1 = await client.query(
-                "SELECT id, quantity_available FROM inventories WHERE product_id = $1 AND warehouse_id = $2",
+                "SELECT id, quantity_available FROM inventories WHERE product_id = $1 AND warehouse_id = $2 FOR UPDATE",
                 [prod.id, warehouse_id]
             );
             const systemQuantity = r1.rowCount ? r1.rows[0].quantity_available : null;
+
+            if (!isAddition) {
+                const available = Number(systemQuantity) || 0;
+                if (available + 1e-9 < qty) {
+                    const nameRes = await client.query("SELECT name FROM products WHERE id = $1", [prod.id]);
+                    const name = nameRes.rows[0]?.name || "this product";
+                    const err = new Error(
+                        `Cannot remove ${qty} of ${name} — only ${available} in this store.`
+                    );
+                    err.status = 400;
+                    throw err;
+                }
+            }
 
             if (r1.rowCount) {
                 if (isAddition) {
