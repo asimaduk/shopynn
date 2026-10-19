@@ -105,6 +105,7 @@ const CustomerForm = ({ navigation, route }) => {
                                         },
                                     },
                                     merge: true,
+                                    pop: true,
                                 });
                                 return;
                             }

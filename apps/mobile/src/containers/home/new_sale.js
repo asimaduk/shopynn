@@ -469,21 +469,23 @@ const NewSale = ({ navigation, route }) => {
     }, [route.params?.restoreParkedMomo, navigation]);
 
     /** After POS “Add customer”, refresh list and reopen picker with the new customer selected. */
+    const mountedRef = useRef(true);
+    useEffect(() => () => { mountedRef.current = false; }, []);
     useEffect(() => {
         const token = route.params?.posCustomerRefreshAt;
         if (!token) return;
         const newly = route.params?.newlyCreatedCustomer;
+        // Clearing the params re-runs this effect, so the fetch below must not be cancelled by its cleanup.
         navigation.setParams({
             posCustomerRefreshAt: undefined,
             newlyCreatedCustomer: undefined,
         });
 
-        let active = true;
         (async () => {
             try {
                 const rawCustomers = await customersApi.list();
                 const list = normalizeList(rawCustomers) || [];
-                if (!active) return;
+                if (!mountedRef.current) return;
                 setCustomers(list);
                 if (newly?.id) {
                     const match =
@@ -493,16 +495,12 @@ const NewSale = ({ navigation, route }) => {
                 setCustomerSearch('');
                 setShowCustomers(true);
             } catch (_) {
-                if (newly?.id && active) {
+                if (newly?.id && mountedRef.current) {
                     setSelectedCustomer(newly);
                     setShowCustomers(true);
                 }
             }
         })();
-
-        return () => {
-            active = false;
-        };
     }, [route.params?.posCustomerRefreshAt, route.params?.newlyCreatedCustomer, navigation]);
 
     const allowLeaveRef = useRef(false);
