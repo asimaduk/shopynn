@@ -8,6 +8,9 @@ import { formatCurrency } from '../../utils/format';
 
 const SaleItem = ({ item, onPress, onResendInvoice, resending }) => {
     const { colors } = useTheme();
+    const balanceDue = Number(item.balance_due) || 0;
+    const owes = balanceDue > 0.02;
+    const unpaid = owes && !(Number(item.amount_paid) > 0.02);
     return (
         <TouchableOpacity
             activeOpacity={0.7}
@@ -43,6 +46,18 @@ const SaleItem = ({ item, onPress, onResendInvoice, resending }) => {
                         color={colors.text}
                         style={{ fontVariant: ['tabular-nums'] }}
                     />
+                    {owes ? (
+                        <View style={[styles.balancePill, { backgroundColor: colors.warningLight }]}>
+                            <Lucide name="wallet" size={12} color={colors.warning} />
+                            <AppText
+                                label={`${unpaid ? 'Unpaid' : 'Part paid'} · ${formatCurrency(balanceDue)} due`}
+                                fontSize={12}
+                                variant={1}
+                                color={colors.warning}
+                                style={{ marginLeft: 4 }}
+                            />
+                        </View>
+                    ) : null}
                 </View>
                 <View style={styles.bottomActions}>
                     {onResendInvoice ? (
@@ -112,7 +127,17 @@ const styles = StyleSheet.create({
     },
     amountBox: {
         flexDirection: 'row',
-        alignItems: 'flex-start',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        flex: 1,
+        gap: 8,
+    },
+    balancePill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 999,
     },
     bottomActions: {
         flexDirection: 'row',

@@ -61,6 +61,9 @@ const formatSaleForDisplay = (row) => ({
     payment_type: row.payment_type,
     payment_method: row.payment_method,
     payment_number: row.payment_number,
+    payment_status: row.payment_status,
+    amount_paid: row.amount_paid,
+    balance_due: row.balance_due,
     notes: row.notes,
 });
 
