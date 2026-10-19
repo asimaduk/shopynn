@@ -31,6 +31,7 @@ import {
 import { MOMO_NETWORK_OPTIONS } from '@/utils/momoNetworks';
 import { normalizeWarehousePrinterType } from '../../setups/warehouses/models/WarehouseModel';
 import { appConfirm } from '@/utils/appConfirm';
+import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 
 function toMoney(n: number) {
 	return Math.round((Number(n) || 0) * 100) / 100;
@@ -126,6 +127,13 @@ export default function PaymentDialog({
 	const fee = chargeSettings?.enabled ? toMoney((face * percent) / 100) : 0;
 	const chargeAmount = toMoney(face + fee);
 	const isTelecel = network === 'vod';
+	const momoChargeOpen = paymentType === 'Momo' && Boolean(transactionRef);
+	const momoPaid = momoChargeOpen && chargePaid;
+	const networkLabel = MOMO_NETWORK_OPTIONS.find((n) => n.provider === network)?.label || '';
+	const numberDisplay =
+		transNumber.length === 10
+			? `${transNumber.slice(0, 3)} ${transNumber.slice(3, 6)} ${transNumber.slice(6)}`
+			: transNumber;
 
 	const tenderedParsed =
 		amountTendered.trim() === '' ? null : Number(String(amountTendered).replace(/,/g, ''));
@@ -582,8 +590,11 @@ export default function PaymentDialog({
 		>
 			<DialogTitle id="alert-dialog-title">Make Payment</DialogTitle>
 			<DialogContent>
-				<DialogContentText>Specify the mode of payment for this transaction</DialogContentText>
+				{!momoChargeOpen ? (
+					<DialogContentText>Specify the mode of payment for this transaction</DialogContentText>
+				) : null}
 
+				{!momoChargeOpen ? (
 				<Autocomplete
 					className="my-4 w-full"
 					fullWidth
@@ -615,8 +626,9 @@ export default function PaymentDialog({
 						/>
 					)}
 				/>
+				) : null}
 
-				{creditAvailable > 0.001 ? (
+				{!momoChargeOpen && creditAvailable > 0.001 ? (
 					<Box className="mb-3 rounded border border-gray-200 p-3 dark:border-gray-700">
 						<Box className="mb-2 flex justify-between text-sm">
 							<span>Store credit available</span>
@@ -715,6 +727,50 @@ export default function PaymentDialog({
 
 				{paymentType === 'Momo' && (
 					<Box>
+						{momoChargeOpen ? (
+							<Box
+								className="mb-3 mt-2 rounded-lg border p-4"
+								sx={{
+									borderColor: momoPaid ? 'success.main' : 'divider',
+									bgcolor: momoPaid ? 'rgba(16,185,129,0.08)' : 'action.hover'
+								}}
+							>
+								<Box className="flex items-center gap-2">
+									{momoPaid ? (
+										<FuseSvgIcon size={22} sx={{ color: 'success.main' }}>
+											heroicons-outline:check-circle
+										</FuseSvgIcon>
+									) : (
+										<CircularProgress size={18} />
+									)}
+									<Typography
+										className="font-semibold"
+										sx={{ color: momoPaid ? 'success.main' : 'text.primary' }}
+									>
+										{momoPaid ? 'Payment received' : 'Waiting for the customer to approve'}
+									</Typography>
+								</Box>
+								<Typography className="mt-3 text-3xl font-bold">{formatGhs(chargeAmount)}</Typography>
+								<Typography variant="caption" color="text.secondary">
+									{fee > 0
+										? `Sale ${formatGhs(face)} + platform charge ${formatGhs(fee)}`
+										: `Sale ${formatGhs(face)}`}
+								</Typography>
+								<Box className="my-3 border-t" sx={{ borderColor: 'divider' }} />
+								<Typography variant="body2">
+									{[networkLabel, numberDisplay].filter(Boolean).join(' · ')}
+								</Typography>
+								{!momoPaid && statusText ? (
+									<Typography variant="caption" color="text.secondary" display="block" className="mt-2">
+										{statusText}
+									</Typography>
+								) : null}
+								<Typography variant="caption" color="text.disabled" display="block" className="mt-2">
+									Ref: {transactionRef}
+								</Typography>
+							</Box>
+						) : (
+						<>
 						<Box className="mb-3 rounded border border-gray-200 p-3 dark:border-gray-700">
 							<Box className="flex justify-between text-sm">
 								<span>Sale total</span>
@@ -766,6 +822,8 @@ export default function PaymentDialog({
 								</MenuItem>
 							))}
 						</TextField>
+						</>
+						)}
 
 						{isTelecel && !chargePaid && !transactionRef && (
 							<TextField
@@ -801,20 +859,20 @@ export default function PaymentDialog({
 							<Box className="mb-2 mt-3">
 								<TextField
 									fullWidth
-									label={isTelecel ? 'Voucher / OTP' : 'OTP (if required)'}
+									label={isTelecel ? 'Voucher / OTP' : 'OTP (only if asked)'}
 									value={otp}
 									onChange={(e) => setOtp(e.target.value)}
 									className="mb-2"
 									helperText={
 										isTelecel
 											? 'Re-enter voucher if the first submit failed'
-											: undefined
+											: 'Usually the customer just approves the prompt on their phone. Enter a code here only if they receive an OTP by SMS instead.'
 									}
 								/>
 								<Button
 									fullWidth
 									variant="outlined"
-									disabled={sending || !otp}
+									disabled={sending || !otp.trim()}
 									onClick={handleOtp}
 								>
 									{isTelecel ? 'Submit voucher' : 'Submit OTP'}
@@ -848,52 +906,47 @@ export default function PaymentDialog({
 							</Box>
 						)}
 
-						{transactionRef && chargePaid && (
-							<Box className="mt-2 mb-2">
-								<Button
-									fullWidth
-									variant="outlined"
-									color="secondary"
-									disabled={sending || parking}
-									onClick={handleParkAndServeNext}
-								>
-									{parking ? <CircularProgress size={18} color="inherit" /> : 'Park & serve next'}
-								</Button>
-								<Typography variant="caption" color="text.secondary" display="block" className="mt-1">
-									Save this payment and clear the cart so you can serve another customer. Complete it later from Pending MoMo.
-								</Typography>
-							</Box>
-						)}
-
-						{statusText ? (
-							<Alert severity={chargePaid ? 'success' : 'info'} className="mb-2">
+						{!transactionRef && statusText ? (
+							<Alert severity="info" className="mb-2">
 								{statusText}
 							</Alert>
-						) : null}
-
-						{transactionRef ? (
-							<Typography variant="caption" color="text.secondary">
-								Ref: {transactionRef}
-							</Typography>
 						) : null}
 					</Box>
 				)}
 			</DialogContent>
-			<DialogActions>
-				<Button onClick={() => requestClose(false)}>Cancel</Button>
-				<Button
-					variant="outlined"
-					color="secondary"
-					disabled={
-						!paymentType ||
-						(paymentType === 'Momo' && !chargePaid) ||
-						(paymentType === 'Cash' && !cashTenderOk)
-					}
-					onClick={handleSave}
-				>
-					<span>{completeLabel}</span>
-				</Button>
-			</DialogActions>
+			{momoPaid ? (
+				<DialogActions sx={{ flexDirection: 'column', alignItems: 'stretch', gap: 1, px: 3, pb: 3 }}>
+					<Button variant="contained" color="secondary" size="large" fullWidth onClick={handleSave}>
+						{completeLabel}
+					</Button>
+					<Button
+						variant="text"
+						color="inherit"
+						size="small"
+						disabled={sending || parking}
+						onClick={handleParkAndServeNext}
+						sx={{ ml: '0 !important' }}
+					>
+						{parking ? <CircularProgress size={16} color="inherit" /> : 'Park & complete later'}
+					</Button>
+				</DialogActions>
+			) : !momoChargeOpen ? (
+				<DialogActions>
+					<Button onClick={() => requestClose(false)}>Cancel</Button>
+					<Button
+						variant="outlined"
+						color="secondary"
+						disabled={
+							!paymentType ||
+							(paymentType === 'Momo' && !chargePaid) ||
+							(paymentType === 'Cash' && !cashTenderOk)
+						}
+						onClick={handleSave}
+					>
+						<span>{completeLabel}</span>
+					</Button>
+				</DialogActions>
+			) : null}
 		</Dialog>
 	);
 }
