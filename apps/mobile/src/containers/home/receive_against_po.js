@@ -28,7 +28,7 @@ const ReceiveAgainstPO = ({ navigation, route }) => {
             return;
         }
         AppAlert.alert('Goods received', 'Receipt recorded against this purchase order.', [
-            { text: 'OK', onPress: () => navigation.navigate('PurchaseOrders') },
+            { text: 'OK', onPress: () => navigation.popTo('PurchaseOrders') },
         ]);
     };
 

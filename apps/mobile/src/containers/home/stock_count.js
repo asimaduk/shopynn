@@ -154,7 +154,7 @@ const StockCount = ({ navigation }) => {
                             })),
                         });
                         AppAlert.alert('Success', 'Stock count submitted.', [
-                            { text: 'OK', onPress: () => navigation.navigate('StockCountHistory') },
+                            { text: 'OK', onPress: () => navigation.popTo('StockCountHistory') },
                         ]);
                     } catch (err) {
                         const msg =

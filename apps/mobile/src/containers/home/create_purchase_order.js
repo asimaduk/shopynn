@@ -56,7 +56,7 @@ const CreatePurchaseOrder = ({ navigation, route }) => {
             lines,
         };
         AppAlert.alert('Saved', 'Purchase order saved as draft.', [
-            { text: 'OK', onPress: () => navigation.navigate('PurchaseOrders') },
+            { text: 'OK', onPress: () => navigation.popTo('PurchaseOrders') },
         ]);
     };
 
@@ -69,7 +69,7 @@ const CreatePurchaseOrder = ({ navigation, route }) => {
             { text: 'Cancel', style: 'cancel' },
             { text: 'Send', onPress: () => {
                 AppAlert.alert('Sent', 'Purchase order sent to supplier.', [
-                    { text: 'OK', onPress: () => navigation.navigate('PurchaseOrders') },
+                    { text: 'OK', onPress: () => navigation.popTo('PurchaseOrders') },
                 ]);
             }},
         ]);
