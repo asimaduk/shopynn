@@ -21,6 +21,11 @@ const defaultItem = {
     items: [],
 };
 
+const formatQty = (value) => {
+    const n = Number(value);
+    return Number.isFinite(n) ? String(Number(n.toFixed(3))) : String(value ?? '');
+};
+
 const TransferDetails = ({ navigation, route }) => {
     const { colors } = useTheme();
     const { item: initialItem, transferId } = route.params || {};
@@ -46,7 +51,7 @@ const TransferDetails = ({ navigation, route }) => {
                 const next = {};
                 for (const line of lines) {
                     const key = String(line.detail_id || line.product_id || line.id);
-                    next[key] = String(line.quantity_received ?? line.quantity ?? 0);
+                    next[key] = formatQty(line.quantity_received ?? line.quantity ?? 0);
                 }
                 setQtyByKey(next);
                 setAllReceived(true);
@@ -116,8 +121,17 @@ const TransferDetails = ({ navigation, route }) => {
                           };
                       }),
                   };
-            await transfersApi.receive(id, body);
-            AppAlert.alert('Received', 'Transfer accepted. Destination stock updated.');
+            const result = await transfersApi.receive(id, body);
+            const shortUnits = (Array.isArray(result?.shortfalls) ? result.shortfalls : []).reduce(
+                (sum, s) => sum + (Number(s?.shortfall) || 0),
+                0,
+            );
+            AppAlert.alert(
+                'Received',
+                shortUnits > 0
+                    ? `Transfer accepted. ${formatQty(shortUnits)} unit${shortUnits === 1 ? '' : 's'} short — only the received quantity was added to ${destinationName}.`
+                    : 'Transfer accepted. Destination stock updated.',
+            );
             await load();
         } catch (err) {
             AppAlert.alert(
@@ -154,7 +168,12 @@ const TransferDetails = ({ navigation, route }) => {
     return (
         <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={backPress} label={'Transfer Details'} />
-            <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+            <ScrollView
+                contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
+                automaticallyAdjustKeyboardInsets
+            >
                 <View
                     style={{
                         backgroundColor: colors.surface,
@@ -240,8 +259,8 @@ const TransferDetails = ({ navigation, route }) => {
                             </View>
                             {productLines.map((line, idx) => {
                                 const name = line.product_name || line.name || `Item ${idx + 1}`;
-                                const sent = line.quantity ?? 0;
-                                const got = line.quantity_received;
+                                const sent = formatQty(line.quantity ?? 0);
+                                const got = line.quantity_received != null ? formatQty(line.quantity_received) : null;
                                 return (
                                     <View
                                         key={line.detail_id || line.product_id || `${idx}`}
@@ -315,7 +334,7 @@ const TransferDetails = ({ navigation, route }) => {
                                     return (
                                         <View key={key} style={{ marginBottom: 10 }}>
                                             <AppText
-                                                label={`${name} (sent ${line.quantity})`}
+                                                label={`${name} (sent ${formatQty(line.quantity)})`}
                                                 fontSize={13}
                                                 color={colors.textSecondary}
                                             />
