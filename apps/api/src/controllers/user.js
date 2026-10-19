@@ -35,10 +35,15 @@ const isTenantWarehouse = async (warehouseId, tenantId) => {
 const pickDefined = (source, keys) =>
     Object.fromEntries(keys.filter((k) => source?.[k] !== undefined).map((k) => [k, source[k]]));
 
+/** The branch the client sent, before auth pinned body.warehouse_id to the caller's own store. */
+const clientWarehouseId = (req) =>
+    Object.prototype.hasOwnProperty.call(req, "requestedWarehouseId") ? req.requestedWarehouseId : req.body?.warehouse_id;
+
 export const createUser = async (req, res, next) => {
     try {
         const tenantId = req.user.tenant_id;
-        const body = req.body || {};
+        const requestedWarehouse = clientWarehouseId(req);
+        const body = { ...(req.body || {}), warehouse_id: requestedWarehouse ?? req.body?.warehouse_id };
         if (body.role_id && !(await isTenantRole(body.role_id, tenantId))) {
             return handleResponse(res, 400, "Choose a role from your shop.");
         }
@@ -117,7 +122,10 @@ export const updateUser = async (req, res, next) => {
     try {
         const tenantId = req.user.tenant_id;
         const targetId = req.params.id === "me" ? req.user.id : req.params.id;
-        const body = req.body || {};
+        const body = { ...(req.body || {}) };
+        const requestedWarehouse = clientWarehouseId(req);
+        if (requestedWarehouse === undefined) delete body.warehouse_id;
+        else body.warehouse_id = requestedWarehouse;
         let payload;
         if (targetId === req.user.id) {
             payload = pickDefined(body, SELF_EDITABLE_USER_FIELDS);
