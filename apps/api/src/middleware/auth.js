@@ -13,6 +13,8 @@ const auth = (req, res, next) => {
             req.body.tenant_id = decode.tenant_id;
 
             if(decode.user_type != 1) {
+                // requirePermission restores this for users with multi-store access.
+                req.requestedWarehouseId = req.body.warehouse_id;
                 req.body.warehouse_id = decode.warehouse_id;
             }
         }

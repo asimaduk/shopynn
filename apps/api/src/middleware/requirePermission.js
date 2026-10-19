@@ -1,4 +1,25 @@
+import pool from "../config/db.js";
 import { getUserPermissionsService } from "../models/userRole.js";
+
+const MULTI_STORE_CODE = "stores.multi_access";
+
+/**
+ * auth pins body.warehouse_id to the user's home store. Users whose role and plan
+ * allow multi-store access get back the store they asked for, if it is in their shop.
+ */
+async function applyRequestedWarehouse(req, permissions) {
+    const requested = req.requestedWarehouseId;
+    if (!req.body || requested == null || requested === "") return;
+    if (String(requested) === String(req.body.warehouse_id ?? "")) return;
+    if (!permissions.includes(MULTI_STORE_CODE)) return;
+    const features = req.subscription?.features;
+    if (Array.isArray(features) && !features.some((f) => String(f).toLowerCase() === MULTI_STORE_CODE)) return;
+    const r = await pool.query("SELECT 1 FROM warehouses WHERE id = $1 AND tenant_id = $2 LIMIT 1", [
+        String(requested),
+        req.user.tenant_id,
+    ]);
+    if (r.rowCount) req.body.warehouse_id = requested;
+}
 
 let permissionCache = new Map();
 const CACHE_TTL_MS = 60 * 1000;
@@ -36,6 +57,7 @@ export function requirePermission(...permissionCodes) {
                 });
             }
             req.user.permissions = permissions;
+            await applyRequestedWarehouse(req, permissions);
             next();
         } catch (err) {
             next(err);
@@ -65,6 +87,7 @@ export function requireAnyPermission(...permissionCodes) {
                 });
             }
             req.user.permissions = permissions;
+            await applyRequestedWarehouse(req, permissions);
             next();
         } catch (err) {
             next(err);
