@@ -74,6 +74,7 @@ const NewAdjustments = ({ navigation, route }) => {
         navigation.navigate('Search', {
             source_nav: 'inventory',
             searchOnly: true,
+            warehouseId: selectedStore.id,
             onSelect: (record) => handleSingleSelect(record),
             onMultiSelect: (records) => handleMultiSelect(records),
         });

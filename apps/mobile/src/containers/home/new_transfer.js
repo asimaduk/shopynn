@@ -253,6 +253,7 @@ const NewTransfer = ({ navigation, route }) => {
                                 navigation.navigate('Search', {
                                     source_nav: 'inventory',
                                     searchOnly: true,
+                                    warehouseId: sourceWarehouse?.id,
                                     onSelect:(record)=> handleSingleSelect(record), 
                                     onMultiSelect:(records)=> handleMultiSelect(records)
                                 })
@@ -330,6 +331,7 @@ const NewTransfer = ({ navigation, route }) => {
                                 navigation.navigate('Search', {
                                     source_nav: 'inventory',
                                     searchOnly: true,
+                                    warehouseId: sourceWarehouse?.id,
                                     onSelect: handleSingleSelect,
                                     onMultiSelect: handleMultiSelect,
                                 })

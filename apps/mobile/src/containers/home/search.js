@@ -75,7 +75,7 @@ const formatCurrency = (value) => {
 }
 
 // Animated Product Item Component
-const ProductItem = ({ item, index, isSelected, multipleSelect, onPress }) => {
+const ProductItem = ({ item, index, isSelected, multipleSelect, onPress, warehouseId }) => {
     const { colors } = useTheme();
     const scale = useSharedValue(isSelected ? 1 : 0);
     const opacity = useSharedValue(isSelected ? 1 : 0);
@@ -124,6 +124,10 @@ const ProductItem = ({ item, index, isSelected, multipleSelect, onPress }) => {
     };
 
     const hasThumbnail = Boolean(item.thumbnail);
+    const storeRows = Array.isArray(item.stores_quantities) ? item.stores_quantities : null;
+    const stockQty = warehouseId && storeRows
+        ? Number(storeRows.find((s) => String(s.warehouse_id) === String(warehouseId))?.quantity_available) || 0
+        : item.inventory;
 
     return (
         <Animated.View style={[
@@ -170,7 +174,7 @@ const ProductItem = ({ item, index, isSelected, multipleSelect, onPress }) => {
                 )}
                 <View style={{flex:1,padding:4,marginRight:10,minWidth:0}}>
                     <AppText label={item.name} variant={1} fontSize={16} color={colors.text} numberOfLines={1}/> 
-                    <AppText label={`${item.inventory} in Stock`} variant={2} fontSize={13} color={colors.textSecondary} /> 
+                    <AppText label={`${stockQty} in Stock`} variant={2} fontSize={13} color={colors.textSecondary} /> 
                 </View>
                 <View style={{flexDirection:'row',alignItems:'center',flexShrink:0}}>
                     <AppText label={formatCurrency(item.unit_price)} variant={1} color={colors.text} />
@@ -453,6 +457,7 @@ const Search = ({ navigation, route }) => {
                             index={index}
                             isSelected={!!selectedItems[item.id]}
                             multipleSelect={multipleSelect}
+                            warehouseId={route.params?.warehouseId}
                             onPress={() => {
                                 if (multipleSelect) {
                                     const tmp = { ...selectedItems };
