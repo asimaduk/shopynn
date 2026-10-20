@@ -99,7 +99,7 @@ function DetailsTab() {
 								<tr>
 									<td>
 										<div className="flex items-center">
-											<Avatar src={'order.customer.avatar'} />
+											<Avatar>{String(order.customer || 'W').charAt(0).toUpperCase()}</Avatar>
 											<Typography className="truncate mx-2">
 												{order.customer || 'Walk-In'}
 												{/* {`${order.customer.firstName} ${order.customer.lastName}`} */}
@@ -227,17 +227,17 @@ function DetailsTab() {
 									<span className="truncate">{paymentStatusLabel(order.payment_status)}</span>
 								</td>
 								<td>
-									<span className="truncate font-[tabular-nums]">
+									<span className="truncate tabular-nums">
 										{formatGhsCurrency(amountPaid, 2, 2)}
 									</span>
 								</td>
 								<td>
-									<span className="truncate font-[tabular-nums]">
+									<span className="truncate tabular-nums">
 										{formatGhsCurrency(balanceDue, 2, 2)}
 									</span>
 								</td>
 								<td>
-									<span className="truncate font-[tabular-nums]">
+									<span className="truncate tabular-nums">
 										{formatGhsCurrency(
 											Number(String(order.total_amount ?? 0).replace(/,/g, '')),
 											2,
@@ -292,7 +292,7 @@ function DetailsTab() {
 											<span className="truncate">{String(p.payment_method || '').toUpperCase()}</span>
 										</td>
 										<td>
-											<span className="truncate font-[tabular-nums]">
+											<span className="truncate tabular-nums">
 												{formatGhsCurrency(Number(p.amount) || 0, 2, 2)}
 											</span>
 										</td>

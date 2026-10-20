@@ -109,10 +109,10 @@ function OutstandingBalancesPage() {
 												<td>{c.customer_name || '—'}</td>
 												<td>{c.customer_phone || '—'}</td>
 												<td>{c.open_sales}</td>
-												<td className="font-[tabular-nums]">
+												<td className="tabular-nums">
 													{formatGhsCurrency(Number(c.balance_due) || 0, 2, 2)}
 												</td>
-												<td className="font-[tabular-nums]">
+												<td className="tabular-nums">
 													{formatGhsCurrency(Number(c.store_credit_balance) || 0, 2, 2)}
 												</td>
 												<td>
@@ -162,10 +162,10 @@ function OutstandingBalancesPage() {
 										<tr key={s.id}>
 											<td>#{s.invoice_number || s.id}</td>
 											<td>{s.customer || '—'}</td>
-											<td className="font-[tabular-nums]">
+											<td className="tabular-nums">
 												{formatGhsCurrency(Number(s.amount_paid) || 0, 2, 2)}
 											</td>
-											<td className="font-[tabular-nums]">
+											<td className="tabular-nums">
 												{formatGhsCurrency(Number(s.balance_due) || 0, 2, 2)}
 											</td>
 											<td>
