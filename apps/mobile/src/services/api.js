@@ -386,6 +386,10 @@ export const inventories = {
     expiring: (params, options) => axios.get('/inventories/expiring', { params, ...options }).then((res) => getData(res)),
     topSelling: (params) => axios.get('/inventories/top-selling', { params }).then((res) => getData(res)),
     bulkUpdates: (body) => axios.post('/inventories/updates', body).then((res) => res.data),
+    setReorderLevel: (inventoryId, level) =>
+        axios
+            .patch(`/inventories/${inventoryId}/reorder-level`, { minimum_stock_level: level })
+            .then((res) => getData(res)),
 };
 
 // —— Adjustments ——

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Image, TouchableOpacity, ScrollView, View, ActivityIndicator, useWindowDimensions, Linking, Share, Modal, Pressable } from 'react-native';
+import { Image, TouchableOpacity, ScrollView, View, ActivityIndicator, useWindowDimensions, Linking, Share, Modal, Pressable, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
@@ -8,10 +9,10 @@ import AppText from '../../components/text';
 import config from '../../config';
 import ScreenHeader from '../../components/screen_header';
 import useTheme from '../../hooks/useTheme';
-import { products as productsApi, warehouses as warehousesApi } from '../../services/api';
+import { products as productsApi, warehouses as warehousesApi, inventories as inventoriesApi } from '../../services/api';
 import { normalizeProduct } from '../../utils/normalizeProduct';
 import { formatQuantity } from '../../utils/format';
-import { getScreenPlanAccess, canManageCustomerSignupCodes } from '../../utils/permissions';
+import { getScreenPlanAccess, canManageCustomerSignupCodes, hasPermission } from '../../utils/permissions';
 import { buildWhatsAppUrl } from '../../utils/invoice';
 import { storefrontProductUrl, storefrontShareMessage } from '../../utils/storefrontLinks';
 import AppAlert from '../../utils/appAlert';
@@ -39,12 +40,16 @@ const ProductDetails = ({ navigation, route }) => {
     const subscriptionFeatures = useSelector(({ appSettings }) => appSettings?.subscriptionFeatures || []);
     const adjustAccess = getScreenPlanAccess(user, 'NewAdjustments', subscriptionFeatures);
     const canShareOrderLink = canManageCustomerSignupCodes(currentUser, subscriptionFeatures);
+    const canEditReorder = hasPermission(user, ['products.update']);
     const { product: paramProduct, productId } = route.params || {};
     const [product, setProduct] = useState(() => normalizeProduct(paramProduct || {}));
     const [loading, setLoading] = useState(!!(productId || paramProduct?.id));
     const [sharing, setSharing] = useState(false);
     const [shareStores, setShareStores] = useState(null); // null | warehouse[]
     const sharePickResolveRef = React.useRef(null);
+    const [reorderEdit, setReorderEdit] = useState(null); // null | store row
+    const [reorderValue, setReorderValue] = useState('');
+    const [savingReorder, setSavingReorder] = useState(false);
 
     const loadProduct = useCallback(() => {
         const id = productId || paramProduct?.id;
@@ -120,6 +125,43 @@ const ProductDetails = ({ navigation, route }) => {
     }, [product.id]);
 
     const backPress = () => navigation.goBack();
+
+    const openReorderEdit = (store) => {
+        setReorderValue(store.minimum_stock_level != null ? String(store.minimum_stock_level) : '');
+        setReorderEdit(store);
+    };
+
+    const saveReorderLevel = async () => {
+        if (!reorderEdit?.id || savingReorder) return;
+        const level = Number(reorderValue);
+        if (reorderValue.trim() === '' || !Number.isFinite(level) || level < 0) {
+            AppAlert.alert('Invalid level', 'Enter a reorder level of 0 or more.');
+            return;
+        }
+        setSavingReorder(true);
+        try {
+            await inventoriesApi.setReorderLevel(reorderEdit.id, level);
+            setProduct((prev) => ({
+                ...prev,
+                stores_quantities: (prev.stores_quantities || []).map((s) =>
+                    s.id === reorderEdit.id ? { ...s, minimum_stock_level: level } : s
+                ),
+            }));
+            Toast.show({
+                type: 'success',
+                text1: 'Reorder level saved',
+                text2: `${reorderEdit.name || 'Store'} will reorder at ${formatQuantity(level)}.`,
+            });
+            setReorderEdit(null);
+        } catch (e) {
+            AppAlert.alert(
+                'Could not save',
+                e?.response?.data?.message || e?.message || 'Please try again.'
+            );
+        } finally {
+            setSavingReorder(false);
+        }
+    };
 
     const resolveStoreCodeForShare = async () => {
         const list = await warehousesApi.list();
@@ -314,6 +356,79 @@ const ProductDetails = ({ navigation, route }) => {
                 <AppAlertHost />
             </Modal>
 
+            <Modal
+                visible={!!reorderEdit}
+                transparent
+                animationType="fade"
+                onRequestClose={() => !savingReorder && setReorderEdit(null)}
+            >
+                <KeyboardAvoidingView
+                    style={{ flex: 1 }}
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                >
+                    <Pressable
+                        style={styles.shareModalBackdrop}
+                        onPress={() => !savingReorder && setReorderEdit(null)}
+                    >
+                        <Pressable
+                            style={[styles.shareModalSheet, { backgroundColor: colors.surface }]}
+                            onPress={(e) => e.stopPropagation?.()}
+                        >
+                            <AppText
+                                label="Reorder level"
+                                variant={1}
+                                fontSize={17}
+                                color={colors.text}
+                                style={{ marginBottom: 6 }}
+                            />
+                            <AppText
+                                label={`Flag ${name || 'this product'} as low stock at ${reorderEdit?.name || 'this store'} when it reaches this quantity.`}
+                                fontSize={13}
+                                color={colors.textSecondary}
+                                style={{ marginBottom: 12 }}
+                            />
+                            <TextInput
+                                value={reorderValue}
+                                onChangeText={setReorderValue}
+                                keyboardType="decimal-pad"
+                                autoFocus
+                                placeholder="0"
+                                placeholderTextColor={colors.textTertiary}
+                                editable={!savingReorder}
+                                onSubmitEditing={saveReorderLevel}
+                                style={[
+                                    styles.reorderInput,
+                                    { color: colors.text, borderColor: colors.border, backgroundColor: colors.background },
+                                ]}
+                            />
+                            <View style={styles.reorderActions}>
+                                <TouchableOpacity
+                                    activeOpacity={0.75}
+                                    disabled={savingReorder}
+                                    onPress={() => setReorderEdit(null)}
+                                    style={styles.reorderBtn}
+                                >
+                                    <AppText label="Cancel" color={colors.textSecondary} fontSize={15} variant={1} />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    activeOpacity={0.75}
+                                    disabled={savingReorder}
+                                    onPress={saveReorderLevel}
+                                    style={[styles.reorderBtn, { backgroundColor: config.THEME_COLOR }]}
+                                >
+                                    {savingReorder ? (
+                                        <ActivityIndicator size="small" color="#fff" />
+                                    ) : (
+                                        <AppText label="Save" color="#fff" fontSize={15} variant={1} />
+                                    )}
+                                </TouchableOpacity>
+                            </View>
+                        </Pressable>
+                    </Pressable>
+                </KeyboardAvoidingView>
+                <AppAlertHost />
+            </Modal>
+
             <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.scrollContent}
@@ -453,8 +568,36 @@ const ProductDetails = ({ navigation, route }) => {
                                     i === storesQuantities.length - 1 && { borderBottomWidth: 0 },
                                 ]}
                             >
-                                <AppText label={sq.name || sq.warehouse_name || 'Warehouse'} fontSize={14} color={colors.text} />
-                                <AppText label={`${formatQuantity(sq.quantity_available ?? sq.quantity ?? 0)} units`} fontSize={14} fontFamily="FiraSans-SemiBold" color={config.THEME_COLOR} />
+                                <View style={{ flex: 1, marginRight: 12 }}>
+                                    <AppText label={sq.name || sq.warehouse_name || 'Warehouse'} fontSize={14} color={colors.text} />
+                                    <TouchableOpacity
+                                        activeOpacity={0.7}
+                                        disabled={!canEditReorder || !sq.id}
+                                        onPress={() => openReorderEdit(sq)}
+                                        style={styles.reorderLine}
+                                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                    >
+                                        <AppText
+                                            label={`Reorder at ${formatQuantity(sq.minimum_stock_level ?? 0)}`}
+                                            fontSize={12}
+                                            color={colors.textSecondary}
+                                        />
+                                        {canEditReorder && sq.id ? (
+                                            <Lucide name="pencil" size={13} color={config.THEME_COLOR} style={{ marginLeft: 6 }} />
+                                        ) : null}
+                                    </TouchableOpacity>
+                                </View>
+                                <AppText
+                                    label={`${formatQuantity(sq.quantity_available ?? sq.quantity ?? 0)} units`}
+                                    fontSize={14}
+                                    fontFamily="FiraSans-SemiBold"
+                                    color={
+                                        Number(sq.minimum_stock_level) > 0 &&
+                                        Number(sq.quantity_available ?? 0) <= Number(sq.minimum_stock_level)
+                                            ? colors.error
+                                            : config.THEME_COLOR
+                                    }
+                                />
                             </View>
                         ))}
                     </View>
@@ -645,6 +788,33 @@ const styles = {
     shareStoreRow: {
         paddingVertical: 14,
         borderBottomWidth: 1,
+    },
+    reorderLine: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 3,
+        alignSelf: 'flex-start',
+    },
+    reorderInput: {
+        borderWidth: 1,
+        borderRadius: 10,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        fontSize: 16,
+    },
+    reorderActions: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        gap: 10,
+        marginTop: 16,
+        marginBottom: 8,
+    },
+    reorderBtn: {
+        minWidth: 88,
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderRadius: 10,
+        alignItems: 'center',
     },
 };
 
