@@ -392,7 +392,15 @@ function NewSale() {
                     storesQuantities.length > 0 ? availableQty : Number((prod as any)?.inventory ?? 0)
             })
             setCurrentOrder(x)
+            return;
         }
+
+        const nextQty = (Number(y.order_quantity) || 0) + 1;
+        if (nextQty > Number(y.quantity_available)) {
+            toast.error(`You cannot sell more than available quantity: ${y.quantity_available}`)
+            return;
+        }
+        setCurrentOrder(currentOrder.map((c) => (c.id == prod.id ? { ...c, order_quantity: nextQty } : c)));
     }
 
     const handleAddToHold = () => {
