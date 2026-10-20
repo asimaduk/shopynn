@@ -1,6 +1,19 @@
 import { handleResponse } from "../util/handleresponse.js";
 import { assertOwnStockPayload } from "../util/tenantScope.js";
-import { createSaleService, getAllSalesService, getSalesByDateService, getAllSaleDetailsService, getCogsReportService, getRevenueReportService, getDailySalesSummaryService, getSalesByCustomerSummaryService, getSalesByCustomersReportService, getSalesByUserSummaryService, getSaleByIdService, getSaleByIdForTenantService, getSaleAttendantsService, getSalesSummaryService, getTopSellingProductsService, getMyMtdSalesTotalService, buildSaleInvoicePackageService, sendSaleInvoiceEmailService, recordSalePaymentService, getOutstandingArService } from "../models/sale.js";
+import { createSaleService, getAllSalesService, getSalesByDateService, getAllSaleDetailsService, getCogsReportService, getRevenueReportService, getDailySalesSummaryService, getSalesByCustomerSummaryService, getSalesByCustomersReportService, getSalesByUserSummaryService, getSaleByIdService, getSaleByIdForTenantService, getSaleAttendantsService, getSalesSummaryService, getTopSellingProductsService, getMyMtdSalesTotalService, buildSaleInvoicePackageService, sendSaleInvoiceEmailService, recordSalePaymentService, getOutstandingArService, getNextInvoiceSeqService } from "../models/sale.js";
+
+export const getNextInvoiceSeq = async (req, res, next) => {
+    try {
+        const prefix = String(req.query.prefix || "").trim();
+        if (!prefix || prefix.length > 30) {
+            return handleResponse(res, 400, "prefix is required (max 30 characters).", null);
+        }
+        const nextSeq = await getNextInvoiceSeqService(req.user.tenant_id, prefix);
+        handleResponse(res, 200, "Next invoice number.", { prefix, next: nextSeq });
+    } catch (error) {
+        next(error);
+    }
+};
 
 export const createSale = async (req, res, next) => {
     try {

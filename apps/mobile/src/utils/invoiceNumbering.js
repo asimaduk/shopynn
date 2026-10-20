@@ -35,6 +35,26 @@ export function formatInvoiceNumber({ prefix, registerCode, number } = {}) {
     return r ? `${p}-${r}-${n}` : `${p}-${n}`;
 }
 
+/** Series part before the sequence number, e.g. "INV-M-". */
+export function invoiceSeriesPrefix(appSettings = {}) {
+    const p = normalizeInvoicePrefix(appSettings.invoicePrefix);
+    const r = normalizeInvoiceRegisterCode(appSettings.invoiceRegisterCode || DEFAULT_INVOICE_REGISTER_CODE);
+    return r ? `${p}-${r}-` : `${p}-`;
+}
+
+/**
+ * Counter value to store after a sale saved. The server may renumber a taken invoice
+ * (INV-M-1005 → INV-M-1006), so continue after whichever number it actually saved.
+ */
+export function nextInvoiceCounterAfterSale(currentNext, requestedNumber, savedNumber) {
+    const current = normalizeInvoiceNextNumber(currentNext);
+    const seq = String(savedNumber || '').match(/(\d+)$/);
+    if (savedNumber && savedNumber !== requestedNumber && seq) {
+        return Math.max(current + 1, Number(seq[1]) + 1);
+    }
+    return current + 1;
+}
+
 export function buildInvoiceNumberFromSettings(appSettings = {}) {
     return formatInvoiceNumber({
         prefix: appSettings.invoicePrefix,

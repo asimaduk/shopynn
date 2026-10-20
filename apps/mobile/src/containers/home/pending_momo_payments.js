@@ -10,8 +10,8 @@ import AppText from '../../components/text';
 import config from '../../config';
 import useTheme from '../../hooks/useTheme';
 import { payments as paymentsApi, sales as salesApi, normalizeList } from '../../services/api';
-import { buildInvoiceNumberFromSettings } from '../../utils/invoiceNumbering';
-import { incrementInvoiceNext } from '../../store/actions/appSettings';
+import { buildInvoiceNumberFromSettings, nextInvoiceCounterAfterSale } from '../../utils/invoiceNumbering';
+import { raiseInvoiceNext } from '../../store/actions/appSettings';
 import { isTelecelMomoProvider, getMomoNetworkIcon } from '../../utils/momoNetworks';
 import AppAlert from '../../utils/appAlert';
 
@@ -240,7 +240,7 @@ const PendingMomoPayments = ({ navigation }) => {
                     ? Math.round(Number(row.face_amount) * 100) / 100
                     : Math.round(products.reduce((s, p) => s + p.quantity * p.unit_price, 0) * 100) / 100;
             const invoiceNumber = buildInvoiceNumberFromSettings(appSettings);
-            await salesApi.create({
+            const created = await salesApi.create({
                 id: Date.now(),
                 total_amount,
                 discount_amount: 0,
@@ -262,7 +262,15 @@ const PendingMomoPayments = ({ navigation }) => {
                 payment_transaction_ref: ref,
                 payment_type: 2,
             });
-            dispatch(incrementInvoiceNext());
+            dispatch(
+                raiseInvoiceNext(
+                    nextInvoiceCounterAfterSale(
+                        appSettings.invoiceNextNumber,
+                        invoiceNumber,
+                        created?.invoice_number || created?.data?.invoice_number,
+                    ),
+                ),
+            );
             AppAlert.alert('Sale', 'Sale completed.');
             setSelectedRef(null);
             setStatusNote('');

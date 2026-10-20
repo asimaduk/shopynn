@@ -7,7 +7,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
 import config from '../../config';
-import { incrementInvoiceNext, setInvoiceNext } from '../../store/actions/appSettings';
+import { raiseInvoiceNext } from '../../store/actions/appSettings';
 import InvoiceShareSheet from '../../components/invoice_share_sheet';
 import ScreenHeader from '../../components/screen_header';
 import AppModal from '../../components/app_modal';
@@ -28,7 +28,11 @@ import {
     writeSecureList,
 } from '../../utils/secureOfflineStorage';
 import { normalizeWarehousePrinterType } from '../../utils/warehousePrinter';
-import { buildInvoiceNumberFromSettings } from '../../utils/invoiceNumbering';
+import {
+    buildInvoiceNumberFromSettings,
+    invoiceSeriesPrefix,
+    nextInvoiceCounterAfterSale,
+} from '../../utils/invoiceNumbering';
 import { POS_MOMO_STATUS_EVENT } from '../../utils/notificationNavigation';
 import {
     getBulkDiscountFromCompany,
@@ -133,6 +137,22 @@ const NewSale = ({ navigation, route }) => {
     const appSettings = useSelector((s) => s.appSettings) || {};
     const currentUser = useSelector(({ user }) => user);
     const subscriptionFeatures = useSelector(({ appSettings }) => appSettings?.subscriptionFeatures || []);
+
+    // A reset or reinstalled device counter would otherwise reuse numbers the shop already has.
+    useEffect(() => {
+        let cancelled = false;
+        salesApi
+            .nextInvoice(invoiceSeriesPrefix(appSettings))
+            .then((res) => {
+                const next = Number(res?.next);
+                if (!cancelled && Number.isFinite(next)) dispatch(raiseInvoiceNext(next));
+            })
+            .catch(() => {});
+        return () => {
+            cancelled = true;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [appSettings.invoicePrefix, appSettings.invoiceRegisterCode, currentUser?.tenant_id]);
     const bulkDiscount = useMemo(
         () => getBulkDiscountFromCompany(currentUser?.company),
         [currentUser?.company],
@@ -1523,12 +1543,11 @@ const NewSale = ({ navigation, route }) => {
             }
 
             const serverInvoiceNumber = created?.invoice_number || created?.data?.invoice_number;
-            const serverInvoiceSeq = String(serverInvoiceNumber || '').match(/(\d+)$/);
-            if (serverInvoiceNumber && serverInvoiceNumber !== invoiceNumber && serverInvoiceSeq) {
-                dispatch(setInvoiceNext(Number(serverInvoiceSeq[1]) + 1));
-            } else {
-                dispatch(incrementInvoiceNext());
-            }
+            dispatch(
+                raiseInvoiceNext(
+                    nextInvoiceCounterAfterSale(appSettings.invoiceNextNumber, invoiceNumber, serverInvoiceNumber),
+                ),
+            );
             setShowPaymentOptions(false);
 
             const saleForInvoice = {

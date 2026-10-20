@@ -16,6 +16,9 @@ export const SET_PRINT_AGENT = 'SET_PRINT_AGENT';
 export const setInvoicePrefix = (payload) => ({ type: SET_INVOICE_PREFIX, payload });
 export const setInvoiceNext = (payload) => ({ type: SET_INVOICE_NEXT, payload });
 export const incrementInvoiceNext = () => ({ type: INCREMENT_INVOICE_NEXT });
+export const RAISE_INVOICE_NEXT = 'RAISE_INVOICE_NEXT';
+/** Move the device counter forward to at least `payload`; never lowers it. */
+export const raiseInvoiceNext = (payload) => ({ type: RAISE_INVOICE_NEXT, payload });
 export const SET_INVOICE_COUNTER_TENANT = 'SET_INVOICE_COUNTER_TENANT';
 /** Restart device invoice numbering when a different shop signs in on this device. */
 export const setInvoiceCounterTenant = (tenantId) => ({ type: SET_INVOICE_COUNTER_TENANT, payload: tenantId });

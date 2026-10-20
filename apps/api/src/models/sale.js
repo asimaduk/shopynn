@@ -29,6 +29,26 @@ import { applyStoreCreditEntry, getCustomerStoreCredit } from "./storeCredit.js"
  * so reinstalls / other devices collide. Keep the requested number when free, else take the
  * next free number in the same series (INV-M-1001 → INV-M-1002 …).
  */
+/** Highest N among this tenant's invoice numbers shaped `${prefix}N` (0 when none). */
+async function maxInvoiceSeqForPrefix(db, tenantId, prefix) {
+    const { rows } = await db.query(
+        `SELECT invoice_number FROM sales
+         WHERE tenant_id = $1 AND invoice_number LIKE $2 ESCAPE '\\'`,
+        [tenantId, `${prefix.replace(/[\\%_]/g, "\\$&")}%`]
+    );
+    let max = 0;
+    for (const r of rows) {
+        const m = String(r.invoice_number).slice(prefix.length).match(/^(\d+)$/);
+        if (m) max = Math.max(max, Number(m[1]));
+    }
+    return max;
+}
+
+/** Next free sequence number for a device invoice series such as "INV-M-". */
+export const getNextInvoiceSeqService = async (tenantId, prefix) => {
+    return (await maxInvoiceSeqForPrefix(pool, tenantId, prefix)) + 1;
+};
+
 async function resolveUniqueInvoiceNumber(client, tenantId, invoiceNumber) {
     const base = String(invoiceNumber ?? "").trim();
     if (!base) return invoiceNumber ?? null;
@@ -41,16 +61,7 @@ async function resolveUniqueInvoiceNumber(client, tenantId, invoiceNumber) {
     const series = base.match(/^(.*?)(\d+)$/);
     if (series) {
         const [, prefix, digits] = series;
-        const { rows } = await client.query(
-            `SELECT invoice_number FROM sales
-             WHERE tenant_id = $1 AND invoice_number LIKE $2 ESCAPE '\\'`,
-            [tenantId, `${prefix.replace(/[\\%_]/g, "\\$&")}%`]
-        );
-        let max = Number(digits);
-        for (const r of rows) {
-            const m = String(r.invoice_number).slice(prefix.length).match(/^(\d+)$/);
-            if (m) max = Math.max(max, Number(m[1]));
-        }
+        const max = Math.max(Number(digits), await maxInvoiceSeqForPrefix(client, tenantId, prefix));
         const candidate = `${prefix}${max + 1}`.slice(0, 40);
         if (!(await taken(candidate))) return candidate;
     }

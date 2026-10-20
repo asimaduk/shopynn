@@ -1,5 +1,5 @@
 import express from "express";
-import { createSale, getAllSaleDetails, getAllSales, getSalesByDate, getCogsReport, getRevenueReport, getDailySalesSummary, getSalesByCustomersSummary, getSalesByCustomersReport, getSalesByUserSummary, getSalesSummary, getSaleAttendants, getSaleById, getTopSellingProducts, getMyMtdSalesTotal, getSaleInvoicePdf, sendSaleInvoice, recordSalePayment, getOutstandingAr } from "../controllers/sale.js";
+import { createSale, getAllSaleDetails, getAllSales, getSalesByDate, getCogsReport, getRevenueReport, getDailySalesSummary, getSalesByCustomersSummary, getSalesByCustomersReport, getSalesByUserSummary, getSalesSummary, getSaleAttendants, getSaleById, getTopSellingProducts, getMyMtdSalesTotal, getSaleInvoicePdf, sendSaleInvoice, recordSalePayment, getOutstandingAr, getNextInvoiceSeq } from "../controllers/sale.js";
 import auth from "../middleware/auth.js";
 import { requireAnyPermission, requirePermission } from "../middleware/requirePermission.js";
 
@@ -7,6 +7,7 @@ const router = express.Router();
 
 router.post("/", auth, requirePermission("sales.create"), createSale);
 router.get("/", auth, requirePermission("sales.view"), getAllSales);
+router.get("/next-invoice", auth, requirePermission("sales.create"), getNextInvoiceSeq);
 router.get("/me/mtd-total", auth, requirePermission("sales.view"), getMyMtdSalesTotal);
 router.get("/by-date", auth, requireAnyPermission("sales.by_date.view", "sales.view"), getSalesByDate);
 router.get("/summary", auth, requirePermission("sales.view"), getSalesSummary);

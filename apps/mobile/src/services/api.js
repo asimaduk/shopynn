@@ -289,6 +289,8 @@ export const sales = {
     cogs: (params) => axios.get('/sales/cogs', { params }).then((res) => getData(res)),
     get: (id) => axios.get(`/sales/${id}`).then((res) => getData(res)),
     create: (body) => axios.post('/sales', body).then((res) => getData(res)),
+    nextInvoice: (prefix) =>
+        axios.get('/sales/next-invoice', { params: { prefix }, skipErrorAlert: true }).then((res) => getData(res)),
     sendInvoice: (id, body = {}) =>
         axios.post(`/sales/${id}/send-invoice`, body, { timeout: 90000 }).then((res) => getData(res)),
     downloadInvoicePdf: async (id) => {
