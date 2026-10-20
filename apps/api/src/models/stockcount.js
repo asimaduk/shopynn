@@ -1,5 +1,6 @@
 import pool from "../config/db.js";
 import { v4 as uuidv4 } from "uuid";
+import { defaultMinimumStockLevel } from "../util/reorderLevel.js";
 
 /**
  * List stock count history with optional filters: tenant_id (required via user), startDate, endDate, warehouse_id.
@@ -121,8 +122,8 @@ export const createStockCountService = async (payload) => {
             } else {
                 await client.query(
                     `INSERT INTO inventories (id, quantity_available, minimum_stock_level, product_id, warehouse_id, tenant_id, creator_id, created_at, updated_at)
-                     VALUES ($1, $2, 0, $3, $4, $5, $6, $7, $7)`,
-                    [uuidv4(), counted, d.product_id, warehouse_id, tenant_id, creator_id, now]
+                     VALUES ($1, $2, $8, $3, $4, $5, $6, $7, $7)`,
+                    [uuidv4(), counted, d.product_id, warehouse_id, tenant_id, creator_id, now, await defaultMinimumStockLevel(client, tenant_id, d.product_id)]
                 );
             }
             adjustmentLines.push({ product_id: d.product_id, variance, expected });

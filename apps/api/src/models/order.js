@@ -32,6 +32,7 @@ import {
 } from "./orderInstallment.js";
 import { applyStoreCreditEntry } from "./storeCredit.js";
 import { maybeRecordSaleForOrder } from "./orderSale.js";
+import { defaultMinimumStockLevel } from "../util/reorderLevel.js";
 
 const ORDER_STATUS_TRANSITIONS = {
     pending: ["confirmed", "cancelled"],
@@ -434,7 +435,7 @@ const restockOrderItems = async (client, { tenantId, warehouseId, items, creator
                     id, quantity_available, minimum_stock_level, product_id, warehouse_id,
                     creator_id, tenant_id, created_at, updated_at
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)`,
-                [uuidv4(), quantity, 10, productId, warehouseId, creatorId || null, tenantId, new Date()]
+                [uuidv4(), quantity, await defaultMinimumStockLevel(client, tenantId, productId), productId, warehouseId, creatorId || null, tenantId, new Date()]
             );
         }
         await client.query(

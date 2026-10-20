@@ -2,6 +2,7 @@ import pool from "../config/db.js";
 import { v4 as uuidv4 } from "uuid";
 import { applyStoreCreditEntry, toMoney } from "./storeCredit.js";
 import { refundTransaction } from "../services/paymentGateway.js";
+import { defaultMinimumStockLevel } from "../util/reorderLevel.js";
 const COMPLETED = "completed";
 
 function httpError(message, status = 400, code = null) {
@@ -416,7 +417,7 @@ async function restockProduct(client, { productId, warehouseId, quantity, tenant
                 id, quantity_available, minimum_stock_level, product_id, warehouse_id,
                 creator_id, tenant_id, created_at
             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-            [uuidv4(), qty, 10, productId, warehouseId, creatorId || null, tenantId, new Date()]
+            [uuidv4(), qty, await defaultMinimumStockLevel(client, tenantId, productId), productId, warehouseId, creatorId || null, tenantId, new Date()]
         );
     }
     await client.query(

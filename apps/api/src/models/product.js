@@ -631,9 +631,9 @@ export const createProductService = async (payload) => {
             const { warehouse_id, quantity } = warehouse_quantity;
             const inv_id = uuidv4();
             await pool.query(`
-                INSERT INTO inventories (id, quantity_available, product_id, warehouse_id, batch_number, serial_number, creator_id, tenant_id, created_at) 
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-                [inv_id, quantity, id, warehouse_id, batch_number, serial_number, creator_id, tenant_id, new Date()])
+                INSERT INTO inventories (id, quantity_available, minimum_stock_level, product_id, warehouse_id, batch_number, serial_number, creator_id, tenant_id, created_at) 
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+                [inv_id, quantity, Number(reorder_quantity) || 0, id, warehouse_id, batch_number, serial_number, creator_id, tenant_id, new Date()])
         }
     }
 
@@ -699,6 +699,11 @@ export const updateProductService = async (payload) => {
         return existing.rows[0] || null;
     }
 
+    const reorderChanging = Object.prototype.hasOwnProperty.call(payload, "reorder_quantity");
+    const previous = reorderChanging
+        ? (await pool.query(`SELECT reorder_quantity FROM products WHERE id = $1`, [id])).rows[0]
+        : null;
+
     sets.push(`updated_at = $${param++}`);
     values.push(new Date());
     values.push(id);
@@ -707,6 +712,21 @@ export const updateProductService = async (payload) => {
         `UPDATE products SET ${sets.join(", ")} WHERE id = $${param} RETURNING id`,
         values
     ).catch(rethrowDuplicateSku);
+
+    if (reorderChanging && result.rows[0]) {
+        // Stores still on the old product level (or the old built-in 0/10 defaults) follow the new one;
+        // stores with their own level keep it.
+        const next = Number(payload.reorder_quantity) || 0;
+        const old = previous?.reorder_quantity == null ? null : Number(previous.reorder_quantity);
+        await pool.query(
+            `UPDATE inventories SET minimum_stock_level = $1, updated_at = NOW()
+             WHERE product_id = $2
+               AND (minimum_stock_level IS NULL
+                    OR ($3::numeric IS NOT NULL AND minimum_stock_level = $3::numeric)
+                    OR ($3::numeric IS NULL AND minimum_stock_level IN (0, 10)))`,
+            [next, id, old]
+        );
+    }
 
     return result.rows[0];
 }

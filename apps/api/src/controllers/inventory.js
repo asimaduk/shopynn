@@ -1,7 +1,7 @@
 import { handleResponse } from "../util/handleresponse.js";
 import { assertOwnStockPayload } from "../util/tenantScope.js";
 import { hasMultiStoreAccess } from "../middleware/requirePermission.js";
-import { createBulkUpdatesService, getAllInventoriesService, getExpiringInventoriesService, getInventoryCountService, getSlowMovingInventoriesService, getStockSummaryService, getTopSellingInventoriesService } from "../models/inventory.js";
+import { createBulkUpdatesService, getAllInventoriesService, getExpiringInventoriesService, getInventoryCountService, getSlowMovingInventoriesService, getStockSummaryService, getTopSellingInventoriesService, setInventoryReorderLevelService } from "../models/inventory.js";
 
 export const getAllInventories = async (req, res, next) => {
     try {
@@ -74,6 +74,21 @@ export const createBulkUpdates = async (req, res, next) => {
         await assertOwnStockPayload(req);
         const update = await createBulkUpdatesService(req.body);
         handleResponse(res, 200, "Update respone.", update);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const setInventoryReorderLevel = async (req, res, next) => {
+    try {
+        const level = Number(req.body?.minimum_stock_level);
+        if (!Number.isFinite(level) || level < 0) {
+            return handleResponse(res, 400, "Enter a reorder level of 0 or more.");
+        }
+        const scopeWarehouse = hasMultiStoreAccess(req) ? null : req.user.warehouse_id || null;
+        const row = await setInventoryReorderLevelService(req.user.tenant_id, req.params.id, level, scopeWarehouse);
+        if (!row) return handleResponse(res, 404, "Stock record not found.");
+        handleResponse(res, 200, "Reorder level updated.", row);
     } catch (error) {
         next(error);
     }

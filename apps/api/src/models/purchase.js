@@ -1,6 +1,7 @@
 import pool from "../config/db.js";
 import { v4 as uuidv4 } from 'uuid';
 import { getUserPermissionsService } from "./userRole.js";
+import { defaultMinimumStockLevel } from "../util/reorderLevel.js";
 
 const canViewAllPurchasesForUser = async (user) => {
     if (Number(user.user_type) === 1) return true;
@@ -476,7 +477,8 @@ export const createPurchaseService = async (payload) => {
             }
             else {
                 const newId = uuidv4();
-                await client.query("INSERT INTO inventories (id, quantity_available, minimum_stock_level, product_id, warehouse_id, creator_id, tenant_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",[newId, prod.quantity, 10, prod.id, warehouse_id, creator_id, tenant_id, new Date()]);
+                const minLevel = await defaultMinimumStockLevel(client, tenant_id, prod.id);
+                await client.query("INSERT INTO inventories (id, quantity_available, minimum_stock_level, product_id, warehouse_id, creator_id, tenant_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",[newId, prod.quantity, minLevel, prod.id, warehouse_id, creator_id, tenant_id, new Date()]);
             }
 
             const _newId = uuidv4();

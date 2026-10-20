@@ -1,5 +1,6 @@
 import pool from "../config/db.js";
 import { v4 as uuidv4 } from 'uuid';
+import { defaultMinimumStockLevel } from "../util/reorderLevel.js";
 
 export const getAllAdjustmentsService = async (user, requestQuery = {}) => {
     const conditions = ["adjustments.tenant_id = $1"];
@@ -307,8 +308,8 @@ export const createAdjustmentService = async (payload) => {
                     const now = new Date();
                     await client.query(
                         `INSERT INTO inventories (id, quantity_available, minimum_stock_level, product_id, warehouse_id, tenant_id, creator_id, created_at, updated_at)
-                         VALUES ($1, $2, 0, $3, $4, $5, $6, $7, $7)`,
-                        [invId, qty, prod.id, warehouse_id, tenant_id, creator_id, now]
+                         VALUES ($1, $2, $8, $3, $4, $5, $6, $7, $7)`,
+                        [invId, qty, prod.id, warehouse_id, tenant_id, creator_id, now, await defaultMinimumStockLevel(client, tenant_id, prod.id)]
                     );
                 }
             }

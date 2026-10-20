@@ -1,6 +1,7 @@
 import pool from "../config/db.js";
 import { v4 as uuidv4 } from 'uuid';
 import { normalizeInventoryListRow } from "../util/inventoryNormalize.js";
+import { defaultMinimumStockLevel } from "../util/reorderLevel.js";
 
 /**
  * Inventory rows for one store. With `allStores` (and a tenant_id) rows from every store
@@ -358,6 +359,17 @@ export const updateInventoryService = async (payload) => {
     return result.rows[0];
 };
 
+/** Set one store's reorder level for a product; returns null when the row isn't in this tenant (or store). */
+export const setInventoryReorderLevelService = async (tenantId, inventoryId, level, warehouseId = null) => {
+    const result = await pool.query(
+        `UPDATE inventories SET minimum_stock_level = $1, updated_at = $2
+         WHERE id::text = $3 AND tenant_id = $4 AND ($5::text IS NULL OR warehouse_id::text = $5::text)
+         RETURNING id, product_id, warehouse_id, quantity_available, minimum_stock_level`,
+        [level, new Date(), String(inventoryId), tenantId, warehouseId ? String(warehouseId) : null]
+    );
+    return result.rows[0] || null;
+};
+
 //to be reviewed
 export const deleteInventoryService = async (id) => {
     const result = await pool.query(`
@@ -410,7 +422,8 @@ export const createBulkUpdatesService = async (payload) => {
             }
             else {
                 const newId = uuidv4();
-                await client.query("INSERT INTO inventories (id, quantity_available, minimum_stock_level, product_id, warehouse_id, creator_id, tenant_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",[newId, prod.quantity, 10, prod.id, warehouse_id, creator_id, tenant_id, new Date()]);
+                const minLevel = await defaultMinimumStockLevel(client, tenant_id, prod.id);
+                await client.query("INSERT INTO inventories (id, quantity_available, minimum_stock_level, product_id, warehouse_id, creator_id, tenant_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",[newId, prod.quantity, minLevel, prod.id, warehouse_id, creator_id, tenant_id, new Date()]);
 
                 //insert into trans
 
