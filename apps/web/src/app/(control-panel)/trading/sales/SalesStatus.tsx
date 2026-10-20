@@ -1,31 +1,25 @@
-import _ from 'lodash';
 import clsx from 'clsx';
-import orderStatuses from './constants/orderStatuses';
+import { formatGhsCurrency } from '../../dashboards/analytics/daily-sales/formatGhsCurrency';
 
-/**
- * The orders status properties.
- */
-type OrdersStatusProps = {
-	name: string;
+type SalesStatusProps = {
+	paymentStatus?: number | string | null;
+	balanceDue?: number | string | null;
 };
 
-/**
- * The orders status component.
- */
-function OrdersStatus(props: OrdersStatusProps) {
-	const { name } = props;
+/** Payment state of a sale: 1 = paid, 2 = part-paid, 0 = on credit. */
+function SalesStatus({ paymentStatus, balanceDue }: SalesStatusProps) {
+	const balance = Number(String(balanceDue ?? 0).replace(/,/g, '')) || 0;
+	const status = Number(paymentStatus);
+	const owing = balance > 0.02;
 
-	return (
-		<div
-			className={clsx(
-				'inline text-md font-semibold py-1 px-3 rounded-full truncate',
-				_.find(orderStatuses, { id: name })?.color
-			)}
-		>
-			{/* {name} */}
-			{_.find(orderStatuses, { id: name })?.name}
-		</div>
-	);
+	const { label, color } =
+		!owing || status === 1
+			? { label: 'Paid', color: 'bg-green-500 text-white' }
+			: status === 2
+				? { label: `Part-paid · ${formatGhsCurrency(balance, 2, 2)} owed`, color: 'bg-orange-500 text-white' }
+				: { label: `On credit · ${formatGhsCurrency(balance, 2, 2)} owed`, color: 'bg-red-500 text-white' };
+
+	return <div className={clsx('inline text-md font-semibold py-1 px-3 rounded-full truncate', color)}>{label}</div>;
 }
 
-export default OrdersStatus;
+export default SalesStatus;

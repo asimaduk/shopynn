@@ -99,7 +99,7 @@ function OrdersTable({ sales }: { sales: Sale[] }) {
 										<TableCell align="right">Total (GHS)</TableCell>
 										<TableCell align="right">Items</TableCell>
 										<TableCell>Attendant</TableCell>
-										<TableCell>Status</TableCell>
+										<TableCell>Payment</TableCell>
 										{canResendInvoice ? <TableCell align="center">Invoice</TableCell> : null}
 									</TableRow>
 								</TableHead>
@@ -124,7 +124,7 @@ function OrdersTable({ sales }: { sales: Sale[] }) {
 													{row.invoice_number}
 												</Typography>
 											</TableCell>
-											<TableCell>{row.customer || '—'}</TableCell>
+											<TableCell>{row.customer || 'Walk-in'}</TableCell>
 											<TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>
 												{formatGhsCurrency(Number(String(row.total_amount ?? 0).replace(/,/g, '')), 2, 2)}
 											</TableCell>
@@ -133,7 +133,10 @@ function OrdersTable({ sales }: { sales: Sale[] }) {
 												{`${row.attendant_first_name ?? ''} ${row.attendant_last_name ?? ''}`.trim() || '—'}
 											</TableCell>
 											<TableCell>
-												<SalesStatus name={`${row.current_status}`} />
+												<SalesStatus
+													paymentStatus={(row as Sale & { payment_status?: number }).payment_status}
+													balanceDue={(row as Sale & { balance_due?: number | string }).balance_due}
+												/>
 											</TableCell>
 											{canResendInvoice ? (
 												<TableCell align="center" onClick={(e) => e.stopPropagation()}>
