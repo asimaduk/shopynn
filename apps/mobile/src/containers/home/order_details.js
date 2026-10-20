@@ -1,17 +1,18 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, Linking, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
 import ScreenHeader from '../../components/screen_header';
 import AppText from '../../components/text';
 import useTheme from '../../hooks/useTheme';
 import config from '../../config';
-import { orders, storeOrders } from '../../services/api';
+import { storeOrders } from '../../services/api';
 import { hasFeature, hasPermission } from '../../utils/permissions';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppAlert from '../../utils/appAlert';
 
+/** Mirrors the API's ORDER_STATUS_TRANSITIONS; cancelling is offered separately. */
 const TRANSITIONS = {
     pending: ['confirmed'],
     confirmed: ['processing'],
@@ -22,55 +23,114 @@ const TRANSITIONS = {
     completed: [],
     cancelled: [],
 };
-/** Matches ims-services ORDER_STATUS_TRANSITIONS — only these may transition to cancelled. */
+const DELIVERY_ONLY_STATUSES = new Set(['shipped', 'delivered']);
 const CANCELLABLE_ORDER_STATUSES = new Set(['pending', 'confirmed']);
+const RETURNABLE_ORDER_STATUSES = new Set(['delivered', 'completed']);
 const STATUS_STEPS = ['pending', 'confirmed', 'processing', 'ready', 'shipped', 'delivered', 'completed'];
+
+const ACTION_COPY = {
+    confirmed: { label: 'Confirm order', icon: 'badge-check' },
+    processing: { label: 'Start processing', icon: 'settings' },
+    ready: { label: 'Mark ready', icon: 'package-check' },
+    shipped: { label: 'Mark shipped', icon: 'truck' },
+    delivered: { label: 'Mark delivered', icon: 'map-pin-check' },
+    completed: { label: 'Complete order', icon: 'circle-check' },
+};
+
 const formatStatusLabel = (value) =>
     String(value || '')
         .replace(/[_-]+/g, ' ')
         .replace(/\s+/g, ' ')
         .trim()
         .replace(/\b\w/g, (c) => c.toUpperCase());
-const getStatusPalette = (value) => {
-    const status = String(value || '').toLowerCase();
-    if (status === 'completed' || status === 'delivered') return { bg: '#dcfce7', text: '#16a34a' };
-    if (status === 'cancelled') return { bg: '#fee2e2', text: '#dc2626' };
-    if (status === 'processing' || status === 'confirmed' || status === 'shipped') return { bg: '#dbeafe', text: '#2563eb' };
-    if (status === 'ready') return { bg: '#ede9fe', text: '#7c3aed' };
-    return { bg: '#fef3c7', text: '#d97706' };
+
+const formatMoney = (value) => `GH₵ ${Number(value || 0).toFixed(2)}`;
+
+const formatDateTime = (value) => {
+    if (!value) return '';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '';
+    return `${d.toLocaleDateString()} • ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 };
 
-const getPaymentPalette = (value) => {
-    const ps = String(value || '').toLowerCase();
-    if (ps === 'paid') return { bg: '#dcfce7', text: '#16a34a' };
-    if (ps === 'failed') return { bg: '#fee2e2', text: '#dc2626' };
-    if (ps === 'pending') return { bg: '#fef3c7', text: '#d97706' };
-    return { bg: '#f3f4f6', text: '#6b7280' };
+const statusPalette = (status, colors) => {
+    const s = String(status || '').toLowerCase();
+    if (s === 'completed' || s === 'delivered') return { bg: colors.successLight, text: colors.success };
+    if (s === 'cancelled') return { bg: colors.errorLight, text: colors.error };
+    if (s === 'pending') return { bg: colors.warningLight, text: colors.warning };
+    return { bg: colors.primaryShade, text: colors.primary };
 };
+
+const paymentPalette = (status, colors) => {
+    const s = String(status || '').toLowerCase();
+    if (s === 'paid') return { bg: colors.successLight, text: colors.success };
+    if (s === 'failed') return { bg: colors.errorLight, text: colors.error };
+    if (s === 'pending' || s === 'partially_paid' || s === 'partial') return { bg: colors.warningLight, text: colors.warning };
+    return { bg: colors.surfaceSecondary, text: colors.textSecondary };
+};
+
+const OrderCard = ({ colors, icon, title, right, children }) => (
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        {title ? (
+            <View style={styles.cardHead}>
+                <View style={styles.cardHeadLeft}>
+                    {icon ? <Lucide name={icon} size={16} color={colors.textSecondary} /> : null}
+                    <AppText label={title} variant={1} fontSize={15} color={colors.text} style={{ marginLeft: icon ? 8 : 0 }} />
+                </View>
+                {right}
+            </View>
+        ) : null}
+        {children}
+    </View>
+);
+
+const OrderInfoRow = ({ colors, icon, label, value, onPress, actionIcon }) => (
+    <View style={styles.infoRow}>
+        <View style={[styles.infoIcon, { backgroundColor: colors.surfaceSecondary }]}>
+            <Lucide name={icon} size={16} color={colors.textSecondary} />
+        </View>
+        <View style={{ flex: 1 }}>
+            <AppText label={label} fontSize={11} color={colors.textTertiary} />
+            <AppText label={value} fontSize={14} color={colors.text} style={{ marginTop: 1 }} />
+        </View>
+        {onPress ? (
+            <TouchableOpacity
+                onPress={onPress}
+                activeOpacity={0.7}
+                style={[styles.infoAction, { backgroundColor: colors.primaryShade }]}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+                <Lucide name={actionIcon} size={16} color={config.THEME_COLOR} />
+            </TouchableOpacity>
+        ) : null}
+    </View>
+);
+
+const Badge = ({ label, palette }) => (
+    <View style={[styles.badge, { backgroundColor: palette.bg }]}>
+        <AppText label={label} fontSize={11} variant={1} color={palette.text} />
+    </View>
+);
 
 const OrderDetails = ({ navigation, route }) => {
     const { colors } = useTheme();
+    const insets = useSafeAreaInsets();
     const user = useSelector(({ user }) => user);
     const subscriptionFeatures = useSelector(({ appSettings }) => appSettings?.subscriptionFeatures || []);
     const orderId = route?.params?.orderId;
     const [order, setOrder] = useState(null);
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [reason, setReason] = useState('');
-    const [cancelNote, setCancelNote] = useState('');
+    const [note, setNote] = useState('');
     const [partialAmount, setPartialAmount] = useState('');
     const [partialNote, setPartialNote] = useState('');
-    const [paymentBusy, setPaymentBusy] = useState(false);
+    const [busy, setBusy] = useState(false);
 
-    const canUpdateStatus =
-        hasPermission(user, 'orders.update') &&
-        hasFeature(user, 'orders.update', subscriptionFeatures);
-    const canManagePayments =
+    // Staff work orders through /store-orders, which is guarded by orders.status.update.
+    // orders.update / orders.cancel are customer-portal permissions.
+    const canProcess =
         hasPermission(user, 'orders.status.update') &&
         hasFeature(user, 'orders.status.update', subscriptionFeatures);
-    const canCancel =
-        hasPermission(user, 'orders.cancel') &&
-        hasFeature(user, 'orders.cancel', subscriptionFeatures);
 
     const load = useCallback(async () => {
         if (!orderId) return;
@@ -94,69 +154,60 @@ const OrderDetails = ({ navigation, route }) => {
         }, [load]),
     );
 
-    const updateStatus = async (status) => {
-        const requiresReason = status === 'completed';
-        if (requiresReason && !String(reason).trim()) {
-            AppAlert.alert('Reason required', 'Please provide a completion reason.');
-            return;
+    const runAction = async (fn, failTitle) => {
+        setBusy(true);
+        try {
+            await fn();
+            setNote('');
+            await load();
+        } catch (error) {
+            AppAlert.alert(failTitle, error?.response?.data?.message || error?.response?.data?.error || 'Try again.');
+        } finally {
+            setBusy(false);
         }
-
-        AppAlert.alert(
-            'Confirm status update',
-            `Change order status to "${formatStatusLabel(status)}"?`,
-            [
-                { text: 'No', style: 'cancel' },
-                {
-                    text: 'Yes, update',
-                    style: 'default',
-                    onPress: async () => {
-                        try {
-                            await storeOrders.updateStatus(orderId, status, reason || undefined);
-                            setReason('');
-                            await load();
-                        } catch (error) {
-                            AppAlert.alert('Status update failed', error?.response?.data?.message || 'Try again.');
-                        }
-                    },
-                },
-            ]
-        );
     };
 
-    const cancel = () => {
-        const status = String(order?.status || '').toLowerCase();
-        if (!CANCELLABLE_ORDER_STATUSES.has(status)) {
-            AppAlert.alert(
-                'Cannot cancel',
-                'Only orders that are still pending or confirmed can be cancelled.',
-            );
-            return;
-        }
-        const note = String(cancelNote || '').trim();
-        AppAlert.alert('Cancel order', 'Are you sure you want to cancel this order?', [
-            { text: 'No', style: 'cancel' },
+    const updateStatus = (status) => {
+        const copy = ACTION_COPY[status];
+        AppAlert.alert(copy?.label || 'Update order', `Move ${order?.order_number || 'this order'} to "${formatStatusLabel(status)}"?`, [
+            { text: 'Not now', style: 'cancel' },
             {
-                text: 'Yes, cancel',
-                style: 'destructive',
-                onPress: async () => {
-                    try {
-                        await orders.cancel(orderId, note || 'Cancelled by user');
-                        setCancelNote('');
-                        await load();
-                    } catch (error) {
-                        AppAlert.alert('Cancel failed', error?.response?.data?.message || 'Try again.');
-                    }
-                },
+                text: 'Yes, update',
+                onPress: () =>
+                    runAction(
+                        () => storeOrders.updateStatus(orderId, status, note.trim() || undefined),
+                        'Status update failed',
+                    ),
             },
         ]);
     };
 
-    const paymentStatusRaw = String(order?.payment_status || 'unpaid').toLowerCase();
+    const cancelOrder = () => {
+        AppAlert.alert(
+            'Cancel order',
+            `Cancel ${order?.order_number || 'this order'}? Its items go back into stock and the customer is notified.`,
+            [
+                { text: 'Keep order', style: 'cancel' },
+                {
+                    text: 'Cancel order',
+                    style: 'destructive',
+                    onPress: () =>
+                        runAction(
+                            () => storeOrders.updateStatus(orderId, 'cancelled', note.trim() || 'Cancelled by store'),
+                            'Cancel failed',
+                        ),
+                },
+            ],
+        );
+    };
+
+    const paymentStatus = String(order?.payment_status || 'unpaid').toLowerCase();
     const isInstallmentOrder = String(order?.payment_mode || 'full').toLowerCase() === 'installment';
     const balanceDue = Number(order?.balance_due ?? 0);
     const amountPaid = Number(order?.amount_paid ?? 0);
     const installmentPayments = Array.isArray(order?.installment_payments) ? order.installment_payments : [];
     const fulfillmentType = String(order?.fulfillment_type || 'pickup').toLowerCase();
+    const isDelivery = fulfillmentType === 'delivery';
 
     const onRecordPartialCash = () => {
         const amt = Number(partialAmount);
@@ -165,64 +216,39 @@ const OrderDetails = ({ navigation, route }) => {
             return;
         }
         if (amt > balanceDue + 0.02) {
-            AppAlert.alert('Too high', `Amount cannot exceed remaining balance (GH₵ ${balanceDue.toFixed(2)}).`);
+            AppAlert.alert('Too high', `Amount cannot exceed remaining balance (${formatMoney(balanceDue)}).`);
             return;
         }
-        AppAlert.alert('Record cash payment', `Record GH₵ ${amt.toFixed(2)} toward this order balance?`, [
+        AppAlert.alert('Record cash payment', `Record ${formatMoney(amt)} toward this order balance?`, [
             { text: 'Cancel', style: 'cancel' },
             {
                 text: 'Record',
-                onPress: async () => {
-                    setPaymentBusy(true);
-                    try {
-                        await storeOrders.recordPartialCash(orderId, {
-                            amount: amt,
-                            note: partialNote.trim() || undefined,
-                        });
+                onPress: () =>
+                    runAction(async () => {
+                        await storeOrders.recordPartialCash(orderId, { amount: amt, note: partialNote.trim() || undefined });
                         setPartialAmount('');
                         setPartialNote('');
-                        await load();
-                    } catch (error) {
-                        AppAlert.alert(
-                            'Could not record payment',
-                            error?.response?.data?.message || error?.response?.data?.error || 'Try again.',
-                        );
-                    } finally {
-                        setPaymentBusy(false);
-                    }
-                },
+                    }, 'Could not record payment'),
             },
         ]);
     };
 
     const onMarkCashPaid = () => {
-        AppAlert.alert(
-            'Mark paid (cash)',
-            'Mark this order as paid in cash? This cannot be undone automatically.',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Mark paid',
-                    onPress: async () => {
-                        setPaymentBusy(true);
-                        try {
-                            await storeOrders.markPaidCash(orderId, {});
-                            await load();
-                        } catch (error) {
-                            AppAlert.alert(
-                                'Could not mark paid',
-                                error?.response?.data?.message || error?.response?.data?.error || 'Try again.',
-                            );
-                        } finally {
-                            setPaymentBusy(false);
-                        }
-                    },
-                },
-            ],
+        AppAlert.alert('Mark paid (cash)', `Confirm you collected ${formatMoney(order?.total_amount)} in cash?`, [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Mark paid', onPress: () => runAction(() => storeOrders.markPaidCash(orderId, {}), 'Could not mark paid') },
+        ]);
+    };
+
+    const callCustomer = () => {
+        const phone = String(order?.customer_phone || '').replace(/[^\d+]/g, '');
+        if (!phone) return;
+        Linking.openURL(`tel:${phone}`).catch(() =>
+            AppAlert.alert('Calls not available', 'This device cannot make phone calls.'),
         );
     };
 
-    if (loading) {
+    if (loading && !order) {
         return (
             <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
                 <ScreenHeader onPress={() => navigation.goBack()} label="Order details" />
@@ -232,530 +258,392 @@ const OrderDetails = ({ navigation, route }) => {
             </SafeAreaView>
         );
     }
-    const currentStatus = String(order?.status || '').toLowerCase();
+
+    if (!order) {
+        return (
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
+                <ScreenHeader onPress={() => navigation.goBack()} label="Order details" />
+                <View style={styles.loader}>
+                    <Lucide name="package-x" size={32} color={colors.textTertiary} />
+                    <AppText label="Order not found" color={colors.textSecondary} style={{ marginTop: 10 }} />
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    const currentStatus = String(order.status || 'pending').toLowerCase();
+    const isCancelled = currentStatus === 'cancelled';
+    const actions = canProcess
+        ? (TRANSITIONS[currentStatus] || []).filter((s) => isDelivery || !DELIVERY_ONLY_STATUSES.has(s))
+        : [];
+    const canCancel = canProcess && CANCELLABLE_ORDER_STATUSES.has(currentStatus);
     const canMarkCashPaid =
-        canManagePayments &&
+        canProcess &&
         !(isInstallmentOrder && balanceDue > 0.02) &&
-        paymentStatusRaw !== 'paid' &&
-        ((fulfillmentType === 'pickup' && currentStatus === 'completed') ||
-            (fulfillmentType === 'delivery' && (currentStatus === 'delivered' || currentStatus === 'completed')));
-    const canRecordPartialCash = canManagePayments && isInstallmentOrder && balanceDue > 0.02;
-    const statusAllowsCancel = CANCELLABLE_ORDER_STATUSES.has(currentStatus);
-    const actions = TRANSITIONS[currentStatus] || [];
-    const currentIdx = STATUS_STEPS.indexOf(currentStatus);
-    const visited = new Set(
-        history
-            .flatMap((entry) => [entry?.from_status, entry?.to_status])
-            .map((s) => String(s || '').toLowerCase())
-            .filter(Boolean)
+        paymentStatus !== 'paid' &&
+        ((!isDelivery && currentStatus === 'completed') ||
+            (isDelivery && (currentStatus === 'delivered' || currentStatus === 'completed')));
+    const canRecordPartialCash = canProcess && isInstallmentOrder && balanceDue > 0.02;
+    const canReturn = RETURNABLE_ORDER_STATUSES.has(currentStatus);
+
+    const steps = STATUS_STEPS.filter((s) => isDelivery || !DELIVERY_ONLY_STATUSES.has(s));
+    const reached = new Set(
+        history.flatMap((e) => [e?.from_status, e?.to_status]).map((s) => String(s || '').toLowerCase()),
     );
-    if (currentStatus) visited.add(currentStatus);
-    const completionEntry = [...history]
-        .reverse()
-        .find((entry) => String(entry?.to_status || '').toLowerCase() === 'completed' && String(entry?.reason || '').trim());
-    const completionReason = completionEntry ? String(completionEntry.reason || '').trim() : '';
-    const cancelledEntry = [...history]
-        .reverse()
-        .find((entry) => String(entry?.to_status || '').toLowerCase() === 'cancelled' && String(entry?.reason || '').trim());
-    const cancelledReason = cancelledEntry ? String(cancelledEntry.reason || '').trim() : '';
+    reached.add(currentStatus);
+    const currentIdx = steps.indexOf(currentStatus);
+    const timelineSteps = isCancelled ? [...steps.filter((s) => reached.has(s)), 'cancelled'] : steps;
+
+    const reasonFor = (status) =>
+        String(
+            [...history].reverse().find((e) => String(e?.to_status || '').toLowerCase() === status && String(e?.reason || '').trim())
+                ?.reason || '',
+        ).trim();
+    const cancelledReason = isCancelled ? reasonFor('cancelled') : '';
+
+    const statusColors = statusPalette(currentStatus, colors);
+    const payColors = paymentPalette(paymentStatus, colors);
+    const items = Array.isArray(order.items) ? order.items : [];
+    const notes = String(order.notes || '').trim();
+    const address = String(order.delivery_address || '').trim();
+    const customerName = String(order.customer_name || '').trim();
+    const customerPhone = String(order.customer_phone || '').trim();
+
+    const hasFooter = actions.length > 0 || canCancel || canMarkCashPaid || canReturn;
+    const showNoteInput = actions.length > 0 || canCancel;
+    const [primaryAction, ...otherActions] = actions;
 
     return (
-        <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView edges={['left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader onPress={() => navigation.goBack()} label="Order details" />
-            <ScrollView contentContainerStyle={{ padding: 0 }}>
-                {!order ? (
-                    <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-                        <AppText label="Order not found" color={colors.textSecondary} />
+            <ScrollView
+                contentContainerStyle={[styles.content, !hasFooter && { paddingBottom: 15 + insets.bottom }]}
+                keyboardShouldPersistTaps="handled"
+            >
+                <OrderCard colors={colors}>
+                    <View style={styles.summaryTop}>
+                        <View style={{ flex: 1, paddingRight: 10 }}>
+                            <AppText label={order.order_number || 'Order'} variant={1} fontSize={17} color={colors.text} />
+                            {formatDateTime(order.created_at) ? (
+                                <AppText
+                                    label={`Placed ${formatDateTime(order.created_at)}`}
+                                    fontSize={12}
+                                    color={colors.textTertiary}
+                                    style={{ marginTop: 3 }}
+                                />
+                            ) : null}
+                        </View>
+                        <View style={styles.badgeRow}>
+                            <Badge label={formatStatusLabel(paymentStatus)} palette={payColors} />
+                            <Badge label={formatStatusLabel(currentStatus)} palette={statusColors} />
+                        </View>
                     </View>
-                ) : (
-                    <View>
-                        <View style={[styles.heroCard, { backgroundColor: config.THEME_COLOR }]}>
-                            <View style={styles.heroTop}>
-                                <View style={{ flex: 1 }}>
-                                    <AppText label={order.order_number || 'Order'} variant={1} fontSize={18} color="#fff" />
-                                    <AppText
-                                        label="Order details"
-                                        color="rgba(255,255,255,0.85)"
-                                        fontSize={12}
-                                        style={{ marginTop: 2 }}
-                                    />
-                                </View>
-                                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'flex-end' }}>
-                                    <View style={[styles.pill, { backgroundColor: 'rgba(255,255,255,0.18)' }]}>
-                                        <AppText
-                                            label={formatStatusLabel(order.payment_status || 'unpaid')}
-                                            color="#fff"
-                                            fontSize={11}
-                                            variant={1}
-                                        />
-                                    </View>
-                                    <View style={[styles.pill, { backgroundColor: 'rgba(255,255,255,0.18)' }]}>
-                                        <AppText
-                                            label={formatStatusLabel(order.status || 'pending')}
-                                            color="#fff"
-                                            fontSize={11}
-                                            variant={1}
-                                        />
-                                    </View>
-                                </View>
-                            </View>
+                    <View style={[styles.totalBox, { backgroundColor: colors.surfaceSecondary }]}>
+                        <AppText label="Order total" fontSize={12} color={colors.textSecondary} />
+                        <AppText label={formatMoney(order.total_amount)} variant={1} fontSize={20} color={config.THEME_COLOR} />
+                    </View>
+                    <OrderInfoRow colors={colors}
+                        icon="user"
+                        label="Customer"
+                        value={[customerName || 'Customer', customerPhone].filter(Boolean).join(' · ')}
+                        onPress={customerPhone ? callCustomer : undefined}
+                        actionIcon="phone"
+                    />
+                    <OrderInfoRow colors={colors} icon="store" label="Store" value={order.warehouse_name || '—'} />
+                    <OrderInfoRow colors={colors}
+                        icon={isDelivery ? 'truck' : 'shopping-bag'}
+                        label="Fulfillment"
+                        value={isDelivery ? 'Delivery' : 'Pickup at store'}
+                    />
+                    {address ? <OrderInfoRow colors={colors} icon="map-pin" label="Delivery address" value={address} /> : null}
+                    {notes ? <OrderInfoRow colors={colors} icon="sticky-note" label="Customer note" value={notes} /> : null}
+                </OrderCard>
 
-                            <View style={[styles.metaCard, { backgroundColor: 'rgba(255,255,255,0.14)' }]}>
-                                <View style={{ flex: 1 }}>
-                                    <View style={styles.metaLabelRow}>
-                                        <Lucide name="store" size={13} color="rgba(255,255,255,0.9)" />
-                                        <AppText label="Store" color="rgba(255,255,255,0.85)" fontSize={11} style={{ marginLeft: 5 }} />
-                                    </View>
-                                    <AppText
-                                        label={order.warehouse_name || order.warehouse_id || '-'}
-                                        color="#fff"
-                                        variant={1}
-                                        style={{ marginTop: 2 }}
-                                    />
-                                    {!!String(order?.customer_name || '').trim() && (
-                                        <View style={[styles.metaLabelRow, { marginTop: 8 }]}>
-                                            <Lucide name="user" size={13} color="rgba(255,255,255,0.9)" />
-                                            <AppText
-                                                label={String(order.customer_name).trim()}
-                                                color="rgba(255,255,255,0.9)"
-                                                fontSize={12}
-                                                style={{ marginLeft: 5, flex: 1 }}
-                                                numberOfLines={1}
-                                            />
-                                        </View>
-                                    )}
-                                </View>
-                                <View style={[styles.metaDivider, { backgroundColor: 'rgba(255,255,255,0.25)' }]} />
-                                <View style={{ flex: 1, alignItems: 'flex-end' }}>
-                                    <View style={[styles.metaLabelRow, { justifyContent: 'flex-end' }]}>
-                                        <Lucide name="wallet" size={13} color="rgba(255,255,255,0.9)" />
-                                        <AppText label="Order total" color="rgba(255,255,255,0.85)" fontSize={11} style={{ marginLeft: 5 }} />
-                                    </View>
-                                    <AppText
-                                        label={`GH₵ ${Number(order.total_amount || 0).toFixed(2)}`}
-                                        color="#fff"
-                                        variant={1}
-                                        fontSize={16}
-                                        style={{ marginTop: 2 }}
-                                    />
-                                </View>
+                <OrderCard colors={colors} icon="package" title="Items" right={<AppText label={`${items.length} item${items.length === 1 ? '' : 's'}`} fontSize={12} color={colors.textTertiary} />}>
+                    {items.map((item, idx) => (
+                        <View
+                            key={item.id || idx}
+                            style={[styles.itemRow, idx > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }]}
+                        >
+                            <View style={{ flex: 1, paddingRight: 10 }}>
+                                <AppText label={item.product_name || 'Item'} fontSize={14} color={colors.text} />
+                                <AppText
+                                    label={`${Number(item.quantity)} × ${formatMoney(item.unit_price)}`}
+                                    fontSize={12}
+                                    color={colors.textTertiary}
+                                    style={{ marginTop: 2 }}
+                                />
                             </View>
+                            <AppText
+                                label={formatMoney(item.line_total || Number(item.quantity) * Number(item.unit_price))}
+                                fontSize={14}
+                                variant={1}
+                                color={colors.text}
+                            />
                         </View>
+                    ))}
+                    <View style={[styles.itemsTotal, { borderTopColor: colors.border }]}>
+                        <AppText label="Total" variant={1} color={colors.text} />
+                        <AppText label={formatMoney(order.total_amount)} variant={1} color={colors.text} />
+                    </View>
+                </OrderCard>
 
-                        {!!String(order?.delivery_address || '').trim() || !!String(order?.notes || '').trim() ? (
-                            <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-                                <View style={styles.sectionHeadRow}>
-                                    <Lucide name="map-pin" size={14} color={colors.textSecondary} />
-                                    <AppText
-                                        label={fulfillmentType === 'delivery' ? 'Delivery details' : 'Order notes'}
-                                        variant={1}
-                                        color={colors.text}
-                                        style={{ marginLeft: 6 }}
+                <OrderCard colors={colors} icon="git-branch" title="Progress">
+                    {timelineSteps.map((step, idx) => {
+                        const isCancelStep = step === 'cancelled';
+                        const done = isCancelled ? true : currentIdx >= 0 && steps.indexOf(step) <= currentIdx;
+                        const active = step === currentStatus;
+                        const dotColor = isCancelStep ? colors.error : done ? config.THEME_COLOR : colors.border;
+                        return (
+                            <View key={step} style={styles.timelineRow}>
+                                <View style={styles.timelineLeft}>
+                                    <View
+                                        style={[
+                                            styles.timelineDot,
+                                            { backgroundColor: done ? dotColor : colors.surface, borderColor: dotColor },
+                                            active && styles.timelineDotActive,
+                                        ]}
                                     />
+                                    {idx < timelineSteps.length - 1 ? (
+                                        <View
+                                            style={[
+                                                styles.timelineLine,
+                                                { backgroundColor: done && !isCancelled ? config.THEME_COLOR : colors.border },
+                                            ]}
+                                        />
+                                    ) : null}
                                 </View>
-                                {!!String(order?.delivery_address || '').trim() && (
-                                    <AppText label={String(order.delivery_address).trim()} color={colors.text} />
-                                )}
-                                {!!String(order?.notes || '').trim() && (
-                                    <AppText
-                                        label={`Note: ${String(order.notes).trim()}`}
-                                        color={colors.textSecondary}
-                                        fontSize={12}
-                                        style={{ marginTop: 4 }}
-                                    />
-                                )}
+                                <AppText
+                                    label={formatStatusLabel(step)}
+                                    variant={active ? 1 : 0}
+                                    fontSize={14}
+                                    color={isCancelStep ? colors.error : active || done ? colors.text : colors.textTertiary}
+                                />
                             </View>
-                        ) : null}
-
-                        <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-                            <View style={styles.sectionHeadRow}>
-                                <Lucide name="git-branch" size={14} color={colors.textSecondary} />
-                                <AppText label="Status timeline" variant={1} color={colors.text} style={{ marginLeft: 6 }} />
-                            </View>
-                            {STATUS_STEPS.map((step, idx) => {
-                                const done = currentStatus === 'cancelled' ? visited.has(step) : currentIdx >= 0 && idx <= currentIdx;
-                                const active = step === currentStatus;
-                                return (
-                                    <View key={step} style={styles.timelineRow}>
-                                        <View style={styles.timelineLeft}>
-                                            <View
-                                                style={[
-                                                    styles.timelineDot,
-                                                    {
-                                                        backgroundColor: done ? config.THEME_COLOR : colors.surfaceSecondary,
-                                                        borderColor: done ? config.THEME_COLOR : colors.border,
-                                                    },
-                                                ]}
-                                            />
-                                            {idx < STATUS_STEPS.length - 1 && (
-                                                <View
-                                                    style={[
-                                                        styles.timelineLine,
-                                                        {
-                                                            backgroundColor: done ? config.THEME_COLOR : colors.border,
-                                                        },
-                                                    ]}
-                                                />
-                                            )}
-                                        </View>
-                                        <View style={{ flex: 1 }}>
-                                            <AppText label={formatStatusLabel(step)} variant={active ? 1 : 2} color={active ? colors.text : colors.textSecondary} />
-                                        </View>
-                                    </View>
-                                );
-                            })}
-                            {currentStatus === 'cancelled' && (
-                                <View style={styles.cancelTag}>
-                                    <AppText label="CANCELLED" color="#fff" variant={1} fontSize={11} />
-                                </View>
-                            )}
-                            {currentStatus === 'cancelled' && cancelledReason ? (
-                                <View style={[styles.noteCard, { borderColor: colors.border, backgroundColor: '#fee2e2' }]}>
-                                    <AppText label="Cancellation note" color="#dc2626" fontSize={11} />
-                                    <AppText label={cancelledReason} color={colors.text} style={{ marginTop: 4 }} />
-                                </View>
-                            ) : null}
-                            {currentStatus === 'completed' && completionReason ? (
-                                <View style={[styles.noteCard, { borderColor: colors.border, backgroundColor: colors.surfaceSecondary }]}>
-                                    <AppText label="Completion note" color={colors.textSecondary} fontSize={11} />
-                                    <AppText label={completionReason} color={colors.text} style={{ marginTop: 4 }} />
-                                </View>
-                            ) : null}
+                        );
+                    })}
+                    {cancelledReason ? (
+                        <View style={[styles.noteBox, { backgroundColor: colors.errorLight }]}>
+                            <AppText label="Cancellation note" fontSize={11} color={colors.error} />
+                            <AppText label={cancelledReason} fontSize={13} color={colors.text} style={{ marginTop: 3 }} />
                         </View>
+                    ) : null}
+                </OrderCard>
 
-                        {Array.isArray(order.items) && order.items.length > 0 && (
-                            <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-                                <View style={styles.sectionHeadRow}>
-                                    <Lucide name="package" size={14} color={colors.textSecondary} />
-                                    <AppText label="Items" variant={1} color={colors.text} style={{ marginLeft: 6 }} />
-                                </View>
-                                {order.items.map((item, idx) => (
-                                    <View
-                                        key={item.id}
-                                        style={[
-                                            styles.itemRow,
-                                            { borderBottomColor: colors.borderLight },
-                                            idx < order.items.length - 1 && { borderBottomWidth: 1 },
-                                        ]}
-                                    >
-                                        <AppText label={item.product_name || item.product_id} color={colors.text} />
-                                        <AppText
-                                            label={`${Number(item.quantity)} x GH₵ ${Number(item.unit_price || 0).toFixed(2)}`}
-                                            color={colors.textTertiary}
-                                        />
-                                    </View>
-                                ))}
+                {(isInstallmentOrder || canRecordPartialCash) && (
+                    <OrderCard colors={colors} icon="wallet" title="Payment">
+                        <View style={styles.paymentSummaryRow}>
+                            <AppText label={`Paid ${formatMoney(amountPaid)}`} fontSize={13} color={colors.text} />
+                            <AppText label={`Balance ${formatMoney(balanceDue)}`} fontSize={13} variant={1} color={colors.text} />
+                        </View>
+                        {installmentPayments.slice(0, 5).map((p) => (
+                            <View key={p.id} style={[styles.itemRow, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }]}>
+                                <AppText
+                                    label={`${formatMoney(p.amount)} · ${formatStatusLabel(p.payment_method || p.status)}`}
+                                    fontSize={13}
+                                    color={colors.text}
+                                    style={{ flex: 1 }}
+                                />
+                                <AppText label={formatStatusLabel(p.status)} fontSize={11} color={colors.textTertiary} />
                             </View>
-                        )}
-
-                        {(isInstallmentOrder || canMarkCashPaid || canRecordPartialCash) && (
-                            <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-                                <View style={styles.sectionHeadRow}>
-                                    <Lucide name="wallet" size={14} color={colors.textSecondary} />
-                                    <AppText label="Payment" variant={1} color={colors.text} style={{ marginLeft: 6 }} />
-                                </View>
-                                {isInstallmentOrder ? (
-                                    <>
-                                        <View style={styles.paymentSummaryRow}>
-                                            <AppText label={`Paid: GH₵ ${amountPaid.toFixed(2)}`} color={colors.text} fontSize={13} />
-                                            <AppText label={`Balance: GH₵ ${balanceDue.toFixed(2)}`} color={colors.text} fontSize={13} variant={1} />
-                                        </View>
-                                        {installmentPayments.length > 0 ? (
-                                            installmentPayments.slice(0, 5).map((p) => (
-                                                <View key={p.id} style={[styles.itemRow, { borderBottomColor: colors.borderLight, borderBottomWidth: 1 }]}>
-                                                    <AppText
-                                                        label={`GH₵ ${Number(p.amount || 0).toFixed(2)} · ${formatStatusLabel(p.payment_method || p.status)}`}
-                                                        color={colors.text}
-                                                        fontSize={13}
-                                                    />
-                                                    <AppText label={formatStatusLabel(p.status)} color={colors.textTertiary} fontSize={11} />
-                                                </View>
-                                            ))
-                                        ) : null}
-                                    </>
-                                ) : null}
-                                {canRecordPartialCash ? (
-                                    <>
-                                        <AppText label="Record cash partial" color={colors.textSecondary} fontSize={11} style={{ marginTop: 8 }} />
-                                        <TextInput
-                                            value={partialAmount}
-                                            onChangeText={setPartialAmount}
-                                            placeholder={`Amount up to ${balanceDue.toFixed(2)}`}
-                                            placeholderTextColor={colors.textTertiary}
-                                            keyboardType="decimal-pad"
-                                            style={[
-                                                styles.reasonInput,
-                                                { borderColor: colors.border, color: colors.text, backgroundColor: colors.surfaceSecondary },
-                                            ]}
-                                        />
-                                        <TextInput
-                                            value={partialNote}
-                                            onChangeText={setPartialNote}
-                                            placeholder="Note (optional)"
-                                            placeholderTextColor={colors.textTertiary}
-                                            style={[
-                                                styles.reasonInput,
-                                                { borderColor: colors.border, color: colors.text, backgroundColor: colors.surfaceSecondary },
-                                            ]}
-                                        />
-                                        <TouchableOpacity
-                                            onPress={onRecordPartialCash}
-                                            disabled={paymentBusy}
-                                            style={[styles.payBtn, { backgroundColor: config.THEME_COLOR, opacity: paymentBusy ? 0.7 : 1 }]}
-                                            activeOpacity={0.85}
-                                        >
-                                            {paymentBusy ? (
-                                                <ActivityIndicator color="#fff" size="small" />
-                                            ) : (
-                                                <AppText label="Record payment" color="#fff" variant={1} />
-                                            )}
-                                        </TouchableOpacity>
-                                    </>
-                                ) : null}
-                                {canMarkCashPaid ? (
-                                    <>
-                                        <AppText
-                                            label="Mark as paid after cash is collected on pickup or delivery."
-                                            color={colors.textTertiary}
-                                            fontSize={12}
-                                            style={{ marginTop: canRecordPartialCash ? 12 : 4, marginBottom: 8 }}
-                                        />
-                                        <TouchableOpacity
-                                            onPress={onMarkCashPaid}
-                                            disabled={paymentBusy}
-                                            style={[styles.payBtn, { backgroundColor: '#16a34a', opacity: paymentBusy ? 0.7 : 1 }]}
-                                            activeOpacity={0.85}
-                                        >
-                                            {paymentBusy ? (
-                                                <ActivityIndicator color="#fff" size="small" />
-                                            ) : (
-                                                <AppText label="Mark paid (cash)" color="#fff" variant={1} />
-                                            )}
-                                        </TouchableOpacity>
-                                    </>
-                                ) : null}
-                            </View>
-                        )}
-
-                        {canUpdateStatus && (
-                            <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-                                <View style={styles.sectionHeadRow}>
-                                    <Lucide name="workflow" size={14} color={colors.textSecondary} />
-                                    <AppText label="Status actions (store processing)" variant={1} color={colors.text} style={{ marginLeft: 6 }} />
-                                </View>
-                                <View style={styles.hintRow}>
-                                    <Lucide name="info" size={14} color={colors.textTertiary} />
-                                    <AppText
-                                        label="Use these actions to move the order through processing."
-                                        color={colors.textTertiary}
-                                        fontSize={12}
-                                        style={{ marginLeft: 6, flex: 1 }}
-                                    />
-                                </View>
-
-                                {actions.includes('completed') && (
-                                    <View style={{ marginTop: 10 }}>
-                                        <AppText label="Completion note (required)" color={colors.textSecondary} fontSize={11} />
-                                        <TextInput
-                                            value={reason}
-                                            onChangeText={setReason}
-                                            placeholder="e.g. Delivered and paid in full"
-                                            placeholderTextColor={colors.textTertiary}
-                                            style={[
-                                                styles.reasonInput,
-                                                { borderColor: colors.border, color: colors.text, backgroundColor: colors.surfaceSecondary },
-                                            ]}
-                                        />
-                                    </View>
-                                )}
-
-                                <View style={styles.actionsButtons}>
-                                    {actions.map((nextStatus) => {
-                                        const label = formatStatusLabel(nextStatus);
-                                        const icon =
-                                            nextStatus === 'confirmed'
-                                                ? 'badge-check'
-                                                : nextStatus === 'processing'
-                                                  ? 'settings'
-                                                  : nextStatus === 'ready'
-                                                    ? 'package-check'
-                                                    : nextStatus === 'shipped'
-                                                      ? 'truck'
-                                                      : nextStatus === 'delivered'
-                                                        ? 'map-pin-check'
-                                                        : nextStatus === 'completed'
-                                                          ? 'circle-check'
-                                                          : 'arrow-right';
-                                        const isPrimary = nextStatus === 'confirmed' || nextStatus === 'ready';
-                                        const isSuccess = nextStatus === 'completed';
-                                        const isInfo = nextStatus === 'processing' || nextStatus === 'shipped' || nextStatus === 'delivered';
-
-                                        const bg = isSuccess
-                                            ? '#dcfce7'
-                                            : isPrimary
-                                              ? config.THEME_COLOR
-                                              : isInfo
-                                                ? '#eff6ff'
-                                                : colors.surface;
-                                        const border = isSuccess
-                                            ? '#86efac'
-                                            : isPrimary
-                                              ? config.THEME_COLOR
-                                              : isInfo
-                                                ? '#bfdbfe'
-                                                : colors.border;
-                                        const text = isSuccess ? '#16a34a' : isPrimary ? '#fff' : isInfo ? '#1d4ed8' : colors.text;
-                                        const iconColor = isSuccess ? '#16a34a' : isPrimary ? '#fff' : isInfo ? '#1d4ed8' : colors.textSecondary;
-
-                                        return (
-                                            <TouchableOpacity
-                                                key={nextStatus}
-                                                onPress={() => updateStatus(nextStatus)}
-                                                activeOpacity={0.85}
-                                                style={[
-                                                    styles.actionButton,
-                                                    {
-                                                        backgroundColor: bg,
-                                                        borderColor: border,
-                                                    },
-                                                ]}
-                                            >
-                                                <View style={styles.actionButtonInner}>
-                                                    <View style={styles.actionButtonLeft}>
-                                                        <View style={[styles.actionIconWrap, { backgroundColor: isPrimary ? 'rgba(255,255,255,0.18)' : colors.surface }]}>
-                                                            <Lucide name={icon} size={16} color={iconColor} />
-                                                        </View>
-                                                        <View style={{ flex: 1 }}>
-                                                            <AppText label={label} color={text} variant={isPrimary || isSuccess ? 1 : 0} fontSize={13} />
-                                                            <AppText
-                                                                label={`Move order to ${label.toLowerCase()}`}
-                                                                color={isPrimary ? 'rgba(255,255,255,0.85)' : colors.textTertiary}
-                                                                fontSize={11}
-                                                                style={{ marginTop: 2 }}
-                                                                numberOfLines={1}
-                                                            />
-                                                        </View>
-                                                    </View>
-                                                    <Lucide name="chevron-right" size={18} color={isPrimary ? 'rgba(255,255,255,0.9)' : colors.textTertiary} />
-                                                </View>
-                                            </TouchableOpacity>
-                                        );
-                                    })}
-                                </View>
-                            </View>
-                        )}
-
-                        {history.length > 0 && (
-                            <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-                                <View style={styles.sectionHeadRow}>
-                                    <Lucide name="history" size={14} color={colors.textSecondary} />
-                                    <AppText label="History" variant={1} color={colors.text} style={{ marginLeft: 6 }} />
-                                </View>
-                                {history.map((entry, idx) => (
-                                    <View
-                                        key={entry.id}
-                                        style={[
-                                            styles.itemRow,
-                                            { borderBottomColor: colors.borderLight },
-                                            idx < history.length - 1 && { borderBottomWidth: 1 },
-                                        ]}
-                                    >
-                                        <AppText
-                                            label={`${formatStatusLabel(entry.from_status || 'new')} -> ${formatStatusLabel(entry.to_status || '')}`}
-                                            color={colors.text}
-                                        />
-                                        <AppText label={entry.reason || 'Status change'} color={colors.textTertiary} fontSize={12} />
-                                    </View>
-                                ))}
-                            </View>
-                        )}
-
-                        {canCancel && statusAllowsCancel && (
-                            <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-                                <View style={styles.sectionHeadRow}>
-                                    <Lucide name="ban" size={14} color="#ef4444" />
-                                    <AppText label="Cancel order" variant={1} color={colors.text} style={{ marginLeft: 6 }} />
-                                </View>
+                        ))}
+                        {canRecordPartialCash ? (
+                            <>
                                 <TextInput
-                                    value={cancelNote}
-                                    onChangeText={setCancelNote}
-                                    placeholder="Cancellation note (optional)"
-                                    placeholderTextColor={colors.textTertiary}
-                                    style={[styles.reasonInput, { borderColor: colors.border, color: colors.text, backgroundColor: colors.surfaceSecondary }]}
+                                    value={partialAmount}
+                                    onChangeText={setPartialAmount}
+                                    placeholder={`Cash amount (up to ${balanceDue.toFixed(2)})`}
+                                    placeholderTextColor={colors.placeholder}
+                                    keyboardType="decimal-pad"
+                                    style={[styles.input, { borderColor: colors.inputBorder, color: colors.text, backgroundColor: colors.inputBackground }]}
+                                />
+                                <TextInput
+                                    value={partialNote}
+                                    onChangeText={setPartialNote}
+                                    placeholder="Note (optional)"
+                                    placeholderTextColor={colors.placeholder}
+                                    style={[styles.input, { borderColor: colors.inputBorder, color: colors.text, backgroundColor: colors.inputBackground }]}
                                 />
                                 <TouchableOpacity
-                                    onPress={cancel}
-                                    style={[styles.cancelBtn, { backgroundColor: '#f00' }]}
+                                    onPress={onRecordPartialCash}
+                                    disabled={busy}
                                     activeOpacity={0.85}
+                                    style={[styles.inlineBtn, { backgroundColor: config.THEME_COLOR, opacity: busy ? 0.7 : 1 }]}
                                 >
-                                    <View style={styles.cancelRow}>
-                                        <Lucide name="ban" size={14} color="#fff" />
-                                        <AppText label="Cancel order" color="#fff" variant={1} style={{ marginLeft: 6 }} />
-                                    </View>
+                                    <AppText label="Record cash payment" color="#fff" variant={1} />
                                 </TouchableOpacity>
+                            </>
+                        ) : null}
+                    </OrderCard>
+                )}
+
+                {showNoteInput ? (
+                    <OrderCard colors={colors} icon="message-square-text" title="Note for this update">
+                        <TextInput
+                            value={note}
+                            onChangeText={setNote}
+                            placeholder={canCancel ? 'Optional — saved with the next step or cancellation' : 'Optional — saved with the next step'}
+                            placeholderTextColor={colors.placeholder}
+                            style={[styles.input, { marginTop: 0, borderColor: colors.inputBorder, color: colors.text, backgroundColor: colors.inputBackground }]}
+                        />
+                    </OrderCard>
+                ) : null}
+
+                {history.length > 0 && (
+                    <OrderCard colors={colors} icon="history" title="History">
+                        {[...history].reverse().map((entry, idx) => (
+                            <View
+                                key={entry.id || idx}
+                                style={[styles.historyRow, idx > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }]}
+                            >
+                                <View style={{ flex: 1, paddingRight: 10 }}>
+                                    <AppText
+                                        label={
+                                            entry.from_status && entry.from_status !== entry.to_status
+                                                ? `${formatStatusLabel(entry.from_status)} → ${formatStatusLabel(entry.to_status)}`
+                                                : formatStatusLabel(entry.to_status || 'Update')
+                                        }
+                                        fontSize={13}
+                                        color={colors.text}
+                                    />
+                                    {String(entry.reason || '').trim() ? (
+                                        <AppText label={String(entry.reason).trim()} fontSize={12} color={colors.textSecondary} style={{ marginTop: 2 }} />
+                                    ) : !entry.from_status ? (
+                                        <AppText label="Order placed" fontSize={12} color={colors.textSecondary} style={{ marginTop: 2 }} />
+                                    ) : null}
+                                </View>
+                                <AppText label={formatDateTime(entry.created_at)} fontSize={11} color={colors.textTertiary} />
                             </View>
-                        )}
-                        <TouchableOpacity
-                            activeOpacity={0.85}
-                            onPress={() =>
-                                navigation.navigate('NewOrderReturn', {
-                                    orderId: order?.id || route?.params?.orderId || route?.params?.id,
-                                    order,
-                                })
-                            }
-                            style={{
-                                marginTop: 12,
-                                paddingVertical: 12,
-                                borderRadius: 999,
-                                alignItems: 'center',
-                                flexDirection: 'row',
-                                justifyContent: 'center',
-                                backgroundColor: colors.surfaceSecondary,
-                                borderWidth: 1,
-                                borderColor: colors.border,
-                            }}
-                        >
-                            <Lucide name="undo-2" size={16} color={config.THEME_COLOR} />
-                            <AppText label="Return / refund" variant={1} color={config.THEME_COLOR} style={{ marginLeft: 8 }} />
-                        </TouchableOpacity>
-                    </View>
+                        ))}
+                    </OrderCard>
                 )}
             </ScrollView>
+
+            {hasFooter ? (
+                <View
+                    style={[
+                        styles.footer,
+                        { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom, 12) },
+                    ]}
+                >
+                    {primaryAction || canMarkCashPaid ? (
+                        <TouchableOpacity
+                            activeOpacity={0.85}
+                            disabled={busy}
+                            onPress={primaryAction ? () => updateStatus(primaryAction) : onMarkCashPaid}
+                            style={[
+                                styles.footerBtn,
+                                { backgroundColor: primaryAction ? config.THEME_COLOR : colors.success, opacity: busy ? 0.7 : 1 },
+                            ]}
+                        >
+                            {busy ? (
+                                <ActivityIndicator color="#fff" size="small" />
+                            ) : (
+                                <>
+                                    <Lucide name={primaryAction ? ACTION_COPY[primaryAction]?.icon || 'arrow-right' : 'banknote'} size={18} color="#fff" />
+                                    <AppText
+                                        label={primaryAction ? ACTION_COPY[primaryAction]?.label || formatStatusLabel(primaryAction) : 'Mark paid (cash)'}
+                                        color="#fff"
+                                        variant={1}
+                                        style={{ marginLeft: 8 }}
+                                    />
+                                </>
+                            )}
+                        </TouchableOpacity>
+                    ) : null}
+                    {otherActions.length > 0 || canCancel || canReturn ? (
+                        <View style={[styles.footerRow, (primaryAction || canMarkCashPaid) && { marginTop: 10 }]}>
+                            {otherActions.map((s) => (
+                                <TouchableOpacity
+                                    key={s}
+                                    activeOpacity={0.85}
+                                    disabled={busy}
+                                    onPress={() => updateStatus(s)}
+                                    style={[styles.footerBtn, styles.footerBtnSecondary, { borderColor: colors.border, backgroundColor: colors.surface }]}
+                                >
+                                    <Lucide name={ACTION_COPY[s]?.icon || 'arrow-right'} size={16} color={config.THEME_COLOR} />
+                                    <AppText label={ACTION_COPY[s]?.label || formatStatusLabel(s)} color={config.THEME_COLOR} variant={1} style={{ marginLeft: 6 }} />
+                                </TouchableOpacity>
+                            ))}
+                            {canReturn ? (
+                                <TouchableOpacity
+                                    activeOpacity={0.85}
+                                    onPress={() => navigation.navigate('NewOrderReturn', { orderId: order.id || orderId, order })}
+                                    style={[styles.footerBtn, styles.footerBtnSecondary, { borderColor: colors.border, backgroundColor: colors.surface }]}
+                                >
+                                    <Lucide name="undo-2" size={16} color={config.THEME_COLOR} />
+                                    <AppText label="Return / refund" color={config.THEME_COLOR} variant={1} style={{ marginLeft: 6 }} />
+                                </TouchableOpacity>
+                            ) : null}
+                            {canCancel ? (
+                                <TouchableOpacity
+                                    activeOpacity={0.85}
+                                    disabled={busy}
+                                    onPress={cancelOrder}
+                                    style={[styles.footerBtn, styles.footerBtnSecondary, { borderColor: colors.error, backgroundColor: colors.surface }]}
+                                >
+                                    <Lucide name="ban" size={16} color={colors.error} />
+                                    <AppText label="Cancel order" color={colors.error} variant={1} style={{ marginLeft: 6 }} />
+                                </TouchableOpacity>
+                            ) : null}
+                        </View>
+                    ) : null}
+                </View>
+            ) : null}
         </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
     loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    heroCard: { padding: 12 },
-    heroTop: { flexDirection: 'row', alignItems: 'flex-start' },
-    metaCard: { marginTop: 12, borderRadius: 5, paddingVertical: 10, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'stretch' },
-    metaDivider: { width: 1, marginHorizontal: 10 },
-    metaLabelRow: { flexDirection: 'row', alignItems: 'center' },
-    pill: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 5, alignSelf: 'flex-start' },
-    card: { paddingVertical: 12, paddingHorizontal: 15, marginBottom: 10 },
-    statusRow: { marginTop: 6, flexDirection: 'row', alignItems: 'center' },
-    statusPill: { marginLeft: 6, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
-    infoRow: { marginTop: 6, flexDirection: 'row', alignItems: 'center' },
-    sectionHeadRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-    itemRow: { borderBottomWidth: 0, paddingVertical: 8 },
-    timelineRow: { flexDirection: 'row', alignItems: 'flex-start', minHeight: 34 },
-    timelineLeft: { width: 20, alignItems: 'center' },
-    timelineDot: { width: 10, height: 10, borderRadius: 10, borderWidth: 2, marginTop: 3 },
-    timelineLine: { width: 2, flex: 1, marginTop: 2, marginBottom: -4 },
-    cancelTag: { marginTop: 8, alignSelf: 'flex-start', backgroundColor: '#dc2626', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 },
-    noteCard: { marginTop: 10, borderWidth: 1, borderRadius: 8, padding: 10 },
-    hintRow: { flexDirection: 'row', alignItems: 'center' },
-    actionsButtons: { marginTop: 12, gap: 10 },
-    actionButton: { borderWidth: 1, borderRadius: 5, padding: 12 },
-    actionButtonInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    actionButtonLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, paddingRight: 10 },
-    actionIconWrap: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-    cancelBtn: { marginTop: 12, borderRadius: 999, paddingVertical: 15, alignItems: 'center' },
-    cancelRow: { flexDirection: 'row', alignItems: 'center' },
-    reasonInput: { borderWidth: 1, borderRadius: 5, paddingHorizontal: 10, paddingVertical: 10, marginTop: 8 },
-    paymentSummaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4, marginBottom: 8 },
-    payBtn: { marginTop: 10, borderRadius: 999, paddingVertical: 14, alignItems: 'center' },
+    content: { padding: 15, paddingBottom: 24 },
+    card: {
+        borderRadius: 12,
+        borderWidth: StyleSheet.hairlineWidth,
+        padding: 15,
+        marginBottom: 12,
+    },
+    cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+    cardHeadLeft: { flexDirection: 'row', alignItems: 'center' },
+    summaryTop: { flexDirection: 'row', alignItems: 'flex-start' },
+    badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'flex-end', maxWidth: '50%' },
+    badge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+    totalBox: {
+        marginTop: 14,
+        marginBottom: 6,
+        borderRadius: 10,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    infoRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
+    infoIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+    infoAction: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
+    itemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
+    itemsTotal: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 10, marginTop: 2 },
+    timelineRow: { flexDirection: 'row', alignItems: 'flex-start', minHeight: 32 },
+    timelineLeft: { width: 22, alignItems: 'center', marginRight: 8 },
+    timelineDot: { width: 12, height: 12, borderRadius: 6, borderWidth: 2, marginTop: 3 },
+    timelineDotActive: { width: 14, height: 14, borderRadius: 7, marginTop: 2 },
+    timelineLine: { width: 2, flex: 1, marginTop: 2, marginBottom: -3 },
+    noteBox: { marginTop: 8, borderRadius: 8, padding: 10 },
+    paymentSummaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+    input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, marginTop: 10, fontSize: 14 },
+    inlineBtn: { marginTop: 12, borderRadius: 999, paddingVertical: 13, alignItems: 'center' },
+    historyRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 10 },
+    footer: { paddingHorizontal: 15, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth },
+    footerRow: { flexDirection: 'row', gap: 10 },
+    footerBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 999,
+        paddingVertical: 14,
+        minHeight: 50,
+    },
+    footerBtnSecondary: { flex: 1, borderWidth: 1, paddingVertical: 12, minHeight: 46 },
 });
 
 export default OrderDetails;
