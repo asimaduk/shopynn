@@ -150,20 +150,18 @@ function NewTransfer() {
         createTransfer(payload)
             .then(res=> {
                 // console.log('np then res',res);
-                if(res.data?.status === 409) {
-                    toast.error(`Error: Invoice number #${invoice} already exists. Please check and try again.`)
+                if(res.error) {
+                    const message = (res.error as any)?.data?.message;
+                    toast.error(message || 'An error occurred. Check if you are authorized to send inventory.')
                 }
-                else if(res.data?.status === 201) {
+                else if(res.data?.id) {
                     setFromSource(null);
                     setToDestination(null);
                     setInvoice('')
                     setCurrentOrder([]);
                     setNote('');
                     // setTotalQuantity(0);
-                    toast.success('New transfer saved successfully.');
-                }
-                else if(res.error) {
-                    toast.error('An error occurred. Check if you are authorized to receive inventory.')
+                    toast.success('Transfer sent — waiting for the destination store to receive it.');
                 }
                 else {
                     toast.error('Something went wrong. Please try again or contact admin.')
@@ -691,7 +689,7 @@ function NewTransfer() {
                         setOpenConfirm(false);
                     }}
                     leftText='No'
-                    message={`Are you sure you want to transfer ${currentOrder.reduce((accumulator, currentItem) => accumulator + currentItem.order_quantity, 0)} item(s) from ${fromSource?.name} to ${toDestination?.name}?`}
+                    message={`Are you sure you want to transfer ${currentOrder.reduce((accumulator, currentItem) => accumulator + Number(currentItem.order_quantity || 0), 0)} item(s) from ${fromSource?.name} to ${toDestination?.name}?`}
                     rightText='Yes'
                     title='Confirm Transfer'
                 />
