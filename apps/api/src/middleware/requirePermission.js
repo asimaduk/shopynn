@@ -102,3 +102,10 @@ export function requireAnyPermission(...permissionCodes) {
 export function hasPermission(req, code) {
     return Array.isArray(req.user?.permissions) && req.user.permissions.includes(code);
 }
+
+/** Role grants stores.multi_access and the plan (when known) includes it. */
+export function hasMultiStoreAccess(req) {
+    if (!hasPermission(req, MULTI_STORE_CODE)) return false;
+    const features = req.subscription?.features;
+    return !Array.isArray(features) || features.some((f) => String(f).toLowerCase() === MULTI_STORE_CODE);
+}

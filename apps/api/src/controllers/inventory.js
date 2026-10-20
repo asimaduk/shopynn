@@ -1,5 +1,6 @@
 import { handleResponse } from "../util/handleresponse.js";
 import { assertOwnStockPayload } from "../util/tenantScope.js";
+import { hasMultiStoreAccess } from "../middleware/requirePermission.js";
 import { createBulkUpdatesService, getAllInventoriesService, getExpiringInventoriesService, getInventoryCountService, getSlowMovingInventoriesService, getStockSummaryService, getTopSellingInventoriesService } from "../models/inventory.js";
 
 export const getAllInventories = async (req, res, next) => {
@@ -23,7 +24,9 @@ export const getInventoryCount = async (req, res, next) => {
 export const getLowStockInventories = async (req, res, next) => {
     try {
         const query = { ...req.query, stockStatus: "low" };
-        const inventories = await getAllInventoriesService(req.user.warehouse_id, req.user.tenant_id, query);
+        const inventories = await getAllInventoriesService(req.user.warehouse_id, req.user.tenant_id, query, {
+            allStores: hasMultiStoreAccess(req),
+        });
         handleResponse(res, 200, "Low stock inventories.", inventories);
     } catch (error) {
         next(error);

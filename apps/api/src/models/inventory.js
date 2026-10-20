@@ -2,18 +2,27 @@ import pool from "../config/db.js";
 import { v4 as uuidv4 } from 'uuid';
 import { normalizeInventoryListRow } from "../util/inventoryNormalize.js";
 
-export const getAllInventoriesService = async (warehouse_id, tenant_id = null, queryParams = {}) => {
+/**
+ * Inventory rows for one store. With `allStores` (and a tenant_id) rows from every store
+ * in the tenant are returned instead; each row carries inventory_id and warehouse_name.
+ */
+export const getAllInventoriesService = async (warehouse_id, tenant_id = null, queryParams = {}, { allStores = false } = {}) => {
     const filterByTenant = tenant_id != null;
     const stockStatus = (queryParams.stockStatus || "").toLowerCase();
     const isLow = stockStatus === "low";
     const isNearLow = stockStatus === "nearlow" || stockStatus === "near_low";
 
-    let where = "inv.warehouse_id=$1";
-    const params = [warehouse_id];
-    if (filterByTenant) {
-        where += " AND inv.tenant_id=$2";
-        params.push(tenant_id);
+    const conditions = [];
+    const params = [];
+    if (!(allStores && filterByTenant)) {
+        params.push(warehouse_id);
+        conditions.push(`inv.warehouse_id=$${params.length}`);
     }
+    if (filterByTenant) {
+        params.push(tenant_id);
+        conditions.push(`inv.tenant_id=$${params.length}`);
+    }
+    let where = conditions.join(" AND ");
     if (isLow) {
         where += " AND inv.quantity_available <= COALESCE(inv.minimum_stock_level, 0)";
     } else if (isNearLow) {
@@ -21,6 +30,9 @@ export const getAllInventoriesService = async (warehouse_id, tenant_id = null, q
     }
 
     const query = `SELECT 
+        inv.id AS inventory_id,
+        inv.warehouse_id,
+        w.name AS warehouse_name,
         inv.quantity_available AS inventory, 
         inv.minimum_stock_level AS minimum, 
         pro.id, 
@@ -34,6 +46,7 @@ export const getAllInventoriesService = async (warehouse_id, tenant_id = null, q
         pro.is_active AS active 
         FROM inventories inv 
         LEFT JOIN products pro ON inv.product_id = pro.id 
+        LEFT JOIN warehouses w ON w.id = inv.warehouse_id
         WHERE ${where} 
         ORDER BY inv.updated_at DESC`;
     const result = await pool.query(query, params);

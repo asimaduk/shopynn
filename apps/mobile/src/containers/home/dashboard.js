@@ -12,6 +12,7 @@ import config from '../../config';
 import useTheme from '../../hooks/useTheme';
 import { dashboard as dashboardApi, inventories, normalizeList } from '../../services/api';
 import { canAccessScreen } from '../../utils/permissions';
+import { normalizeLowStockList } from '../../utils/normalizeLowStockItem';
 import {
     buildLowStockNotificationPayload,
     LOW_STOCK_NOTIFICATION_ID,
@@ -142,7 +143,7 @@ const Dashboard = ({ navigation, route }) => {
                     inventories.lowStock(undefined, { skipErrorAlert: true }).catch(() => null),
                     inventories.expiring({ days: 30 }, { skipErrorAlert: true }).catch(() => null),
                 ]);
-                setItemsToReorder(normalizeList(lowStockRes).length ? normalizeList(lowStockRes) : [
+                setItemsToReorder(normalizeList(lowStockRes).length ? normalizeLowStockList(normalizeList(lowStockRes)) : [
                     // { id: '1', name: 'Tampico Medium', sku: 'Tam500', current: 21, reorderAt: 30 },
                     // { id: '2', name: 'Coca Cola 500ml', sku: 'CC500', current: 8, reorderAt: 24 },
                 ]);
@@ -404,12 +405,12 @@ const Dashboard = ({ navigation, route }) => {
                             </View>
                             {itemsToReorder.slice(0, 4).map((item, index) => (
                                 <View
-                                    key={item.id}
+                                    key={item.key ?? item.id}
                                     style={[styles.reorderRow, { borderBottomColor: index === itemsToReorder.length - 1 ? 'transparent' : colors.borderLight }]}>
                                     <View style={styles.reorderDot} />
                                     <View style={{ flex: 1, marginLeft: 10 }}>
                                         <AppText label={item.name} variant={2} fontSize={14} color={colors.text} numberOfLines={1} />
-                                        <AppText label={`${item.sku} · Current stock: ${item.inventory} (Minimum stock: ${item.minimum})`} fontSize={12} color={colors.textTertiary} style={{ marginTop: 2 }} />
+                                        <AppText label={`${[item.warehouse_name, item.sku].filter(Boolean).join(' · ')} · Current stock: ${item.inventory} (Minimum stock: ${item.minimum})`} fontSize={12} color={colors.textTertiary} style={{ marginTop: 2 }} numberOfLines={1} />
                                     </View>
                                     <Lucide name="chevron-right" size={18} color={colors.border} />
                                 </View>

@@ -14,9 +14,12 @@ export function toNumOrNull(value) {
 
 export function normalizeLowStockItem(item) {
     if (!item || typeof item !== 'object') return item;
+    const id = item.id ?? item.product_id ?? item.inventory_id;
     return {
         ...item,
-        id: item.id ?? item.product_id ?? item.inventory_id,
+        id,
+        key: String(item.inventory_id ?? (item.warehouse_id != null ? `${id}-${item.warehouse_id}` : id)),
+        warehouse_name: item.warehouse_name ?? '',
         name: item.name ?? item.product_name ?? 'Unknown Product',
         sku: item.sku ?? item.product_sku ?? '-',
         category: item.category ?? item.category_name ?? '',

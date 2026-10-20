@@ -254,11 +254,16 @@ function AnalyticsDashboardApp() {
 								</Box>
 								<Divider className="my-4" />
 								{lowStock.slice(0, 4).map((item: any) => (
-									<Box key={String(item?.id ?? item?.sku ?? item?.name)} className="flex items-center justify-between py-2">
+									<Box key={String(item?.inventory_id ?? item?.id ?? item?.sku ?? item?.name)} className="flex items-center justify-between py-2">
 										<Box className="min-w-0">
 											<Typography className="font-medium truncate">{item?.name ?? '—'}</Typography>
 											<Typography variant="body2" color="text.secondary" className="truncate">
-												{[item?.sku, item?.current ? `Stock: ${item.current}` : null, item?.reorderAt ? `Reorder at ${item.reorderAt}` : null]
+												{[
+													item?.warehouse_name,
+													item?.sku,
+													(item?.inventory ?? item?.current) != null ? `Stock: ${item?.inventory ?? item?.current}` : null,
+													(item?.minimum ?? item?.reorderAt) != null ? `Reorder at ${item?.minimum ?? item?.reorderAt}` : null
+												]
 													.filter(Boolean)
 													.join(' · ')}
 											</Typography>

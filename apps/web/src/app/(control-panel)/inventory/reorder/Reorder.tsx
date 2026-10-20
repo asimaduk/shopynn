@@ -13,11 +13,11 @@ export default function Reorder() {
 
 	const filteredItems = useMemo(() => {
 		const mapped: ReorderListItem[] = apiItems.map((it: any) => ({
-			id: String(it?.id ?? it?.product_id ?? it?.productId ?? it?.sku ?? Math.random()),
+			id: String(it?.inventory_id ?? it?.id ?? it?.product_id ?? it?.productId ?? it?.sku ?? Math.random()),
 			name: String(it?.name ?? it?.product_name ?? it?.productName ?? '—'),
 			sku: String(it?.sku ?? it?.product_sku ?? it?.productSku ?? '—'),
-			currentStock: Number(it?.current ?? it?.current_stock ?? it?.quantity_available ?? it?.quantityAvailable ?? 0),
-			reorderLevel: Number(it?.reorderAt ?? it?.reorder_level ?? it?.reorderLevel ?? 0),
+			currentStock: Number(it?.inventory ?? it?.current ?? it?.current_stock ?? it?.quantity_available ?? it?.quantityAvailable ?? 0),
+			reorderLevel: Number(it?.minimum ?? it?.reorderAt ?? it?.reorder_level ?? it?.reorderLevel ?? 0),
 			warehouse: String(it?.warehouse ?? it?.warehouse_name ?? it?.warehouseName ?? '—'),
 			reportedAt: String(it?.reportedAt ?? it?.updated_at ?? it?.updatedAt ?? it?.created_at ?? it?.createdAt ?? new Date().toISOString().split('T')[0])
 		}));

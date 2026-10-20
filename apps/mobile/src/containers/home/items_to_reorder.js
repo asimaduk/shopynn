@@ -100,6 +100,7 @@ const ItemsToReorder = ({ navigation, route }) => {
         return list.filter(
             (item) =>
                 item.name.toLowerCase().includes(q) ||
+                String(item.warehouse_name || '').toLowerCase().includes(q) ||
                 String(item.sku || '')
                     .toLowerCase()
                     .includes(q) ||
@@ -148,7 +149,7 @@ const ItemsToReorder = ({ navigation, route }) => {
                                 color={colors.text}
                             />
                             <AppText
-                                label={[item.sku, item.category].filter(Boolean).join(' · ')}
+                                label={[item.warehouse_name, item.sku, item.category].filter(Boolean).join(' · ')}
                                 fontSize={12}
                                 color={colors.textTertiary}
                                 style={{ marginTop: 4 }}
@@ -349,7 +350,7 @@ const ItemsToReorder = ({ navigation, route }) => {
                 <FlashList
                     data={filteredData}
                     estimatedItemSize={168}
-                    keyExtractor={(item) => String(item.id)}
+                    keyExtractor={(item) => item.key ?? String(item.id)}
                     contentContainerStyle={styles.listContent}
                     refreshControl={
                         <RefreshControl
