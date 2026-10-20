@@ -8,6 +8,7 @@ import indexroute from "./routes/index.js";
 import { startSubscriptionStatusJob } from "./jobs/subscriptionStatusJob.js";
 import { startDailySalesSummaryNotificationJob } from "./jobs/dailySalesSummaryNotificationJob.js";
 import { ensureBillingCatalogSeededService } from "./models/billingCatalog.js";
+import { backfillOrderSalesService } from "./models/orderSale.js";
 
 const app = express();
 // Railway terminates TLS in front of us; trust its one proxy hop so req.ip is the client.
@@ -42,6 +43,10 @@ startDailySalesSummaryNotificationJob();
 // Self-heal empty billing catalog after data restores (migrations already applied).
 ensureBillingCatalogSeededService().catch((err) => {
     console.error("startup billing catalog ensure failed:", err?.message || err);
+});
+
+backfillOrderSalesService().catch((err) => {
+    console.error("startup order sales backfill failed:", err?.message || err);
 });
 
 app.listen(port, "0.0.0.0", () => {

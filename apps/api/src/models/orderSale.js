@@ -66,7 +66,7 @@ async function resolveSaleCreator(client, order, actorUserId) {
 }
 
 /** Records the sale for a fulfilled, paid order. Returns the sale id, or null when the order doesn't qualify yet. */
-export async function recordSaleForOrderService({ orderId, tenantId, actorUserId = null }) {
+export async function recordSaleForOrderService({ orderId, tenantId, actorUserId = null, saleAt: saleAtIn = null }) {
     const client = await pool.connect();
     try {
         await client.query("BEGIN");
@@ -108,10 +108,12 @@ export async function recordSaleForOrderService({ orderId, tenantId, actorUserId
         }
 
         const creatorId = await resolveSaleCreator(client, order, actorUserId);
-        const saleAt = new Date();
+        const saleAt = saleAtIn ? new Date(saleAtIn) : new Date();
         const total = toMoney(order.total_amount);
-        const amountPaid = Math.min(total, toMoney(order.amount_paid));
-        const balanceDue = toMoney(Math.max(0, total - amountPaid));
+        // Older cash-paid orders can still show 0 paid; a paid order never owes more than its balance.
+        const recordedPaid = toMoney(order.amount_paid);
+        const amountPaid = recordedPaid > 0.001 ? Math.min(total, recordedPaid) : total;
+        const balanceDue = toMoney(Math.max(0, Math.min(total - amountPaid, toMoney(order.balance_due))));
         const paymentStatus = balanceDue > 0.02 ? (amountPaid > 0.02 ? 2 : 0) : 1;
         const numberOfItems = itemsRes.rows.reduce((sum, i) => sum + Number(i.quantity || 0), 0);
 
@@ -233,6 +235,39 @@ export async function recordSaleForOrderService({ orderId, tenantId, actorUserId
     } finally {
         client.release();
     }
+}
+
+/**
+ * Records sales for fulfilled, paid orders that don't have one yet (orders from before sales were
+ * recorded, or a live attempt that failed), dated when the order was fulfilled.
+ */
+export async function backfillOrderSalesService() {
+    const { rows } = await pool.query(
+        `SELECT o.id, o.tenant_id,
+                (SELECT max(h.created_at) FROM order_status_history h
+                  WHERE h.order_id = o.id AND h.to_status IN ('completed', 'delivered')) AS fulfilled_at
+         FROM orders o
+         WHERE lower(coalesce(o.payment_status, '')) = 'paid'
+           AND (lower(o.status) = 'completed'
+                OR (lower(o.status) = 'delivered' AND lower(o.fulfillment_type) = 'delivery'))
+           AND NOT EXISTS (SELECT 1 FROM sales s WHERE s.order_id = o.id)
+         ORDER BY o.created_at ASC`
+    );
+    let recorded = 0;
+    for (const row of rows) {
+        try {
+            const id = await recordSaleForOrderService({
+                orderId: row.id,
+                tenantId: row.tenant_id,
+                saleAt: row.fulfilled_at || null,
+            });
+            if (id) recorded += 1;
+        } catch (error) {
+            console.error(`[order sale] backfill failed for order ${row.id}:`, error?.message || error);
+        }
+    }
+    if (rows.length) console.log(`[order sale] backfill recorded ${recorded} of ${rows.length} order sale(s).`);
+    return recorded;
 }
 
 /** Never fails the caller: the order update has already been committed. */
