@@ -55,26 +55,21 @@ export const getDashboardDataService = async (user, options = {}) => {
     );
     const salesReturns = salesReturnsResult.rows[0] || { total_returned: 0, month_returned: 0 };
 
-    // Sales per day for the last 7 days (all 7 days included, zeros for days with no sales)
-    const last7DaysByDayQuery = !canViewAllSales
-        ? `WITH last_7_days AS (
+    // Net sales per day for the last 7 days (zeros for days with no sales); returns count against the sale's day.
+    const last7DaysByDayQuery = `WITH last_7_days AS (
              SELECT (CURRENT_DATE - (n || ' days')::interval)::date AS d
              FROM generate_series(6, 0, -1) AS n
            )
-           SELECT l.d AS date, COALESCE(SUM(s.total_amount), 0)::numeric AS total, COUNT(s.id)::int AS count
+           SELECT l.d AS date,
+                  COALESCE(SUM(s.total_amount - COALESCE((
+                      SELECT SUM(r.total_amount) FROM returns r
+                      WHERE r.sale_id = s.id AND r.tenant_id = s.tenant_id AND r.status = 'completed'
+                  ), 0)), 0)::numeric AS total,
+                  COUNT(s.id)::int AS count
            FROM last_7_days l
-           LEFT JOIN sales s ON DATE(s.created_at) = l.d AND s.tenant_id = $1 AND s.creator_id = $2
-           GROUP BY l.d ORDER BY l.d`
-        : `WITH last_7_days AS (
-             SELECT (CURRENT_DATE - (n || ' days')::interval)::date AS d
-             FROM generate_series(6, 0, -1) AS n
-           )
-           SELECT l.d AS date, COALESCE(SUM(s.total_amount), 0)::numeric AS total, COUNT(s.id)::int AS count
-           FROM last_7_days l
-           LEFT JOIN sales s ON DATE(s.created_at) = l.d AND s.tenant_id = $1
+           LEFT JOIN sales s ON DATE(s.created_at) = l.d AND s.tenant_id = $1${salesCreatorFilter}
            GROUP BY l.d ORDER BY l.d`;
-    const last7DaysParams = !canViewAllSales ? [tenant_id, user.id] : [tenant_id];
-    const last7DaysResult = await pool.query(last7DaysByDayQuery, last7DaysParams);
+    const last7DaysResult = await pool.query(last7DaysByDayQuery, salesParams);
     const last7DaysByDay = last7DaysResult.rows.map((row) => ({
         date: row.date instanceof Date ? row.date.toISOString().slice(0, 10) : String(row.date).slice(0, 10),
         count: Number(row.count),
