@@ -164,17 +164,19 @@ const ApplicationNavigator = () => {
             lastConnected = connected;
         });
 
+        // NetInfo can miss a reconnect, so also retry on foreground and on a timer;
+        // a failed upload just stays queued.
         const onAppState = (next) => {
-            if (next === 'active') {
-                NetInfo.fetch().then((state) => {
-                    if (state?.isConnected && state?.isInternetReachable !== false) flushPending();
-                });
-            }
+            if (next === 'active') flushPending();
         };
         const appSub = AppState.addEventListener('change', onAppState);
+        const retryTimer = setInterval(() => {
+            if (AppState.currentState === 'active') syncPendingSales().catch(() => {});
+        }, 60000);
 
         return () => {
             if (debounceTimer) clearTimeout(debounceTimer);
+            clearInterval(retryTimer);
             unsubscribe && unsubscribe();
             appSub?.remove?.();
         };

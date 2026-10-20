@@ -20,6 +20,7 @@ import { MOMO_NETWORK_OPTIONS, getMomoNetworkIcon, validateMomoNumberForProvider
 import { hasPermission, hasFeature, getScreenPlanAccess, navigateToScreenOrUpgrade } from '../../utils/permissions';
 import { getPrintAgentPrintUrl, readPrintAgentResponse } from '../../utils/printAgent';
 import { SALES_LIST_REFRESH_EVENT } from '../../utils/salesEvents';
+import { claimPendingSale, releasePendingSale } from '../../utils/syncPendingSales';
 import NetInfo from '@react-native-community/netinfo';
 import {
     SECURE_PENDING_SALES_KEY as PENDING_SALES_KEY,
@@ -1355,6 +1356,7 @@ const NewSale = ({ navigation, route }) => {
             }
 
             const pendingId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+            claimPendingSale(pendingId);
             const normalizedPendingItem = {
                 id: pendingId,
                 customer: selectedCustomer?.name || 'Walk-in',
@@ -1400,6 +1402,7 @@ const NewSale = ({ navigation, route }) => {
                     text1: 'Offline — sale queued',
                     text2: 'It will sync when you reconnect.',
                 });
+                releasePendingSale(pendingId);
             } else {
                 try {
                     created = await salesApi.create(payload);
@@ -1443,6 +1446,8 @@ const NewSale = ({ navigation, route }) => {
                         'Saved for later',
                         `${errMessage}\n\nThe sale has been saved to Pending Sales for retry.`,
                     );
+                } finally {
+                    releasePendingSale(pendingId);
                 }
             }
 

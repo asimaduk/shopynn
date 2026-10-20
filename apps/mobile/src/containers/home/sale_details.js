@@ -27,6 +27,7 @@ import {
     readSecureList,
     writeSecureList,
 } from '../../utils/secureOfflineStorage';
+import { claimPendingSale, releasePendingSale } from '../../utils/syncPendingSales';
 
 const safeString = (v) => (typeof v === 'string' ? v : v == null ? '' : String(v));
 const getErrorCode = (err) => safeString(err?.response?.data?.code || err?.response?.data?.error?.code || err?.response?.data?.data?.code).toUpperCase();
@@ -466,15 +467,26 @@ const SaleDetails = ({ navigation, route }) => {
     const handleRetryPendingUpload = async () => {
         const pendingId = item?.id;
         if (!pendingId || !item?.payload) return;
-        try {
-            await salesApi.create(item.payload);
-            await removePendingSaleById(pendingId);
+        if (!claimPendingSale(pendingId)) {
+            showNotice('Uploading', 'This sale is already being uploaded. Check Sales in a moment.', 'cloud-upload');
+            return;
+        }
+        const showUploaded = () =>
             showSuccess({
                 title: 'Sale uploaded',
                 message: 'This pending sale is now saved to your sales.',
                 primaryLabel: 'Back to sales',
                 onPrimary: () => navigation.goBack(),
             });
+        try {
+            const queued = await readSecureList(PENDING_SALES_KEY);
+            if (!(Array.isArray(queued) ? queued : []).some((x) => String(x?.id) === String(pendingId))) {
+                showUploaded();
+                return;
+            }
+            await salesApi.create(item.payload);
+            await removePendingSaleById(pendingId);
+            showUploaded();
         } catch (err) {
             const nowIso = new Date().toISOString();
             const nextItem = {
@@ -487,6 +499,8 @@ const SaleDetails = ({ navigation, route }) => {
             setItem(nextItem);
             await updatePendingSale(pendingId, () => nextItem);
             showNotice('Upload failed', nextItem.last_error_message || 'Could not upload this sale.', 'cloud-off');
+        } finally {
+            releasePendingSale(pendingId);
         }
     };
 
