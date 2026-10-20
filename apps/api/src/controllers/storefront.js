@@ -12,7 +12,11 @@ import {
 /** Database errors go to the generic handler so table and constraint names never reach the public. */
 const sendStorefrontError = (res, next, error) => {
     if (!error?.status && error?.severity) return next(error);
-    return handleResponse(res, error?.status || 400, error?.message || "Failed.", error?.code ? { code: error.code } : null);
+    if (error?.retry_after_seconds) res.set("Retry-After", String(error.retry_after_seconds));
+    const data = error?.code
+        ? { code: error.code, ...(error.retry_after_seconds ? { retry_after_seconds: error.retry_after_seconds } : {}) }
+        : null;
+    return handleResponse(res, error?.status || 400, error?.message || "Failed.", data);
 };
 
 export const publicGetStore = async (req, res, next) => {

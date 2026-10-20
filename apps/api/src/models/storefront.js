@@ -20,6 +20,8 @@ const PURPOSE_PHONE = "storefront_phone";
 const OTP_TTL_MS = 10 * 60 * 1000;
 const SESSION_TTL_MS = 30 * 60 * 1000;
 const RESEND_COOLDOWN_MS = 60 * 1000;
+const MAX_SENDS_PER_HOUR = 5;
+const MAX_SENDS_PER_DAY = 10;
 const MAX_ATTEMPTS = 5;
 const saltRounds = 12;
 
@@ -205,31 +207,66 @@ export async function sendStorefrontPhoneOtpService({ phone, reference_code }) {
     const normalized = normalizeStorefrontPhone(phone);
     assertValidPhone(normalized);
 
-    const recent = await pool.query(
-        `SELECT created_at FROM email_verification_codes
-         WHERE lower(email) = $1 AND purpose = $2
-         ORDER BY created_at DESC LIMIT 1`,
-        [normalized, PURPOSE_PHONE]
-    );
-    if (recent.rowCount > 0) {
-        const last = new Date(recent.rows[0].created_at).getTime();
-        if (Date.now() - last < RESEND_COOLDOWN_MS) {
-            const err = new Error("Please wait a minute before requesting another code.");
-            err.status = 400;
-            err.code = "OTP_COOLDOWN";
-            throw err;
-        }
-    }
-
     const code = generateOtp();
     const id = uuidv4();
     const expiresAt = new Date(Date.now() + OTP_TTL_MS);
-    await pool.query(
-        `INSERT INTO email_verification_codes (
-            id, email, purpose, code_hash, attempts, expires_at, created_at
-        ) VALUES ($1, $2, $3, $4, 0, $5, now())`,
-        [id, normalized, PURPOSE_PHONE, hashOtp(normalized, code), expiresAt]
-    );
+
+    const client = await pool.connect();
+    try {
+        await client.query("BEGIN");
+        await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`${PURPOSE_PHONE}:${normalized}`]);
+        const recent = await client.query(
+            `SELECT
+                max(created_at) AS last_at,
+                count(*) FILTER (WHERE created_at > now() - interval '1 hour')::int AS last_hour,
+                count(*)::int AS last_day,
+                min(created_at) FILTER (WHERE created_at > now() - interval '1 hour') AS oldest_hour_at,
+                min(created_at) AS oldest_day_at
+             FROM email_verification_codes
+             WHERE lower(email) = $1 AND purpose = $2 AND created_at > now() - interval '24 hours'`,
+            [normalized, PURPOSE_PHONE]
+        );
+        const r = recent.rows[0] || {};
+        const now = Date.now();
+        const waitUntil = (from, windowMs) => Math.max(1, Math.ceil((new Date(from).getTime() + windowMs - now) / 1000));
+        const limited = (message, retryAfter) => {
+            const err = new Error(message);
+            err.status = 429;
+            err.code = "OTP_COOLDOWN";
+            err.retry_after_seconds = retryAfter;
+            return err;
+        };
+        if (Number(r.last_day) >= MAX_SENDS_PER_DAY) {
+            throw limited(
+                "Too many codes requested for this number today. Try again tomorrow.",
+                waitUntil(r.oldest_day_at, 24 * 60 * 60 * 1000)
+            );
+        }
+        if (Number(r.last_hour) >= MAX_SENDS_PER_HOUR) {
+            const retry = waitUntil(r.oldest_hour_at, 60 * 60 * 1000);
+            throw limited(
+                `Too many codes requested for this number. Try again in ${Math.ceil(retry / 60)} min.`,
+                retry
+            );
+        }
+        if (r.last_at && now - new Date(r.last_at).getTime() < RESEND_COOLDOWN_MS) {
+            const retry = waitUntil(r.last_at, RESEND_COOLDOWN_MS);
+            throw limited(`Please wait ${retry}s before requesting another code.`, retry);
+        }
+
+        await client.query(
+            `INSERT INTO email_verification_codes (
+                id, email, purpose, code_hash, attempts, expires_at, created_at
+            ) VALUES ($1, $2, $3, $4, 0, $5, now())`,
+            [id, normalized, PURPOSE_PHONE, hashOtp(normalized, code), expiresAt]
+        );
+        await client.query("COMMIT");
+    } catch (e) {
+        await client.query("ROLLBACK").catch(() => {});
+        throw e;
+    } finally {
+        client.release();
+    }
 
     const sms = await sendSmsService({
         to: normalized,
@@ -255,6 +292,7 @@ export async function sendStorefrontPhoneOtpService({ phone, reference_code }) {
         phone: normalized,
         reference_code: store.reference_code,
         expires_in_seconds: Math.floor(OTP_TTL_MS / 1000),
+        resend_after_seconds: Math.floor(RESEND_COOLDOWN_MS / 1000),
         sms_sent: Boolean(sms.ok),
     };
     if (allowDevOtpInResponse() && !sms.ok) {

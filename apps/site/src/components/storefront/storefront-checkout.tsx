@@ -298,6 +298,8 @@ export function StorefrontCheckout({
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [devCode, setDevCode] = useState<string | null>(null);
+  const [resendAt, setResendAt] = useState(0);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [nameKnown, setNameKnown] = useState(false);
@@ -321,6 +323,17 @@ export function StorefrontCheckout({
   }, [payLater]);
 
   const refreshCart = () => setLines(readCart(storeCode));
+
+  const resendIn = Math.max(0, Math.ceil((resendAt - nowMs) / 1000));
+  useEffect(() => {
+    if (resendAt <= Date.now()) return;
+    const t = setInterval(() => {
+      const n = Date.now();
+      setNowMs(n);
+      if (n >= resendAt) clearInterval(t);
+    }, 1000);
+    return () => clearInterval(t);
+  }, [resendAt]);
 
   useEffect(() => {
     let cancelled = false;
@@ -448,6 +461,9 @@ export function StorefrontCheckout({
       const res = await sendStorefrontOtp(storeCode, phone.trim());
       setPhone(res.phone);
       setDevCode(res.dev_code || null);
+      const now = Date.now();
+      setNowMs(now);
+      setResendAt(now + (res.resend_after_seconds ?? 60) * 1000);
       setStep("otp");
       if (res.sms_sent) {
         toast.success("Code sent by SMS.");
@@ -457,6 +473,14 @@ export function StorefrontCheckout({
         toast.error("SMS could not be sent. Please try again.");
       }
     } catch (e) {
+      const retry = Number(
+        (e instanceof ApiError && (e.body as { data?: { retry_after_seconds?: number } })?.data?.retry_after_seconds) || 0,
+      );
+      if (retry > 0) {
+        const now = Date.now();
+        setNowMs(now);
+        setResendAt(now + retry * 1000);
+      }
       toast.error(e instanceof ApiError ? e.message : "Could not send code.");
     } finally {
       setBusy(false);
@@ -807,10 +831,12 @@ export function StorefrontCheckout({
                 type="button"
                 variant="ghost"
                 className="mt-2 w-full"
-                disabled={busy}
+                disabled={busy || resendIn > 0}
                 onClick={sendOtp}
               >
-                Resend code
+                {resendIn > 0
+                  ? `Resend code in ${Math.floor(resendIn / 60)}:${String(resendIn % 60).padStart(2, "0")}`
+                  : "Resend code"}
               </Button>
             </section>
           ) : null}
