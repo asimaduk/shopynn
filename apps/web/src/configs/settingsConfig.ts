@@ -22,6 +22,9 @@ const settingsConfig: FuseSettingsConfigType = {
 		config: {
 			navbar: {
 				style: 'style-2'
+			},
+			footer: {
+				display: false
 			}
 		} // checkout default layout configs at src/components/theme-layouts for example  src/components/theme-layouts/layout1/Layout1Config.js
 	},
