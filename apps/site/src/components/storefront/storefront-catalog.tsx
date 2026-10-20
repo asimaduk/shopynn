@@ -32,6 +32,7 @@ export function StorefrontCatalog({ storeCode }: { storeCode: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [, setCartTick] = useState(0);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -60,13 +61,14 @@ export function StorefrontCatalog({ storeCode }: { storeCode: string }) {
   }, [storeCode, search]);
 
   useEffect(() => {
+    setHydrated(true);
     const refresh = () => setCartTick((n) => n + 1);
     window.addEventListener("shopynn-cart", refresh);
     return () => window.removeEventListener("shopynn-cart", refresh);
   }, []);
 
   const qtyInCart = (productId: string) =>
-    readCart(storeCode).find((l) => l.product_id === productId)?.quantity || 0;
+    hydrated ? readCart(storeCode).find((l) => l.product_id === productId)?.quantity || 0 : 0;
 
   const setQty = (p: StorefrontProduct, quantity: number) => {
     const available = Number(p.quantity_available ?? 0);
@@ -87,7 +89,7 @@ export function StorefrontCatalog({ storeCode }: { storeCode: string }) {
   };
 
   const storeTitle = store?.store?.name || store?.company?.name || "Catalog";
-  const itemsInCart = cartCount(storeCode);
+  const itemsInCart = hydrated ? cartCount(storeCode) : 0;
 
   if (error && !loading && !store) {
     return (

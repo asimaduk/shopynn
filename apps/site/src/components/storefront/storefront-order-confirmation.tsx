@@ -34,19 +34,19 @@ export function StorefrontOrderConfirmation({
   const amount = total != null && total !== "" ? Number(total) : null;
   const fulfillLabel =
     fulfillment === "delivery" ? "delivery" : fulfillment === "pickup" ? "pickup" : "fulfillment";
-  const [payCtx, setPayCtx] = useState(() => readOrderPayContext(orderId));
-  const [paid, setPaid] = useState(() => wasOrderPaidLocally(orderId));
+  const [payCtx, setPayCtx] = useState<ReturnType<typeof readOrderPayContext>>(null);
+  const [paid, setPaid] = useState(false);
   const [verifying, setVerifying] = useState(false);
-  const [pendingRef, setPendingRef] = useState<string | null>(() => {
-    const fromUrl = String(reference || "").trim();
-    if (fromUrl) return fromUrl;
-    const ctx = readOrderPayContext(orderId);
-    return String(ctx?.pending_reference || "").trim() || null;
-  });
+  const [pendingRef, setPendingRef] = useState<string | null>(
+    () => String(reference || "").trim() || null,
+  );
   const [manualCheckBusy, setManualCheckBusy] = useState(false);
 
   useEffect(() => {
-    setPayCtx(readOrderPayContext(orderId));
+    const ctx = readOrderPayContext(orderId);
+    setPayCtx(ctx);
+    const savedRef = String(ctx?.pending_reference || "").trim();
+    if (savedRef) setPendingRef((cur) => cur || savedRef);
     if (wasOrderPaidLocally(orderId)) {
       setPaid(true);
       clearOrderPayContext(orderId);
@@ -60,7 +60,7 @@ export function StorefrontOrderConfirmation({
 
   useEffect(() => {
     const needsVerify = payStatus === "verify" || payStatus === "done";
-    if (!needsVerify || paid) return;
+    if (!needsVerify || paid || wasOrderPaidLocally(orderId)) return;
     const ctx = readOrderPayContext(orderId);
     const ref = String(reference || ctx?.pending_reference || "").trim();
     if (!ref) {
