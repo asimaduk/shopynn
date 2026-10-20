@@ -599,7 +599,8 @@ export const getOrderByIdService = async (user, orderId) => {
         `SELECT o.*,
                 w.name AS warehouse_name, w.phone AS warehouse_phone, w.manager AS warehouse_contact,
                 cp.user_id AS customer_user_id,
-                nullif(trim(concat(coalesce(cu.first_name, ''), ' ', coalesce(cu.last_name, ''))), '') AS customer_name
+                nullif(trim(concat(coalesce(cu.first_name, ''), ' ', coalesce(cu.last_name, ''))), '') AS customer_name,
+                cu.phone AS customer_phone
          FROM orders o
          LEFT JOIN warehouses w ON w.id = o.warehouse_id
          LEFT JOIN customer_profiles cp ON cp.id = o.customer_profile_id
