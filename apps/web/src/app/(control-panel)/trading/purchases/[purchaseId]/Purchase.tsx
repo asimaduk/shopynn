@@ -91,7 +91,7 @@ function Purchase() {
 							initial={{ x: 20, opacity: 0 }}
 							animate={{ x: 0, opacity: 1, transition: { delay: 0.3 } }}
 						>
-							<PageBreadcrumb className="mb-2" />
+							<PageBreadcrumb className="mb-2" currentTitle={purchase.invoice_number} />
 						</motion.div>
 
 						<motion.div
@@ -161,6 +161,17 @@ function Purchase() {
 										className='font-medium text-right'>
 										{purchase.number_of_items} item(s)
 									</Typography>
+									<div className="flex justify-end mt-2">
+										<Button
+											component={Link}
+											to={`/trading/purchases/returns/new?purchaseId=${purchase.id}`}
+											variant="outlined"
+											size="small"
+											startIcon={<FuseSvgIcon size={16}>heroicons-outline:arrow-uturn-left</FuseSvgIcon>}
+										>
+											Return to supplier
+										</Button>
+									</div>
 								</div>
 							</motion.div>
 						</div>

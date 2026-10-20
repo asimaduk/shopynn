@@ -116,6 +116,17 @@ const TradingApi = api
 				}),
 				invalidatesTags: ['eCommerce_orders', 'eCommerce_order']
 			}),
+			getPurchaseReturnable: build.query<any, string>({
+				query: (purchaseId) => ({ url: `/api/returns/purchase/${purchaseId}/returnable` })
+			}),
+			createPurchaseReturn: build.mutation<any, Record<string, unknown>>({
+				query: (body) => ({
+					url: `/api/returns/purchase`,
+					method: 'POST',
+					body
+				}),
+				invalidatesTags: ['eCommerce_orders', 'eCommerce_order']
+			}),
 
 			getProductPurchasesByDate: build.query<GetSalesApiResponse, GetSalesApiArg>({
 				query: (queryString) => ({ url: `/api/purchases?${queryString}` })
@@ -435,6 +446,8 @@ export const {
 	useLazyGetSaleReturnableQuery,
 	useLazyGetOrderReturnableQuery,
 	useCreateReturnMutation,
+	useLazyGetPurchaseReturnableQuery,
+	useCreatePurchaseReturnMutation,
 	useGetStoreOrdersQuery,
 	useGetStoreOrderByIdQuery,
 	useGetStoreOrderHistoryQuery,

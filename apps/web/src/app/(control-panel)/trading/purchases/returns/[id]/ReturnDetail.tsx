@@ -10,10 +10,13 @@ import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Chip from '@mui/material/Chip';
+import { useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Link from '@fuse/core/Link';
+import FuseLoading from '@fuse/core/FuseLoading';
 import ReturnDetailHeader from './ReturnDetailHeader';
-import { getPurchaseReturnById } from '../returnsListData';
+import { useGetReturnQuery } from '../../../TradingApi';
+import { toPurchaseReturnRecord } from '../returnsListData';
 import { formatGhsCurrency } from '../../../../dashboards/analytics/daily-sales/formatGhsCurrency';
 
 function statusColor(s: string) {
@@ -28,7 +31,10 @@ function statusColor(s: string) {
 export default function ReturnDetail() {
 	const params = useParams();
 	const id = typeof params?.id === 'string' ? params.id : null;
-	const record = id ? getPurchaseReturnById(id) : null;
+	const { data, isLoading } = useGetReturnQuery(id ?? '', { skip: !id });
+	const record = useMemo(() => (data?.id && data?.purchase_id ? toPurchaseReturnRecord(data) : null), [data]);
+
+	if (id && isLoading) return <FuseLoading />;
 
 	if (!id || !record) {
 		return (
@@ -40,6 +46,8 @@ export default function ReturnDetail() {
 			</div>
 		);
 	}
+
+	const balanceReduction = Math.max(0, record.amount - record.cashBack);
 
 	return (
 		<>
@@ -62,18 +70,47 @@ export default function ReturnDetail() {
 						</div>
 						<div>
 							<Typography variant="caption" color="text.secondary">Original purchase</Typography>
-							<Typography>{record.originalPurchaseRef}</Typography>
+							{record.purchaseId ? (
+								<Typography component={Link} to={`/trading/purchases/${record.purchaseId}`} sx={{ textDecoration: 'underline' }}>
+									{record.originalPurchaseRef}
+								</Typography>
+							) : (
+								<Typography>{record.originalPurchaseRef}</Typography>
+							)}
 						</div>
 						<div>
 							<Typography variant="caption" color="text.secondary">Status</Typography>
 							<Chip size="small" label={record.status} color={statusColor(record.status)} variant="outlined" />
 						</div>
 						<div>
-							<Typography variant="caption" color="text.secondary">Total amount</Typography>
+							<Typography variant="caption" color="text.secondary">Credit from supplier</Typography>
 							<Typography fontWeight="bold">
 								{formatGhsCurrency(record.amount, 2, 2)}
 							</Typography>
 						</div>
+						<div>
+							<Typography variant="caption" color="text.secondary">Settled as</Typography>
+							<Typography>
+								{[
+									balanceReduction > 0.005 ? `${formatGhsCurrency(balanceReduction, 2, 2)} off amount owed` : null,
+									record.cashBack > 0.005 ? `${formatGhsCurrency(record.cashBack, 2, 2)} cash back` : null
+								]
+									.filter(Boolean)
+									.join(' · ') || '—'}
+							</Typography>
+						</div>
+						{record.store && (
+							<div>
+								<Typography variant="caption" color="text.secondary">Stock taken from</Typography>
+								<Typography>{record.store}</Typography>
+							</div>
+						)}
+						{record.notes && (
+							<div>
+								<Typography variant="caption" color="text.secondary">Notes</Typography>
+								<Typography>{record.notes}</Typography>
+							</div>
+						)}
 					</div>
 					<Typography variant="subtitle2" className="mb-2">Returned items</Typography>
 					<Table size="small">
@@ -82,7 +119,7 @@ export default function ReturnDetail() {
 								<TableCell>Product</TableCell>
 								<TableCell>SKU</TableCell>
 								<TableCell align="right">Qty</TableCell>
-								<TableCell align="right">Unit price</TableCell>
+								<TableCell align="right">Unit cost</TableCell>
 								<TableCell align="right">Total</TableCell>
 								<TableCell>Reason</TableCell>
 							</TableRow>
@@ -97,7 +134,7 @@ export default function ReturnDetail() {
 										{formatGhsCurrency(line.unitPrice, 2, 2)}
 									</TableCell>
 									<TableCell align="right">
-										{formatGhsCurrency((line.quantity * line.unitPrice), 2, 2)}
+										{formatGhsCurrency(line.quantity * line.unitPrice, 2, 2)}
 									</TableCell>
 									<TableCell>{line.reason ?? '—'}</TableCell>
 								</TableRow>

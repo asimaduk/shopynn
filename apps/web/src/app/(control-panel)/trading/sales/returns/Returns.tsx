@@ -14,8 +14,8 @@ export default function Returns() {
 	const [dateRange, setDateRange] = useState<DateRange>(null);
 	const { data, isLoading } = useGetReturnsQuery(
 		dateRange
-			? { startDate: dateRange.startDate, endDate: dateRange.endDate }
-			: undefined
+			? { type: 'sales', startDate: dateRange.startDate, endDate: dateRange.endDate }
+			: { type: 'sales' }
 	);
 
 	const rows: SaleReturnRecord[] = useMemo(() => {

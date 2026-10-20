@@ -66,7 +66,10 @@ function ProductsTab( { purchase }) {
 								</Typography>
 							</td>
 							<td className="w-16 text-center">
-								<span className="truncate">{product.quantity}</span>
+								<span className="truncate">{Number(product.quantity)}</span>
+								{Number(product.returned_qty) > 0 && (
+									<span className="block text-xs text-red-600">{Number(product.returned_qty)} returned</span>
+								)}
 							</td>
 							<td className="w-28">
 								<span className="truncate">
