@@ -11,6 +11,7 @@ import { storeOrders } from '../../services/api';
 import { hasFeature, hasPermission } from '../../utils/permissions';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import AppAlert from '../../utils/appAlert';
+import { formatPhone } from '../../utils/format';
 
 /** Mirrors the API's ORDER_STATUS_TRANSITIONS; cancelling is offered separately. */
 const TRANSITIONS = {
@@ -84,7 +85,7 @@ const OrderCard = ({ colors, icon, title, right, children }) => (
     </View>
 );
 
-const OrderInfoRow = ({ colors, icon, label, value, onPress, actionIcon }) => (
+const OrderInfoRow = ({ colors, icon, label, value, sub, onPress, actionIcon }) => (
     <View style={styles.infoRow}>
         <View style={[styles.infoIcon, { backgroundColor: colors.surfaceSecondary }]}>
             <Lucide name={icon} size={16} color={colors.textSecondary} />
@@ -92,6 +93,7 @@ const OrderInfoRow = ({ colors, icon, label, value, onPress, actionIcon }) => (
         <View style={{ flex: 1 }}>
             <AppText label={label} fontSize={11} color={colors.textTertiary} />
             <AppText label={value} fontSize={14} color={colors.text} style={{ marginTop: 1 }} />
+            {sub ? <AppText label={sub} fontSize={12} color={colors.textSecondary} style={{ marginTop: 1 }} /> : null}
         </View>
         {onPress ? (
             <TouchableOpacity
@@ -345,7 +347,8 @@ const OrderDetails = ({ navigation, route }) => {
                     <OrderInfoRow colors={colors}
                         icon="user"
                         label="Customer"
-                        value={[customerName || 'Customer', customerPhone].filter(Boolean).join(' · ')}
+                        value={customerName || 'Customer'}
+                        sub={customerPhone ? formatPhone(customerPhone) : undefined}
                         onPress={customerPhone ? callCustomer : undefined}
                         actionIcon="phone"
                     />
