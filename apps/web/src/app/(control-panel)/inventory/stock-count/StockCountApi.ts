@@ -70,7 +70,7 @@ export function mapStockCountRow(row: StockCountApiRow): StockCountRecord {
 		warehouse: row.warehouse_name?.trim() || '—',
 		productCount: n,
 		itemsCounted: n,
-		variance: row.variance,
+		variance: row.variance == null ? null : Number(row.variance),
 		status: normalizeStatus(row.status),
 		conductedBy: conductedBy || '—',
 		referenceNumber: row.reference_number ?? undefined

@@ -33,7 +33,9 @@ export const getStockCountsHistoryService = async (user, requestQuery = {}) => {
     const query = `
         SELECT sc.id, sc.warehouse_id, sc.reference_number, sc.status, sc.number_of_items, sc.notes, sc.created_at,
                w.name AS warehouse_name,
-               u.first_name AS creator_first_name, u.last_name AS creator_last_name
+               u.first_name AS creator_first_name, u.last_name AS creator_last_name,
+               (SELECT COALESCE(SUM(scd.variance), 0)::float FROM stock_count_details scd
+                 WHERE scd.stock_count_id = sc.id) AS variance
         FROM stock_counts sc
         LEFT JOIN warehouses w ON sc.warehouse_id = w.id
         LEFT JOIN users u ON sc.creator_id = u.id

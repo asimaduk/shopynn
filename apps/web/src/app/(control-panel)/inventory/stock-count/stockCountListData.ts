@@ -8,7 +8,7 @@ export type StockCountRecord = {
 	warehouse: string;
 	productCount: number;
 	itemsCounted: number;
-	/** Aggregate variance not returned by list API — shown as "—" when null. */
+	/** Net variance across all counted lines; "—" when unavailable. */
 	variance: number | null;
 	status: 'completed' | 'in_progress' | 'scheduled';
 	conductedBy: string;
