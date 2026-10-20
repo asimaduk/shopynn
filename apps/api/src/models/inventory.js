@@ -45,7 +45,8 @@ export const getAllInventoriesService = async (warehouse_id, tenant_id = null, q
  * Returns:
  *  - inventoryCount: number of distinct products in inventory
  *  - totalUnits: total quantity_available across inventories
- *  - stockValue: total inventory value (quantity * unit_price)
+ *  - stockValue: total inventory value at retail (quantity * unit_price)
+ *  - stockValueAtCost: total at cost (weighted avg purchase price, else actual_cost — as the dashboard)
  *  - lowStockCount: number of low-stock inventory rows
  *  - items: list of inventories with their stock values
  */
@@ -65,9 +66,19 @@ export const getStockSummaryService = async (tenant_id, queryParams = {}) => {
             COUNT(DISTINCT inv.product_id)::int AS inventory_count,
             COALESCE(SUM(inv.quantity_available), 0)::int AS total_units,
             COALESCE(SUM(inv.quantity_available * p.unit_price), 0)::numeric AS stock_value,
+            COALESCE(SUM(inv.quantity_available * COALESCE(purch.avg_cost, p.actual_cost, 0)), 0)::numeric AS stock_value_at_cost,
             COALESCE(SUM(CASE WHEN inv.quantity_available <= COALESCE(inv.minimum_stock_level, 0) THEN 1 ELSE 0 END), 0)::int AS low_stock_count
         FROM inventories inv
         JOIN products p ON inv.product_id = p.id AND p.tenant_id = inv.tenant_id
+        LEFT JOIN LATERAL (
+            SELECT CASE
+                WHEN SUM(pd.quantity) > 0
+                THEN (SUM(pd.quantity * pd.unit_price) / SUM(pd.quantity))::numeric
+                ELSE NULL
+            END AS avg_cost
+            FROM purchasedetails pd
+            WHERE pd.tenant_id = inv.tenant_id AND pd.product_id = inv.product_id
+        ) purch ON true
         WHERE ${where}
     `;
     const summaryResult = await pool.query(summaryQuery, params);
@@ -102,6 +113,7 @@ export const getStockSummaryService = async (tenant_id, queryParams = {}) => {
         inventoryCount: Number(summary.inventory_count || 0),
         totalUnits: Number(summary.total_units || 0),
         stockValue: Number(summary.stock_value || 0),
+        stockValueAtCost: Number(summary.stock_value_at_cost || 0),
         lowStockCount: Number(summary.low_stock_count || 0),
         items: itemsResult.rows,
     };

@@ -32,7 +32,8 @@ export function mapStockSummary(data: any): { cards: ReportCard[]; rows: ReportR
 		cards: [
 			{ label: 'Products', value: String(data.inventoryCount ?? 0), color: '#7c3aed' },
 			{ label: 'Total units', value: String(data.totalUnits ?? 0), color: '#10b981' },
-			{ label: 'Stock value', value: formatCurrency(data.stockValue), color: '#f59e0b' },
+			{ label: 'Value at cost', value: formatCurrency(data.stockValueAtCost), color: '#f59e0b' },
+			{ label: 'Value at retail', value: formatCurrency(data.stockValue), color: '#0ea5e9' },
 			{ label: 'Low stock', value: String(data.lowStockCount ?? 0), color: '#ef4444' }
 		],
 		rows: items.map((it: any) => ({

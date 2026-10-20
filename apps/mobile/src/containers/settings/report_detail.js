@@ -384,7 +384,8 @@ const ReportDetail = ({ navigation, route }) => {
                         cards: [
                             { label: 'Products', value: res.inventoryCount, icon: 'package', color: config.THEME_COLOR },
                             { label: 'Total units', value: formatQuantity(res.totalUnits), icon: 'layers', color: '#10b981' },
-                            { label: 'Stock value', value: formatCurrency(res.stockValue), icon: 'wallet', color: '#f59e0b' },
+                            { label: 'Value at cost', value: formatCurrency(res.stockValueAtCost ?? 0), icon: 'wallet', color: '#f59e0b' },
+                            { label: 'Value at retail', value: formatCurrency(res.stockValue), icon: 'tag', color: '#0ea5e9' },
                             { label: 'Low stock', value: res.lowStockCount, icon: 'triangle-alert', color: '#ef4444' },
                         ],
                         rows: res.items,
