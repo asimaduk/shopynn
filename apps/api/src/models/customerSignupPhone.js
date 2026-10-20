@@ -12,8 +12,6 @@ import {
     ensureStorefrontCustomer,
     normalizeStorefrontPhone,
 } from "./storefront.js";
-import { allowDevOtpInResponse } from "../util/devOtp.js";
-
 const PURPOSE = "customer_signup_phone";
 const OTP_TTL_MS = 10 * 60 * 1000;
 const SESSION_TTL_MS = 30 * 60 * 1000;
@@ -86,10 +84,6 @@ export async function sendCustomerSignupPhoneOtpService({ phone, reference_code 
         expires_in_seconds: Math.floor(OTP_TTL_MS / 1000),
         sms_sent: Boolean(sms.ok),
     };
-    if (allowDevOtpInResponse() && !sms.ok) {
-        result.dev_code = code;
-        result.dev_hint = "SMS not configured — use dev_code (STOREFRONT_OTP_DEV=true).";
-    }
     return result;
 }
 

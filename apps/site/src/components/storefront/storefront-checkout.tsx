@@ -297,7 +297,6 @@ export function StorefrontCheckout({
   const [step, setStep] = useState<Step>("cart");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
-  const [devCode, setDevCode] = useState<string | null>(null);
   const [resendAt, setResendAt] = useState(0);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [firstName, setFirstName] = useState("");
@@ -460,17 +459,14 @@ export function StorefrontCheckout({
     try {
       const res = await sendStorefrontOtp(storeCode, phone.trim());
       setPhone(res.phone);
-      setDevCode(res.dev_code || null);
       const now = Date.now();
       setNowMs(now);
       setResendAt(now + (res.resend_after_seconds ?? 60) * 1000);
       setStep("otp");
       if (res.sms_sent) {
         toast.success("Code sent by SMS.");
-      } else if (res.dev_code) {
-        toast.message(`Dev code: ${res.dev_code}`);
       } else {
-        toast.error("SMS could not be sent. Please try again.");
+        toast.message("If the SMS doesn't arrive within a minute, tap Resend.");
       }
     } catch (e) {
       const retry = Number(
@@ -815,9 +811,6 @@ export function StorefrontCheckout({
                   </InputOTPGroup>
                 </InputOTP>
               </div>
-              {devCode ? (
-                <p className="mt-3 text-xs text-muted-foreground">Dev code: {devCode}</p>
-              ) : null}
               <Button
                 className="mt-6 h-12 w-full rounded-full text-base font-semibold"
                 size="lg"

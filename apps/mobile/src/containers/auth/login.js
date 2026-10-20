@@ -83,7 +83,6 @@ const Login = ({ navigation, route }) => {
     const [phone, setPhone] = useState('');
     const [phoneOtp, setPhoneOtp] = useState('');
     const [phoneOtpSent, setPhoneOtpSent] = useState(false);
-    const [phoneDevCode, setPhoneDevCode] = useState(null);
     const [phoneResendCooldownSec, setPhoneResendCooldownSec] = useState(0);
     const [phoneResendAttempts, setPhoneResendAttempts] = useState(0);
     const [codeSentNotice, setCodeSentNotice] = useState(null);
@@ -145,7 +144,6 @@ const Login = ({ navigation, route }) => {
         setLoginError('');
         setPhoneOtpSent(false);
         setPhoneOtp('');
-        setPhoneDevCode(null);
         setPhoneResendCooldownSec(0);
         setPhoneResendAttempts(0);
     };
@@ -161,7 +159,6 @@ const Login = ({ navigation, route }) => {
     const resetPhoneOtpFlow = () => {
         setPhoneOtpSent(false);
         setPhoneOtp('');
-        setPhoneDevCode(null);
         setPhoneResendCooldownSec(0);
         setPhoneResendAttempts(0);
         setLoginError('');
@@ -448,7 +445,6 @@ const Login = ({ navigation, route }) => {
             const data = await usersApi.sendPhoneLoginOtp(phone.trim());
             setPhoneOtpSent(true);
             setPhoneOtp('');
-            setPhoneDevCode(data?.dev_code || null);
             if (data?.phone) {
                 let normalized = String(data.phone).replace(/\D/g, '');
                 if (normalized.startsWith('233') && normalized.length >= 12) {
@@ -462,9 +458,7 @@ const Login = ({ navigation, route }) => {
             if (!isResend) {
                 Keyboard.dismiss();
                 setCodeSentNotice({
-                    message: data?.dev_code
-                        ? `SMS isn't set up yet. Use dev code ${data.dev_code}.`
-                        : 'We sent a 6-digit code by SMS. Enter it to sign in.',
+                    message: 'We sent a 6-digit code by SMS. Enter it to sign in.',
                 });
             }
         } catch (err) {
@@ -820,14 +814,6 @@ const Login = ({ navigation, route }) => {
                                                 autoFocus
                                             />
                                         </View>
-                                        {phoneDevCode ? (
-                                            <AppText
-                                                label={`Dev code: ${phoneDevCode}`}
-                                                fontSize={12}
-                                                color={colors.textTertiary}
-                                                style={{ marginTop: 6 }}
-                                            />
-                                        ) : null}
                                     </View>
                                 ) : null}
                                 {!!loginError && (

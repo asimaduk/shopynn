@@ -1,5 +1,5 @@
 /**
- * Return SMS codes in API responses when SMS delivery fails. Opt-in only, so a deploy
- * that forgets NODE_ENV=production never hands codes to whoever asked for them.
+ * Let storefront checkout continue when SMS delivery fails; the code is only written to the
+ * server logs, never returned to the caller. Opt-in so production fails closed by default.
  */
-export const allowDevOtpInResponse = () => process.env.STOREFRONT_OTP_DEV === "true";
+export const allowOtpWithoutSms = () => process.env.STOREFRONT_OTP_DEV === "true";

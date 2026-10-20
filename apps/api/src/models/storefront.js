@@ -13,7 +13,7 @@ import { resolveStoreReferencePublicService } from "./customerProfile.js";
 import { CUSTOMER_PORTAL_PERMISSION_CODES } from "../constants/permissionCodes.js";
 import { sendSmsService } from "../services/sms.js";
 import { createOrderService, settleOrderPaymentByReference } from "./order.js";
-import { allowDevOtpInResponse } from "../util/devOtp.js";
+import { allowOtpWithoutSms } from "../util/devOtp.js";
 import { isCustomerOnlyAccount } from "../util/customerAccount.js";
 
 const PURPOSE_PHONE = "storefront_phone";
@@ -277,7 +277,7 @@ export async function sendStorefrontPhoneOtpService({ phone, reference_code }) {
         console.info(
             `[storefront OTP] phone=${normalized} store=${store.reference_code} code=${code} sms=${sms.error || "n/a"}`
         );
-        if (!allowDevOtpInResponse()) {
+        if (!allowOtpWithoutSms()) {
             await pool.query(`DELETE FROM email_verification_codes WHERE id = $1`, [id]);
             const err = new Error(
                 "We couldn't send an SMS right now. Please try again in a moment."
@@ -295,10 +295,6 @@ export async function sendStorefrontPhoneOtpService({ phone, reference_code }) {
         resend_after_seconds: Math.floor(RESEND_COOLDOWN_MS / 1000),
         sms_sent: Boolean(sms.ok),
     };
-    if (allowDevOtpInResponse() && !sms.ok) {
-        result.dev_code = code;
-        result.dev_hint = "SMS not configured — use dev_code (STOREFRONT_OTP_DEV=true).";
-    }
     return result;
 }
 

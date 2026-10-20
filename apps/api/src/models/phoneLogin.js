@@ -9,7 +9,6 @@ import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
 import { sendSmsService } from "../services/sms.js";
 import { normalizeStorefrontPhone } from "./storefront.js";
-import { allowDevOtpInResponse } from "../util/devOtp.js";
 import { isCustomerOnlyAccount } from "../util/customerAccount.js";
 
 const PURPOSE = "phone_login";
@@ -116,10 +115,6 @@ export async function sendPhoneLoginOtpService({ phone }) {
         sms_sent: Boolean(sms.ok),
         first_name: user.first_name || null,
     };
-    if (allowDevOtpInResponse() && !sms.ok) {
-        result.dev_code = code;
-        result.dev_hint = "SMS not configured — use dev_code (STOREFRONT_OTP_DEV=true).";
-    }
     return result;
 }
 

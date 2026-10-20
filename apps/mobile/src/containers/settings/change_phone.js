@@ -70,8 +70,6 @@ const ChangePhone = ({ navigation, route }) => {
     const [verifying, setVerifying] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
-    const [devHint, setDevHint] = useState('');
-
     const normalizedPhone = useMemo(() => normalizePhone(phone), [phone]);
     const canSend = isValidPhone(normalizedPhone) && !sendingOtp && !verifying;
     const canVerify = otpSent && /^\d{6}$/.test(otp) && !verifying && !sendingOtp;
@@ -83,14 +81,12 @@ const ChangePhone = ({ navigation, route }) => {
     const clearStatus = useCallback(() => {
         setError('');
         setSuccess('');
-        setDevHint('');
     }, []);
 
     const onPhoneChange = useCallback((text) => {
         setPhone(String(text || '').replace(/[^\d+\s]/g, '').slice(0, 16));
         setError('');
         setSuccess('');
-        setDevHint('');
         if (otpSent) {
             setOtpSent(false);
             setOtp('');
@@ -112,15 +108,10 @@ const ChangePhone = ({ navigation, route }) => {
 
         setSendingOtp(true);
         try {
-            const result = await usersApi.sendChangePhoneOtp(normalizedPhone);
+            await usersApi.sendChangePhoneOtp(normalizedPhone);
             setOtpSent(true);
             setOtp('');
-            let msg = 'Code sent by SMS. Enter the 6-digit code (expires in 10 minutes).';
-            if (result?.dev_code) {
-                msg = `SMS not configured. Dev code: ${result.dev_code}`;
-                setDevHint(String(result.dev_code));
-            }
-            setSuccess(msg);
+            setSuccess('Code sent by SMS. Enter the 6-digit code (expires in 10 minutes).');
         } catch (err) {
             const msg = err?.response?.data?.message || err?.message || 'Could not send code.';
             setError(msg);
@@ -298,18 +289,6 @@ const ChangePhone = ({ navigation, route }) => {
                                         style={[styles.input, { color: colors.text }]}
                                     />
                                 </View>
-                                {!!devHint ? (
-                                    <TouchableOpacity
-                                        onPress={() => setOtp(devHint)}
-                                        style={{ marginTop: 4 }}
-                                    >
-                                        <AppText
-                                            label={`Tap to fill dev code (${devHint})`}
-                                            fontSize={12}
-                                            color={config.THEME_COLOR}
-                                        />
-                                    </TouchableOpacity>
-                                ) : null}
                             </>
                         ) : null}
                     </View>

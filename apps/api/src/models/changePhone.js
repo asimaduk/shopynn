@@ -7,8 +7,6 @@ import crypto from "crypto";
 import { v4 as uuidv4 } from "uuid";
 import { sendSmsService } from "../services/sms.js";
 import { normalizeStorefrontPhone } from "./storefront.js";
-import { allowDevOtpInResponse } from "../util/devOtp.js";
-
 const PURPOSE = "change_phone";
 const OTP_TTL_MS = 10 * 60 * 1000;
 const RESEND_COOLDOWN_MS = 60 * 1000;
@@ -100,10 +98,6 @@ export async function sendChangePhoneOtpService({ userId, phone }) {
         resend_cooldown_seconds: Math.floor(RESEND_COOLDOWN_MS / 1000),
         sms_sent: Boolean(sms.ok),
     };
-    if (allowDevOtpInResponse() && !sms.ok) {
-        result.dev_code = code;
-        result.dev_hint = "SMS not configured — use dev_code (STOREFRONT_OTP_DEV=true).";
-    }
     return result;
 }
 

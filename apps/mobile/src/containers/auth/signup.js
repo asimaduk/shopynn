@@ -31,7 +31,6 @@ const CustomerSignup = ({ navigation }) => {
     const [phone, setPhone] = useState('');
     const [otp, setOtp] = useState('');
     const [otpSent, setOtpSent] = useState(false);
-    const [devCode, setDevCode] = useState(null);
     const [sessionToken, setSessionToken] = useState(null);
     const [existingCustomer, setExistingCustomer] = useState(false);
 
@@ -65,7 +64,6 @@ const CustomerSignup = ({ navigation }) => {
             setOtpSent(false);
             setOtp('');
             setSessionToken(null);
-            setDevCode(null);
         } catch (error) {
             const msg = error?.response?.data?.message || error?.message || 'Could not verify reference code.';
             AppAlert.alert('Verification failed', msg);
@@ -86,7 +84,6 @@ const CustomerSignup = ({ navigation }) => {
                 reference_code: normalizeReferenceCodeInput(referenceCode),
             });
             setOtpSent(true);
-            setDevCode(data?.dev_code || null);
             if (data?.phone) {
                 let n = String(data.phone).replace(/\D/g, '');
                 if (n.startsWith('233') && n.length >= 12) n = `0${n.slice(3)}`;
@@ -94,9 +91,7 @@ const CustomerSignup = ({ navigation }) => {
             }
             Keyboard.dismiss();
             setCodeSentNotice({
-                message: data?.dev_code
-                    ? `SMS isn't set up yet. Use dev code ${data.dev_code}.`
-                    : 'We sent a 6-digit code by SMS. Enter it to verify your number.',
+                message: 'We sent a 6-digit code by SMS. Enter it to verify your number.',
             });
         } catch (error) {
             const msg = error?.response?.data?.message || error?.message || 'Could not send code.';
@@ -361,14 +356,6 @@ const CustomerSignup = ({ navigation }) => {
                                             keyboardType: 'number-pad',
                                             maxLength: 6,
                                         })}
-                                        {devCode ? (
-                                            <AppText
-                                                label={`Dev code: ${devCode}`}
-                                                fontSize={12}
-                                                color={colors.textTertiary}
-                                                style={{ marginBottom: 8 }}
-                                            />
-                                        ) : null}
                                         <TouchableOpacity
                                             onPress={verifyOtp}
                                             disabled={loading || String(otp).trim().length < 6}

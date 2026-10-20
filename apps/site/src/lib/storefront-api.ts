@@ -68,8 +68,6 @@ export function sendStorefrontOtp(code: string, phone: string) {
     expires_in_seconds: number;
     resend_after_seconds?: number;
     sms_sent?: boolean;
-    dev_code?: string;
-    dev_hint?: string;
   }>(`/api/public/store/${encodeURIComponent(code)}/otp/send`, { phone });
 }
 
