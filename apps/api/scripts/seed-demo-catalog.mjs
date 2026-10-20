@@ -96,24 +96,27 @@ async function resolveAccount(db, email) {
 }
 
 async function wipeTransactions(client, tenantId) {
+	const tenantSales = `SELECT id FROM sales WHERE tenant_id = $1`;
+	await client.query(`DELETE FROM store_credit_ledger WHERE tenant_id = $1`, [tenantId]);
+	await client.query(`DELETE FROM return_details WHERE return_id IN (SELECT id FROM returns WHERE tenant_id = $1)`, [
+		tenantId,
+	]);
+	await client.query(`DELETE FROM returns WHERE tenant_id = $1`, [tenantId]);
 	await client.query(
 		`DELETE FROM adjustmentdetails WHERE adjustment_id IN (SELECT id FROM adjustments WHERE tenant_id = $1)`,
 		[tenantId]
 	);
 	await client.query(`DELETE FROM adjustments WHERE tenant_id = $1`, [tenantId]);
-	await client.query(`DELETE FROM saledetails WHERE sale_id IN (SELECT id FROM sales WHERE tenant_id = $1)`, [
-		tenantId,
-	]);
+	await client.query(`DELETE FROM deliveries WHERE sale_id IN (${tenantSales})`, [tenantId]);
+	// Payment records (MoMo, Paystack) are kept for audit; only their link to the wiped sale is cleared.
+	await client.query(`UPDATE payments SET sale_id = NULL WHERE sale_id IN (${tenantSales})`, [tenantId]);
+	await client.query(`DELETE FROM saledetails WHERE sale_id IN (${tenantSales})`, [tenantId]);
 	await client.query(`DELETE FROM sales WHERE tenant_id = $1`, [tenantId]);
 	await client.query(
 		`DELETE FROM purchasedetails WHERE purchase_id IN (SELECT id FROM purchases WHERE tenant_id = $1)`,
 		[tenantId]
 	);
 	await client.query(`DELETE FROM purchases WHERE tenant_id = $1`, [tenantId]);
-	await client.query(`DELETE FROM return_details WHERE return_id IN (SELECT id FROM returns WHERE tenant_id = $1)`, [
-		tenantId,
-	]);
-	await client.query(`DELETE FROM returns WHERE tenant_id = $1`, [tenantId]);
 	await client.query(
 		`DELETE FROM transferdetails WHERE transfer_id IN (SELECT id FROM transfers WHERE tenant_id = $1)`,
 		[tenantId]
@@ -128,8 +131,16 @@ async function wipeTransactions(client, tenantId) {
 }
 
 async function wipePartners(client, tenantId) {
-	// Safe after sales/purchases wiped (customer_id / supplier_id FKs)
-	await client.query(`DELETE FROM customers WHERE tenant_id = $1`, [tenantId]);
+	// Keep the walk-in customer, app (profile-linked) customers, and anyone tied to online orders or payments.
+	await client.query(
+		`DELETE FROM customers c
+		 WHERE c.tenant_id = $1
+		   AND COALESCE(c.is_walk_in, false) = false
+		   AND c.customer_profile_id IS NULL
+		   AND NOT EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id)
+		   AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.customer_id = c.id)`,
+		[tenantId]
+	);
 	await client.query(`DELETE FROM suppliers WHERE tenant_id = $1`, [tenantId]);
 }
 
@@ -139,10 +150,10 @@ async function wipeTenantCatalog(client, tenantId, { keepTransactions }) {
 	console.log(`  Products to remove: ${ids.length}`);
 
 	if (ids.length) {
+		await client.query(`DELETE FROM return_details WHERE product_id = ANY($1::varchar[])`, [ids]);
 		await client.query(`DELETE FROM adjustmentdetails WHERE product_id = ANY($1::varchar[])`, [ids]);
 		await client.query(`DELETE FROM saledetails WHERE product_id = ANY($1::varchar[])`, [ids]);
 		await client.query(`DELETE FROM purchasedetails WHERE product_id = ANY($1::varchar[])`, [ids]);
-		await client.query(`DELETE FROM return_details WHERE product_id = ANY($1::varchar[])`, [ids]);
 		await client.query(`DELETE FROM transferdetails WHERE product_id = ANY($1::varchar[])`, [ids]);
 		await client.query(`DELETE FROM stock_count_details WHERE product_id = ANY($1::varchar[])`, [ids]);
 		await client.query(`DELETE FROM order_items WHERE product_id = ANY($1::varchar[])`, [ids]);
