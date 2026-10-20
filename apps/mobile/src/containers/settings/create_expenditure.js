@@ -12,6 +12,9 @@ import { expenses as expensesApi, warehouses as warehousesApi, normalizeList } f
 import DateTimePicker from '@react-native-community/datetimepicker';
 import AppAlert from '../../utils/appAlert';
 
+const toLocalYmd = (d) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
 const InputField = ({
     label,
     value,
@@ -106,7 +109,7 @@ const CreateExpenditure = ({ navigation }) => {
     const [amount, setAmount] = useState('');
     const [category, setCategory] = useState('');
     const [paymentMethod, setPaymentMethod] = useState('');
-    const [expenseDate, setExpenseDate] = useState('');
+    const [expenseDate, setExpenseDate] = useState(() => toLocalYmd(new Date()));
     const [expenseDateValue, setExpenseDateValue] = useState(new Date());
     const [notes, setNotes] = useState('');
     const [showCategoryModal, setShowCategoryModal] = useState(false);
@@ -136,7 +139,7 @@ const CreateExpenditure = ({ navigation }) => {
     }, []);
 
     const handleSave = () => {
-        if (!description?.trim() || !amount?.trim() || !category?.trim()) {
+        if (!description?.trim() || !amount?.trim() || !category?.trim() || !paymentMethod?.trim() || !expenseDate?.trim()) {
             AppAlert.alert('Error', 'Please fill in all required fields (Description, Amount, Category, Payment Method, Expense Date).');
             return;
         }
@@ -183,10 +186,10 @@ const CreateExpenditure = ({ navigation }) => {
     };
 
     const handleExpenseDateChange = (event, selectedDate) => {
-        setShowDatePicker(false);
+        if (Platform.OS !== 'ios') setShowDatePicker(false);
         if (selectedDate) {
             setExpenseDateValue(selectedDate);
-            setExpenseDate(selectedDate.toISOString().slice(0, 10));
+            setExpenseDate(toLocalYmd(selectedDate));
         }
     };
 
@@ -408,15 +411,39 @@ const CreateExpenditure = ({ navigation }) => {
                 </ScrollView>
             </AppModal>
 
-            {showDatePicker && (
+            {Platform.OS === 'ios' ? (
+                <AppModal
+                    visible={showDatePicker}
+                    handleClose={() => setShowDatePicker(false)}
+                    title="Expense date"
+                    height="45%"
+                >
+                    <View style={{ paddingHorizontal: 20 }}>
+                        <DateTimePicker
+                            value={expenseDateValue}
+                            mode="date"
+                            maximumDate={new Date()}
+                            display="spinner"
+                            onChange={handleExpenseDateChange}
+                        />
+                        <TouchableOpacity
+                            activeOpacity={0.8}
+                            onPress={() => setShowDatePicker(false)}
+                            style={{ backgroundColor: config.THEME_COLOR, borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 8 }}
+                        >
+                            <AppText label="Done" variant={1} fontSize={15} color="#fff" />
+                        </TouchableOpacity>
+                    </View>
+                </AppModal>
+            ) : showDatePicker ? (
                 <DateTimePicker
                     value={expenseDateValue}
                     mode="date"
                     maximumDate={new Date()}
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    display="default"
                     onChange={handleExpenseDateChange}
                 />
-            )}
+            ) : null}
         </SafeAreaView>
     );
 };
