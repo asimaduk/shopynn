@@ -172,6 +172,17 @@ function NewSale() {
 		return warehouse ?? (user as any)?.warehouse ?? null;
 	}, [resolvedWarehouseId, warehouses, warehouse, user]);
 
+	/** The picker shows "phone - name"; parked carts restore just the name. */
+	const selectedCustomer = useMemo(() => {
+		if (!customer || !Array.isArray(customers_data)) return null;
+		const label = String(customer);
+		return (
+			customers_data.find((c: any) => `${c.phone} - ${c.name}` === label) ||
+			customers_data.find((c: any) => c.name === label) ||
+			null
+		);
+	}, [customer, customers_data]);
+
     const filteredProducts = useMemo(() => {
         const list = Array.isArray(products) ? products : [];
         const q = filterText.trim().toLowerCase();
@@ -448,8 +459,8 @@ function NewSale() {
             discount_amount: orderDiscount,
             invoice_number: allocateNextInvoiceNumber(),
             current_status:1,
-            customer_id: customer ? customers_data.find(c=> c.name == customer)?.id : null,
-            customer: customer || 'Walk In',
+            customer_id: selectedCustomer?.id ?? null,
+            customer: selectedCustomer?.name || customer || 'Walk In',
             sale_date: new Date().toJSON(),
             products: currentOrder.map(o=> {return {
                 id: o.id,
@@ -495,7 +506,7 @@ function NewSale() {
             payload
         };
 
-        const customerRow = customer ? customers_data.find((c: { name?: string }) => c.name === customer) : null;
+        const customerRow = selectedCustomer;
         const printerType = normalizeWarehousePrinterType(
             (warehouseRecordForPrinting as { printer_type?: string } | null)?.printer_type
         );
@@ -1234,23 +1245,8 @@ function NewSale() {
                             0
                         ) || 0
                     }
-                    customerId={
-                        customer
-                            ? customers_data.find((c: { name?: string }) => c.name === customer)?.id || null
-                            : null
-                    }
-                    availableStoreCredit={
-                        customer
-                            ? Number(
-                                    (
-                                        customers_data.find(
-                                            (c: { name?: string; store_credit_balance?: number | string }) =>
-                                                c.name === customer
-                                        ) as { store_credit_balance?: number | string } | undefined
-                                    )?.store_credit_balance
-                                ) || 0
-                            : 0
-                    }
+                    customerId={selectedCustomer?.id || null}
+                    availableStoreCredit={Number(selectedCustomer?.store_credit_balance) || 0}
                     printerType={(warehouseRecordForPrinting as { printer_type?: string } | null)?.printer_type}
                     resumeMomo={resumeMomo}
                     getCartSnapshot={(): PosCartSnapshot | null => {
@@ -1258,10 +1254,8 @@ function NewSale() {
                         return {
                             warehouse_id: warehouse?.id || null,
                             warehouse_name: warehouse?.name || null,
-                            customer_id: customer
-                                ? customers_data.find((c: { name?: string }) => c.name === customer)?.id || null
-                                : null,
-                            customer_name: customer || null,
+                            customer_id: selectedCustomer?.id || null,
+                            customer_name: selectedCustomer?.name || customer || null,
                             products: currentOrder.map((o: any) => ({ ...o })),
                             bulk_discount: bulkDiscount
                         };
