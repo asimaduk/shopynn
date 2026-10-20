@@ -14,6 +14,7 @@ import { useParams } from 'next/navigation';
 import Link from '@fuse/core/Link';
 import ReturnDetailHeader from './ReturnDetailHeader';
 import { getPurchaseReturnById } from '../returnsListData';
+import { formatGhsCurrency } from '../../../../dashboards/analytics/daily-sales/formatGhsCurrency';
 
 function statusColor(s: string) {
 	switch (s) {
@@ -70,7 +71,7 @@ export default function ReturnDetail() {
 						<div>
 							<Typography variant="caption" color="text.secondary">Total amount</Typography>
 							<Typography fontWeight="bold">
-								{record.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 })}
+								{formatGhsCurrency(record.amount, 2, 2)}
 							</Typography>
 						</div>
 					</div>
@@ -93,10 +94,10 @@ export default function ReturnDetail() {
 									<TableCell>{line.sku}</TableCell>
 									<TableCell align="right">{line.quantity}</TableCell>
 									<TableCell align="right">
-										{line.unitPrice.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+										{formatGhsCurrency(line.unitPrice, 2, 2)}
 									</TableCell>
 									<TableCell align="right">
-										{(line.quantity * line.unitPrice).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+										{formatGhsCurrency((line.quantity * line.unitPrice), 2, 2)}
 									</TableCell>
 									<TableCell>{line.reason ?? '—'}</TableCell>
 								</TableRow>

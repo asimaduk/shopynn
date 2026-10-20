@@ -7,6 +7,7 @@ import Typography from '@mui/material/Typography';
 import Chip from '@mui/material/Chip';
 import Link from '@fuse/core/Link';
 import type { SaleReturnRecord } from './returnsListData';
+import { formatGhsCurrency } from '../../../dashboards/analytics/daily-sales/formatGhsCurrency';
 
 type ReturnsTableProps = { data: SaleReturnRecord[] };
 
@@ -62,12 +63,7 @@ export default function ReturnsTable({ data }: ReturnsTableProps) {
 				accessorKey: 'amount',
 				header: 'Amount',
 				size: 110,
-				Cell: ({ row }) =>
-					row.original.amount.toLocaleString('en-US', {
-						style: 'currency',
-						currency: 'USD',
-						maximumFractionDigits: 2
-					})
+				Cell: ({ row }) => formatGhsCurrency(row.original.amount, 2, 2)
 			},
 			{
 				accessorKey: 'status',
