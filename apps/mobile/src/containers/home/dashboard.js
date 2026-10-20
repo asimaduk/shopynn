@@ -376,8 +376,8 @@ const Dashboard = ({ navigation, route }) => {
                                 icon="trending-up"
                                 iconColor="#a4b2e2"
                                 iconBg="#a4b2e918"
-                                title="Net Profit"
-                                value={metrics.profit?.net > 0 ? metrics.profit?.net : 0}
+                                title={metrics.profit?.net < 0 ? 'Net Loss' : 'Net Profit'}
+                                value={metrics.profit?.net ?? 0}
                                 change={metrics.profit?.net > 0 ? metrics.profitChange : 0}
                                 changeType={metrics.profit?.net > 0 ? 'positive' : 'negative'}
                                 isCurrency={true}
