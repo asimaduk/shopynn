@@ -94,16 +94,26 @@ const productListedQuantity = (item) => {
     return Number(item?.inventory ?? 0);
 };
 
+/** Stores at or below their own minimum — the same rule as the Dashboard's reorder list. */
+const lowStockStores = (item) => {
+    const stores = item?.stores_quantities;
+    if (!Array.isArray(stores)) return [];
+    return stores.filter((s) => {
+        const min = Number(s?.minimum_stock_level);
+        return Number.isFinite(min) && min > 0 && (Number(s?.quantity_available) || 0) <= min;
+    });
+};
+
 const isProductLowStock = (item) => {
     const stock = productListedQuantity(item);
     if (stock === 0) return false;
+    if (lowStockStores(item).length > 0) return true;
     const reorder = Number(item?.reorder_quantity ?? 0);
     return reorder > 0 && stock <= reorder;
 };
 
 const stockStatusForItem = (item) => {
     const stock = productListedQuantity(item);
-    const reorder = Number(item?.reorder_quantity ?? 0);
     if (stock === 0) {
         return {
             label: 'Out of Stock',
@@ -113,10 +123,11 @@ const stockStatusForItem = (item) => {
             icon: 'package-x',
         };
     }
-    const isLow = reorder > 0 && stock <= reorder;
-    if (isLow) {
+    if (isProductLowStock(item)) {
+        const lowStores = lowStockStores(item);
+        const multiStore = (item?.stores_quantities || []).length > 1;
         return {
-            label: 'Low Stock',
+            label: multiStore && lowStores.length === 1 && lowStores[0]?.name ? `Low at ${lowStores[0].name}` : 'Low Stock',
             tone: 'low',
             color: '#f59e0b',
             bg: 'rgba(245,158,11,0.18)',
