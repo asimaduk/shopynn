@@ -360,7 +360,7 @@ const ReportDetail = ({ navigation, route }) => {
                         ],
                         rows: [
                             // { item: 'Sales', amount: res.revenue, type: 'income' },
-                            { item: 'COGS', amount: res.cogs },
+                            { item: 'COGS', amount: res.cogs || '0' },
                             { item: 'Gross profit', amount: res.grossProfit || '0'},
                         ],
                     };
