@@ -1,8 +1,10 @@
 import pool from "../config/db.js";
 
+const PAYMENT_STATUS_LABELS = { 0: "unpaid", 1: "paid", 2: "partial" };
+
 function csvEscape(value) {
     if (value == null) return "";
-    const s = String(value);
+    const s = value instanceof Date ? value.toISOString().slice(0, 16).replace("T", " ") : String(value);
     if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
     return s;
 }
@@ -10,7 +12,11 @@ function csvEscape(value) {
 function toCsv(headers, rows) {
     const lines = [headers.join(",")];
     for (const row of rows) {
-        lines.push(headers.map((h) => csvEscape(row[h])).join(","));
+        lines.push(
+            headers
+                .map((h) => csvEscape(h === "payment_status" ? PAYMENT_STATUS_LABELS[row[h]] ?? row[h] : row[h]))
+                .join(",")
+        );
     }
     return `${lines.join("\n")}\n`;
 }
@@ -33,7 +39,9 @@ export async function buildAccountantPackService({ tenantId, startDate, endDate 
     const salesRes = await pool.query(
         `SELECT s.id, s.invoice_number, COALESCE(s.sale_date, s.created_at) AS sale_date,
                 s.total_amount, s.discount_amount, s.amount_paid, s.balance_due,
-                s.payment_status, s.notes, c.name AS customer_name, w.name AS warehouse_name
+                s.payment_status, s.notes, c.name AS customer_name, w.name AS warehouse_name,
+                COALESCE((SELECT SUM(r.total_amount) FROM returns r
+                          WHERE r.sale_id = s.id AND r.tenant_id = s.tenant_id AND r.status = 'completed'), 0) AS returned_amount
          FROM sales s
          LEFT JOIN customers c ON c.id = s.customer_id
          LEFT JOIN warehouses w ON w.id = s.warehouse_id
@@ -57,7 +65,7 @@ export async function buildAccountantPackService({ tenantId, startDate, endDate 
     );
 
     const expensesRes = await pool.query(
-        `SELECT e.id, e.expense_date, e.amount, e.category, e.description, e.note,
+        `SELECT e.id, COALESCE(e.expense_date, e.created_at) AS expense_date, e.voucher, e.amount, e.category, e.description, e.note,
                 e.payment_method, e.expensed_by, w.name AS warehouse_name
          FROM expenses e
          LEFT JOIN warehouses w ON w.id = e.warehouse_id
@@ -77,6 +85,7 @@ export async function buildAccountantPackService({ tenantId, startDate, endDate 
         "discount_amount",
         "amount_paid",
         "balance_due",
+        "returned_amount",
         "payment_status",
         "notes",
     ];
@@ -95,6 +104,7 @@ export async function buildAccountantPackService({ tenantId, startDate, endDate 
     const expenseHeaders = [
         "id",
         "expense_date",
+        "voucher",
         "amount",
         "category",
         "description",
