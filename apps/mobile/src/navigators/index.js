@@ -151,7 +151,7 @@ const ApplicationNavigator = () => {
         };
 
         const unsubscribe = NetInfo.addEventListener((state) => {
-            const connected = !!state?.isConnected;
+            const connected = !!(state?.isConnected && state?.isInternetReachable !== false);
             if (lastConnected === null) {
                 lastConnected = connected;
                 return;
@@ -167,7 +167,7 @@ const ApplicationNavigator = () => {
         const onAppState = (next) => {
             if (next === 'active') {
                 NetInfo.fetch().then((state) => {
-                    if (state?.isConnected) flushPending();
+                    if (state?.isConnected && state?.isInternetReachable !== false) flushPending();
                 });
             }
         };
