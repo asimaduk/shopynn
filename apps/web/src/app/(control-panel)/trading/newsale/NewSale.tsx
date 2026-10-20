@@ -183,6 +183,12 @@ function NewSale() {
 		);
 	}, [customer, customers_data]);
 
+	const walkInCustomer = useMemo(
+		() => (Array.isArray(customers_data) ? customers_data.find((c: any) => c?.is_walk_in) || null : null),
+		[customers_data]
+	);
+	const creditCustomerId = selectedCustomer && !selectedCustomer.is_walk_in ? selectedCustomer.id : null;
+
     const filteredProducts = useMemo(() => {
         const list = Array.isArray(products) ? products : [];
         const q = filterText.trim().toLowerCase();
@@ -467,8 +473,8 @@ function NewSale() {
             discount_amount: orderDiscount,
             invoice_number: allocateNextInvoiceNumber(),
             current_status:1,
-            customer_id: selectedCustomer?.id ?? null,
-            customer: selectedCustomer?.name || customer || 'Walk In',
+            customer_id: selectedCustomer?.id ?? walkInCustomer?.id ?? null,
+            customer: selectedCustomer?.name || customer || walkInCustomer?.name || 'Walk-in',
             sale_date: new Date().toJSON(),
             products: currentOrder.map(o=> {return {
                 id: o.id,
@@ -1253,8 +1259,8 @@ function NewSale() {
                             0
                         ) || 0
                     }
-                    customerId={selectedCustomer?.id || null}
-                    availableStoreCredit={Number(selectedCustomer?.store_credit_balance) || 0}
+                    customerId={creditCustomerId}
+                    availableStoreCredit={creditCustomerId ? Number(selectedCustomer?.store_credit_balance) || 0 : 0}
                     printerType={(warehouseRecordForPrinting as { printer_type?: string } | null)?.printer_type}
                     resumeMomo={resumeMomo}
                     getCartSnapshot={(): PosCartSnapshot | null => {
