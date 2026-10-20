@@ -19,11 +19,17 @@ import {
 	EcommerceProduct,
 	useGetECommerceProductQuery,
 	useGetProductBySlugQuery,
-	useGetProductCategoriesQuery
+	useGetProductCategoriesQuery,
+	useSetStoreReorderLevelMutation
 } from '../../../ECommerceApi';
 import { URLS } from '@/configs/settingsConfig';
 import { formatGhsCurrency } from '@/app/(control-panel)/dashboards/analytics/daily-sales/formatGhsCurrency';
 import { formatQty } from '@/utils/formatQty';
+import TextField from '@mui/material/TextField';
+import IconButton from '@mui/material/IconButton';
+import toast from 'react-hot-toast';
+import useUser from '@auth/useUser';
+import { hasPermissionCodes } from '@auth/permissions';
 
 function imageSrc(imageId: string | undefined | null) {
 	if (!imageId) return null;
@@ -47,18 +53,101 @@ function DetailBlock({
 	);
 }
 
+type StoreQty = { id?: string; name?: string; quantity_available?: number; minimum_stock_level?: number | null };
+
+function StoreReorderLevel({ row, canEdit, onSaved }: { row: StoreQty; canEdit: boolean; onSaved: () => void }) {
+	const [editing, setEditing] = useState(false);
+	const [value, setValue] = useState('');
+	const [save, { isLoading }] = useSetStoreReorderLevelMutation();
+	const current = Number(row.minimum_stock_level ?? 0);
+
+	const submit = async () => {
+		const level = Number(value);
+		if (!row.id || !Number.isFinite(level) || level < 0) {
+			toast.error('Enter a reorder level of 0 or more.');
+			return;
+		}
+		try {
+			await save({ inventoryId: row.id, minimum_stock_level: level }).unwrap();
+			toast.success(`Reorder level for ${row.name || 'this store'} set to ${formatQty(level)}`);
+			setEditing(false);
+			onSaved();
+		} catch (err: any) {
+			toast.error(err?.data?.message || 'Could not update the reorder level.');
+		}
+	};
+
+	if (editing) {
+		return (
+			<Stack direction="row" alignItems="center" gap={0.5}>
+				<TextField
+					size="small"
+					type="number"
+					autoFocus
+					value={value}
+					onChange={(e) => setValue(e.target.value)}
+					onKeyDown={(e) => {
+						if (e.key === 'Enter') void submit();
+						if (e.key === 'Escape') setEditing(false);
+					}}
+					inputProps={{ min: 0, 'aria-label': `Reorder level for ${row.name || 'store'}` }}
+					sx={{ width: 90 }}
+				/>
+				<Button size="small" variant="contained" onClick={() => void submit()} disabled={isLoading}>
+					Save
+				</Button>
+				<Button size="small" onClick={() => setEditing(false)} disabled={isLoading}>
+					Cancel
+				</Button>
+			</Stack>
+		);
+	}
+
+	return (
+		<Stack direction="row" alignItems="center" gap={0.5}>
+			<Typography variant="caption" color="text.secondary">
+				Reorder at {formatQty(current)}
+			</Typography>
+			{canEdit && row.id ? (
+				<IconButton
+					size="small"
+					aria-label={`Edit reorder level for ${row.name || 'store'}`}
+					onClick={() => {
+						setValue(String(current));
+						setEditing(true);
+					}}
+				>
+					<FuseSvgIcon size={16}>heroicons-outline:pencil-square</FuseSvgIcon>
+				</IconButton>
+			) : null}
+		</Stack>
+	);
+}
+
 function ProductViewPage() {
+	const { data: user } = useUser();
+	const canEditReorder = hasPermissionCodes(user, 'products.update');
 	const routeParams = useParams<{ slug: string }>();
 	const slug = routeParams.slug;
 
-	const { data: bySlug, isLoading: slugLoading, isError: slugError } = useGetProductBySlugQuery(slug, {
+	const {
+		data: bySlug,
+		isLoading: slugLoading,
+		isError: slugError,
+		refetch: refetchBySlug
+	} = useGetProductBySlugQuery(slug, {
 		skip: !slug,
 		refetchOnMountOrArgChange: true
 	});
 
-	const productId = bySlug?.id;
+	const productId = bySlug?.id ?? (slugError ? slug : undefined);
 
-	const { data: byId, isLoading: idLoading } = useGetECommerceProductQuery(productId ?? '', {
+	const {
+		data: byId,
+		isLoading: idLoading,
+		isError: idError,
+		refetch: refetchById
+	} = useGetECommerceProductQuery(productId ?? '', {
 		skip: !productId,
 		refetchOnMountOrArgChange: true
 	});
@@ -67,7 +156,7 @@ function ProductViewPage() {
 
 	const product = (byId ?? bySlug) as EcommerceProduct | undefined;
 
-	const loading = slugLoading || (Boolean(productId) && idLoading && !byId);
+	const loading = slugLoading || (Boolean(productId) && idLoading && !byId && !idError);
 
 	const [activeImageId, setActiveImageId] = useState<string | null>(null);
 
@@ -132,7 +221,7 @@ function ProductViewPage() {
 		);
 	}
 
-	if (slugError || !product) {
+	if ((slugError && (idError || !byId)) || !product) {
 		return (
 			<Box className="px-4 py-12 max-w-lg mx-auto text-center">
 				<PageBreadcrumb className="mb-6 text-left" />
@@ -376,20 +465,40 @@ function ProductViewPage() {
 										</Typography>
 									</Stack>
 									<Stack divider={<Divider flexItem sx={{ borderColor: 'divider' }} />}>
-										{storesQuantities.map((sq: { name?: string; quantity_available?: number }, i: number) => (
-											<Stack
-												key={`${sq.name}-${i}`}
-												direction="row"
-												justifyContent="space-between"
-												alignItems="center"
-												className="py-2"
-											>
-												<Typography variant="body2">{sq.name || 'Warehouse'}</Typography>
-												<Typography variant="body2" fontWeight={700} color="primary">
-													{formatQty(sq.quantity_available ?? 0)} units
-												</Typography>
-											</Stack>
-										))}
+										{storesQuantities.map((sq: StoreQty, i: number) => {
+											const low =
+												Number(sq.minimum_stock_level ?? 0) > 0 &&
+												Number(sq.quantity_available ?? 0) <= Number(sq.minimum_stock_level);
+											return (
+												<Stack
+													key={sq.id || `${sq.name}-${i}`}
+													direction="row"
+													justifyContent="space-between"
+													alignItems="center"
+													gap={2}
+													className="py-2"
+												>
+													<Box>
+														<Typography variant="body2">{sq.name || 'Warehouse'}</Typography>
+														<StoreReorderLevel
+															row={sq}
+															canEdit={canEditReorder}
+															onSaved={() => {
+																if (productId) refetchById();
+																refetchBySlug();
+															}}
+														/>
+													</Box>
+													<Typography
+														variant="body2"
+														fontWeight={700}
+														color={low ? 'error' : 'primary'}
+													>
+														{formatQty(sq.quantity_available ?? 0)} units
+													</Typography>
+												</Stack>
+											);
+										})}
 									</Stack>
 								</Paper>
 							)}

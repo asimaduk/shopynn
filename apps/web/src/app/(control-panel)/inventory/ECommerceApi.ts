@@ -125,6 +125,13 @@ const ECommerceApi = api
 					body: payload
 				})
 			}),
+			setStoreReorderLevel: build.mutation<any, { inventoryId: string; minimum_stock_level: number }>({
+				query: ({ inventoryId, minimum_stock_level }) => ({
+					url: `/api/inventories/${inventoryId}/reorder-level`,
+					method: 'PATCH',
+					body: { minimum_stock_level }
+				})
+			}),
 
 			getProductCategory: build.query<GetProductCategoryApiResponse, GetProductCategoryApiArg>({
 				query: (categoryId) => ({
@@ -524,6 +531,7 @@ export const {
 	useGetProductsByCategoryQuery,
 	useToggleProductStatusMutation,
 	useChangeProductPriceMutation,
+	useSetStoreReorderLevelMutation,
 	useListProductTransactionsQuery,
 	useGetProductTransfersByDateQuery,
 	useGetProductTransfersQuery,
