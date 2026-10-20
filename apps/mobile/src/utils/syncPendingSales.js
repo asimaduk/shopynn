@@ -3,7 +3,9 @@ import {
     readSecureList,
     writeSecureList,
 } from './secureOfflineStorage';
+import { DeviceEventEmitter } from 'react-native';
 import { sales as salesApi } from '../services/api';
+import { SALES_LIST_REFRESH_EVENT } from './salesEvents';
 
 const safeString = (v) => (typeof v === 'string' ? v : v == null ? '' : String(v));
 const getErrorCode = (err) =>
@@ -46,6 +48,7 @@ export async function syncPendingSales() {
     }
 
     await writeSecureList(PENDING_SALES_KEY, stillPending);
+    if (uploaded > 0) DeviceEventEmitter.emit(SALES_LIST_REFRESH_EVENT);
     return { uploaded, remaining: stillPending.length };
 }
 

@@ -224,11 +224,9 @@ const Sales = ({ navigation }) => {
             setTotalCount(total);
             setHasMore(more);
         } catch (error) {
-            if (reset) {
-                rowsRef.current = [];
+            // Keep what is already on screen (e.g. a refresh while offline).
+            if (reset && rowsRef.current.length === 0) {
                 hasMoreRef.current = false;
-                setRows([]);
-                setTotalCount(0);
                 setHasMore(false);
             }
         } finally {
