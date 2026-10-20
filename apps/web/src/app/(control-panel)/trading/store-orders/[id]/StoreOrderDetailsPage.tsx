@@ -28,7 +28,6 @@ import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
 import PermissionGate from '@auth/PermissionGate';
 import FeatureUnavailable from '../../../parity/FeatureUnavailable';
 import {
-	useCancelOrderMutation,
 	useGetStoreOrderByIdQuery,
 	useGetStoreOrderDeliveryQuery,
 	useGetStoreOrderHistoryQuery,
@@ -95,7 +94,15 @@ export default function StoreOrderDetailsPage() {
 	const orderId = params.id;
 	const isMobile = useThemeMediaQuery((_theme) => _theme.breakpoints.down('lg'));
 	const { data, isLoading, refetch } = useGetStoreOrderByIdQuery(orderId);
-	const { data: deliveryData, refetch: refetchDelivery } = useGetStoreOrderDeliveryQuery(orderId);
+	const isDeliveryOrder = String(data?.fulfillment_type || '').toLowerCase() === 'delivery';
+	const { data: deliveryData, refetch: refetchDeliveryQuery } = useGetStoreOrderDeliveryQuery(orderId, {
+		skip: !isDeliveryOrder
+	});
+	const refetchDelivery = () => (isDeliveryOrder ? refetchDeliveryQuery() : Promise.resolve());
+	const statusSteps = useMemo(
+		() => (isDeliveryOrder ? STATUS_STEPS : STATUS_STEPS.filter((s) => s !== 'shipped' && s !== 'delivered')),
+		[isDeliveryOrder]
+	);
 	const { data: historyData, isLoading: historyLoading, refetch: refetchHistory } = useGetStoreOrderHistoryQuery(orderId);
 	const history = useMemo(
 		() => (Array.isArray(historyData) ? historyData : historyData?.items || historyData?.list || []),
@@ -115,7 +122,6 @@ export default function StoreOrderDetailsPage() {
 	const [cancelReason, setCancelReason] = useState('');
 	const [localError, setLocalError] = useState('');
 	const [updateStatus, { isLoading: updating }] = useUpdateStoreOrderStatusMutation();
-	const [cancelOrder, { isLoading: cancelling }] = useCancelOrderMutation();
 	const [updateDelivery, { isLoading: deliverySaving }] = useUpdateStoreOrderDeliveryMutation();
 	const [markOrderPaid, { isLoading: markingPaid }] = useMarkStoreOrderPaidMutation();
 	const [recordPartialCash, { isLoading: recordingPartial }] = useRecordStoreOrderPartialCashMutation();
@@ -126,10 +132,11 @@ export default function StoreOrderDetailsPage() {
 	const balanceDue = Number(data?.balance_due ?? 0);
 	const amountPaid = Number(data?.amount_paid ?? 0);
 	const installmentPayments = Array.isArray(data?.installment_payments) ? data.installment_payments : [];
-	const allowedStatuses = TRANSITIONS[currentStatus] || [];
+	const allowedStatuses = (TRANSITIONS[currentStatus] || []).filter(
+		(s) => isDeliveryOrder || (s !== 'shipped' && s !== 'delivered')
+	);
 	const requiresReason = nextStatus === 'completed';
 	const canCancelNow = ['pending', 'confirmed'].includes(currentStatus);
-	const isDeliveryOrder = String(data?.fulfillment_type || '').toLowerCase() === 'delivery';
 	const [courierName, setCourierName] = useState('');
 	const [courierPhone, setCourierPhone] = useState('');
 	const [trackingNumber, setTrackingNumber] = useState('');
@@ -209,23 +216,32 @@ export default function StoreOrderDetailsPage() {
 			setLocalError('Cancellation reason is required.');
 			return;
 		}
-		await cancelOrder({ id: orderId, reason: cancelReason.trim() }).unwrap();
-		await Promise.all([refetch(), refetchHistory(), refetchDelivery()]);
-		setCancelReason('');
+		try {
+			await updateStatus({ id: orderId, status: 'cancelled', reason: cancelReason.trim() }).unwrap();
+			await Promise.all([refetch(), refetchHistory(), refetchDelivery()]);
+			setCancelReason('');
+		} catch (error: any) {
+			setLocalError(error?.data?.error || error?.data?.message || error?.message || 'Could not cancel the order.');
+		}
 	};
 
 	const onSaveDelivery = async () => {
-		await updateDelivery({
-			id: orderId,
-			body: {
-				courier_name: courierName,
-				courier_phone: courierPhone,
-				tracking_number: trackingNumber,
-				dispatch_note: dispatchNote,
-				delivery_note: deliveryNote
-			}
-		}).unwrap();
-		await refetchDelivery();
+		setLocalError('');
+		try {
+			await updateDelivery({
+				id: orderId,
+				body: {
+					courier_name: courierName,
+					courier_phone: courierPhone,
+					tracking_number: trackingNumber,
+					dispatch_note: dispatchNote,
+					delivery_note: deliveryNote
+				}
+			}).unwrap();
+			await refetchDelivery();
+		} catch (error: any) {
+			setLocalError(error?.data?.error || error?.data?.message || error?.message || 'Could not save delivery details.');
+		}
 	};
 
 	const onRecordPartialCash = async () => {
@@ -396,13 +412,13 @@ export default function StoreOrderDetailsPage() {
 												<Typography className="text-lg font-semibold">Status timeline</Typography>
 												<Divider className="my-4" />
 												<Stack spacing={1.2}>
-													{STATUS_STEPS.map((step, idx) => {
+													{statusSteps.map((step, idx) => {
 														const stepKey = String(step);
 														const active = stepKey === currentStatus;
 														const done = currentStatus === 'cancelled'
 															? history.some((h: any) => String(h?.to_status || '').toLowerCase() === stepKey)
-															: STATUS_STEPS.indexOf(step as any) <= STATUS_STEPS.indexOf(currentStatus as any);
-														const hasNext = idx < STATUS_STEPS.length - 1;
+															: statusSteps.indexOf(step) <= statusSteps.indexOf(currentStatus as any);
+														const hasNext = idx < statusSteps.length - 1;
 														const at = statusTimes.get(stepKey);
 														return (
 															<Box key={stepKey} className="flex items-start justify-between gap-12">
@@ -592,8 +608,7 @@ export default function StoreOrderDetailsPage() {
 								<Grid container spacing={2}>
 									<Grid item xs={12} md={7}>
 										<PermissionGate
-											// requiredPermissions={['orders.status.update']}
-											requiredPermissions={['orders.process']}
+											requiredPermissions={['orders.status.update']}
 											requiredFeatures={['orders.status.update']}
 											fallback={
 												<Card variant="outlined">
@@ -669,7 +684,7 @@ export default function StoreOrderDetailsPage() {
 
 									<Grid item xs={12} md={5}>
 										<PermissionGate
-											requiredPermissions={['orders.update']}
+											requiredPermissions={['orders.status.update']}
 											requiredFeatures={['orders.status.update']}
 										>
 											{canRecordPartialCash ? (
@@ -754,7 +769,7 @@ export default function StoreOrderDetailsPage() {
 											) : null}
 										</PermissionGate>
 
-										<PermissionGate requiredPermissions={['orders.cancel']} requiredFeatures={['orders.cancel']}>
+										<PermissionGate requiredPermissions={['orders.status.update']} requiredFeatures={['orders.status.update']}>
 											{canCancelNow ? (
 												<Card variant="outlined">
 													<CardContent>
@@ -776,18 +791,22 @@ export default function StoreOrderDetailsPage() {
 															onChange={(e) => setCancelReason(e.target.value)}
 														/>
 														<Box className="flex items-center justify-end mt-12">
-															<Button color="error" variant="outlined" onClick={onCancelOrder} disabled={cancelling}>
+															<Button color="error" variant="outlined" onClick={onCancelOrder} disabled={updating}>
 																Cancel order
-															</Button>
-															<Button
-																variant="outlined"
-																href={`/trading/sales/returns/new?orderId=${encodeURIComponent(orderId)}`}
-															>
-																Return / refund
 															</Button>
 														</Box>
 													</CardContent>
 												</Card>
+											) : null}
+											{['completed', 'delivered'].includes(currentStatus) ? (
+												<Box className="flex justify-end">
+													<Button
+														variant="outlined"
+														href={`/trading/sales/returns/new?orderId=${encodeURIComponent(orderId)}`}
+													>
+														Return / refund
+													</Button>
+												</Box>
 											) : null}
 										</PermissionGate>
 									</Grid>
