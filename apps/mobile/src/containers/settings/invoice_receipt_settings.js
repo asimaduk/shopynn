@@ -14,7 +14,11 @@ import {
     setReceiptCompanyName,
     setPrintAgent,
 } from '../../store/actions/appSettings';
-import { buildInvoiceNumberFromSettings, normalizeInvoiceRegisterCode } from '../../utils/invoiceNumbering';
+import {
+    buildInvoiceNumberFromSettings,
+    invoiceSeriesPrefix,
+    normalizeInvoiceRegisterCode,
+} from '../../utils/invoiceNumbering';
 import {
     DEFAULT_PRINT_AGENT_HOST,
     DEFAULT_PRINT_AGENT_PORT,
@@ -23,7 +27,7 @@ import {
     normalizePrintAgentHost,
     normalizePrintAgentPort,
 } from '../../utils/printAgent';
-import { users as usersApi } from '../../services/api';
+import { users as usersApi, sales as salesApi } from '../../services/api';
 import AppAlert from '../../utils/appAlert';
 
 const SectionCard = ({ colors, icon, title, subtitle, action, children }) => (
@@ -175,6 +179,25 @@ const InvoiceReceiptSettings = ({ navigation }) => {
 
         setSaving(true);
         try {
+            const num = parseInt(invoiceNext, 10);
+            const seriesSettings = { invoicePrefix, invoiceRegisterCode: register };
+            let minNext = null;
+            try {
+                const res = await salesApi.nextInvoice(invoiceSeriesPrefix(seriesSettings));
+                const n = Number(res?.next);
+                if (Number.isFinite(n)) minNext = n;
+            } catch {
+                // Offline: save anyway — the server still renumbers a taken invoice.
+            }
+            if (minNext != null && !Number.isNaN(num) && num < minNext) {
+                const lastUsed = buildInvoiceNumberFromSettings({ ...seriesSettings, invoiceNextNumber: minNext - 1 });
+                AppAlert.alert(
+                    'Number already used',
+                    `This series is already up to ${lastUsed}, so the next number must be ${minNext} or higher. To restart numbering, use a different register code.`,
+                );
+                return;
+            }
+
             const trimmedCompany = companyName.trim();
             try {
                 await usersApi.updateMePreferences({ receiptCompanyName: trimmedCompany });
@@ -184,7 +207,6 @@ const InvoiceReceiptSettings = ({ navigation }) => {
 
             dispatch(setInvoicePrefix((invoicePrefix || 'INV').trim().toUpperCase() || 'INV'));
             dispatch(setInvoiceRegisterCode(register));
-            const num = parseInt(invoiceNext, 10);
             if (!Number.isNaN(num) && num >= 0) dispatch(setInvoiceNext(num));
             dispatch(setReceiptCompanyName(trimmedCompany));
             dispatch(
