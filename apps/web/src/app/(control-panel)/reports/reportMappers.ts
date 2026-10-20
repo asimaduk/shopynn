@@ -85,18 +85,27 @@ export function mapTopProducts(data: any): { cards: ReportCard[]; rows: ReportRo
 
 export function mapCustomersReport(data: any): { cards: ReportCard[]; rows: ReportRow[] } {
 	if (!data) return { cards: [], rows: [] };
-	const customers = Array.isArray(data.customers) ? data.customers : [];
-	const top = customers[0];
+	const raw = Array.isArray(data.customers) ? data.customers : [];
+	const byName = new Map<string, { name: string; orders: number; total: number }>();
+	for (const c of raw) {
+		const name = String(c.customer_name ?? '').trim() || 'Walk-in';
+		const key = name.toLowerCase();
+		const entry = byName.get(key) ?? { name, orders: 0, total: 0 };
+		entry.orders += Number(c.ordersCount ?? 0);
+		entry.total += Number(c.totalSales ?? 0);
+		byName.set(key, entry);
+	}
+	const customers = [...byName.values()].sort((a, b) => b.total - a.total || b.orders - a.orders);
 	return {
 		cards: [
-			{ label: 'Customers', value: String(data.totalCustomers ?? 0), color: '#6366f1' },
+			{ label: 'Customers', value: String(customers.length), color: '#6366f1' },
 			{ label: 'Total sales', value: formatCurrency(data.totalSales), color: '#10b981' },
-			{ label: 'Top customer', value: String(top?.customer_name ?? '—'), color: '#f59e0b' }
+			{ label: 'Top customer', value: customers[0]?.name ?? '—', color: '#f59e0b' }
 		],
-		rows: customers.map((c: any) => ({
-			Customer: c.customer_name ?? '—',
-			Orders: c.ordersCount ?? 0,
-			Amount: formatCurrency(c.totalSales)
+		rows: customers.map((c) => ({
+			Customer: c.name,
+			Orders: c.orders,
+			Amount: formatCurrency(c.total)
 		}))
 	};
 }
@@ -165,14 +174,20 @@ export function mapAdjustments(data: any): { cards: ReportCard[]; rows: ReportRo
 			{ label: 'Adjustments', value: String(data.adjustment_count ?? 0), color: '#6366f1' },
 			{ label: 'Units adjusted', value: String(data.total_items_adjusted ?? data.total_items ?? 0), color: '#10b981' }
 		],
-		rows: items.map((it: any) => ({
-			Date: it.created_at ? String(it.created_at).slice(0, 10) : '—',
-			Product: it.product_name ?? '—',
-			Type: it.adjustment_type ?? '—',
-			Before: it.system_quantity ?? '—',
-			After: it.quantity_adjusted ?? '—',
-			Reason: it.reason ?? it.notes ?? '—'
-		}))
+		rows: items.map((it: any) => {
+			const before = it.system_quantity == null ? null : Number(it.system_quantity);
+			const qty = Number(it.quantity_adjusted ?? 0);
+			const change = it.adjustment_type === 'subtraction' ? -qty : qty;
+			return {
+				Date: it.created_at ? String(it.created_at).slice(0, 10) : '—',
+				Product: it.product_name ?? '—',
+				Type: it.adjustment_type ?? '—',
+				Before: before ?? '—',
+				Change: change > 0 ? `+${change}` : String(change),
+				After: before == null ? '—' : before + change,
+				Reason: it.reason ?? it.notes ?? '—'
+			};
+		})
 	};
 }
 
@@ -185,7 +200,7 @@ export function mapAuditLogs(data: any): { cards: ReportCard[]; rows: ReportRow[
 			{ label: 'Users', value: String(userIds.size), color: '#10b981' }
 		],
 		rows: list.map((it: any) => ({
-			Time: it.created_at ? String(it.created_at) : '—',
+			Time: it.created_at ? formatAuditTime(it.created_at) : '—',
 			User: [it.user_first_name, it.user_last_name].filter(Boolean).join(' ') || '—',
 			Action: it.action
 				? String(it.action)
@@ -194,7 +209,27 @@ export function mapAuditLogs(data: any): { cards: ReportCard[]; rows: ReportRow[
 						.map((w) => w.charAt(0).toUpperCase() + w.slice(1))
 						.join(' ')
 				: '—',
-			Ref: it.ip_address ?? it.entity_id ?? '—'
+			Details: auditDescription(it.details),
+			IP: it.ip_address ?? '—'
 		}))
 	};
+}
+
+function formatAuditTime(value: string): string {
+	const d = new Date(value);
+	if (Number.isNaN(d.getTime())) return String(value);
+	return d.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+function auditDescription(details: unknown): string {
+	if (!details) return '—';
+	let parsed: any = details;
+	if (typeof details === 'string') {
+		try {
+			parsed = JSON.parse(details);
+		} catch {
+			return details;
+		}
+	}
+	return parsed?.description ?? parsed?.reference_number ?? parsed?.invoice_number ?? '—';
 }
