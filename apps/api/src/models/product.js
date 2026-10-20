@@ -182,7 +182,7 @@ export const getAllProductsService = async (user, queryParams) => {
                 p.picture1, 
                 p.reorder_quantity,
                 p.is_active AS active,
-                COALESCE(inv.quantity_available, 0) AS quantity_available,
+                COALESCE(inv.quantity_available, 0) AS quantity_available, inv.minimum_stock_level,
                 inv.id AS inventory_id,
                 inv.warehouse_id,
 		        COALESCE(wh.name, '') AS store_name,
@@ -214,7 +214,7 @@ export const getAllProductsService = async (user, queryParams) => {
                 p.picture1, 
                 p.reorder_quantity,
                 p.is_active AS active,
-                COALESCE(inv.quantity_available, 0) AS quantity_available,
+                COALESCE(inv.quantity_available, 0) AS quantity_available, inv.minimum_stock_level,
                 inv.id AS inventory_id,
                 inv.warehouse_id,
 		        COALESCE(wh.name, '') AS store_name,
@@ -273,6 +273,7 @@ export const getAllProductsService = async (user, queryParams) => {
         const cleaned_data = data.map((d) => {
             delete d['store_name'];
             delete d['quantity_available'];
+            delete d['minimum_stock_level'];
             delete d['warehouse_id'];
             d.inventory = (d.stores_quantities || []).reduce(
                 (a, b) => toNum(a, { defaultValue: 0 }) + toNum(b?.quantity_available, { defaultValue: 0 }),
@@ -321,7 +322,7 @@ export const getProductsByCategoryService = async (user, category_id, queryParam
             p.picture1,
             p.reorder_quantity,
             p.is_active AS active,
-            COALESCE(inv.quantity_available, 0) AS quantity_available,
+            COALESCE(inv.quantity_available, 0) AS quantity_available, inv.minimum_stock_level,
             inv.id AS inventory_id,
             inv.warehouse_id,
             COALESCE(wh.name, '') AS store_name,
