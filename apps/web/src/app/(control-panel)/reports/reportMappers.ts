@@ -1,3 +1,5 @@
+import { formatQty } from '@/utils/formatQty';
+
 const formatter = new Intl.NumberFormat('en-GH', { style: 'currency', currency: 'GHS' });
 
 export function formatCurrency(value: number | string | null | undefined): string {
@@ -16,7 +18,7 @@ export function mapProfitLoss(data: any): { cards: ReportCard[]; rows: ReportRow
 			{ label: 'Revenue', value: formatCurrency(data.revenue), color: '#10b981' },
 			{ label: 'Expenses', value: formatCurrency(data.expenses), color: '#ef4444' },
 			{ label: 'Net profit', value: formatCurrency(data.netProfit), color: '#6366f1' },
-			{ label: 'Total sold units', value: String(data.totalSoldQty ?? '—'), color: '#f59e0b' }
+			{ label: 'Total sold units', value: formatQty(data.totalSoldQty), color: '#f59e0b' }
 		],
 		rows: [
 			{ Item: 'COGS', Amount: formatCurrency(data.cogs) },
@@ -31,7 +33,7 @@ export function mapStockSummary(data: any): { cards: ReportCard[]; rows: ReportR
 	return {
 		cards: [
 			{ label: 'Products', value: String(data.inventoryCount ?? 0), color: '#7c3aed' },
-			{ label: 'Total units', value: String(data.totalUnits ?? 0), color: '#10b981' },
+			{ label: 'Total units', value: formatQty(data.totalUnits ?? 0), color: '#10b981' },
 			{ label: 'Value at cost', value: formatCurrency(data.stockValueAtCost), color: '#f59e0b' },
 			{ label: 'Value at retail', value: formatCurrency(data.stockValue), color: '#0ea5e9' },
 			{ label: 'Low stock', value: String(data.lowStockCount ?? 0), color: '#ef4444' }
@@ -39,8 +41,8 @@ export function mapStockSummary(data: any): { cards: ReportCard[]; rows: ReportR
 		rows: items.map((it: any) => ({
 			Product: it.product_name ?? it.name ?? '—',
 			Warehouse: it.warehouse_name ?? it.store_name ?? '—',
-			SKU: it.sku ?? '—',
-			Qty: it.quantity_available ?? it.qty ?? '—',
+			SKU: it.sku || '—',
+			Qty: formatQty(it.quantity_available ?? it.qty),
 			Value: formatCurrency(it.stock_value ?? it.value)
 		}))
 	};
@@ -71,13 +73,13 @@ export function mapTopProducts(data: any): { cards: ReportCard[]; rows: ReportRo
 		cards: first
 			? [
 					{ label: 'Best seller', value: String(first.product_name ?? '—'), color: '#10b981' },
-					{ label: 'Units sold', value: String(first.units_sold ?? 0), color: '#6366f1' },
+					{ label: 'Units sold', value: formatQty(first.units_sold ?? 0), color: '#6366f1' },
 					{ label: 'Revenue', value: formatCurrency(first.total_revenue), color: '#f59e0b' }
 				]
 			: [],
 		rows: list.map((it: any) => ({
 			Product: it.product_name ?? '—',
-			'Units sold': it.units_sold ?? 0,
+			'Units sold': formatQty(it.units_sold ?? 0),
 			Revenue: formatCurrency(it.total_revenue)
 		}))
 	};
@@ -154,14 +156,14 @@ export function mapTransfers(data: any): { cards: ReportCard[]; rows: ReportRow[
 	return {
 		cards: [
 			{ label: 'Transfers', value: String(data.transferCount ?? 0), color: '#6366f1' },
-			{ label: 'Units moved', value: String(data.totalUnitsMoved ?? 0), color: '#10b981' }
+			{ label: 'Units moved', value: formatQty(data.totalUnitsMoved ?? 0), color: '#10b981' }
 		],
 		rows: movements.map((m: any) => ({
 			Date: m.created_at ? String(m.created_at).slice(0, 10) : '—',
 			From: m.source_warehouse_name ?? '—',
 			To: m.destination_warehouse_name ?? '—',
 			Product: m.product_name ?? '—',
-			Qty: m.quantity ?? 0
+			Qty: formatQty(m.quantity ?? 0)
 		}))
 	};
 }
@@ -172,7 +174,7 @@ export function mapAdjustments(data: any): { cards: ReportCard[]; rows: ReportRo
 	return {
 		cards: [
 			{ label: 'Adjustments', value: String(data.adjustment_count ?? 0), color: '#6366f1' },
-			{ label: 'Units adjusted', value: String(data.total_items_adjusted ?? data.total_items ?? 0), color: '#10b981' }
+			{ label: 'Units adjusted', value: formatQty(data.total_items_adjusted ?? data.total_items ?? 0), color: '#10b981' }
 		],
 		rows: items.map((it: any) => {
 			const before = it.system_quantity == null ? null : Number(it.system_quantity);
@@ -182,9 +184,9 @@ export function mapAdjustments(data: any): { cards: ReportCard[]; rows: ReportRo
 				Date: it.created_at ? String(it.created_at).slice(0, 10) : '—',
 				Product: it.product_name ?? '—',
 				Type: it.adjustment_type ?? '—',
-				Before: before ?? '—',
-				Change: change > 0 ? `+${change}` : String(change),
-				After: before == null ? '—' : before + change,
+				Before: formatQty(before),
+				Change: change > 0 ? `+${formatQty(change)}` : formatQty(change),
+				After: before == null ? '—' : formatQty(before + change),
 				Reason: it.reason ?? it.notes ?? '—'
 			};
 		})

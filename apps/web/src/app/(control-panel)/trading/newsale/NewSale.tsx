@@ -52,6 +52,7 @@ import {
 	getSaleApiErrorMessage,
 } from '@/utils/bulkDiscount';
 import { useGetCompanyProfileQuery } from '../../company-profile/CompanyProfileApi';
+import { formatQty } from '@/utils/formatQty';
 
 const _PRODUCTS_ = "_PRODUCTS_.";
 function safeString(v: any): string {
@@ -403,7 +404,7 @@ function NewSale() {
 
         const nextQty = (Number(y.order_quantity) || 0) + 1;
         if (nextQty > Number(y.quantity_available)) {
-            toast.error(`You cannot sell more than available quantity: ${y.quantity_available}`)
+            toast.error(`You cannot sell more than available quantity: ${formatQty(y.quantity_available)}`)
             return;
         }
         setCurrentOrder(currentOrder.map((c) => (c.id == prod.id ? { ...c, order_quantity: nextQty } : c)));
@@ -1144,7 +1145,7 @@ function NewSale() {
                                                                     if(p.id == product.id) {
                                                                         if(Number(val) > product.quantity_available) {
                                                                             product.order_quantity = '';
-                                                                            toast.error(`You cannot sell more than available quantity: ${product.quantity_available}`)
+                                                                            toast.error(`You cannot sell more than available quantity: ${formatQty(product.quantity_available)}`)
                                                                         }                                                               
                                                                         else {
                                                                             product.order_quantity = Number(val);

@@ -1,3 +1,5 @@
+import { formatQty } from '@/utils/formatQty';
+
 /** Sale invoice helpers — preview, PDF, email, WhatsApp (web). */
 
 export type SaleInvoiceLine = {
@@ -169,7 +171,7 @@ export function formatInvoiceText(invoice: SaleInvoice): string {
 	invoice.line_items.forEach((row) => {
 		lines.push(row.name);
 		lines.push(
-			`  ${row.quantity} x ${formatMoney(row.unit_price, invoice.currency)} = ${formatMoney(row.line_total, invoice.currency)}`
+			`  ${formatQty(row.quantity)} x ${formatMoney(row.unit_price, invoice.currency)} = ${formatMoney(row.line_total, invoice.currency)}`
 		);
 	});
 	lines.push('--------------------------------');
@@ -294,7 +296,7 @@ export function getInvoicePreviewHtml(invoice: SaleInvoice): string {
 			(row) => `
       <tr>
         <td>${escapeHtml(row.name)}</td>
-        <td class="num muted">${row.quantity}</td>
+        <td class="num muted">${formatQty(row.quantity)}</td>
         <td class="num muted">${escapeHtml(formatMoney(row.unit_price, invoice.currency))}</td>
         <td class="num">${escapeHtml(formatMoney(row.line_total, invoice.currency))}</td>
       </tr>`

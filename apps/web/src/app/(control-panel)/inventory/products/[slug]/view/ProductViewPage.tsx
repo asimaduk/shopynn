@@ -23,6 +23,7 @@ import {
 } from '../../../ECommerceApi';
 import { URLS } from '@/configs/settingsConfig';
 import { formatGhsCurrency } from '@/app/(control-panel)/dashboards/analytics/daily-sales/formatGhsCurrency';
+import { formatQty } from '@/utils/formatQty';
 
 function imageSrc(imageId: string | undefined | null) {
 	if (!imageId) return null;
@@ -385,7 +386,7 @@ function ProductViewPage() {
 											>
 												<Typography variant="body2">{sq.name || 'Warehouse'}</Typography>
 												<Typography variant="body2" fontWeight={700} color="primary">
-													{sq.quantity_available ?? 0} units
+													{formatQty(sq.quantity_available ?? 0)} units
 												</Typography>
 											</Stack>
 										))}

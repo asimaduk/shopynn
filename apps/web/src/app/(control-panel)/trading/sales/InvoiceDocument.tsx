@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from 'react';
 import { formatInvoiceDate, formatMoney, type SaleInvoice } from '@/utils/saleInvoice';
+import { formatQty } from '@/utils/formatQty';
 
 /** Shopynn invoice brand accent — used sparingly on A4 layouts. */
 export const INVOICE_ACCENT = '#0A74DA';
@@ -233,7 +234,7 @@ export default function InvoiceDocument({ invoice, className, style }: InvoiceDo
 						invoice.line_items.map((row, i) => (
 							<tr key={i}>
 								<td>{row.name}</td>
-								<td className="num muted">{row.quantity}</td>
+								<td className="num muted">{formatQty(row.quantity)}</td>
 								<td className="num muted">{formatMoney(row.unit_price, invoice.currency)}</td>
 								<td className="num">{formatMoney(row.line_total, invoice.currency)}</td>
 							</tr>

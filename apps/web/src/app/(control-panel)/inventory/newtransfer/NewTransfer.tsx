@@ -15,6 +15,7 @@ import FuseLoading from '@fuse/core/FuseLoading';
 import { useGetWarehousesQuery } from '../../setups/warehouses/WarehouseApi';
 import toast from 'react-hot-toast';
 import { URLS } from '@/configs/settingsConfig';
+import { formatQty } from '@/utils/formatQty';
 // import { useGetSuppliersQuery } from '../../setups/suppliers/SupplierApi';
 
 /**
@@ -547,7 +548,7 @@ function NewTransfer() {
                                     <div className='ml-2 flex flex-1 justify-between items-center'>
                                         <div>
                                             <p className='mb-0'>{product.name}</p>
-                                            <span className='text-sm'><b>#{product.quantity_available}</b></span>
+                                            <span className='text-sm'><b>#{formatQty(product.quantity_available)}</b></span>
                                         </div>
                                         <input 
                                             value={product.order_quantity}
@@ -574,7 +575,7 @@ function NewTransfer() {
                                                             setCurrentOrder(co);
                                                         }
                                                         else {
-                                                            toast.error('Cannot transfer more than '+product.quantity_available)
+                                                            toast.error('Cannot transfer more than '+formatQty(product.quantity_available))
                                                         }
                                                         
                                                     }

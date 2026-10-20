@@ -15,6 +15,7 @@ import toast from 'react-hot-toast';
 import store from '@/store/store';
 import { URLS } from '@/configs/settingsConfig';
 import { formatGhsCurrency } from '../../dashboards/analytics/daily-sales/formatGhsCurrency';
+import { formatQty } from '@/utils/formatQty';
 
 function ProductsTable() {
 	const navigate = useNavigate();
@@ -188,7 +189,7 @@ function ProductsTable() {
 				accessorFn: (row) => (
 					<div className="flex flex-wrap space-x-0.5">
 						{row.stores_quantities?.map((item, i) => (
-							<span key={i}>{item.name} ({item.quantity_available}){i<(row.stores_quantities.length-1)?',':''}</span>
+							<span key={i}>{item.name} ({formatQty(item.quantity_available)}){i<(row.stores_quantities.length-1)?',':''}</span>
 						))}
 					</div>
 				)
