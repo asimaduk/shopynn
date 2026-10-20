@@ -123,7 +123,8 @@ function NewSale() {
 
         if(!y) {
             const x = currentOrder?.map(o=> o);
-            x.unshift({...prod,order_quantity:1})
+            const lastCost = Number(prod.actual_cost);
+            x.unshift({...prod, order_quantity: 1, unit_price: lastCost > 0 ? lastCost : Number(prod.unit_price) || 0})
             // console.log('x',x);
             setCurrentOrder(x);
             setTotalQuantity((prev)=> prev + 1);
@@ -150,7 +151,7 @@ function NewSale() {
             notes: note,
             warehouse_id: warehouses?.find(wh=> wh.name == warehouse)?.id,
             supplier_id: suppliers?.find(sup=> sup.name == supplier)?.id,
-            products: currentOrder.map(o=> ({id: o.id, quantity: Number(o.order_quantity), unit_price: o.unit_price})),
+            products: currentOrder.map(o=> ({id: o.id, quantity: Number(o.order_quantity), unit_price: Number(o.unit_price) || 0})),
             payment_status: paymentStatus,
             payment_type: paymentStatus === PAYMENT_STATUS.UNPAID ? null : paymentType,
             amount_paid: resolvedAmountPaid,
@@ -669,7 +670,22 @@ function NewSale() {
                                     <div className='ml-2 flex flex-1 justify-between items-center'>
                                         <div>
                                             <p className='mb-0'>{product.name}</p>
-                                            <span className='text-sm'><b>₵{Number(product.unit_price).toFixed(2)}</b></span>
+                                            <label className='text-sm flex items-center gap-1'>
+                                                Cost ₵
+                                                <input
+                                                    aria-label={`Unit cost for ${product.name}`}
+                                                    value={product.unit_price}
+                                                    type='number'
+                                                    min={0}
+                                                    step='0.01'
+                                                    style={{width:70,height:22,borderWidth:1,paddingLeft:4,borderColor:'#ccc',borderRadius:3}}
+                                                    onChange={(e)=> {
+                                                        const val = e.target.value;
+                                                        if (val !== '' && !(Number(val) >= 0)) return;
+                                                        setCurrentOrder(currentOrder.map(p=> p.id == product.id ? {...p, unit_price: val} : p));
+                                                    }}
+                                                />
+                                            </label>
                                         </div>
                                         <input 
                                             value={product.order_quantity}
