@@ -12,21 +12,8 @@ import AppModal from '../../components/app_modal';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import useTheme from '../../hooks/useTheme';
 import { returnsApi, normalizeList } from '../../services/api';
+import { toReturnRecord } from '../../utils/returnRecord';
 import AppAlert from '../../utils/appAlert';
-
-const SAMPLE_SALES_RETURNS = [
-    { id: 'SR-001', type: 'sales', ref: '10888', customer: 'Liam Mensah', date: 'Feb 16, 2026 @ 10:30am', items: 2, amount: '180.00', reason: 'Defective', status: 'Approved' },
-    { id: 'SR-002', type: 'sales', ref: '10886', customer: 'Walk-In', date: 'Feb 15, 2026 @ 2:15pm', items: 1, amount: '45.00', reason: 'Wrong item', status: 'Pending' },
-    { id: 'SR-003', type: 'sales', ref: '10885', customer: 'Sarah Johnson', date: 'Feb 14, 2026 @ 9:00am', items: 3, amount: '275.50', reason: 'Damaged packaging', status: 'Approved' },
-    { id: 'SR-004', type: 'sales', ref: '10884', customer: 'Michael Brown', date: 'Feb 13, 2026 @ 4:45pm', items: 1, amount: '89.99', reason: 'Not as described', status: 'Rejected' },
-    { id: 'SR-005', type: 'sales', ref: '10883', customer: 'Emma Wilson', date: 'Feb 12, 2026 @ 11:20am', items: 2, amount: '150.00', reason: 'Customer changed mind', status: 'Pending' },
-];
-
-const SAMPLE_PURCHASE_RETURNS = [
-    { id: 'PR-001', type: 'purchase', ref: 'PO-1002', supplier: 'Kasapreko', date: 'Feb 14, 2026 @ 3:00pm', items: 3, amount: '420.00', reason: 'Damaged in transit', status: 'Approved' },
-    { id: 'PR-002', type: 'purchase', ref: 'PO-1001', supplier: 'Unilever Ghana', date: 'Feb 13, 2026 @ 10:15am', items: 5, amount: '750.00', reason: 'Expired products', status: 'Approved' },
-    { id: 'PR-003', type: 'purchase', ref: 'PO-1000', supplier: 'Coca-Cola', date: 'Feb 11, 2026 @ 1:30pm', items: 2, amount: '320.00', reason: 'Wrong quantity delivered', status: 'Pending' },
-];
 
 const dateRanges = [
     { id: '1', label: 'Today', value: 'today' },
@@ -39,43 +26,11 @@ const dateRanges = [
     { id: '8', label: 'Custom Range', value: 'custom' },
 ];
 
-// Parse date string like "Feb 16, 2026 @ 10:30am" to Date object
-const parseDateString = (dateStr) => {
-    if (!dateStr) return null;
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const parts = dateStr.split(' @ ');
-    if (parts.length !== 2) return null;
-    
-    const datePart = parts[0].trim();
-    const timePart = parts[1].trim();
-    
-    const [monthName, day, year] = datePart.split(/[\s,]+/);
-    const monthIndex = months.indexOf(monthName);
-    if (monthIndex === -1) return null;
-    
-    const date = new Date(parseInt(year), monthIndex, parseInt(day));
-    
-    // Parse time (e.g., "10:30am" or "2:15pm")
-    const timeMatch = timePart.match(/(\d+):(\d+)(am|pm)/i);
-    if (timeMatch) {
-        let hours = parseInt(timeMatch[1]);
-        const minutes = parseInt(timeMatch[2]);
-        const ampm = timeMatch[3].toLowerCase();
-        
-        if (ampm === 'pm' && hours !== 12) hours += 12;
-        if (ampm === 'am' && hours === 12) hours = 0;
-        
-        date.setHours(hours, minutes, 0, 0);
-    }
-    
-    return date;
-};
-
 const Returns = ({ navigation }) => {
     const { colors } = useTheme();
     const user = useSelector(({ user }) => user);
     const canCreate = canCreateReturns(user?.role);
-    const [returnsList, setReturnsList] = useState([...SAMPLE_SALES_RETURNS, ...SAMPLE_PURCHASE_RETURNS]);
+    const [returnsList, setReturnsList] = useState([]);
     const [activeTab, setActiveTab] = useState('sales');
     const [search, setSearch] = useState('');
     const [showDateFilter, setShowDateFilter] = useState(false);
@@ -131,43 +86,7 @@ const Returns = ({ navigation }) => {
                 setReturnsList([]);
                 return;
             }
-            setReturnsList(
-                list.map((r) => {
-                    const created = r.created_at ? new Date(r.created_at) : null;
-                    const dateLabel = created
-                        ? created.toLocaleString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric',
-                              hour: 'numeric',
-                              minute: '2-digit',
-                          })
-                        : '';
-                    const statusRaw = String(r.status || '').toLowerCase();
-                    const status =
-                        statusRaw === 'completed'
-                            ? 'Approved'
-                            : statusRaw === 'draft'
-                              ? 'Pending'
-                              : statusRaw === 'cancelled'
-                                ? 'Rejected'
-                                : statusRaw
-                                  ? statusRaw.charAt(0).toUpperCase() + statusRaw.slice(1)
-                                  : 'Approved';
-                    return {
-                        id: r.id,
-                        type: r.type === 'order' ? 'sales' : r.type || 'sales',
-                        ref: r.sale_invoice_number || r.order_number || r.reference_number || r.id,
-                        customer: r.customer_name || '—',
-                        date: dateLabel,
-                        items: Number(r.items || r.items_count || 0),
-                        amount: Number(r.total_amount || r.refund_amount || 0).toFixed(2),
-                        reason: r.reason || r.notes || '—',
-                        status,
-                        _raw: r,
-                    };
-                }),
-            );
+            setReturnsList(list.map((r) => ({ ...toReturnRecord(r), _raw: r })));
         } catch (_) {
             setReturnsList([]);
         }
@@ -175,7 +94,9 @@ const Returns = ({ navigation }) => {
 
     useEffect(() => {
         loadReturns();
-    }, [loadReturns]);
+        const unsubscribe = navigation.addListener('focus', loadReturns);
+        return unsubscribe;
+    }, [loadReturns, navigation]);
 
     const filteredData = useMemo(() => {
         const allReturns = activeTab === 'sales'
@@ -192,6 +113,7 @@ const Returns = ({ navigation }) => {
                     (r.supplier && r.supplier.toLowerCase().includes(q)) ||
                     r.id.toLowerCase().includes(q) ||
                     r.ref.toLowerCase().includes(q) ||
+                    r.reference.toLowerCase().includes(q) ||
                     r.reason.toLowerCase().includes(q)
             );
         }
@@ -201,7 +123,7 @@ const Returns = ({ navigation }) => {
             const bounds = getDateRangeBounds();
             if (bounds) {
                 result = result.filter((item) => {
-                    const itemDate = parseDateString(item.date);
+                    const itemDate = item.createdAt;
                     if (!itemDate) return false;
                     return itemDate >= bounds.start && itemDate < bounds.end;
                 });
@@ -644,8 +566,10 @@ const Returns = ({ navigation }) => {
                                     <Lucide name={getStatusIcon(item.status)} size={18} color={getStatusColor(item.status)} />
                                 </View>
                                 <View style={styles.cardTitleSection}>
-                                    <AppText label={item.id} variant={1} fontSize={16} color={colors.text} />
-                                    <AppText label={`Ref: ${item.ref}`} fontSize={12} color={colors.textTertiary} style={{ marginTop: 2 }} />
+                                    <AppText label={item.reference || 'Return'} variant={1} fontSize={16} color={colors.text} />
+                                    {item.ref ? (
+                                        <AppText label={`${activeTab === 'sales' ? 'Sale' : 'Invoice'}: ${item.ref}`} fontSize={12} color={colors.textTertiary} style={{ marginTop: 2 }} />
+                                    ) : null}
                                 </View>
                             </View>
                             <View style={[styles.statusBadge, { backgroundColor: getStatusBg(item.status) }]}>
@@ -666,17 +590,19 @@ const Returns = ({ navigation }) => {
                             <View style={styles.cardMetaRow}>
                                 <View style={styles.cardMeta}>
                                     <Lucide name="calendar" size={12} color={colors.textTertiary} />
-                                    <AppText label={item.date.split(' @ ')[0]} fontSize={12} color={colors.textSecondary} style={{ marginLeft: 4 }} />
+                                    <AppText label={item.date} fontSize={12} color={colors.textSecondary} style={{ marginLeft: 4 }} />
                                 </View>
                                 <View style={styles.cardMeta}>
                                     <Lucide name="package" size={12} color={colors.textTertiary} />
                                     <AppText label={`${item.items} item${item.items !== 1 ? 's' : ''}`} fontSize={12} color={colors.textSecondary} style={{ marginLeft: 4 }} />
                                 </View>
                             </View>
-                            <View style={[styles.reasonRow, { backgroundColor: colors.surfaceSecondary }]}>
-                                <Lucide name="message-square" size={12} color={colors.textTertiary} />
-                                <AppText label={item.reason} fontSize={12} color={colors.textSecondary} style={{ marginLeft: 6, flex: 1 }} numberOfLines={1} />
-                            </View>
+                            {item.reason ? (
+                                <View style={[styles.reasonRow, { backgroundColor: colors.surfaceSecondary }]}>
+                                    <Lucide name="message-square" size={12} color={colors.textTertiary} />
+                                    <AppText label={item.reason} fontSize={12} color={colors.textSecondary} style={{ marginLeft: 6, flex: 1 }} numberOfLines={1} />
+                                </View>
+                            ) : null}
                         </View>
                     </TouchableOpacity>
                 )}

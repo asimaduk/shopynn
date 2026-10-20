@@ -6,25 +6,35 @@ import AppText from '../../components/text';
 import config from '../../config';
 import ScreenHeader from '../../components/screen_header';
 import useTheme from '../../hooks/useTheme';
+import { formatCurrency } from '../../utils/format';
 import { returnsApi } from '../../services/api';
+import { toReturnRecord } from '../../utils/returnRecord';
+
+const REFUND_METHOD_LABELS = {
+    cash: 'Cash',
+    momo: 'Mobile money',
+    mobile_money: 'Mobile money',
+    card: 'Card',
+    store_credit: 'Store credit',
+    paystack: 'Paystack',
+};
 
 const ReturnDetails = ({ navigation, route }) => {
     const { colors } = useTheme();
     const { item: paramItem, returnId, type: paramType } = route.params || {};
-    const [item, setItem] = useState(paramItem || {});
+    const [item, setItem] = useState(() => (paramItem ? { ...paramItem } : {}));
     const [loading, setLoading] = useState(!!(returnId || paramItem?.id));
-    const type = paramType || item.type || 'sales';
-    const isSales = type === 'sales';
+    const type = item.type || paramType || 'sales';
+    const isSales = type !== 'purchase';
 
-    const status = item.status || 'Pending';
+    const status = item.status || 'Approved';
     const isApproved = status === 'Approved';
     const isPending = status === 'Pending';
-    const isRejected = status === 'Rejected';
 
     const statusColor = isApproved ? (config.GREEN_COLOR || colors.success) : isPending ? (config.THEME_COLOR || colors.text) : colors.error;
     const statusIcon = isApproved ? 'check-circle' : isPending ? 'clock' : 'x-circle';
-    const statusBg = isApproved ? colors.successLight : isPending ? colors.primaryShade : colors.errorLight;
     const heroBg = isApproved ? colors.successLight : isPending ? colors.primaryShade : colors.errorLight;
+    const statusLabel = isApproved ? 'Completed' : isPending ? 'Draft' : 'Cancelled';
 
     useEffect(() => {
         const id = returnId || paramItem?.id;
@@ -32,7 +42,7 @@ const ReturnDetails = ({ navigation, route }) => {
         let mounted = true;
         setLoading(true);
         returnsApi.get(id).then((data) => {
-            if (mounted && data) setItem((prev) => ({ ...prev, ...data }));
+            if (mounted && data) setItem(toReturnRecord(data));
         }).catch(() => {}).finally(() => { if (mounted) setLoading(false); });
         return () => { mounted = false; };
     }, [returnId, paramItem?.id]);
@@ -59,7 +69,7 @@ const ReturnDetails = ({ navigation, route }) => {
                 <View style={styles.detailContent}>
                     <AppText label={label} fontSize={13} color={colors.textTertiary} style={{ marginBottom: 2 }} />
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <AppText label={value || '—'} fontSize={16} color={valueColor || colors.text} fontFamily="FiraSans-Medium" />
+                        <AppText label={value || '—'} fontSize={16} color={valueColor || colors.text} fontFamily="FiraSans-Medium" style={{ flex: 1 }} />
                         {onPress && <Lucide name="chevron-right" size={18} color={colors.textTertiary} />}
                     </View>
                 </View>
@@ -77,6 +87,25 @@ const ReturnDetails = ({ navigation, route }) => {
         return RowContent;
     };
 
+    const amount = Number(item.amount || 0);
+    const refundAmount = Number(item.refundAmount || 0);
+    const balanceReduction = Math.max(0, amount - refundAmount);
+    const itemCount = Number(item.items || 0);
+
+    let settlement = '';
+    if (!isSales) {
+        if (refundAmount > 0.02 && balanceReduction > 0.02) {
+            settlement = `${formatCurrency(balanceReduction)} off amount owed, ${formatCurrency(refundAmount)} cash back from supplier`;
+        } else if (refundAmount > 0.02) {
+            settlement = `${formatCurrency(refundAmount)} cash back from supplier`;
+        } else {
+            settlement = `${formatCurrency(amount)} taken off amount owed to supplier`;
+        }
+    } else if (item.refundMethod) {
+        const method = REFUND_METHOD_LABELS[item.refundMethod] || item.refundMethod;
+        settlement = `${formatCurrency(refundAmount || amount)} refunded via ${method}`;
+    }
+
     return (
         <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
             <ScreenHeader onPress={backPress} label={isSales ? 'Sales Return' : 'Purchase Return'} />
@@ -84,53 +113,65 @@ const ReturnDetails = ({ navigation, route }) => {
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled">
-                {/* Hero: amount + ID + status */}
                 <View style={[styles.hero, { backgroundColor: heroBg }]}>
                     <View style={[styles.heroIconWrap, { backgroundColor: statusColor + '25' }]}>
                         <Lucide name={isSales ? 'rotate-ccw' : 'package-x'} size={36} color={statusColor} />
                     </View>
-                    <AppText label={`GH₵ ${item.amount || '0.00'}`} fontSize={28} fontFamily="FiraSans-Bold" color={colors.text} style={{ marginTop: 12 }} />
-                    <AppText label="Return amount" fontSize={14} color={colors.textSecondary} style={{ marginTop: 4 }} />
+                    <AppText label={formatCurrency(amount)} fontSize={28} fontFamily="FiraSans-Bold" color={colors.text} style={{ marginTop: 12 }} />
+                    <AppText label="Return value" fontSize={14} color={colors.textSecondary} style={{ marginTop: 4 }} />
                     <View style={styles.heroMeta}>
-                        <View style={[styles.typePill, { backgroundColor: colors.surface }]}>
-                            <AppText label={item.id || 'N/A'} fontSize={12} fontFamily="FiraSans-SemiBold" color={colors.text} />
-                        </View>
+                        {item.reference ? (
+                            <View style={[styles.typePill, { backgroundColor: colors.surface }]}>
+                                <AppText label={item.reference} fontSize={12} fontFamily="FiraSans-SemiBold" color={colors.text} />
+                            </View>
+                        ) : null}
                         <View style={[styles.statusPill, { backgroundColor: statusColor + '25', borderColor: statusColor }]}>
                             <Lucide name={statusIcon} size={14} color={statusColor} />
-                            <AppText label={status} fontSize={12} fontFamily="FiraSans-SemiBold" color={statusColor} style={{ marginLeft: 6 }} />
+                            <AppText label={statusLabel} fontSize={12} fontFamily="FiraSans-SemiBold" color={statusColor} style={{ marginLeft: 6 }} />
                         </View>
                     </View>
                 </View>
 
-                {/* Details card */}
                 <View style={[styles.card, { backgroundColor: colors.surface }]}>
                     <View style={[styles.cardHeader, { borderBottomColor: colors.border }]}>
                         <Lucide name="list" size={18} color={config.THEME_COLOR} />
                         <AppText label="Details" fontSize={16} fontFamily="FiraSans-SemiBold" color={colors.text} style={{ marginLeft: 8 }} />
                     </View>
                     <View style={styles.cardBody}>
-                        <DetailRow label="Reference" value={item.ref || 'N/A'} icon="hash" />
+                        <DetailRow
+                            label={isSales ? 'Sale' : 'Purchase invoice'}
+                            value={item.ref || '—'}
+                            icon="hash"
+                            onPress={
+                                !isSales && item.purchaseId
+                                    ? () => navigation.navigate('PurchaseDetails', { purchaseId: item.purchaseId })
+                                    : undefined
+                            }
+                        />
                         <DetailRow
                             label={isSales ? 'Customer' : 'Supplier'}
-                            value={isSales ? (item.customer || 'N/A') : (item.supplier || 'N/A')}
+                            value={isSales ? item.customer : item.supplier}
                             icon={isSales ? 'user' : 'truck'}
                         />
-                        <DetailRow label="Date & time" value={item.date || 'N/A'} icon="calendar" />
+                        {item.warehouse ? <DetailRow label="Store" value={item.warehouse} icon="store" /> : null}
+                        <DetailRow label="Date & time" value={item.date || '—'} icon="calendar" />
+                        {settlement ? (
+                            <DetailRow label={isSales ? 'Refund' : 'Settlement'} value={settlement} icon="wallet" />
+                        ) : null}
                         <DetailRow
                             label="Items"
-                            value={`${item.items ?? 0} item${(item.items ?? 0) !== 1 ? 's' : ''}`}
+                            value={`${itemCount} item${itemCount !== 1 ? 's' : ''}`}
                             icon="package"
                             isLast
-                            onPress={() => {
-                                if ((item.items ?? 0) > 0) {
-                                    navigation.navigate('ReturnItems', { item, type });
-                                }
-                            }}
+                            onPress={
+                                Array.isArray(item.details) && item.details.length > 0
+                                    ? () => navigation.navigate('ReturnItems', { item, type })
+                                    : undefined
+                            }
                         />
                     </View>
                 </View>
 
-                {/* Reason card */}
                 <View style={[styles.reasonCard, { backgroundColor: colors.surface, borderLeftColor: config.THEME_COLOR }]}>
                     <View style={styles.reasonHeader}>
                         <View style={[styles.reasonIconWrap, { backgroundColor: colors.primaryShade }]}>
@@ -144,38 +185,27 @@ const ReturnDetails = ({ navigation, route }) => {
                         color={colors.textSecondary}
                         style={[styles.reasonText, { color: colors.textSecondary }]}
                     />
+                    {item.notes && item.notes !== item.reason ? (
+                        <AppText
+                            label={item.notes}
+                            fontSize={14}
+                            color={colors.textTertiary}
+                            style={{ marginTop: 8, lineHeight: 20 }}
+                        />
+                    ) : null}
                 </View>
 
-                {/* Actions – only when pending */}
-                {isPending && (
-                    <View style={styles.actionsRow}>
-                        <TouchableOpacity
-                            activeOpacity={0.8}
-                            style={[styles.actionBtn, styles.approveBtn, { backgroundColor: config.GREEN_COLOR || colors.success }]}
-                            onPress={() => {}}>
-                            <Lucide name="check" size={20} color={colors.textInverse} />
-                            <AppText label="Approve" fontSize={15} variant={1} color={colors.textInverse} style={{ marginLeft: 8 }} />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            activeOpacity={0.8}
-                            style={[styles.actionBtn, styles.rejectBtn, { backgroundColor: colors.error }]}
-                            onPress={() => {}}>
-                            <Lucide name="x" size={20} color={colors.textInverse} />
-                            <AppText label="Reject" fontSize={15} variant={1} color={colors.textInverse} style={{ marginLeft: 8 }} />
-                        </TouchableOpacity>
-                    </View>
-                )}
-
-                {/* Info banner */}
                 <View style={[styles.infoBanner, { backgroundColor: colors.surfaceSecondary }]}>
                     <Lucide name="info" size={16} color={colors.textTertiary} style={{ marginRight: 8 }} />
                     <AppText
                         label={
                             isApproved
-                                ? `This ${isSales ? 'sales' : 'purchase'} return has been approved and processed.`
+                                ? isSales
+                                    ? 'Returned items were added back to stock.'
+                                    : 'Returned items were taken out of stock and the supplier balance was updated.'
                                 : isPending
-                                ? 'This return is pending approval.'
-                                : 'This return has been rejected.'
+                                ? 'This return has not been completed yet.'
+                                : 'This return was cancelled.'
                         }
                         fontSize={13}
                         color={colors.textTertiary}
@@ -313,8 +343,6 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 2,
     },
-    approveBtn: {},
-    rejectBtn: {},
     infoBanner: {
         flexDirection: 'row',
         alignItems: 'flex-start',

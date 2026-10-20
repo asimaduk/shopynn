@@ -543,6 +543,9 @@ export const returnsApi = {
         axios.get(`/returns/sale/${saleId}/returnable`).then((res) => getData(res)),
     orderReturnable: (orderId) =>
         axios.get(`/returns/order/${orderId}/returnable`).then((res) => getData(res)),
+    purchaseReturnable: (purchaseId) =>
+        axios.get(`/returns/purchase/${purchaseId}/returnable`).then((res) => getData(res)),
+    createPurchase: (body) => axios.post('/returns/purchase', body).then((res) => getData(res)),
 };
 
 // —— Notifications ——

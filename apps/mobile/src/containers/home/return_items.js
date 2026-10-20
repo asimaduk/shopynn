@@ -7,54 +7,42 @@ import AppText from '../../components/text';
 import config from '../../config';
 import ScreenHeader from '../../components/screen_header';
 import useTheme from '../../hooks/useTheme';
+import { formatCurrency } from '../../utils/format';
 
-// Generate sample items based on return ID
-const generateReturnItems = (returnId, itemCount) => {
-    const items = [];
-    const sampleProducts = [
-        { name: 'Coca Cola 500ml', sku: 'CC-500', category: 'Beverages', unitPrice: 3.50 },
-        { name: 'Rice 50kg Bag', sku: 'RICE-50', category: 'Grains', unitPrice: 180.00 },
-        { name: 'Cooking Oil 5L', sku: 'OIL-5L', category: 'Cooking', unitPrice: 45.00 },
-        { name: 'Sugar 1kg', sku: 'SUGAR-1KG', category: 'Baking', unitPrice: 8.50 },
-        { name: 'Milk Powder 400g', sku: 'MILK-400', category: 'Dairy', unitPrice: 12.00 },
-        { name: 'Bread Loaf', sku: 'BREAD-LF', category: 'Bakery', unitPrice: 5.00 },
-        { name: 'Tomato Paste 400g', sku: 'TOMATO-400', category: 'Condiments', unitPrice: 6.50 },
-        { name: 'Spaghetti 500g', sku: 'SPAG-500', category: 'Pasta', unitPrice: 4.50 },
-    ];
-
-    for (let i = 0; i < itemCount; i++) {
-        const product = sampleProducts[i % sampleProducts.length];
-        const quantity = Math.floor(Math.random() * 5) + 1;
-        items.push({
-            id: `${returnId}-ITEM-${i + 1}`,
-            name: product.name,
-            sku: product.sku,
-            category: product.category,
-            quantity: quantity,
-            unitPrice: product.unitPrice,
-            totalPrice: (product.unitPrice * quantity).toFixed(2),
-            reason: i === 0 ? 'Defective' : i === 1 ? 'Damaged packaging' : 'Wrong item',
-        });
-    }
-
-    return items;
+const fmtQty = (n) => {
+    const v = Number(n || 0);
+    return Number.isInteger(v) ? String(v) : String(Number(v.toFixed(3)));
 };
 
 const ReturnItems = ({ navigation, route }) => {
     const { colors } = useTheme();
-    const { item, type } = route.params || {};
-    const isSales = type === 'sales' || item?.type === 'sales';
+    const { item } = route.params || {};
 
-    // Generate items based on return
     const items = React.useMemo(() => {
-        const itemCount = item?.items || 0;
-        if (itemCount === 0) return [];
-        return generateReturnItems(item?.id || 'RET-001', itemCount);
+        const details = Array.isArray(item?.details) ? item.details : [];
+        return details.map((d, i) => {
+            const quantity = Number(d.quantity || 0);
+            const unitPrice = Number(d.unit_price || 0);
+            return {
+                id: d.id || `line-${i}`,
+                name: d.product_name || 'Product',
+                sku: d.sku || '',
+                quantity,
+                unitPrice,
+                totalPrice: Number(d.line_total ?? quantity * unitPrice),
+                reason: d.reason || '',
+            };
+        });
     }, [item]);
 
-    const totalAmount = React.useMemo(() => {
-        return items.reduce((sum, item) => sum + parseFloat(item.totalPrice || 0), 0).toFixed(2);
-    }, [items]);
+    const totalAmount = React.useMemo(
+        () => items.reduce((sum, row) => sum + row.totalPrice, 0),
+        [items],
+    );
+    const totalUnits = React.useMemo(
+        () => items.reduce((sum, row) => sum + row.quantity, 0),
+        [items],
+    );
 
     const backPress = () => {
         navigation.goBack();
@@ -68,26 +56,30 @@ const ReturnItems = ({ navigation, route }) => {
             <View style={styles.itemContent}>
                 <View style={styles.itemHeader}>
                     <AppText label={itemData.name} fontSize={15} variant={1} color={colors.text} numberOfLines={1} />
-                    <AppText label={`×${itemData.quantity}`} fontSize={15} variant={1} color={config.THEME_COLOR} />
+                    <AppText label={`×${fmtQty(itemData.quantity)}`} fontSize={15} variant={1} color={config.THEME_COLOR} />
                 </View>
                 <View style={styles.itemMeta}>
-                    <View style={styles.itemMetaItem}>
-                        <Lucide name="hash" size={12} color={colors.textTertiary} />
-                        <AppText label={itemData.sku} fontSize={12} color={colors.textSecondary} style={{ marginLeft: 4 }} />
-                    </View>
-                    <View style={styles.itemMetaItem}>
-                        <Lucide name="tag" size={12} color={colors.textTertiary} />
-                        <AppText label={itemData.category} fontSize={12} color={colors.textSecondary} style={{ marginLeft: 4 }} />
-                    </View>
+                    {itemData.sku ? (
+                        <View style={styles.itemMetaItem}>
+                            <Lucide name="hash" size={12} color={colors.textTertiary} />
+                            <AppText label={itemData.sku} fontSize={12} color={colors.textSecondary} style={{ marginLeft: 4 }} />
+                        </View>
+                    ) : null}
+                    {itemData.reason ? (
+                        <View style={styles.itemMetaItem}>
+                            <Lucide name="message-square" size={12} color={colors.textTertiary} />
+                            <AppText label={itemData.reason} fontSize={12} color={colors.textSecondary} style={{ marginLeft: 4 }} />
+                        </View>
+                    ) : null}
                 </View>
                 <View style={[styles.itemFooter, { borderTopColor: colors.border }]}>
                     <View>
                         <AppText label="Unit Price" fontSize={11} color={colors.textTertiary} />
-                        <AppText label={`GH₵ ${itemData.unitPrice.toFixed(2)}`} fontSize={13} color={colors.textSecondary} />
+                        <AppText label={formatCurrency(itemData.unitPrice)} fontSize={13} color={colors.textSecondary} />
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
                         <AppText label="Total" fontSize={11} color={colors.textTertiary} />
-                        <AppText label={`GH₵ ${itemData.totalPrice}`} fontSize={15} variant={1} color={colors.text} />
+                        <AppText label={formatCurrency(itemData.totalPrice)} fontSize={15} variant={1} color={colors.text} />
                     </View>
                 </View>
             </View>
@@ -106,12 +98,12 @@ const ReturnItems = ({ navigation, route }) => {
                 <View style={[styles.summaryCard, { backgroundColor: colors.surface }]}>
                     <View style={styles.summaryRow}>
                         <View>
-                            <AppText label="Total Items" fontSize={13} color={colors.textTertiary} />
-                            <AppText label={`${items.length} item${items.length !== 1 ? 's' : ''}`} fontSize={20} variant={1} color={colors.text} style={{ marginTop: 4 }} />
+                            <AppText label="Total Returned" fontSize={13} color={colors.textTertiary} />
+                            <AppText label={`${fmtQty(totalUnits)} unit${totalUnits !== 1 ? 's' : ''}`} fontSize={20} variant={1} color={colors.text} style={{ marginTop: 4 }} />
                         </View>
                         <View style={{ alignItems: 'flex-end' }}>
                             <AppText label="Total Amount" fontSize={13} color={colors.textTertiary} />
-                            <AppText label={`GH₵ ${totalAmount}`} fontSize={20} variant={1} color={config.THEME_COLOR} style={{ marginTop: 4 }} />
+                            <AppText label={formatCurrency(totalAmount)} fontSize={20} variant={1} color={config.THEME_COLOR} style={{ marginTop: 4 }} />
                         </View>
                     </View>
                 </View>

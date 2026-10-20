@@ -10,6 +10,8 @@ import useTheme from '../../hooks/useTheme';
 import { purchases as purchasesApi } from '../../services/api';
 import { formatCurrency, formatQuantity } from '../../utils/format';
 import AppAlert from '../../utils/appAlert';
+import { useSelector } from 'react-redux';
+import { hasPermission } from '../../utils/permissions';
 
 const defaultItem = { id: 'N/A', vendor: 'Unknown', amount: '0.00', date: 'N/A', status: 'N/A', poStatus: 'draft', user: 'Unknown', itemCount: 0 };
 
@@ -43,6 +45,9 @@ const PurchaseDetails = ({ navigation, route }) => {
     const [paymentReference, setPaymentReference] = useState('');
     const [paymentNumber, setPaymentNumber] = useState('');
     const poStatus = item.poStatus || 'received';
+    const user = useSelector(({ user }) => user);
+    const canReturnToSupplier =
+        hasPermission(user, ['returns.create']) && hasPermission(user, ['purchases.create']);
 
     const netTotal = Math.max(
         0,
@@ -381,6 +386,17 @@ const PurchaseDetails = ({ navigation, route }) => {
                         </View>
                     ))}
                 </DetailSection>
+
+                {canReturnToSupplier && item.id && item.id !== 'N/A' && item.products?.length ? (
+                    <TouchableOpacity
+                        activeOpacity={0.8}
+                        onPress={() => navigation.navigate('NewPurchaseReturn', { purchaseId: item.id })}
+                        style={[styles.primaryPaymentBtn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: config.THEME_COLOR, marginTop: 4 }]}
+                    >
+                        <Lucide name="undo-2" size={18} color={config.THEME_COLOR} />
+                        <AppText label="Return to supplier" color={config.THEME_COLOR} variant={1} style={{ marginLeft: 8 }} />
+                    </TouchableOpacity>
+                ) : null}
             </ScrollView>
 
             <AppModal
