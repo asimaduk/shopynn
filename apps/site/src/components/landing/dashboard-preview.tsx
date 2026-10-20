@@ -35,7 +35,7 @@ export function DashboardPreview() {
             </div>
           </div>
           <div className="relative group">
-            <img src={dashboard} alt="Shopynn analytics dashboard" loading="lazy" width={1600} height={1024} className="w-full h-auto group-hover:scale-[1.02] transition-transform duration-700" />
+            <img src={dashboard} alt="Shopynn analytics dashboard" loading="lazy" width={1600} height={1000} className="w-full h-auto group-hover:scale-[1.02] transition-transform duration-700" />
           </div>
         </motion.div>
       </div>

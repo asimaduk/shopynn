@@ -66,7 +66,7 @@ export function Hero() {
               src="/dashboard-hero.jpg"
               alt="Shopynn admin dashboard — sales overview and inventory navigation"
               width={1600}
-              height={1024}
+              height={1000}
               className="w-full h-auto"
             />
           </div>
