@@ -16,6 +16,7 @@ import { normalizeLowStockList } from '../../utils/normalizeLowStockItem';
 import {
     buildLowStockNotificationPayload,
     LOW_STOCK_NOTIFICATION_ID,
+    takeNewlyLowStockKeys,
 } from '../../utils/notificationNavigation';
  
 const { width } = Dimensions.get('window')
@@ -75,15 +76,16 @@ const Dashboard = ({ navigation, route }) => {
         loadDashboardData();
     },[]);
 
-    useEffect(() => {
-        if (itemsToReorder.length === 0) return;
+    const notifyNewlyLowStock = async (lowItems) => {
         try {
-            const payload = buildLowStockNotificationPayload(itemsToReorder.length);
+            const newlyLow = await takeNewlyLowStockKeys(user?.id ?? user?.email, lowItems.map((item) => item.key ?? item.id));
+            if (newlyLow.length === 0) return;
+            const payload = buildLowStockNotificationPayload(lowItems.length);
             PushNotification.localNotification({
                 id: LOW_STOCK_NOTIFICATION_ID,
                 channelId: 'channel-shopynn',
                 title: 'Low stock',
-                message: `${itemsToReorder.length} item(s) below reorder point.`,
+                message: `${lowItems.length} item(s) below reorder point.`,
                 playSound: true,
                 smallIcon: 'ic_notification',
                 largeIcon: 'ic_launcher',
@@ -94,7 +96,7 @@ const Dashboard = ({ navigation, route }) => {
                 data: JSON.stringify(payload),
             });
         } catch (_) {}
-    }, [itemsToReorder.length]);
+    };
 
     const loadDashboardData = async () => {
         setIsLoading(true);
@@ -143,10 +145,9 @@ const Dashboard = ({ navigation, route }) => {
                     inventories.lowStock(undefined, { skipErrorAlert: true }).catch(() => null),
                     inventories.expiring({ days: 30 }, { skipErrorAlert: true }).catch(() => null),
                 ]);
-                setItemsToReorder(normalizeList(lowStockRes).length ? normalizeLowStockList(normalizeList(lowStockRes)) : [
-                    // { id: '1', name: 'Tampico Medium', sku: 'Tam500', current: 21, reorderAt: 30 },
-                    // { id: '2', name: 'Coca Cola 500ml', sku: 'CC500', current: 8, reorderAt: 24 },
-                ]);
+                const lowItems = normalizeLowStockList(normalizeList(lowStockRes));
+                setItemsToReorder(lowItems);
+                if (lowStockRes != null && canReorder) void notifyNewlyLowStock(lowItems);
                 setExpiringSoon(normalizeList(expiringRes).length ? normalizeList(expiringRes) : [
                     // { id: '1', name: 'Fan Yogurt', sku: 'FY1', expiryDate: '2025-03-05', daysLeft: 14, qty: 4 },
                     // { id: '2', name: 'Milk 1L', sku: 'ML1L', expiryDate: '2025-03-15', daysLeft: 24, qty: 24 },

@@ -1,4 +1,5 @@
 import { DeviceEventEmitter } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const NOTIFICATION_OPENED_EVENT = 'SHOPYNN_NOTIFICATION_OPENED';
 export const POS_MOMO_STATUS_EVENT = 'SHOPYNN_POS_MOMO_STATUS';
@@ -14,6 +15,30 @@ export function buildLowStockNotificationPayload(count) {
         screen: LOW_STOCK_SCREEN,
         count: String(count ?? ''),
     };
+}
+
+const LOW_STOCK_SEEN_KEY = (userId) => `SHOPYNN_LOW_STOCK_NOTIFIED_V1:${userId || 'anon'}`;
+
+/**
+ * Remembers which low-stock items were already notified and returns only the newly low ones.
+ * Items that recover drop out of the stored set, so they notify again if they go low later.
+ */
+export async function takeNewlyLowStockKeys(userId, keys) {
+    const current = [...new Set((keys || []).map(String))];
+    let seen = [];
+    try {
+        const raw = await AsyncStorage.getItem(LOW_STOCK_SEEN_KEY(userId));
+        seen = raw ? JSON.parse(raw) : [];
+    } catch (_) {
+        seen = [];
+    }
+    const seenSet = new Set(Array.isArray(seen) ? seen.map(String) : []);
+    try {
+        await AsyncStorage.setItem(LOW_STOCK_SEEN_KEY(userId), JSON.stringify(current));
+    } catch (_) {
+        /* ignore */
+    }
+    return current.filter((k) => !seenSet.has(k));
 }
 
 export function parseNotificationPayload(notification) {
