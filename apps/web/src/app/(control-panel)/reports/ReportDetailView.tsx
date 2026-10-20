@@ -232,7 +232,7 @@ export default function ReportDetailView(props: ReportDetailViewProps) {
 		if (reportId === 'stock-summary') return undefined;
 		if (preset === 'custom') {
 			if (!customStart || !customEnd) return undefined;
-			return getApiDateRange('custom', new Date(customStart), new Date(customEnd));
+			return getApiDateRange('custom', new Date(`${customStart}T00:00`), new Date(`${customEnd}T00:00`));
 		}
 		return getApiDateRange(preset);
 	}, [reportId, preset, customStart, customEnd]);

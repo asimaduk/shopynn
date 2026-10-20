@@ -19,7 +19,7 @@ export const DATE_PRESET_OPTIONS: { id: DatePresetId; label: string }[] = [
 	{ id: 'custom', label: 'Custom range' }
 ];
 
-/** Matches mobile `getDateParams` in report_detail.js (end date is next day for single-day ranges). */
+/** Matches mobile `getDateParams` in report_detail.js: endDate is exclusive (the day after the range). */
 export function getApiDateRange(
 	preset: DatePresetId,
 	customStart?: Date,
@@ -52,11 +52,15 @@ export function getApiDateRange(
 		start = new Date(now.getFullYear(), now.getMonth(), 1);
 	} else if (preset === 'last_month') {
 		start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-		end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+		end = new Date(now.getFullYear(), now.getMonth(), 1);
 	}
 
 	return {
-		startDate: start.toISOString().slice(0, 10),
-		endDate: end.toISOString().slice(0, 10)
+		startDate: toLocalYmd(start),
+		endDate: toLocalYmd(end)
 	};
+}
+
+function toLocalYmd(d: Date): string {
+	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }

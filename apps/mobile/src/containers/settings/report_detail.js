@@ -23,6 +23,8 @@ import AppAlert from '../../utils/appAlert';
 
 const formatter = new Intl.NumberFormat('en-GH', { style: 'currency', currency: 'GHS' });
 const formatCurrency = (value) => formatter.format(Number(value)).replace(/GH₵\s?|GHS\s?/, 'GH₵ ').trim();
+const toLocalYmd = (d) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 // Sample data per report type
 // const SAMPLE = {
@@ -284,34 +286,42 @@ const ReportDetail = ({ navigation, route }) => {
     const [selectedStaff, setSelectedStaff] = useState('all');
     const canExport = hasPermission(user, ['reports.export']) && hasFeature(user, ['reports.export'], subscriptionFeatures);
 
-    const getDateParams = useCallback(() => {
+    const getInclusiveRange = useCallback(() => {
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         let start = today;
-        let end = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+        let end = today;
         if (selectedDateRange === 'custom') {
             start = appliedCustomRange.start;
-            end = new Date(appliedCustomRange.end.getTime() + 24 * 60 * 60 * 1000);
+            end = appliedCustomRange.end;
+        } else if (selectedDateRange === 'yesterday') {
+            start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+            end = start;
         } else if (selectedDateRange === 'last_7_days') {
-            start = new Date(today);
-            start.setDate(start.getDate() - 7);
+            start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7);
         } else if (selectedDateRange === 'last_30_days') {
-            start = new Date(today);
-            start.setDate(start.getDate() - 30);
+            start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 30);
         } else if (selectedDateRange === 'this_month') {
             start = new Date(now.getFullYear(), now.getMonth(), 1);
         } else if (selectedDateRange === 'last_month') {
             start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-            end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+            end = new Date(now.getFullYear(), now.getMonth(), 0);
         }
-        return { startDate: start.toISOString().slice(0, 10), endDate: end.toISOString().slice(0, 10) };
+        return { start, end };
     }, [selectedDateRange, appliedCustomRange]);
+
+    /** The API treats endDate as exclusive (midnight at the end of the range). */
+    const getDateParams = useCallback(() => {
+        const { start, end } = getInclusiveRange();
+        const endExclusive = new Date(end.getFullYear(), end.getMonth(), end.getDate() + 1);
+        return { startDate: toLocalYmd(start), endDate: toLocalYmd(endExclusive) };
+    }, [getInclusiveRange]);
 
     const currentRangeLabel = selectedDateRange === 'all_time'
         ? 'All time'
         : (() => {
-            const { startDate, endDate } = getDateParams();
-            return formatDateRange(startDate, endDate);
+            const { start, end } = getInclusiveRange();
+            return formatDateRange(toLocalYmd(start), toLocalYmd(end));
         })();
 
     const backPress = () => navigation.goBack();
@@ -340,7 +350,12 @@ const ReportDetail = ({ navigation, route }) => {
                         cards: [
                             { label: 'Revenue', value: formatCurrency(res.revenue), icon: 'wallet', color: '#10b981' },
                             { label: 'Expenses', value: formatCurrency(res.expenses), icon: 'trending-down', color: '#ef4444' },
-                            { label: 'Net profit', value: res.netProfit > 0 ? formatCurrency(res.netProfit) : '0', icon: 'chart-spline', color: config.THEME_COLOR },
+                            {
+                                label: Number(res.netProfit) < 0 ? 'Net loss' : 'Net profit',
+                                value: formatCurrency(res.netProfit || 0),
+                                icon: 'chart-spline',
+                                color: Number(res.netProfit) < 0 ? '#ef4444' : config.THEME_COLOR,
+                            },
                             { label: 'Total sold units', value: formatQuantity(res.totalSoldQty), icon: 'shopping-cart', color: '#f59e0b' },
                         ],
                         rows: [
