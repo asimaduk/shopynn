@@ -366,7 +366,32 @@ export const getSalesByDateService = async (user, requestQuery = {}) => {
 };
 
 /**
- * Top 5 selling products by total revenue (units sold + revenue per product).
+ * Report date range. endDate is exclusive (clients send the day after the range);
+ * without a range the report covers all time up to and including today.
+ */
+function resolveReportRange(requestQuery = {}) {
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    return {
+        startDate: requestQuery.startDate || requestQuery.from || "1970-01-01",
+        endDate: requestQuery.endDate || requestQuery.to || tomorrow,
+    };
+}
+
+/** Goods value of completed returns against sale `s` (subtract from s.total_amount for net sales). */
+const SALE_RETURNED_AMOUNT_SQL = `COALESCE((
+    SELECT SUM(r.total_amount) FROM returns r
+    WHERE r.sale_id = s.id AND r.tenant_id = s.tenant_id AND r.status = 'completed'
+), 0)`;
+
+/** Units of sale line `sd` given back on completed returns. */
+const LINE_RETURNED_QTY_SQL = `COALESCE((
+    SELECT SUM(rd.quantity) FROM return_details rd
+    JOIN returns r ON r.id = rd.return_id
+    WHERE rd.sale_detail_id = sd.id AND r.tenant_id = sd.tenant_id AND r.status = 'completed'
+), 0)`;
+
+/**
+ * Top 5 selling products by total revenue (units sold + revenue per product), net of returns.
  * Respects tenant_id and user_type (non-admin sees only own sales).
  * Optional query: startDate, endDate to restrict date range.
  */
@@ -399,13 +424,14 @@ export const getTopSellingProductsService = async (user, requestQuery = {}) => {
             p.id AS product_id,
             p.name AS product_name,
             p.sku,
-            COALESCE(SUM(sd.quantity), 0)::int AS units_sold,
-            COALESCE(SUM(sd.quantity * sd.unit_price), 0)::numeric AS total_revenue
+            COALESCE(SUM(GREATEST(sd.quantity - ${LINE_RETURNED_QTY_SQL}, 0)), 0)::int AS units_sold,
+            COALESCE(SUM(GREATEST(sd.quantity - ${LINE_RETURNED_QTY_SQL}, 0) * sd.unit_price), 0)::numeric AS total_revenue
         FROM saledetails sd
         JOIN sales s ON sd.sale_id = s.id AND s.tenant_id = sd.tenant_id
         LEFT JOIN products p ON sd.product_id = p.id
         WHERE ${where}
         GROUP BY p.id, p.name, p.sku
+        HAVING COALESCE(SUM(GREATEST(sd.quantity - ${LINE_RETURNED_QTY_SQL}, 0)), 0) > 0
         ORDER BY total_revenue DESC NULLS LAST
         LIMIT $${paramIndex}
     `;
@@ -498,9 +524,9 @@ export const getSalesSummaryService = async (user, requestQuery = {}) => {
 
     const summaryFragment = `
         COUNT(*)::int AS transaction_count,
-        COALESCE(SUM(s.total_amount), 0)::numeric AS total_sales,
+        COALESCE(SUM(s.total_amount - ${SALE_RETURNED_AMOUNT_SQL}), 0)::numeric AS total_sales,
         COALESCE(SUM(COALESCE(s.amount_paid, 0)), 0)::numeric AS collected_sales,
-        CASE WHEN COUNT(*) > 0 THEN COALESCE(SUM(s.total_amount), 0) / COUNT(*) ELSE 0 END::numeric AS average_per_sale
+        CASE WHEN COUNT(*) > 0 THEN COALESCE(SUM(s.total_amount - ${SALE_RETURNED_AMOUNT_SQL}), 0) / COUNT(*) ELSE 0 END::numeric AS average_per_sale
     `;
 
     // Overall (optionally filtered by custom date range)
@@ -604,23 +630,13 @@ export const getSalesSummaryService = async (user, requestQuery = {}) => {
 
 /**
  * Revenue report for a tenant, grouped by day over a date range.
- * Defaults to last 30 days if no startDate/endDate provided.
+ * Net of completed returns. Date range as resolveReportRange (all time by default).
  * Respects user_type: non-admin (user_type != 1) only sees own sales.
  */
 export const getRevenueReportService = async (user, requestQuery = {}) => {
     const { tenant_id, id: userId } = user;
 
-    const defaultEnd = new Date();
-    const defaultStart = new Date(defaultEnd.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-    const startDate =
-        requestQuery.startDate ||
-        requestQuery.from ||
-        defaultStart.toISOString().slice(0, 10);
-    const endDate =
-        requestQuery.endDate ||
-        requestQuery.to ||
-        defaultEnd.toISOString().slice(0, 10);
+    const { startDate, endDate } = resolveReportRange(requestQuery);
 
     const conditions = ["s.tenant_id = $1", "s.created_at BETWEEN $2 AND $3"];
     const params = [tenant_id, startDate, endDate];
@@ -637,7 +653,7 @@ export const getRevenueReportService = async (user, requestQuery = {}) => {
     const query = `
         SELECT
             DATE(s.created_at) AS date,
-            COALESCE(SUM(s.total_amount), 0)::numeric AS total,
+            COALESCE(SUM(s.total_amount - ${SALE_RETURNED_AMOUNT_SQL}), 0)::numeric AS total,
             COUNT(s.id)::int AS count
         FROM sales s
         WHERE ${where}
@@ -669,7 +685,7 @@ export const getRevenueReportService = async (user, requestQuery = {}) => {
 /**
  * Daily sales summary for a tenant, grouped by day over a date range.
  * Same filters/behavior as revenue report, but returns sales-focused fields.
- * Defaults to last 30 days if no startDate/endDate provided.
+ * Date range as resolveReportRange (all time by default).
  */
 export const getDailySalesSummaryService = async (user, requestQuery = {}) => {
     const revenue = await getRevenueReportService(user, requestQuery);
@@ -692,23 +708,13 @@ export const getDailySalesSummaryService = async (user, requestQuery = {}) => {
 
 /**
  * Sales by customers summary: total sales and orders count per customer.
- * Defaults to last 30 days if no date range is provided.
+ * Net of completed returns. Date range as resolveReportRange (all time by default).
  * Respects user_type: non-admin (user_type != 1) only sees own sales.
  */
 export const getSalesByCustomerSummaryService = async (user, requestQuery = {}) => {
     const { tenant_id, id: userId } = user;
 
-    const defaultEnd = new Date();
-    const defaultStart = new Date(defaultEnd.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-    const startDate =
-        requestQuery.startDate ||
-        requestQuery.from ||
-        defaultStart.toISOString().slice(0, 10);
-    const endDate =
-        requestQuery.endDate ||
-        requestQuery.to ||
-        defaultEnd.toISOString().slice(0, 10);
+    const { startDate, endDate } = resolveReportRange(requestQuery);
 
     const conditions = ["s.tenant_id = $1", "s.created_at BETWEEN $2 AND $3"];
     const params = [tenant_id, startDate, endDate];
@@ -729,7 +735,7 @@ export const getSalesByCustomerSummaryService = async (user, requestQuery = {}) 
             c.email AS customer_email,
             c.phone AS customer_phone,
             COUNT(s.id)::int AS orders_count,
-            COALESCE(SUM(s.total_amount), 0)::numeric AS total_sales
+            COALESCE(SUM(s.total_amount - ${SALE_RETURNED_AMOUNT_SQL}), 0)::numeric AS total_sales
         FROM sales s
         LEFT JOIN customers c ON s.customer_id = c.id
         WHERE ${where}
@@ -761,17 +767,7 @@ export const getSalesByCustomerSummaryService = async (user, requestQuery = {}) 
 export const getSalesByCustomersReportService = async (user, requestQuery = {}) => {
     const { tenant_id, id: userId } = user;
 
-    const defaultEnd = new Date();
-    const defaultStart = new Date(defaultEnd.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-    const startDate =
-        requestQuery.startDate ||
-        requestQuery.from ||
-        defaultStart.toISOString().slice(0, 10);
-    const endDate =
-        requestQuery.endDate ||
-        requestQuery.to ||
-        defaultEnd.toISOString().slice(0, 10);
+    const { startDate, endDate } = resolveReportRange(requestQuery);
 
     const conditions = ["s.tenant_id = $1", "s.created_at BETWEEN $2 AND $3"];
     const params = [tenant_id, startDate, endDate];
@@ -792,7 +788,7 @@ export const getSalesByCustomersReportService = async (user, requestQuery = {}) 
             c.email AS customer_email,
             c.phone AS customer_phone,
             COUNT(s.id)::int AS orders_count,
-            COALESCE(SUM(s.total_amount), 0)::numeric AS total_sales
+            COALESCE(SUM(s.total_amount - ${SALE_RETURNED_AMOUNT_SQL}), 0)::numeric AS total_sales
         FROM sales s
         LEFT JOIN customers c ON s.customer_id = c.id
         WHERE ${where}
@@ -829,22 +825,12 @@ export const getSalesByCustomersReportService = async (user, requestQuery = {}) 
  * Sales by user (creator/attendant) summary:
  *  - per user: total sales amount and transactions count
  *  - respects tenant_id and user_type (non-admin sees only own sales)
- *  - date range: startDate/endDate (or from/to), defaults to last 30 days
+ *  - net of completed returns; date range as resolveReportRange (all time by default)
  */
 export const getSalesByUserSummaryService = async (user, requestQuery = {}) => {
     const { tenant_id, id: userId } = user;
 
-    const defaultEnd = new Date();
-    const defaultStart = new Date(defaultEnd.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-    const startDate =
-        requestQuery.startDate ||
-        requestQuery.from ||
-        defaultStart.toISOString().slice(0, 10);
-    const endDate =
-        requestQuery.endDate ||
-        requestQuery.to ||
-        defaultEnd.toISOString().slice(0, 10);
+    const { startDate, endDate } = resolveReportRange(requestQuery);
 
     const conditions = ["s.tenant_id = $1", "s.created_at BETWEEN $2 AND $3"];
     const params = [tenant_id, startDate, endDate];
@@ -866,7 +852,7 @@ export const getSalesByUserSummaryService = async (user, requestQuery = {}) => {
             u.email,
             u.phone,
             COUNT(s.id)::int AS transactions_count,
-            COALESCE(SUM(s.total_amount), 0)::numeric AS total_sales
+            COALESCE(SUM(s.total_amount - ${SALE_RETURNED_AMOUNT_SQL}), 0)::numeric AS total_sales
         FROM sales s
         LEFT JOIN users u ON s.creator_id = u.id
         WHERE ${where}
@@ -1032,16 +1018,7 @@ export async function resolveProductUnitCost(client, { productId, tenantId, ware
 export const getCogsReportService = async (user, requestQuery = {}) => {
     const { tenant_id, id: userId } = user;
 
-    const defaultEnd = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-    const startDate =
-        requestQuery.startDate ||
-        requestQuery.from ||
-        "1970-01-01";
-    const endDate =
-        requestQuery.endDate ||
-        requestQuery.to ||
-        defaultEnd.toISOString().slice(0, 10);
+    const { startDate, endDate } = resolveReportRange(requestQuery);
 
     const baseSalesConditions = ["s.tenant_id = $1", "s.created_at BETWEEN $2 AND $3"];
     const salesParams = [tenant_id, startDate, endDate];
