@@ -5,11 +5,20 @@ import AppText from '../../components/text';
 import config from '../../config';
 import useTheme from '../../hooks/useTheme';
 import { formatCurrency } from '../../utils/format';
+import { saleReturnState } from '../../utils/saleReturnState';
 
 const SaleItem = ({ item, onPress, onResendInvoice, resending }) => {
     const { colors } = useTheme();
+    const returnState = saleReturnState(item.amount, item.returned_amount);
     const balanceDue = Number(item.balance_due) || 0;
-    const owes = balanceDue > 0.02;
+    const owes = balanceDue > 0.02 && returnState !== 'full';
+    const statusLabel = returnState === 'full' ? 'Refunded' : item.status;
+    const statusColor =
+        returnState === 'full'
+            ? colors.textSecondary
+            : item.status === 'Delivered'
+              ? config.GREEN_COLOR
+              : config.THEME_COLOR;
     const unpaid = owes && !(Number(item.amount_paid) > 0.02);
     return (
         <TouchableOpacity
@@ -32,7 +41,7 @@ const SaleItem = ({ item, onPress, onResendInvoice, resending }) => {
                     </View>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
-                    <AppText label={item.status} fontSize={12} color={item.status === 'Delivered' ? config.GREEN_COLOR : config.THEME_COLOR} style={{ marginBottom: 4 }} />
+                    <AppText label={statusLabel} fontSize={12} color={statusColor} style={{ marginBottom: 4 }} />
                     <AppText label={`#${item.invoice_number}`} fontSize={11} color={colors.textTertiary} />
                 </View>
             </View>
@@ -54,6 +63,18 @@ const SaleItem = ({ item, onPress, onResendInvoice, resending }) => {
                                 fontSize={12}
                                 variant={1}
                                 color={colors.warning}
+                                style={{ marginLeft: 4 }}
+                            />
+                        </View>
+                    ) : null}
+                    {returnState === 'partial' ? (
+                        <View style={[styles.balancePill, { backgroundColor: colors.surfaceSecondary }]}>
+                            <Lucide name="undo-2" size={12} color={colors.textSecondary} />
+                            <AppText
+                                label={`${formatCurrency(item.returned_amount)} returned`}
+                                fontSize={12}
+                                variant={1}
+                                color={colors.textSecondary}
                                 style={{ marginLeft: 4 }}
                             />
                         </View>

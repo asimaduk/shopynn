@@ -43,6 +43,10 @@ const formatSaleForDisplay = (row, fallbackDateISO) => ({
     user: `${row.attendant_first_name ?? ''} ${row.attendant_last_name ?? ''}`.trim() || row.user || '—',
     date: fallbackDateISO || row.sale_date || row.created_at,
     invoice_number: row.invoice_number,
+    payment_status: row.payment_status,
+    amount_paid: row.amount_paid,
+    balance_due: row.balance_due,
+    returned_amount: row.returned_amount,
     _raw: row,
 });
 

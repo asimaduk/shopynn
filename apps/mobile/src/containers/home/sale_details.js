@@ -11,6 +11,7 @@ import ConfirmDialog from '../../components/ConfirmDialog';
 import SuccessDialog from '../../components/SuccessDialog';
 import useTheme from '../../hooks/useTheme';
 import InvoiceShareSheet from '../../components/invoice_share_sheet';
+import { saleReturnState } from '../../utils/saleReturnState';
 import { formatCurrency, formatQuantity, formatPhone, inferGhanaMomoNetwork } from '../../utils/format';
 import { formatSalePaymentLabel, salePaymentIcon } from '../../utils/salePayment';
 import { sales as salesApi, payments as paymentsApi, returnsApi } from '../../services/api';
@@ -144,6 +145,14 @@ const SaleDetails = ({ navigation, route }) => {
 
     const balanceDue = Number(item?.balance_due ?? 0);
     const amountPaid = Number(item?.amount_paid ?? 0);
+    const returnedAmount =
+        item?.returned_amount != null
+            ? Number(item.returned_amount) || 0
+            : saleReturns.reduce((sum, r) => sum + (Number(r.total_amount) || 0), 0);
+    const returnState = saleReturnState(item?.amount ?? item?.total_amount, returnedAmount);
+    const headerLabel = returnState === 'full' ? 'Refunded' : item.status;
+    const headerColor =
+        returnState === 'full' ? colors.textSecondary : item.status === 'Delivered' ? config.GREEN_COLOR : config.THEME_COLOR;
     const storeCreditBalance = Number(item?.store_credit_balance ?? 0);
     const canCollectPayment = !isPendingUpload && canCollect && (item?.can_collect_payment || balanceDue > 0.02);
 
@@ -721,13 +730,13 @@ const SaleDetails = ({ navigation, route }) => {
                 )}
 
                 {/* Status Header */}
-                <View style={[styles.statusHeader, { backgroundColor: item.status === 'Delivered' ? config.GREEN_COLOR : config.THEME_COLOR }]}>
+                <View style={[styles.statusHeader, { backgroundColor: headerColor }]}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                         <View>
-                            <AppText label={item.status} fontSize={20} variant={2} color={'#fff'} />
+                            <AppText label={headerLabel} fontSize={20} variant={2} color={'#fff'} />
                             <AppText label={item.date} fontSize={13} color={'rgba(255,255,255,0.8)'} />
                         </View>
-                        <Lucide name={item.status === 'Delivered' ? "circle-check" : "clock"} size={32} color="#fff" />
+                        <Lucide name={returnState === 'full' ? 'undo-2' : item.status === 'Delivered' ? "circle-check" : "clock"} size={32} color="#fff" />
                     </View>
                     <View style={styles.divider} />
                     <AppText label={`Attendant: ${item.user}`} fontSize={13} color={'rgba(255,255,255,0.9)'} />
@@ -806,7 +815,17 @@ const SaleDetails = ({ navigation, route }) => {
                 <DetailSection title="Payment & Reference">
                     <DetailRow icon="hash" label="Receipt Number" value={item.payment_refrence ?? item.payment_reference ?? 'N/A'} />
                     <DetailRow icon="credit-card" label="Payment Method" value={formatSalePaymentLabel(item)} />
-                    <DetailRow icon="badge-check" label="Status" value={paymentStatusLabel(item.payment_status)} />
+                    <DetailRow
+                        icon="badge-check"
+                        label="Status"
+                        value={
+                            returnState === 'full'
+                                ? 'Refunded'
+                                : returnState === 'partial'
+                                  ? `${paymentStatusLabel(item.payment_status)} · ${formatCurrency(returnedAmount)} returned`
+                                  : paymentStatusLabel(item.payment_status)
+                        }
+                    />
                     <DetailRow icon="banknote" label="Amount paid" value={formatCurrency(amountPaid)} />
                     <DetailRow icon="wallet" label="Balance due" value={formatCurrency(balanceDue)} />
                     {canCollectPayment ? (
