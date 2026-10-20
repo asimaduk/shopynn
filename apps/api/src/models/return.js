@@ -42,6 +42,13 @@ export const getReturnsHistoryService = async (user, requestQuery = {}) => {
         paramIndex += 1;
     }
 
+    const saleId = requestQuery.sale_id ?? requestQuery.saleId;
+    if (saleId) {
+        conditions.push(`r.sale_id = $${paramIndex}`);
+        params.push(String(saleId));
+        paramIndex += 1;
+    }
+
     const status = requestQuery.status;
     if (status !== undefined && status !== null && status !== "") {
         conditions.push(`r.status = $${paramIndex}`);
