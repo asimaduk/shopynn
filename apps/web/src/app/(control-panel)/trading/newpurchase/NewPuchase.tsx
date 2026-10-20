@@ -525,7 +525,7 @@ function NewSale() {
                                         Stock: {Number(product.inventory ?? 0)}
                                     </Typography>
                                     <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                                        ₵ {Number(product.unit_price).toFixed(2)}
+                                        GHS {Number(product.unit_price).toFixed(2)}
                                     </Typography>
                                 </Box>
 
@@ -671,7 +671,7 @@ function NewSale() {
                                         <div>
                                             <p className='mb-0'>{product.name}</p>
                                             <label className='text-sm flex items-center gap-1'>
-                                                Cost ₵
+                                                Cost (GHS)
                                                 <input
                                                     aria-label={`Unit cost for ${product.name}`}
                                                     value={product.unit_price}
@@ -757,11 +757,11 @@ function NewSale() {
                         <div className='p-4 my-2' style={{backgroundColor:'#eee',borderRadius:4}}>
                             <div className='flex justify-between mb-2'>
                                 <p>Subtotal</p>
-                                <p>₵ {Number(currentOrder.reduce((pr,c)=> pr + (c.order_quantity*c.unit_price), 0)).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}</p>
+                                <p>GHS {Number(currentOrder.reduce((pr,c)=> pr + (c.order_quantity*c.unit_price), 0)).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}</p>
                             </div>
                             <div className='flex justify-between mb-2'>
                                 <p>Discount</p>
-                                <span>₵
+                                <span>GHS
                                     <input 
                                         value={discount}
                                         type='number' 
@@ -886,7 +886,7 @@ function NewSale() {
                             <hr className='mb-2'/>
                             <div className='flex justify-between'>
                                 <p>Total</p>
-                                <p>₵ {Number((currentOrder.reduce((pr,c)=> pr + (c.order_quantity*c.unit_price), 0)) - Number(discount)).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}</p>
+                                <p>GHS {Number((currentOrder.reduce((pr,c)=> pr + (c.order_quantity*c.unit_price), 0)) - Number(discount)).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}</p>
                             </div>
                         </div>
                         <Button

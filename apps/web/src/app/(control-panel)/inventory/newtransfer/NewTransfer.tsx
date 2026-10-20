@@ -400,7 +400,7 @@ function NewTransfer() {
 
                                 <div className="flex flex-1 justify-between items-center">
                                     <span className="text-sm">
-                                        <b>₵ {Number(product.unit_price).toFixed(2)}</b>
+                                        <b>GHS {Number(product.unit_price).toFixed(2)}</b>
                                     </span>
                                     <span
                                         className="flex justify-center items-center"
@@ -588,11 +588,11 @@ function NewTransfer() {
                         <div className='p-4 my-2' style={{backgroundColor:'#eee',borderRadius:4}}>
                             <div className='flex justify-between mb-2'>
                                 <p>Subtotal</p>
-                                <p>₵ {Number(currentOrder.reduce((pr,c)=> pr + (c.order_quantity*c.unit_price), 0)).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}</p>
+                                <p>GHS {Number(currentOrder.reduce((pr,c)=> pr + (c.order_quantity*c.unit_price), 0)).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}</p>
                             </div>
                             {/* <div className='flex justify-between mb-2'>
                                 <p>Discount</p>
-                                <span>₵
+                                <span>GHS
                                     <input 
                                         value={discount}
                                         type='number' 
@@ -638,7 +638,7 @@ function NewTransfer() {
                             <hr className='mb-2'/>
                             <div className='flex justify-between'>
                                 <p>Total</p>
-                                <p>₵ {Number(currentOrder.reduce((pr,c)=> pr + (Number(c.order_quantity)*c.unit_price), 0)).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}</p>
+                                <p>GHS {Number(currentOrder.reduce((pr,c)=> pr + (Number(c.order_quantity)*c.unit_price), 0)).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}</p>
                             </div>
                         </div>
                         <Button

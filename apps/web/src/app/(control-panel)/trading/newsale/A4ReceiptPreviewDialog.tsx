@@ -77,7 +77,7 @@ function toInvoice(payload: A4SaleReceiptPayload, storeName?: string, companyNam
 		store_name: String(storeName || payload.warehouse || ''),
 		cashier: String(payload.cashier || ''),
 		notes: String(payload.notes || ''),
-		currency: 'GH₵',
+		currency: 'GHS',
 		company: {
 			name: companyName || storeName || 'Shopynn',
 			address: '',

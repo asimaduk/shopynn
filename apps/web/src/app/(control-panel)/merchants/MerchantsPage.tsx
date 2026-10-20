@@ -266,7 +266,7 @@ export default function MerchantsPage() {
 										<TableCell>{t.phone ?? '—'}</TableCell>
 										<TableCell>
 											{t.subscription_name ?? '—'}{' '}
-											{t.subscription_amount != null ? `(₵${formatMoney(t.subscription_amount)})` : ''}
+											{t.subscription_amount != null ? `(GHS ${formatMoney(t.subscription_amount)})` : ''}
 										</TableCell>
 										<TableCell>
 											{t.quote_status === 'pending_payment' ? (
@@ -277,7 +277,7 @@ export default function MerchantsPage() {
 													variant="contained"
 													color="warning"
 												>
-													Collect ₵{formatMoney(t.quote_total_ghs)}
+													Collect GHS {formatMoney(t.quote_total_ghs)}
 												</Button>
 											) : (
 												<Box className="flex flex-wrap gap-1">
@@ -344,9 +344,9 @@ export default function MerchantsPage() {
 								{commissions.map((c) => (
 									<TableRow key={c.id} hover>
 										<TableCell>{c.tenant_name ?? c.tenant_id}</TableCell>
-										<TableCell align="right">₵{formatMoney(c.base_amount)}</TableCell>
+										<TableCell align="right">GHS {formatMoney(c.base_amount)}</TableCell>
 										<TableCell align="right">{formatMoney(c.commission_percent)}</TableCell>
-										<TableCell align="right">₵{formatMoney(c.commission_amount)}</TableCell>
+										<TableCell align="right">GHS {formatMoney(c.commission_amount)}</TableCell>
 										<TableCell>
 											<Chip
 												size="small"

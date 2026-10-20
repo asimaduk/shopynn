@@ -81,7 +81,7 @@ function TransactionsTable({ transactions }: Props) {
 			{
 				accessorKey: 'unit_price',
 				header: 'Price',
-				accessorFn: (row) => `₵ ${row.unit_price}`
+				accessorFn: (row) => `GHS ${row.unit_price}`
 			},
 			{
 				header: 'Total',

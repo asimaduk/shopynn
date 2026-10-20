@@ -246,7 +246,7 @@ export default function MerchantDetailPage({ merchantId }: MerchantDetailPagePro
 														<TableCell>
 															{t.subscription_name ?? '—'}
 															{t.subscription_amount != null
-																? ` (₵${formatMoney(t.subscription_amount)})`
+																? ` (GHS ${formatMoney(t.subscription_amount)})`
 																: ''}
 														</TableCell>
 														<TableCell>
@@ -316,9 +316,9 @@ export default function MerchantDetailPage({ merchantId }: MerchantDetailPagePro
 												commissions.map((c) => (
 													<TableRow key={c.id} hover>
 														<TableCell>{c.tenant_name ?? c.tenant_id}</TableCell>
-														<TableCell align="right">₵{formatMoney(c.base_amount)}</TableCell>
+														<TableCell align="right">GHS {formatMoney(c.base_amount)}</TableCell>
 														<TableCell align="right">{formatMoney(c.commission_percent)}</TableCell>
-														<TableCell align="right">₵{formatMoney(c.commission_amount)}</TableCell>
+														<TableCell align="right">GHS {formatMoney(c.commission_amount)}</TableCell>
 														<TableCell>
 															<Chip
 																size="small"

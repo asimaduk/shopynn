@@ -33,7 +33,7 @@ function toMoney(n: number) {
 }
 
 function formatGhs(n: unknown) {
-	return `₵ ${toMoney(Number(n) || 0).toFixed(2)}`;
+	return `GHS ${toMoney(Number(n) || 0).toFixed(2)}`;
 }
 
 function formatWhen(iso?: string) {

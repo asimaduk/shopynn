@@ -993,7 +993,7 @@ function NewSale() {
                                         Qty: {getPosProductDisplayQty(product, resolvedWarehouseId)}
                                     </Typography>
                                     <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                                        ₵ {Number(product.unit_price).toFixed(2)}
+                                        GHS {Number(product.unit_price).toFixed(2)}
                                     </Typography>
                                 </Box>
 
@@ -1128,9 +1128,9 @@ function NewSale() {
                                     )}
                                     <div className='ml-2 flex-1'>
                                         <p className='mb-1'>{product.name}</p>
-                                        <span className='text-sm' >x{product.order_quantity} (₵{resolveSaleUnitPrice(product.order_quantity, product.unit_price, product.alt_price, bulkDiscount)}</span>)
+                                        <span className='text-sm' >x{product.order_quantity} (GHS {resolveSaleUnitPrice(product.order_quantity, product.unit_price, product.alt_price, bulkDiscount)}</span>)
                                         <div className='flex flex-1 justify-between items-center'>
-                                            <span><b>₵ {Number(calcLineTotal(product.order_quantity, product.unit_price, product.alt_price, bulkDiscount)).toFixed(2)}</b></span>
+                                            <span><b>GHS {Number(calcLineTotal(product.order_quantity, product.unit_price, product.alt_price, bulkDiscount)).toFixed(2)}</b></span>
                                             <div className='flex justify-between items-center'>
                                                 <input 
                                                     value={product.order_quantity}
@@ -1182,12 +1182,12 @@ function NewSale() {
                         <div className='p-4 my-2' style={{backgroundColor:'#eee',borderRadius:4}}>
                             <div className='flex justify-between mb-2'>
                                 <p>Subtotal</p>
-                                {/* <p>₵ {Number(currentOrder?.reduce((pr,c)=> pr + (c.order_quantity < 10 ? (c.order_quantity*c.unit_price) : (c.order_quantity*c.alt_price)), 0)).toFixed(2)}</p> */}
-                                <p>₵ {Number(currentOrder?.reduce((pr,c)=> pr + (c.order_quantity*c.unit_price), 0)).toFixed(2)}</p>
+                                {/* <p>GHS {Number(currentOrder?.reduce((pr,c)=> pr + (c.order_quantity < 10 ? (c.order_quantity*c.unit_price) : (c.order_quantity*c.alt_price)), 0)).toFixed(2)}</p> */}
+                                <p>GHS {Number(currentOrder?.reduce((pr,c)=> pr + (c.order_quantity*c.unit_price), 0)).toFixed(2)}</p>
                             </div>
                             <div className='flex justify-between mb-2'>
                                 <p>Discount</p>
-                                <p>₵ {Number(currentOrder?.reduce((pr,c)=> pr + lineDiscountAmount(c.order_quantity, c.unit_price, c.alt_price, bulkDiscount), 0)).toFixed(2)}</p>
+                                <p>GHS {Number(currentOrder?.reduce((pr,c)=> pr + lineDiscountAmount(c.order_quantity, c.unit_price, c.alt_price, bulkDiscount), 0)).toFixed(2)}</p>
                             </div>
                             <div className='flex justify-between mb-2'>
                                 <p>Items</p>
@@ -1196,7 +1196,7 @@ function NewSale() {
                             <hr className='mb-2'/>
                             <div className='flex justify-between'>
                                 <p>Total</p>
-                                <p>₵ {Number(currentOrder?.reduce((pr,c)=> pr + calcLineTotal(c.order_quantity, c.unit_price, c.alt_price, bulkDiscount), 0)).toFixed(2)}</p>
+                                <p>GHS {Number(currentOrder?.reduce((pr,c)=> pr + calcLineTotal(c.order_quantity, c.unit_price, c.alt_price, bulkDiscount), 0)).toFixed(2)}</p>
                             </div>
                         </div>
                         <Button

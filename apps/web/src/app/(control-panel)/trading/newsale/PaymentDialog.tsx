@@ -38,7 +38,7 @@ function toMoney(n: number) {
 }
 
 function formatGhs(n: number) {
-	return `₵ ${toMoney(n).toFixed(2)}`;
+	return `GHS ${toMoney(n).toFixed(2)}`;
 }
 
 export type PosCartSnapshot = {

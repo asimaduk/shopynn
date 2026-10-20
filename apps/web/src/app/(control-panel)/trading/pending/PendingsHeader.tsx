@@ -72,7 +72,7 @@ function PendingsHeader({
 							<>
 								{pendingCount} {pendingCount === 1 ? 'sale' : 'sales'}
 								<span className="mx-2 opacity-50">·</span>
-								₵ {totalGhs.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} total
+								GHS {totalGhs.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} total
 								<span className="mx-2 opacity-50">·</span>
 								{itemQty} {itemQty === 1 ? 'item' : 'items'}
 							</>

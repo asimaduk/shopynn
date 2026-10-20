@@ -38,7 +38,7 @@ function ExpensesHeader({ expenseCount, expenseTotal, isLoading }: ExpensesHeade
 							<>
 								{expenseCount} {expenseCount === 1 ? 'record' : 'records'}
 								<span className="mx-2 opacity-50">·</span>
-								₵ {expenseTotal.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} total
+								GHS {expenseTotal.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} total
 							</>
 						)}
 					</Typography>

@@ -21,7 +21,7 @@ function ReorderLevelTab() {
 						label="Unit Price"
 						id="unit_price"
 						InputProps={{
-							startAdornment: <InputAdornment position="start">₵</InputAdornment>
+							startAdornment: <InputAdornment position="start">GHS</InputAdornment>
 						}}
 						type="number"
 						variant="outlined"
@@ -41,7 +41,7 @@ function ReorderLevelTab() {
 						label="Alt. Price"
 						id="alt_price"
 						InputProps={{
-							startAdornment: <InputAdornment position="start">₵</InputAdornment>
+							startAdornment: <InputAdornment position="start">GHS</InputAdornment>
 						}}
 						type="number"
 						variant="outlined"

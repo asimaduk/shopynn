@@ -41,7 +41,7 @@ function escapeHtml(value: unknown) {
 		.replace(/"/g, '&quot;');
 }
 
-export function formatMoney(amount: number, currency = 'GH₵') {
+export function formatMoney(amount: number, currency = 'GHS') {
 	const n = Number(amount);
 	if (!Number.isFinite(n)) return `${currency} 0.00`;
 	return `${currency} ${n.toFixed(2)}`;
@@ -127,7 +127,7 @@ export function buildInvoiceFromSaleOrder(
 		store_name: String(order.warehouse || order.store_name || ''),
 		cashier,
 		notes: String(order.notes || ''),
-		currency: 'GH₵',
+		currency: 'GHS',
 		company: {
 			name: company?.name || 'Shopynn',
 			address: company?.address || '',

@@ -10,7 +10,7 @@ import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 
 function formatGhs(n: number) {
-	return `₵ ${Number(n || 0)
+	return `GHS ${Number(n || 0)
 		.toFixed(2)
 		.replace(/\d(?=(\d{3})+\.)/g, '$&,')}`;
 }

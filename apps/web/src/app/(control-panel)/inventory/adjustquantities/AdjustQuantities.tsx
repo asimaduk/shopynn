@@ -422,7 +422,7 @@ function NewQuantities() {
                         <div className='p-4 my-2' style={{backgroundColor:'#eee',borderRadius:4}}>
                             {/* <div className='flex justify-between mb-2'>
                                 <p>Subtotal</p>
-                                <p>₵ {Number(currentOrder.reduce((pr,c)=> pr + (c.order_quantity*c.unit_price), 0)).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}</p>
+                                <p>GHS {Number(currentOrder.reduce((pr,c)=> pr + (c.order_quantity*c.unit_price), 0)).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}</p>
                             </div> */}
                             
                             <div className='flex justify-between mb-2'>
@@ -453,7 +453,7 @@ function NewQuantities() {
                             {/* <hr className='mb-2'/>
                             <div className='flex justify-between'>
                                 <p>Total</p>
-                                <p>₵ {Number((currentOrder.reduce((pr,c)=> pr + (c.order_quantity*c.unit_price), 0)) - Number(discount)).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}</p>
+                                <p>GHS {Number((currentOrder.reduce((pr,c)=> pr + (c.order_quantity*c.unit_price), 0)) - Number(discount)).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}</p>
                             </div> */}
                         </div>
                         <Button

@@ -205,7 +205,7 @@ function SelectHeldSale(props: SelectHeldSaleProps) {
 
 									<Stack alignItems="flex-end" spacing={0.25} sx={{ flexShrink: 0 }}>
 										<Typography variant="subtitle2" fontWeight={700}>
-											GH₵ {total.toFixed(2)}
+											GHS {total.toFixed(2)}
 										</Typography>
 										<FuseSvgIcon size={18} color="action">
 											heroicons-outline:chevron-right

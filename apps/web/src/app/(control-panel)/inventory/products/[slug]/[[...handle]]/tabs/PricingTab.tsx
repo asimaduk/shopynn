@@ -73,7 +73,7 @@ function PricingTab() {
 							label="Retail price"
 							id="unit_price"
 							InputProps={{
-								startAdornment: <InputAdornment position="start">₵</InputAdornment>
+								startAdornment: <InputAdornment position="start">GHS</InputAdornment>
 							}}
 							type="number"
 							variant="outlined"
@@ -94,7 +94,7 @@ function PricingTab() {
 							label="Wholesale price"
 							id="alt_price"
 							InputProps={{
-								startAdornment: <InputAdornment position="start">₵</InputAdornment>
+								startAdornment: <InputAdornment position="start">GHS</InputAdornment>
 							}}
 							type="number"
 							variant="outlined"
@@ -115,7 +115,7 @@ function PricingTab() {
 							id="actual_cost"
 							helperText="Used for profit and COGS when purchase history is missing"
 							InputProps={{
-								startAdornment: <InputAdornment position="start">₵</InputAdornment>
+								startAdornment: <InputAdornment position="start">GHS</InputAdornment>
 							}}
 							type="number"
 							variant="outlined"
