@@ -341,7 +341,18 @@ export const getPurchaseByIdService = async (id) => {
     );
     const rs = result.rows[0];
 
-    const x = await pool.query("SELECT pd.id, pd.quantity, pd.unit_price, pd.created_at, products.id, products.name, products.thumbnail, products.sku, products.slug, products.thumbnail FROM purchasedetails pd LEFT JOIN products ON pd.product_id = products.id WHERE pd.purchase_id = $1",[id]);
+    const x = await pool.query(
+        `SELECT pd.id, pd.quantity, pd.unit_price, pd.created_at, products.id, products.name, products.thumbnail,
+                products.sku, products.slug, pd.id AS purchase_detail_id,
+                COALESCE((
+                    SELECT SUM(rd.quantity) FROM return_details rd
+                    JOIN returns r ON r.id = rd.return_id
+                    WHERE rd.purchase_detail_id = pd.id AND r.status = 'completed'
+                ), 0)::float AS returned_qty
+         FROM purchasedetails pd LEFT JOIN products ON pd.product_id = products.id
+         WHERE pd.purchase_id = $1`,
+        [id]
+    );
     if(x.rows) {
         rs['products'] = x.rows;
     }

@@ -19,13 +19,31 @@ function normalizeRefundMethod(raw) {
     return null;
 }
 
+const returnType = (row) => (row.purchase_id ? "purchase" : row.order_id ? "order" : "sales");
+
 /**
  * List returns history with optional filters.
+ * type: sales (sale + order returns) | purchase; omitted lists both, purchase returns only when includePurchases.
  */
-export const getReturnsHistoryService = async (user, requestQuery = {}) => {
+export const getReturnsHistoryService = async (user, requestQuery = {}, { includePurchases = false } = {}) => {
     const conditions = ["r.tenant_id = $1"];
     const params = [user.tenant_id];
     let paramIndex = 2;
+
+    const type = String(requestQuery.type || "").toLowerCase();
+    if (type === "purchase") {
+        if (!includePurchases) return [];
+        conditions.push("r.purchase_id IS NOT NULL");
+    } else if (type === "sales" || type === "sale" || !includePurchases) {
+        conditions.push("r.purchase_id IS NULL");
+    }
+
+    const purchaseId = requestQuery.purchase_id ?? requestQuery.purchaseId;
+    if (purchaseId) {
+        conditions.push(`r.purchase_id = $${paramIndex}`);
+        params.push(String(purchaseId));
+        paramIndex += 1;
+    }
 
     if (requestQuery.startDate && requestQuery.endDate) {
         conditions.push(`r.created_at BETWEEN $${paramIndex} AND $${paramIndex + 1}`);
@@ -66,13 +84,16 @@ export const getReturnsHistoryService = async (user, requestQuery = {}) => {
 
     const where = conditions.join(" AND ");
     const query = `
-        SELECT r.id, r.reference_number, r.sale_id, r.order_id, r.customer_id, r.warehouse_id,
+        SELECT r.id, r.reference_number, r.sale_id, r.order_id, r.purchase_id, r.supplier_id,
+               r.customer_id, r.warehouse_id,
                r.status, r.total_amount, r.refund_method, r.refund_amount, r.refund_status,
                r.reason, r.notes, r.created_at,
                w.name AS warehouse_name,
                c.name AS customer_name,
                s.invoice_number AS sale_invoice_number,
                o.order_number AS order_number,
+               pu.invoice_number AS purchase_invoice_number,
+               sup.name AS supplier_name,
                u.first_name AS creator_first_name, u.last_name AS creator_last_name,
                (SELECT COALESCE(SUM(rd.quantity), 0) FROM return_details rd WHERE rd.return_id = r.id) AS items_count
         FROM returns r
@@ -80,6 +101,8 @@ export const getReturnsHistoryService = async (user, requestQuery = {}) => {
         LEFT JOIN customers c ON r.customer_id = c.id
         LEFT JOIN sales s ON r.sale_id = s.id
         LEFT JOIN orders o ON r.order_id = o.id
+        LEFT JOIN purchases pu ON r.purchase_id = pu.id
+        LEFT JOIN suppliers sup ON r.supplier_id = sup.id
         LEFT JOIN users u ON r.creator_id = u.id
         WHERE ${where}
         ORDER BY r.created_at DESC
@@ -89,7 +112,7 @@ export const getReturnsHistoryService = async (user, requestQuery = {}) => {
         ...row,
         total_amount: toMoney(row.total_amount),
         refund_amount: toMoney(row.refund_amount),
-        type: row.order_id ? "order" : "sales",
+        type: returnType(row),
         items: Number(row.items_count) || 0,
     }));
 };
@@ -98,12 +121,16 @@ export const getReturnByIdService = async (id, tenant_id) => {
     const result = await pool.query(
         `SELECT r.*, w.name AS warehouse_name, c.name AS customer_name,
                 s.invoice_number AS sale_invoice_number,
-                o.order_number AS order_number
+                o.order_number AS order_number,
+                pu.invoice_number AS purchase_invoice_number,
+                sup.name AS supplier_name
          FROM returns r
          LEFT JOIN warehouses w ON r.warehouse_id = w.id
          LEFT JOIN customers c ON r.customer_id = c.id
          LEFT JOIN sales s ON r.sale_id = s.id
          LEFT JOIN orders o ON r.order_id = o.id
+         LEFT JOIN purchases pu ON r.purchase_id = pu.id
+         LEFT JOIN suppliers sup ON r.supplier_id = sup.id
          WHERE r.id = $1 AND r.tenant_id = $2`,
         [id, tenant_id]
     );
@@ -113,14 +140,14 @@ export const getReturnByIdService = async (id, tenant_id) => {
         ...row,
         total_amount: toMoney(row.total_amount),
         refund_amount: toMoney(row.refund_amount),
-        type: row.order_id ? "order" : "sales",
+        type: returnType(row),
     };
 };
 
 export const getReturnDetailsService = async (return_id, tenant_id) => {
     const result = await pool.query(
         `SELECT rd.id, rd.quantity, rd.unit_price, rd.line_total, rd.reason, rd.notes,
-                rd.restock, rd.write_off_reason, rd.sale_detail_id, rd.order_item_id,
+                rd.restock, rd.write_off_reason, rd.sale_detail_id, rd.order_item_id, rd.purchase_detail_id,
                 p.id AS product_id, p.name AS product_name, p.sku
          FROM return_details rd
          JOIN returns r ON rd.return_id = r.id AND r.tenant_id = $2
