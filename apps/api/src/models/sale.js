@@ -895,7 +895,8 @@ export const getSalesByUserSummaryService = async (user, requestQuery = {}) => {
  * Always filtered to the current user (creator_id), regardless of permissions.
  */
 /**
- * Gross profit totals (all-time and current month) from sale lines.
+ * Gross profit totals (all-time and current month) from sale lines, net of completed returns
+ * (same netting as getCogsReportService).
  */
 export const getGrossProfitTotalsService = async (user) => {
     const { tenant_id, id: userId } = user;
@@ -910,28 +911,46 @@ export const getGrossProfitTotalsService = async (user) => {
 
     const result = await pool.query(
         `
+        WITH lines AS (
+            SELECT
+                s.created_at,
+                GREATEST(sd.quantity - COALESCE(ret.returned_qty, 0), 0) * sd.unit_price AS line_revenue,
+                GREATEST(sd.quantity - COALESCE(ret.restocked_qty, 0), 0)
+                    * COALESCE(sd.unit_cost, purch.avg_cost, p.actual_cost, 0) AS line_cogs
+            FROM saledetails sd
+            JOIN sales s ON sd.sale_id = s.id
+            JOIN products p ON p.id = sd.product_id AND p.tenant_id = s.tenant_id
+            LEFT JOIN LATERAL (
+                SELECT CASE
+                    WHEN SUM(pd.quantity) > 0
+                    THEN (SUM(pd.quantity * pd.unit_price) / SUM(pd.quantity))::numeric
+                    ELSE NULL
+                END AS avg_cost
+                FROM purchasedetails pd
+                WHERE pd.tenant_id = sd.tenant_id AND pd.product_id = sd.product_id
+            ) purch ON true
+            LEFT JOIN LATERAL (
+                SELECT
+                    SUM(rd.quantity) AS returned_qty,
+                    SUM(rd.quantity) FILTER (WHERE rd.restock) AS restocked_qty
+                FROM return_details rd
+                JOIN returns r ON r.id = rd.return_id
+                WHERE rd.sale_detail_id = sd.id
+                  AND r.tenant_id = s.tenant_id
+                  AND r.status = 'completed'
+            ) ret ON true
+            WHERE ${salesWhere}
+        )
         SELECT
-            COALESCE(SUM(sd.quantity * sd.unit_price), 0)::numeric AS revenue,
-            COALESCE(SUM(sd.quantity * COALESCE(sd.unit_cost, purch.avg_cost, p.actual_cost, 0)), 0)::numeric AS cogs,
-            COALESCE(SUM(sd.quantity * sd.unit_price) FILTER (
-                WHERE s.created_at >= date_trunc('month', CURRENT_DATE)
+            COALESCE(SUM(line_revenue), 0)::numeric AS revenue,
+            COALESCE(SUM(line_cogs), 0)::numeric AS cogs,
+            COALESCE(SUM(line_revenue) FILTER (
+                WHERE created_at >= date_trunc('month', CURRENT_DATE)
             ), 0)::numeric AS month_revenue,
-            COALESCE(SUM(sd.quantity * COALESCE(sd.unit_cost, purch.avg_cost, p.actual_cost, 0)) FILTER (
-                WHERE s.created_at >= date_trunc('month', CURRENT_DATE)
+            COALESCE(SUM(line_cogs) FILTER (
+                WHERE created_at >= date_trunc('month', CURRENT_DATE)
             ), 0)::numeric AS month_cogs
-        FROM saledetails sd
-        JOIN sales s ON sd.sale_id = s.id
-        JOIN products p ON p.id = sd.product_id AND p.tenant_id = s.tenant_id
-        LEFT JOIN LATERAL (
-            SELECT CASE
-                WHEN SUM(pd.quantity) > 0
-                THEN (SUM(pd.quantity * pd.unit_price) / SUM(pd.quantity))::numeric
-                ELSE NULL
-            END AS avg_cost
-            FROM purchasedetails pd
-            WHERE pd.tenant_id = sd.tenant_id AND pd.product_id = sd.product_id
-        ) purch ON true
-        WHERE ${salesWhere}
+        FROM lines
         `,
         params
     );

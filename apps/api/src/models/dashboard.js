@@ -43,6 +43,18 @@ export const getDashboardDataService = async (user, options = {}) => {
     const salesSummary = await pool.query(salesSummaryQuery, salesParams);
     const sales = salesSummary.rows[0] || { total_count: 0, total_revenue: 0, month_count: 0, month_revenue: 0 };
 
+    // Completed returns, netted against the month of the original sale (as in the P&L).
+    const salesReturnsResult = await pool.query(
+        `SELECT
+            COALESCE(SUM(r.total_amount), 0)::numeric AS total_returned,
+            COALESCE(SUM(r.total_amount) FILTER (WHERE s.created_at >= date_trunc('month', CURRENT_DATE)), 0)::numeric AS month_returned
+         FROM returns r
+         JOIN sales s ON s.id = r.sale_id AND s.tenant_id = r.tenant_id
+         WHERE ${baseSalesWhere}${salesCreatorFilter} AND r.status = 'completed'`,
+        salesParams
+    );
+    const salesReturns = salesReturnsResult.rows[0] || { total_returned: 0, month_returned: 0 };
+
     // Sales per day for the last 7 days (all 7 days included, zeros for days with no sales)
     const last7DaysByDayQuery = !canViewAllSales
         ? `WITH last_7_days AS (
@@ -102,14 +114,24 @@ export const getDashboardDataService = async (user, options = {}) => {
     );
     const productCount = productCountResult.rows[0]?.count ?? 0;
 
-    // Stock valuation at cost (actual_cost) and at retail (unit_price)
+    // Stock valuation at cost (weighted avg purchase price, else actual_cost — as resolveProductUnitCost)
+    // and at retail (unit_price)
     const stockValuationResult = await pool.query(
         `SELECT
-            COALESCE(SUM(inv.quantity_available * COALESCE(p.actual_cost, 0)), 0)::numeric AS total_value_at_cost,
+            COALESCE(SUM(inv.quantity_available * COALESCE(purch.avg_cost, p.actual_cost, 0)), 0)::numeric AS total_value_at_cost,
             COALESCE(SUM(inv.quantity_available * COALESCE(p.unit_price, 0)), 0)::numeric AS total_value_at_retail,
             COALESCE(SUM(inv.quantity_available), 0)::int AS inventory_count
          FROM inventories inv
          JOIN products p ON inv.product_id = p.id AND p.tenant_id = inv.tenant_id
+         LEFT JOIN LATERAL (
+            SELECT CASE
+                WHEN SUM(pd.quantity) > 0
+                THEN (SUM(pd.quantity * pd.unit_price) / SUM(pd.quantity))::numeric
+                ELSE NULL
+            END AS avg_cost
+            FROM purchasedetails pd
+            WHERE pd.tenant_id = inv.tenant_id AND pd.product_id = inv.product_id
+         ) purch ON true
          WHERE inv.tenant_id = $1`,
         [tenant_id]
     );
@@ -213,9 +235,9 @@ export const getDashboardDataService = async (user, options = {}) => {
     return {
         sales: {
             totalCount: Number(sales.total_count),
-            totalRevenue: Number(sales.total_revenue),
+            totalRevenue: Math.max(0, Number(sales.total_revenue) - Number(salesReturns.total_returned)),
             monthCount: Number(sales.month_count),
-            monthRevenue: Number(sales.month_revenue),
+            monthRevenue: Math.max(0, Number(sales.month_revenue) - Number(salesReturns.month_returned)),
             last7DaysByDay,
         },
         purchases: canViewFinancials ? {
