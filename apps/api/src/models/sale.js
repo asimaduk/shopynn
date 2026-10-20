@@ -1392,8 +1392,9 @@ const resolveLowStockAlertRecipients = async (tenant_id) => {
 };
 
 const sendStockLevelAlert = async (tenant_id, prod) => {
-    const { newQuantity, name, minimum_stock_level: minStock } = prod;
+    const { newQuantity, name, minimum_stock_level: minStock, warehouse_name } = prod;
     const productName = (name && String(name).trim()) || "Unknown product";
+    const storeName = warehouse_name && String(warehouse_name).trim();
     const qty = Number(newQuantity);
     const minLevel = minStock != null && minStock !== "" ? Number(minStock) : null;
 
@@ -1405,13 +1406,14 @@ const sendStockLevelAlert = async (tenant_id, prod) => {
         return;
     }
 
-    const subject = `Shopynn alert - Low stock for ${productName}`;
+    const subject = `Shopynn alert - Low stock for ${productName}${storeName ? ` at ${storeName}` : ""}`;
     const title = "Low stock notification";
     const parts = [
         "This is an automated inventory alert from Shopynn.",
         `<strong>Product:</strong> ${productName}`,
-        `<strong>Quantity on hand after this sale:</strong> ${Number.isFinite(qty) ? qty : newQuantity}`,
     ];
+    if (storeName) parts.push(`<strong>Store:</strong> ${storeName}`);
+    parts.push(`<strong>Quantity on hand after this sale:</strong> ${Number.isFinite(qty) ? qty : newQuantity}`);
     if (minLevel != null && Number.isFinite(minLevel)) {
         parts.push(`<strong>Configured minimum stock level:</strong> ${minLevel}`);
     }
@@ -1780,25 +1782,29 @@ export const createSaleService = async (payload) => {
             }
         }
 
+        const lowStockAlerts = [];
         for (const prod of pricedProducts) {
-            // console.log('pid',prod.id,'warehouse_id',warehouse_id);
-            const r1 = await client.query("SELECT inventories.id, inventories.quantity_available, inventories.minimum_stock_level, products.name FROM inventories LEFT JOIN products ON inventories.product_id = products.id WHERE inventories.product_id = $1 AND inventories.warehouse_id=$2 ORDER BY inventories.created_at DESC", [prod.id, warehouse_id]);
-            // console.log('r1.rowCount',r1.rowCount);
+            const r1 = await client.query(
+                `SELECT inventories.id, inventories.minimum_stock_level, products.name, w.name AS warehouse_name
+                 FROM inventories
+                 LEFT JOIN products ON inventories.product_id = products.id
+                 LEFT JOIN warehouses w ON w.id = inventories.warehouse_id
+                 WHERE inventories.product_id = $1 AND inventories.warehouse_id=$2
+                 ORDER BY inventories.created_at DESC`,
+                [prod.id, warehouse_id]
+            );
             if(r1.rowCount) {
-                // console.log('curr. inv r1',r1.rows);
-                await client.query("UPDATE inventories SET quantity_available = quantity_available - $1, updated_at=$2 WHERE id=$3 RETURNING id",[prod.quantity, new Date(), r1.rows[0].id]);
-                // console.log('AFTER UPDATE');
-                
-                const minStock = r1.rows[0].minimum_stock_level;
-                const qtyAvailable = r1.rows[0].quantity_available;
-                // console.log('minStock',minStock,'qtyAvailable',qtyAvailable);
-                if(Number(minStock) >= Number(Number(qtyAvailable) - Number(prod.quantity))) {
-                    void sendStockLevelAlert(tenant_id, {
-                        ...r1.rows[0],
-                        newQuantity: Number(qtyAvailable) - Number(prod.quantity),
-                    }).catch((err) => console.error("Low stock alert email failed:", err));
+                const updated = await client.query(
+                    "UPDATE inventories SET quantity_available = quantity_available - $1, updated_at=$2 WHERE id=$3 RETURNING quantity_available",
+                    [prod.quantity, new Date(), r1.rows[0].id]
+                );
+                const newQuantity = Number(updated.rows[0].quantity_available);
+                const previousQuantity = newQuantity + Number(prod.quantity);
+                const threshold = Number(r1.rows[0].minimum_stock_level) || 0;
+                // Alert once, on the sale that takes stock from above the minimum to at/below it.
+                if (previousQuantity > threshold && newQuantity <= threshold) {
+                    lowStockAlerts.push({ ...r1.rows[0], newQuantity });
                 }
-                // else console.log('we still have quantity');
             }
 
             await client.query("UPDATE products SET inventory = inventory - $1, updated_at=$2 WHERE id=$3 RETURNING id",[prod.quantity, created_at, prod.id]);
@@ -1831,6 +1837,9 @@ export const createSaleService = async (payload) => {
         }
 
         await client.query('COMMIT');
+        for (const alert of lowStockAlerts) {
+            void sendStockLevelAlert(tenant_id, alert).catch((err) => console.error("Low stock alert email failed:", err));
+        }
         return {
             id: result.rows[0].id,
             invoice_number: finalInvoiceNumber,
