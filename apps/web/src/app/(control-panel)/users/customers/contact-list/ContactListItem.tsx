@@ -7,6 +7,7 @@ import Divider from '@mui/material/Divider';
 import NavLinkAdapter from '@fuse/core/NavLinkAdapter';
 import ListItemButton from '@mui/material/ListItemButton';
 import { Contact } from '../ContactsApi';
+import { displayEmail, formatPhone } from '@/utils/formatContact';
 
 type ContactListItemPropsType = {
 	contact: Contact;
@@ -52,7 +53,7 @@ function ContactListItem(props: ContactListItemPropsType) {
 							variant="body2"
 							color="text.secondary"
 						>
-							{contact.phone} | {contact.address || contact.email || '—'}
+							{formatPhone(contact.phone) || '—'} | {contact.address || displayEmail(contact.email) || '—'}
 						</Typography>
 					}
 				/>

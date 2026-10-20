@@ -16,6 +16,7 @@ import { showMessage } from '@fuse/core/FuseMessage/fuseMessageSlice';
 import { useAppDispatch } from 'src/store/hooks';
 import useNavigate from '@fuse/hooks/useNavigate';
 import { useGetContactsItemQuery, useGetContactsCountriesQuery, useGetContactsTagsQuery } from '../../ContactsApi';
+import { displayEmail, formatPhone } from '@/utils/formatContact';
 
 /**
  * The contact view.
@@ -182,14 +183,14 @@ function ContactView() {
 						{contact.phone && (
 							<div className="flex items-center">
 								<FuseSvgIcon>heroicons-outline:phone</FuseSvgIcon>
-								<div className="ml-6 leading-6">{contact.phone}</div>
+								<div className="ml-6 leading-6">{formatPhone(contact.phone)}</div>
 							</div>
 						)}
 
-						{contact.email && (
+						{displayEmail(contact.email) && (
 							<div className="flex items-center">
-								<FuseSvgIcon>heroicons-outline:building-office-2</FuseSvgIcon>
-								<div className="ml-6 leading-6">{contact.email}</div>
+								<FuseSvgIcon>heroicons-outline:envelope</FuseSvgIcon>
+								<div className="ml-6 leading-6">{displayEmail(contact.email)}</div>
 							</div>
 						)}
 
