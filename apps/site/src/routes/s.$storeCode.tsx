@@ -45,7 +45,7 @@ function StorefrontLayout() {
         <main>
           <Outlet />
         </main>
-        <Toaster position="top-center" />
+        <Toaster position="bottom-center" />
       </div>
     </ThemeProvider>
   );

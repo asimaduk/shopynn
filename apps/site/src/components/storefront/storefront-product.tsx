@@ -95,7 +95,12 @@ export function StorefrontProductPage({
     const line = cartLine(nextQty);
     if (!line) return;
     upsertCartLine(storeCode, line);
-    toast.success(`Added ${product.name} to cart`);
+    toast.success(`Added ${product.name} to cart`, {
+      action: {
+        label: "View cart",
+        onClick: () => void navigate({ to: "/s/$storeCode/checkout", params: { storeCode } }),
+      },
+    });
   };
 
   const orderNow = () => {
