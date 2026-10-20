@@ -534,7 +534,7 @@ export const stockCounts = {
 
 // —— Returns ——
 export const returnsApi = {
-    list: (params) => axios.get('/returns', { params }).then((res) => getData(res)),
+    list: (params, options = {}) => axios.get('/returns', { params, ...options }).then((res) => getData(res)),
     get: (id) => axios.get(`/returns/${id}`).then((res) => getData(res)),
     create: (body) => axios.post('/returns', body).then((res) => getData(res)),
     saleReturnable: (saleId) =>

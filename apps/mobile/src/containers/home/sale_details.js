@@ -13,7 +13,8 @@ import useTheme from '../../hooks/useTheme';
 import InvoiceShareSheet from '../../components/invoice_share_sheet';
 import { formatCurrency, formatQuantity, formatPhone, inferGhanaMomoNetwork } from '../../utils/format';
 import { formatSalePaymentLabel, salePaymentIcon } from '../../utils/salePayment';
-import { sales as salesApi, payments as paymentsApi } from '../../services/api';
+import { sales as salesApi, payments as paymentsApi, returnsApi } from '../../services/api';
+import { useFocusEffect } from '@react-navigation/native';
 import {
     MOMO_NETWORK_OPTIONS,
     isTelecelMomoProvider,
@@ -116,6 +117,29 @@ const SaleDetails = ({ navigation, route }) => {
         }).catch(() => {}).finally(() => { if (mounted) setLoading(false); });
         return () => { mounted = false; };
     }, [saleId, paramItem?.id]);
+
+    const [saleReturns, setSaleReturns] = useState([]);
+    const focusedOnceRef = useRef(false);
+    useFocusEffect(
+        React.useCallback(() => {
+            const id = saleId || paramItem?.id;
+            if (!id || isPendingUpload) return undefined;
+            let active = true;
+            if (focusedOnceRef.current) reloadSale();
+            focusedOnceRef.current = true;
+            returnsApi
+                .list({ sale_id: id }, { skipErrorAlert: true })
+                .then((rows) => {
+                    if (active) setSaleReturns(Array.isArray(rows) ? rows : []);
+                })
+                .catch(() => {});
+            return () => {
+                active = false;
+            };
+            // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, [saleId, paramItem?.id, isPendingUpload])
+    );
+    const refundedTotal = saleReturns.reduce((sum, r) => sum + (Number(r.refund_amount) || 0), 0);
 
     const balanceDue = Number(item?.balance_due ?? 0);
     const amountPaid = Number(item?.amount_paid ?? 0);
@@ -852,6 +876,50 @@ const SaleDetails = ({ navigation, route }) => {
                         </View>
                     ))}
                 </DetailSection>
+
+                {saleReturns.length > 0 ? (
+                    <DetailSection title="Returns">
+                        {saleReturns.map((r, i) => (
+                            <View
+                                key={r.id}
+                                style={{
+                                    flexDirection: 'row',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    paddingVertical: 8,
+                                    borderTopWidth: i === 0 ? 0 : StyleSheet.hairlineWidth,
+                                    borderTopColor: colors.border,
+                                }}
+                            >
+                                <View style={{ flex: 1, marginRight: 8 }}>
+                                    <AppText
+                                        label={`${formatQuantity(r.items)} item${Number(r.items) === 1 ? '' : 's'} returned${r.reason ? ` · ${r.reason}` : ''}`}
+                                        fontSize={13}
+                                        color={colors.text}
+                                    />
+                                    <AppText
+                                        label={r.created_at ? new Date(r.created_at).toLocaleString() : ''}
+                                        fontSize={11}
+                                        color={colors.textTertiary}
+                                    />
+                                </View>
+                                <AppText
+                                    label={`−${formatCurrency(Number(r.refund_amount) || 0)} ${String(r.refund_method || '').replace('_', ' ')}`}
+                                    fontSize={13}
+                                    variant={1}
+                                    color={colors.error}
+                                    style={{ fontVariant: ['tabular-nums'] }}
+                                />
+                            </View>
+                        ))}
+                        {saleReturns.length > 1 ? (
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }}>
+                                <AppText label="Total refunded" fontSize={13} color={colors.textSecondary} />
+                                <AppText label={formatCurrency(refundedTotal)} fontSize={13} variant={1} color={colors.text} />
+                            </View>
+                        ) : null}
+                    </DetailSection>
+                ) : null}
 
                 {!isPendingUpload && (
                     <TouchableOpacity
