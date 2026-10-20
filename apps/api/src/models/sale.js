@@ -1449,6 +1449,16 @@ const sendStockLevelAlert = async (tenant_id, prod) => {
     console.log("email response", resp);
 };
 
+// Offline POS sales upload later; keep the device's sale time, but never future-dated or older than this.
+const MAX_CLIENT_SALE_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
+function resolveSaleTimestamp(clientValue, now = new Date()) {
+    const t = clientValue ? new Date(clientValue) : null;
+    if (!t || Number.isNaN(t.getTime())) return now;
+    if (t > now || now - t > MAX_CLIENT_SALE_AGE_MS) return now;
+    return t;
+}
+
 export const createSaleService = async (payload) => {
     const client = await pool.connect();
 
@@ -1479,6 +1489,7 @@ export const createSaleService = async (payload) => {
             amount_paid,
             store_credit_applied,
         } = payload;
+        const saleAt = resolveSaleTimestamp(created_at);
 
         if(!products || !products.length) {
             throw new Error("Products list cannot be empty.");
@@ -1710,13 +1721,13 @@ export const createSaleService = async (payload) => {
                 customer_id,
                 warehouse_id,
                 notes,
-                new Date(),
+                saleAt,
                 creator_id,
                 Number.isFinite(resolvedPaymentType) ? resolvedPaymentType : null,
                 payment_number || null,
                 payment_reference || payment_transaction_ref || null,
                 credit.paymentStatus,
-                payment_date || (credit.amountPaid > 0 ? new Date() : null),
+                payment_date || (credit.amountPaid > 0 ? saleAt : null),
                 resolvedTendered,
                 resolvedChange,
                 credit.amountPaid,
@@ -1757,7 +1768,7 @@ export const createSaleService = async (payload) => {
                         payment_reference || payment_transaction_ref || null,
                         creator_id || null,
                         credit.balanceDue > 0.02 ? "Initial partial payment" : "Sale payment",
-                        new Date(),
+                        saleAt,
                     ]
                 );
             }
@@ -1787,7 +1798,7 @@ export const createSaleService = async (payload) => {
                         null,
                         creator_id || null,
                         "Store credit applied",
-                        new Date(),
+                        saleAt,
                     ]
                 );
             }
@@ -1818,7 +1829,7 @@ export const createSaleService = async (payload) => {
                 }
             }
 
-            await client.query("UPDATE products SET inventory = inventory - $1, updated_at=$2 WHERE id=$3 RETURNING id",[prod.quantity, created_at, prod.id]);
+            await client.query("UPDATE products SET inventory = inventory - $1, updated_at=$2 WHERE id=$3 RETURNING id",[prod.quantity, new Date(), prod.id]);
 
             const unitCost = await resolveProductUnitCost(client, {
                 productId: prod.id,
@@ -1829,7 +1840,7 @@ export const createSaleService = async (payload) => {
             const _newId = uuidv4();
             await client.query(
                 "INSERT INTO saledetails (id, sale_id, product_id, quantity, unit_price, unit_cost, warehouse_id, tenant_id, creator_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id",
-                [_newId, result.rows[0].id, prod.id, prod.quantity, prod.unit_price, unitCost, warehouse_id, tenant_id, creator_id, new Date()]
+                [_newId, result.rows[0].id, prod.id, prod.quantity, prod.unit_price, unitCost, warehouse_id, tenant_id, creator_id, saleAt]
             );
         }
 

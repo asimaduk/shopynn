@@ -1294,6 +1294,7 @@ const NewSale = ({ navigation, route }) => {
                         : `Partial ${(amountPaidForSale + storeCreditApplied).toFixed(2)} (balance ${balanceDueForSale.toFixed(2)})`
                     : `Paid with ${selectedPaymentOption?.method || 'cash'}`;
             const payload = {
+                created_at: new Date().toISOString(),
                 customer_id: selectedCustomer?.id,
                 warehouse_id: resolvedWarehouseId,
                 products: orders.map((o) => ({
