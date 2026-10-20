@@ -369,7 +369,7 @@ export default function NotificationsTab() {
               sx={{ mt: 1, lineHeight: 1.6 }}
             >
               Choose which alerts you want. Each toggle saves immediately—the
-              same categories as the Cheqstock app.
+              same categories as the Shopynn mobile app.
             </Typography>
           </Box>
           {saving ? (
