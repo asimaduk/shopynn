@@ -2,8 +2,6 @@ import pool from "../config/db.js";
 import { v4 as uuidv4 } from "uuid";
 import { applyStoreCreditEntry, toMoney } from "./storeCredit.js";
 import { refundTransaction } from "../services/paymentGateway.js";
-import { salePaymentStatusFromAmounts } from "./saleCredit.js";
-
 const COMPLETED = "completed";
 
 function httpError(message, status = 400, code = null) {
@@ -706,15 +704,13 @@ export const createReturnService = async (payload) => {
         const newPaid = toMoney(Math.max(0, amountPaid - remittance));
 
         if (isSale) {
-            const total = toMoney(source.total_amount);
-            const payStatus = salePaymentStatusFromAmounts(total, newPaid);
-            // If AR cleared via return and paid reduced, prefer status from amounts;
-            // when goods returned but we only reduced balance, amount_paid may stay same.
+            // Refunds lower amount_paid below the original total, so status must follow the
+            // remaining balance rather than paid-vs-total: nothing owed means paid.
             await client.query(
                 `UPDATE sales
                  SET amount_paid = $1, balance_due = $2, payment_status = $3, updated_at = $4
                  WHERE id = $5 AND tenant_id = $6`,
-                [newPaid, newBalance, newBalance > 0.02 ? (newPaid > 0.02 ? 2 : 0) : payStatus, new Date(), saleId, tenantId]
+                [newPaid, newBalance, newBalance > 0.02 ? (newPaid > 0.02 ? 2 : 0) : 1, new Date(), saleId, tenantId]
             );
         } else {
             const payStatus = newBalance <= 0.02 ? "paid" : newPaid > 0.02 ? "installment_active" : "unpaid";
