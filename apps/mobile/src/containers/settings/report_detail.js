@@ -983,6 +983,8 @@ const ReportDetail = ({ navigation, route }) => {
                                 if (row.lastRecon) secondaryFields.push({ label: `Last recon: ${row.lastRecon}`, icon: null });
                                 
                                 // Handle date + time combination (only show if not already shown as primary)
+                                const rowAmount = [row.value, row.amount, row.stock_value, row.spend, row.cogs, row.balance].find((v) => v != null);
+
                                 const hasDateOrTime = row.date || row.time;
                                 const dateTimeDisplay = row.date && row.time ? `${row.date} ${row.time}` : (row.date || row.time || '');
 
@@ -1024,8 +1026,8 @@ const ReportDetail = ({ navigation, route }) => {
                                         </View>
                                         <View style={styles.rowMeta}>
                                             {/* Amount/Value */}
-                                            {(row.value || row.amount || row.stock_value || row.spend || row.cogs || row.balance) !== undefined && (
-                                                <AppText label={'' + formatCurrency(row.value || row.amount || row.stock_value || row.spend || row.cogs || row.balance || 0)} fontSize={15} color={config.THEME_COLOR} variant={1} />
+                                            {rowAmount != null && (
+                                                <AppText label={'' + formatCurrency(rowAmount || 0)} fontSize={15} color={config.THEME_COLOR} variant={1} />
                                             )}
                                             
                                             {/* Quantity (if no amount) */}
@@ -1072,7 +1074,7 @@ const ReportDetail = ({ navigation, route }) => {
                                             {row.orders !== undefined && (
                                                 <View style={[styles.badge, { backgroundColor: colors.surfaceSecondary }]}>
                                                     <Lucide name="shopping-cart" size={10} color={colors.textSecondary} />
-                                                    <AppText label={`${row.orders} sales`} fontSize={11} color={colors.textSecondary} style={{ marginLeft: 4 }} />
+                                                    <AppText label={`${row.orders} ${Number(row.orders) === 1 ? 'sale' : 'sales'}`} fontSize={11} color={colors.textSecondary} style={{ marginLeft: 4 }} />
                                                 </View>
                                             )}
                                             
@@ -1113,7 +1115,7 @@ const ReportDetail = ({ navigation, route }) => {
                                             
                                             {/* Count */}
                                             {row.count !== undefined && (
-                                                <AppText label={`${row.count} transactions`} fontSize={12} color={colors.textSecondary} />
+                                                <AppText label={`${row.count} ${Number(row.count) === 1 ? 'transaction' : 'transactions'}`} fontSize={12} color={colors.textSecondary} />
                                             )}
                                         </View>
                                     </View>
