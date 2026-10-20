@@ -149,7 +149,7 @@ const ItemsToReorder = ({ navigation, route }) => {
                                 color={colors.text}
                             />
                             <AppText
-                                label={[item.warehouse_name, item.sku, item.category].filter(Boolean).join(' · ')}
+                                label={[item.warehouse_name, item.sku, item.category].filter((part) => part && part !== '-').join(' · ')}
                                 fontSize={12}
                                 color={colors.textTertiary}
                                 style={{ marginTop: 4 }}

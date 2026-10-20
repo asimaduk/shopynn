@@ -410,7 +410,7 @@ const Dashboard = ({ navigation, route }) => {
                                     <View style={styles.reorderDot} />
                                     <View style={{ flex: 1, marginLeft: 10 }}>
                                         <AppText label={item.name} variant={2} fontSize={14} color={colors.text} numberOfLines={1} />
-                                        <AppText label={`${[item.warehouse_name, item.sku].filter(Boolean).join(' · ')} · Current stock: ${item.inventory} (Minimum stock: ${item.minimum})`} fontSize={12} color={colors.textTertiary} style={{ marginTop: 2 }} numberOfLines={1} />
+                                        <AppText label={`${[item.warehouse_name, item.sku].filter((part) => part && part !== '-').join(' · ')} · Current stock: ${item.inventory} (Minimum stock: ${item.minimum})`} fontSize={12} color={colors.textTertiary} style={{ marginTop: 2 }} numberOfLines={1} />
                                     </View>
                                     <Lucide name="chevron-right" size={18} color={colors.border} />
                                 </View>
