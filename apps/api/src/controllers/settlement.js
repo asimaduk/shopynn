@@ -88,11 +88,7 @@ export const updateMyPayoutProfile = async (req, res, next) => {
             account_ending: lastDigits(body.momo_number || body.bank_account_number),
         });
     } catch (error) {
-        if (
-            error.message?.includes("Payout method") ||
-            error.message?.includes("required") ||
-            error.message?.includes("valid mobile")
-        ) {
+        if (error.isPayoutValidation) {
             return handleResponse(res, 400, error.message);
         }
         next(error);
@@ -106,6 +102,7 @@ export const requestMyWithdrawal = async (req, res, next) => {
         await recordAudit(req, "WITHDRAWAL_REQUEST", "settlement", created?.id, { amount: created?.amount ?? req.body?.amount ?? null });
     } catch (error) {
         if (
+            error.isPayoutValidation ||
             error.message?.includes("greater than zero") ||
             error.message?.includes("exceeds available balance") ||
             error.message?.includes("payout details") ||
@@ -132,6 +129,7 @@ export const retryMyWithdrawal = async (req, res, next) => {
         await recordAudit(req, "WITHDRAWAL_RETRY", "settlement", req.params.id, { amount: updated?.amount ?? null });
     } catch (error) {
         if (
+            error.isPayoutValidation ||
             error.message?.includes("not found") ||
             error.message?.includes("cannot be retried") ||
             error.message?.includes("Only failed") ||

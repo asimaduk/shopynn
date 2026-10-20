@@ -26,21 +26,28 @@ function cleanText(value, maxLen = 120) {
     return v ? v.slice(0, maxLen) : "";
 }
 
+/** Bad payout input — the controller returns these as 400 with the message. */
+function validationError(message) {
+    const err = new Error(message);
+    err.isPayoutValidation = true;
+    return err;
+}
+
 function validateProfile(body = {}) {
     const payoutMethod = normalizeMethod(body.payout_method);
     if (!payoutMethod) {
-        throw new Error("Payout method must be momo or bank.");
+        throw validationError("Payout method must be momo or bank.");
     }
     const accountHolderName = cleanText(body.account_holder_name);
     if (!accountHolderName) {
-        throw new Error("Account holder name is required.");
+        throw validationError("Account holder name is required.");
     }
 
     if (payoutMethod === "momo") {
         const momoNetwork = normalizeNetwork(body.momo_network);
         const momoNumber = normalizeGhanaMomoNumber(body.momo_number);
-        if (!momoNetwork) throw new Error("Mobile money network is required (mtn, vodafone, airteltigo).");
-        if (!momoNumber) throw new Error("Enter a 10-digit mobile money number, e.g. 0241234567.");
+        if (!momoNetwork) throw validationError("Mobile money network is required (mtn, vodafone, airteltigo).");
+        if (!momoNumber) throw validationError("Enter a 10-digit mobile money number, e.g. 0241234567.");
         return {
             payout_method: payoutMethod,
             momo_network: momoNetwork,
@@ -55,9 +62,9 @@ function validateProfile(body = {}) {
     const bankName = cleanText(body.bank_name);
     const bankAccountNumber = cleanText(body.bank_account_number, 40).replace(/\s+/g, "");
     const bankAccountName = cleanText(body.bank_account_name || accountHolderName);
-    if (!bankName) throw new Error("Bank name is required.");
-    if (!bankAccountNumber) throw new Error("Bank account number is required.");
-    if (!bankAccountName) throw new Error("Bank account name is required.");
+    if (!bankName) throw validationError("Bank name is required.");
+    if (!bankAccountNumber) throw validationError("Bank account number is required.");
+    if (!bankAccountName) throw validationError("Bank account name is required.");
 
     return {
         payout_method: payoutMethod,
