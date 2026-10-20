@@ -13,6 +13,14 @@ function normalizeNetwork(value) {
     return MOMO_NETWORKS.has(v) ? v : null;
 }
 
+/** Ghana MoMo number in local form (0XXXXXXXXX) from +233 / 233 / 9-digit / spaced input; null if invalid. */
+function normalizeGhanaMomoNumber(value) {
+    let digits = String(value || "").replace(/\D/g, "");
+    if (digits.length === 12 && digits.startsWith("233")) digits = `0${digits.slice(3)}`;
+    else if (digits.length === 9) digits = `0${digits}`;
+    return /^0\d{9}$/.test(digits) ? digits : null;
+}
+
 function cleanText(value, maxLen = 120) {
     const v = value != null ? String(value).trim() : "";
     return v ? v.slice(0, maxLen) : "";
@@ -30,9 +38,9 @@ function validateProfile(body = {}) {
 
     if (payoutMethod === "momo") {
         const momoNetwork = normalizeNetwork(body.momo_network);
-        const momoNumber = cleanText(body.momo_number, 30).replace(/\s+/g, "");
+        const momoNumber = normalizeGhanaMomoNumber(body.momo_number);
         if (!momoNetwork) throw new Error("Mobile money network is required (mtn, vodafone, airteltigo).");
-        if (!/^\d{9,15}$/.test(momoNumber)) throw new Error("Enter a valid mobile money number.");
+        if (!momoNumber) throw new Error("Enter a 10-digit mobile money number, e.g. 0241234567.");
         return {
             payout_method: payoutMethod,
             momo_network: momoNetwork,
