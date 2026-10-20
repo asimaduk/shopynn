@@ -117,6 +117,7 @@ const Sales = ({ navigation }) => {
     const [loadingMore, setLoadingMore] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [rows, setRows] = useState([]);
+    const [loadFailed, setLoadFailed] = useState(false);
     const [totalCount, setTotalCount] = useState(0);
     const [hasMore, setHasMore] = useState(false);
     const rowsRef = useRef([]);
@@ -223,8 +224,10 @@ const Sales = ({ navigation }) => {
             setRows(next);
             setTotalCount(total);
             setHasMore(more);
+            setLoadFailed(false);
         } catch (error) {
             // Keep what is already on screen (e.g. a refresh while offline).
+            if (reset) setLoadFailed(true);
             if (reset && rowsRef.current.length === 0) {
                 hasMoreRef.current = false;
                 setHasMore(false);
@@ -483,8 +486,21 @@ const Sales = ({ navigation }) => {
                         }}
                         ListEmptyComponent={() => (
                             <View style={styles.emptyContainer}>
-                                <Lucide name="shopping-cart" size={40} color={colors.border} />
-                                <AppText label="No sales found" fontSize={16} color={colors.textTertiary} style={{ marginTop: 10 }} />
+                                <Lucide name={loadFailed ? 'cloud-off' : 'shopping-cart'} size={40} color={colors.border} />
+                                <AppText
+                                    label={loadFailed ? "Couldn't load sales" : 'No sales found'}
+                                    fontSize={16}
+                                    color={colors.textTertiary}
+                                    style={{ marginTop: 10 }}
+                                />
+                                {loadFailed ? (
+                                    <AppText
+                                        label="Check your connection, then pull down to refresh."
+                                        fontSize={12}
+                                        color={colors.textTertiary}
+                                        style={{ marginTop: 4, textAlign: 'center' }}
+                                    />
+                                ) : null}
                             </View>
                         )}
                     />
