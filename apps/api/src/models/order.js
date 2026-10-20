@@ -31,6 +31,7 @@ import {
     validatePartialPaymentAmount,
 } from "./orderInstallment.js";
 import { applyStoreCreditEntry } from "./storeCredit.js";
+import { maybeRecordSaleForOrder } from "./orderSale.js";
 
 const ORDER_STATUS_TRANSITIONS = {
     pending: ["confirmed", "cancelled"],
@@ -1079,6 +1080,10 @@ export const updateOrderStatusService = async (user, orderId, toStatus, reason =
 
         await client.query("COMMIT");
 
+        if (normalized === "completed" || normalized === "delivered") {
+            await maybeRecordSaleForOrder(orderId, user.tenant_id, user.id);
+        }
+
         const customerResult = await pool.query(
             `SELECT cp.user_id, o.order_number
              FROM orders o
@@ -1514,11 +1519,14 @@ export const markOrderPaidCashService = async (user, orderId, payload = {}) => {
     const updated = await pool.query(
         `UPDATE orders
          SET payment_status = 'paid',
+             amount_paid = total_amount,
+             balance_due = 0,
              updated_at = now()
          WHERE id = $1 AND tenant_id = $2
          RETURNING *`,
         [orderId, user.tenant_id]
     );
+    await maybeRecordSaleForOrder(orderId, user.tenant_id, user.id);
 
     if (note) {
         await pool.query(
@@ -1774,6 +1782,8 @@ export const recordPartialCashForOrderService = async (user, orderId, body = {})
         );
 
         await client.query("COMMIT");
+
+        if (fullyPaid) await maybeRecordSaleForOrder(orderId, user.tenant_id, user.id);
 
         await logPaymentEventService({
             payment_id: payment?.id,

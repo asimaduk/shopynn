@@ -165,7 +165,7 @@ async function alreadyReturnedQty(client, { saleDetailId, orderItemId }) {
 /** Returnable lines for a POS sale. */
 export const getSaleReturnableLinesService = async (user, saleId) => {
     const saleRes = await pool.query(
-        `SELECT s.id, s.invoice_number, s.customer_id, s.warehouse_id, s.total_amount,
+        `SELECT s.id, s.invoice_number, s.customer_id, s.warehouse_id, s.total_amount, s.order_id,
                 s.amount_paid, s.balance_due, s.payment_status, s.payment_reference, s.payment_number,
                 c.name AS customer_name, c.phone AS customer_phone, c.store_credit_balance
          FROM sales s
@@ -212,12 +212,12 @@ export const getSaleReturnableLinesService = async (user, saleId) => {
     const momoPayment = await pool.query(
         `SELECT id, transaction_ref, status, face_amount, amount, payment_method_type
          FROM payments
-         WHERE sale_id = $1 AND tenant_id = $2
+         WHERE (sale_id = $1 OR ($3::varchar IS NOT NULL AND order_id = $3)) AND tenant_id = $2
            AND LOWER(COALESCE(status,'')) = 'success'
            AND transaction_ref IS NOT NULL
            AND LOWER(COALESCE(payment_method_type,'')) IN ('mobile_money', 'momo', 'card')
          ORDER BY created_at DESC LIMIT 1`,
-        [saleId, user.tenant_id]
+        [saleId, user.tenant_id, sale.order_id || null]
     );
 
     const face = toMoney(momoPayment.rows[0]?.face_amount ?? momoPayment.rows[0]?.amount);
@@ -402,14 +402,36 @@ async function restockProduct(client, { productId, warehouseId, quantity, tenant
 export const createReturnService = async (payload) => {
     const tenantId = payload.tenant_id;
     const creatorId = payload.creator_id;
-    const saleId = payload.sale_id || payload.saleId || null;
-    const orderId = payload.order_id || payload.orderId || null;
-    const detailsIn = Array.isArray(payload.details) ? payload.details : [];
+    let saleId = payload.sale_id || payload.saleId || null;
+    let orderId = payload.order_id || payload.orderId || null;
+    let detailsIn = Array.isArray(payload.details) ? payload.details : [];
 
     if (!tenantId) throw httpError("tenant_id is required.");
     if (!saleId && !orderId) throw httpError("sale_id or order_id is required.", 400, "SOURCE_REQUIRED");
     if (saleId && orderId) throw httpError("Provide either sale_id or order_id, not both.", 400, "SOURCE_AMBIGUOUS");
     if (!detailsIn.length) throw httpError("At least one return line is required.", 400, "DETAILS_REQUIRED");
+
+    // A sale recorded from an online order is returned through the order, so both stay in step.
+    if (saleId) {
+        const linked = await pool.query(
+            `SELECT order_id FROM sales WHERE id = $1 AND tenant_id = $2 AND order_id IS NOT NULL`,
+            [saleId, tenantId]
+        );
+        if (linked.rowCount) {
+            const lineIds = detailsIn.map((d) => d.sale_detail_id || d.saleDetailId).filter(Boolean);
+            const map = await pool.query(
+                `SELECT id, order_item_id FROM saledetails WHERE sale_id = $1 AND id = ANY($2::varchar[])`,
+                [saleId, lineIds]
+            );
+            const itemByDetail = new Map(map.rows.map((r) => [r.id, r.order_item_id]));
+            detailsIn = detailsIn.map((d) => ({
+                ...d,
+                order_item_id: itemByDetail.get(d.sale_detail_id || d.saleDetailId) || null,
+            }));
+            orderId = linked.rows[0].order_id;
+            saleId = null;
+        }
+    }
 
     const refundMethod = normalizeRefundMethod(payload.refund_method || payload.refundMethod);
     if (!refundMethod) {
@@ -454,6 +476,23 @@ export const createReturnService = async (payload) => {
             }
             warehouseId = payload.warehouse_id || source.warehouse_id;
             customerId = payload.customer_id || source.customer_id;
+        }
+
+        let linkedSaleId = null;
+        const saleDetailByOrderItem = new Map();
+        if (!isSale) {
+            const linkedSale = await client.query(
+                `SELECT id FROM sales WHERE order_id = $1 AND tenant_id = $2 FOR UPDATE`,
+                [orderId, tenantId]
+            );
+            linkedSaleId = linkedSale.rows[0]?.id || null;
+            if (linkedSaleId) {
+                const sd = await client.query(
+                    `SELECT id, order_item_id FROM saledetails WHERE sale_id = $1 AND order_item_id IS NOT NULL`,
+                    [linkedSaleId]
+                );
+                for (const r of sd.rows) saleDetailByOrderItem.set(r.order_item_id, r.id);
+            }
         }
 
         if (!warehouseId) throw httpError("warehouse_id is required.");
@@ -542,7 +581,7 @@ export const createReturnService = async (payload) => {
                     throw httpError("Write-off reason is required when not restocking.", 400, "WRITE_OFF_REASON_REQUIRED");
                 }
                 resolvedLines.push({
-                    sale_detail_id: null,
+                    sale_detail_id: saleDetailByOrderItem.get(itemId) || null,
                     order_item_id: itemId,
                     product_id: line.product_id,
                     quantity: qty,
@@ -648,7 +687,7 @@ export const createReturnService = async (payload) => {
             [
                 returnId,
                 reference,
-                saleId,
+                saleId || linkedSaleId,
                 orderId,
                 customerId || null,
                 warehouseId,
@@ -720,6 +759,14 @@ export const createReturnService = async (payload) => {
                  WHERE id = $4 AND tenant_id = $5`,
                 [newPaid, newBalance, payStatus, orderId, tenantId]
             );
+            if (linkedSaleId) {
+                await client.query(
+                    `UPDATE sales
+                     SET amount_paid = $1, balance_due = $2, payment_status = $3, updated_at = $4
+                     WHERE id = $5 AND tenant_id = $6`,
+                    [newPaid, newBalance, newBalance > 0.02 ? (newPaid > 0.02 ? 2 : 0) : 1, new Date(), linkedSaleId, tenantId]
+                );
+            }
         }
 
         let paymentsId = null;

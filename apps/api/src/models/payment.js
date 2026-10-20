@@ -2,6 +2,7 @@ import pool from "../config/db.js";
 import { v4 as uuidv4 } from "uuid";
 import { createNotificationService } from "./notification.js";
 import { applyOrderPartialPayment } from "./orderInstallment.js";
+import { maybeRecordSaleForOrder } from "./orderSale.js";
 import { activatePendingSubscriptionService } from "./subscription.js";
 import { createAuditLogService } from "./auditLog.js";
 import {
@@ -1020,6 +1021,7 @@ export const syncOrderPaymentAfterSuccess = async (transaction_ref, tenant_id) =
             await client.query("COMMIT");
 
             if (fullyPaid) {
+                await maybeRecordSaleForOrder(payment.order_id, payment.tenant_id);
                 const customer = await pool.query(
                     `SELECT cp.user_id, o.order_number
                      FROM orders o
@@ -1058,6 +1060,7 @@ export const syncOrderPaymentAfterSuccess = async (transaction_ref, tenant_id) =
     );
     const updatedOrder = upd.rows[0] ?? null;
     if (updatedOrder) {
+        await maybeRecordSaleForOrder(payment.order_id, payment.tenant_id);
         await logPaymentEventService({
             payment_id: payment.id,
             order_id: payment.order_id,

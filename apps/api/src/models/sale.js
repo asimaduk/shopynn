@@ -49,7 +49,7 @@ export const getNextInvoiceSeqService = async (tenantId, prefix) => {
     return (await maxInvoiceSeqForPrefix(pool, tenantId, prefix)) + 1;
 };
 
-async function resolveUniqueInvoiceNumber(client, tenantId, invoiceNumber) {
+export async function resolveUniqueInvoiceNumber(client, tenantId, invoiceNumber) {
     const base = String(invoiceNumber ?? "").trim();
     if (!base) return invoiceNumber ?? null;
     const taken = async (candidate) =>
@@ -72,7 +72,7 @@ async function resolveUniqueInvoiceNumber(client, tenantId, invoiceNumber) {
     return `${base.slice(0, 30)}-${Date.now().toString(36)}`.slice(0, 40);
 }
 
-async function resolvePosCustomerIdForSale(client, tenantId, customerId) {
+export async function resolvePosCustomerIdForSale(client, tenantId, customerId) {
     if (customerId == null || String(customerId).trim() === "") return null;
     const id = String(customerId).trim();
 
