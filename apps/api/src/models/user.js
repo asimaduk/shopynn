@@ -64,13 +64,32 @@ export const loginService = async (payload) => {
         const foundUser = result.rows[0];
 
         if (foundUser.is_active) {
-            if (foundUser.password_expires_at && new Date(foundUser.password_expires_at) < new Date()) {
+            // A forgot-password request stores only temporary_password; the real password keeps working.
+            const pendingReset =
+                Boolean(foundUser.temporary_password) && foundUser.temporary_password !== foundUser.password;
+            const expired =
+                foundUser.password_expires_at && new Date(foundUser.password_expires_at) < new Date();
+            if (expired && !pendingReset) {
                 return { passwordExpired: true };
             }
-            if (!foundUser.password) {
-                return {};
+            let cmp = Boolean(foundUser.password) && (await bcrypt.compare(password, foundUser.password));
+            if (cmp && pendingReset) {
+                // The owner still knows their password, so cancel the reset someone requested.
+                await pool.query(
+                    "UPDATE users SET temporary_password = NULL, password_expires_at = NULL, updated_at = $1 WHERE id = $2",
+                    [new Date(), foundUser.id]
+                );
             }
-            const cmp = await bcrypt.compare(password, foundUser.password);
+            if (!cmp && pendingReset && (await bcrypt.compare(password, foundUser.temporary_password))) {
+                if (expired) return { passwordExpired: true };
+                // Proven access to the reset email: the temporary password becomes the password and
+                // reset_password forces a new one, as for a new account.
+                await pool.query("UPDATE users SET password = temporary_password, updated_at = $1 WHERE id = $2", [
+                    new Date(),
+                    foundUser.id,
+                ]);
+                cmp = true;
+            }
             if (cmp) {
                 const _payload = {
                     id: foundUser.id,
@@ -148,7 +167,7 @@ export const toggleUserActiveService = async (payload) => {
 }
 
 export const getUserByIdService = async (id) => {
-    const userRes = await pool.query("SELECT u.id, u.first_name, u.last_name, u.deleted, u.merchant_id, u.email, u.phone, u.last_login, u.tenant_id, u.is_active, u.temporary_password, u.warehouse_id, w.name AS warehouse_name FROM users u LEFT JOIN warehouses w ON u.warehouse_id = w.id WHERE u.id = $1", [id]);
+    const userRes = await pool.query("SELECT u.id, u.first_name, u.last_name, u.deleted, u.merchant_id, u.email, u.phone, u.last_login, u.tenant_id, u.is_active, (u.temporary_password IS NOT NULL AND u.temporary_password = u.password) AS must_reset_password, u.warehouse_id, w.name AS warehouse_name FROM users u LEFT JOIN warehouses w ON u.warehouse_id = w.id WHERE u.id = $1", [id]);
     if(userRes.rowCount){
         const merchantRes = await pool.query(`SELECT id FROM merchants WHERE user_id = $1 LIMIT 1`, [userRes.rows[0].id]);
         userRes.rows[0].merchant_id = merchantRes.rows[0]?.id ?? null;
@@ -299,11 +318,11 @@ export const getUserByIdService = async (id) => {
 
         const rtn = { ...userRes.rows[0], company };
         
-        if(rtn.temporary_password) {
+        if(rtn.must_reset_password) {
             rtn.reset_password = true;
         }
 
-        delete rtn['temporary_password'];
+        delete rtn['must_reset_password'];
         delete rtn['tenant_id'];
         /** id + merchant_id retained for client routing / portal gating */
 
@@ -414,11 +433,11 @@ const sendCredentials = async (data, plainPassword) => {
     }
 }
 
-const sendNewPassword = async (data, plainPassword) => {
+const sendNewPassword = async (data) => {
     try {
         await sendEmailService(data);
     } catch (err) {
-        console.info(`[password reset] email=${data?.receipient} temp_password=${plainPassword} mail=${err?.message || "n/a"}`);
+        console.error(`[password reset] email send failed for ${data?.receipient}: ${err?.message || "n/a"}`);
     }
 }
 
@@ -841,18 +860,17 @@ export const forgotPasswordService = async (email) => {
     if (result.rowCount) {
         const user = result.rows[0];
         const plainPassword = generatePassword(10);
-        // console.log('forgotPasswordService plainPassword',plainPassword);
-        const password = await bcrypt.hash(plainPassword, saltRounds);
+        const temporaryHash = await bcrypt.hash(plainPassword, saltRounds);
         const passwordExpiresAt = new Date(Date.now() + 30 * 60 * 1000);
 
+        // Leave the current password in place so a request from someone else can't lock the owner out.
         await pool.query(
             `UPDATE users
-             SET password = $1,
-                 temporary_password = $2,
-                 password_expires_at = $3,
-                 updated_at = $4
-             WHERE id = $5`,
-            [password, password, passwordExpiresAt, new Date(), user.id]
+             SET temporary_password = $1,
+                 password_expires_at = $2,
+                 updated_at = $3
+             WHERE id = $4`,
+            [temporaryHash, passwordExpiresAt, new Date(), user.id]
         );
 
         const data = {
@@ -860,13 +878,11 @@ export const forgotPasswordService = async (email) => {
             receipient: user.email,
             subject: "Reset your password",
             title: "Your password has been reset",
-            message: `Hello ${user.first_name},\n\nA temporary password has been generated for your account. Please log in with this password and then set a new one from your profile.\n\nTemporary password: ${plainPassword}\n\nThis password will expire in 30 minutes. Thank you.\n\nRegards,\nShopynn Support Team`,
+            message: `Hello ${user.first_name},\n\nA temporary password has been generated for your account. Please log in with this password and then set a new one.\n\nTemporary password: ${plainPassword}\n\nThis password will expire in 30 minutes. Your current password keeps working until you sign in with this one. If you did not ask for this, you can ignore this email.\n\nRegards,\nShopynn Support Team`,
         };
-        sendNewPassword(data, plainPassword);
+        sendNewPassword(data);
     }
-    else {
-        return { status: 400, message: "User not found." };
-    }
+    // Same response whether or not the email has an account, so it can't be used to probe for users.
 
     return { status: 200 };
 }
