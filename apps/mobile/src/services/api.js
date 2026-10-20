@@ -611,13 +611,19 @@ export const tenants = {
     /** Tenant owner — digital order revenue settlements (Premium payments.view) */
     mySettlementSummary: () => axios.get('/tenants/me/settlements/summary').then((res) => getData(res)),
     mySettlements: (params) => axios.get('/tenants/me/settlements', { params }).then((res) => getData(res)),
-    myPayoutProfile: () => axios.get('/tenants/me/payout-profile').then((res) => getData(res)),
-    updateMyPayoutProfile: (body) => axios.put('/tenants/me/payout-profile', body).then((res) => getData(res)),
-    payoutBanks: (params) => axios.get('/tenants/payout-banks', { params }).then((res) => getData(res)),
+    // Order settlements shows its own messages for these; skip the global alert to avoid doubles.
+    myPayoutProfile: () =>
+        axios.get('/tenants/me/payout-profile', { skipErrorAlert: true }).then((res) => getData(res)),
+    updateMyPayoutProfile: (body) =>
+        axios.put('/tenants/me/payout-profile', body, { skipErrorAlert: true }).then((res) => getData(res)),
+    payoutBanks: (params) =>
+        axios.get('/tenants/payout-banks', { params, skipErrorAlert: true }).then((res) => getData(res)),
     resolvePayoutAccount: (params) =>
-        axios.get('/tenants/payout-account-resolve', { params }).then((res) => getData(res)),
-    requestWithdrawal: (body) => axios.post('/tenants/me/withdrawals', body).then((res) => getData(res)),
-    retryWithdrawal: (id) => axios.post(`/tenants/me/withdrawals/${id}/retry`).then((res) => getData(res)),
+        axios.get('/tenants/payout-account-resolve', { params, skipErrorAlert: true }).then((res) => getData(res)),
+    requestWithdrawal: (body) =>
+        axios.post('/tenants/me/withdrawals', body, { skipErrorAlert: true }).then((res) => getData(res)),
+    retryWithdrawal: (id) =>
+        axios.post(`/tenants/me/withdrawals/${id}/retry`, null, { skipErrorAlert: true }).then((res) => getData(res)),
     adminSettlementSummary: (tenantId) =>
         axios.get(`/tenants/admin/${tenantId}/settlements/summary`).then((res) => getData(res)),
     adminSettlements: (tenantId, params) =>
