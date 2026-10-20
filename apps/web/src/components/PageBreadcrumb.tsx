@@ -16,6 +16,8 @@ type PageBreadcrumbProps = BreadcrumbsProps & {
 	currentTitle?: string;
 };
 
+const RECORD_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // Function to get the navigation item based on URL
 function getNavigationItem(url: string, navigationItems: FuseNavItemType[]): FuseNavItemType {
 	for (const item of navigationItems) {
@@ -46,7 +48,10 @@ function PageBreadcrumb(props: PageBreadcrumbProps) {
 			(acc: { title: string; url: string }[], part, index, array) => {
 				const url = `/${array.slice(0, index + 1).join('/')}`;
 				const navItem = getNavigationItem(url, navigation);
-				const title = (index === array.length - 1 && currentTitle) || navItem?.title || part;
+				const title =
+					(index === array.length - 1 && currentTitle) ||
+					navItem?.title ||
+					(RECORD_ID_PATTERN.test(part) ? 'Details' : part);
 
 				acc.push({ title, url });
 				return acc;
