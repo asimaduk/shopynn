@@ -12,6 +12,8 @@ import useNavigation from './theme-layouts/components/navigation/hooks/useNaviga
 type PageBreadcrumbProps = BreadcrumbsProps & {
 	className?: string;
 	skipHome?: boolean;
+	/** Title for the last crumb, e.g. an invoice number instead of the record id in the URL. */
+	currentTitle?: string;
 };
 
 // Function to get the navigation item based on URL
@@ -33,7 +35,7 @@ function getNavigationItem(url: string, navigationItems: FuseNavItemType[]): Fus
 }
 
 function PageBreadcrumb(props: PageBreadcrumbProps) {
-	const { className, skipHome = false, ...rest } = props;
+	const { className, skipHome = false, currentTitle, ...rest } = props;
 	const pathname = usePathname();
 	const { navigation } = useNavigation();
 
@@ -44,7 +46,7 @@ function PageBreadcrumb(props: PageBreadcrumbProps) {
 			(acc: { title: string; url: string }[], part, index, array) => {
 				const url = `/${array.slice(0, index + 1).join('/')}`;
 				const navItem = getNavigationItem(url, navigation);
-				const title = navItem?.title || part;
+				const title = (index === array.length - 1 && currentTitle) || navItem?.title || part;
 
 				acc.push({ title, url });
 				return acc;
