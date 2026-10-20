@@ -16,7 +16,7 @@ import Button from '@mui/material/Button';
 import { useGetSaleQuery } from '../../../../TradingApi';
 import CollectPaymentDialog from './CollectPaymentDialog';
 import { displayEmail, formatPhone } from '@/utils/formatContact';
-import OrdersStatus from '../../../SalesStatus';
+import OrdersStatus, { saleReturnState } from '../../../SalesStatus';
 import GoogleAddressMap from './GoogleAddressMap';
 import { formatGhsCurrency } from '../../../../../dashboards/analytics/daily-sales/formatGhsCurrency';
 import useUser from '@auth/useUser';
@@ -224,7 +224,13 @@ function DetailsTab() {
 									<span className="truncate">{order.payment_type == 2 ? 'Momo':'Cash'}</span>
 								</td>
 								<td>
-									<span className="truncate">{paymentStatusLabel(order.payment_status)}</span>
+									<span className="truncate">
+										{saleReturnState(order.total_amount, order.returned_amount) === 'full'
+											? 'Refunded'
+											: saleReturnState(order.total_amount, order.returned_amount) === 'partial'
+												? `${paymentStatusLabel(order.payment_status)} · ${formatGhsCurrency(Number(order.returned_amount), 2, 2)} returned`
+												: paymentStatusLabel(order.payment_status)}
+									</span>
 								</td>
 								<td>
 									<span className="truncate tabular-nums">

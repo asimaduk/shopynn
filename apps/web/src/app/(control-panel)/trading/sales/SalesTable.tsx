@@ -136,6 +136,8 @@ function OrdersTable({ sales }: { sales: Sale[] }) {
 												<SalesStatus
 													paymentStatus={(row as Sale & { payment_status?: number }).payment_status}
 													balanceDue={(row as Sale & { balance_due?: number | string }).balance_due}
+													totalAmount={(row as Sale & { total_amount?: number | string }).total_amount}
+													returnedAmount={(row as Sale & { returned_amount?: number }).returned_amount}
 												/>
 											</TableCell>
 											{canResendInvoice ? (

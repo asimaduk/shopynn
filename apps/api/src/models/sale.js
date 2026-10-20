@@ -262,6 +262,7 @@ export const getAllSalesService = async (user, requestQuery = {}) => {
             sales.payment_status,
             sales.amount_paid,
             sales.balance_due,
+            ${SALE_RETURNED_AMOUNT_BY_SALES_SQL}::float AS returned_amount,
             sales.customer_id,
             customers.name AS customer,
             customers.email AS customer_email,
@@ -361,6 +362,7 @@ export const getSalesByDateService = async (user, requestQuery = {}) => {
             sales.payment_status,
             sales.amount_paid,
             sales.balance_due,
+            ${SALE_RETURNED_AMOUNT_BY_SALES_SQL}::float AS returned_amount,
             sales.customer_id,
             customers.name AS customer,
             customers.email AS customer_email,
@@ -393,6 +395,9 @@ const SALE_RETURNED_AMOUNT_SQL = `COALESCE((
     SELECT SUM(r.total_amount) FROM returns r
     WHERE r.sale_id = s.id AND r.tenant_id = s.tenant_id AND r.status = 'completed'
 ), 0)`;
+
+/** Same as SALE_RETURNED_AMOUNT_SQL for queries that use the bare `sales` table name. */
+const SALE_RETURNED_AMOUNT_BY_SALES_SQL = SALE_RETURNED_AMOUNT_SQL.replace(/\bs\./g, "sales.");
 
 /** Units of sale line `sd` given back on completed returns. */
 const LINE_RETURNED_QTY_SQL = `COALESCE((
@@ -1229,6 +1234,7 @@ const SALE_BY_ID_SELECT = `
             sales.change_amount,
             sales.amount_paid,
             sales.balance_due,
+            ${SALE_RETURNED_AMOUNT_BY_SALES_SQL}::float AS returned_amount,
             customers.name AS customer,
             customers.phone AS customer_phone,
             customers.email AS customer_email,
