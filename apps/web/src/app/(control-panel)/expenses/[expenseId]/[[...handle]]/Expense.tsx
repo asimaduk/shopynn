@@ -25,11 +25,9 @@ import NewExpenseView from './NewExpenseView';
  * Form Validation Schema
  */
 const schema = z.object({
-	// amount: z.
-	// string()
-	// .nonempty('You must enter a expense amount')
-	// .min(1, 'The expense amount should be greater than 1.00'),
-	voucher: z.string({required_error: 'You must provide a voucher/code.'}),
+	amount: z.coerce.number({ invalid_type_error: 'Enter the amount spent' }).positive('Amount must be greater than zero'),
+	expense_date: z.string().min(1, 'Pick the date of the expense'),
+	voucher: z.string({required_error: 'You must provide a voucher/code.'}).trim().min(1, 'You must provide a voucher/code.'),
 	note: z.string({required_error: 'You must enter an expense description'}).min(5, 'The expense description must be at least 5 characters')
 });
 

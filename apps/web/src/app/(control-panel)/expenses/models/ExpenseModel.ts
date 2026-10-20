@@ -1,4 +1,5 @@
 import _ from 'lodash';
+import { format } from 'date-fns';
 import { PartialDeep } from 'type-fest';
 
 /**
@@ -7,7 +8,8 @@ import { PartialDeep } from 'type-fest';
 const ExpenseModel = (data: PartialDeep<any>) =>
 	_.defaults(data || {}, {
 		id: '',
-		amount: 0,
+		amount: '',
+		expense_date: format(new Date(), 'yyyy-MM-dd'),
 		voucher: '',
 		note: '',
 		category: '',

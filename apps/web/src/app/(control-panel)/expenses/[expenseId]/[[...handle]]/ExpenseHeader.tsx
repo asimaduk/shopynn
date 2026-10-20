@@ -7,6 +7,7 @@ import _ from 'lodash';
 // import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import PageBreadcrumb from 'src/components/PageBreadcrumb';
 import useNavigate from '@fuse/hooks/useNavigate';
+import toast from 'react-hot-toast';
 import {
 	Expense,
 	useCreateExpenseMutation,
@@ -34,26 +35,40 @@ function ExpenseHeader({ updateProcessing }) {
 
 	const { voucher } = watch() as Expense;
 
+	function buildPayload() {
+		const pl = getValues();
+		pl.warehouse_id = warehouses?.find((w) => w.name === pl.warehouse)?.id || null;
+		pl.amount = Number(pl.amount);
+		return pl;
+	}
+
+	function reportError(err: unknown) {
+		const message = (err as { data?: { message?: string } })?.data?.message;
+		toast.error(message || 'Could not save the expense. Please try again.');
+	}
+
 	function handleSaveExpense() {
 		updateProcessing(true);
-		const pl = getValues();
-		pl.warehouse_id = warehouses.find(w=> w.name = pl.warehouse)?.id || "";		
-		saveExpense(pl)
-			.then(()=> navigate('/expenses'))
-			.catch(err=> console.error(err))
-			.finally(()=> updateProcessing(false))
+		saveExpense(buildPayload())
+			.unwrap()
+			.then(() => {
+				toast.success('Expense updated.');
+				navigate('/expenses');
+			})
+			.catch(reportError)
+			.finally(() => updateProcessing(false));
 	}
 
 	function handleCreateExpense() {
 		updateProcessing(true);
-		const pl = getValues();
-		pl.warehouse_id = warehouses.find(w=> w.name == pl.warehouse)?.id || "";
-		createExpense(pl)
+		createExpense(buildPayload())
 			.unwrap()
-			.then((data) => {
-				navigate(`/expenses`);
+			.then(() => {
+				toast.success('Expense recorded.');
+				navigate('/expenses');
 			})
-			.finally(()=> updateProcessing(false))
+			.catch(reportError)
+			.finally(() => updateProcessing(false));
 	}
 
 	return (

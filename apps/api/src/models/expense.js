@@ -22,6 +22,8 @@ export const getAllExpensesService = async (user, requestQuery = {}) => {
     const where = conditions.join(" AND ");
     const query = `
         SELECT 
+            expenses.id,
+            expenses.voucher,
             expenses.amount,
             expenses.description,
             expenses.note,
@@ -48,13 +50,19 @@ export const getExpenseByIdService = async (id) => {
 }
 
 export const createExpenseService = async (payload) => {
-    const { amount, description, note, category, payment_method, expense_date, expensed_by, tenant_id, creator_id, warehouse_id } = payload;
-    console.log('createExpenseService payload',payload);
+    const { amount, voucher, description, note, category, payment_method, expense_date, expensed_by, tenant_id, creator_id, warehouse_id } = payload;
+    const numericAmount = Number(amount);
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+        const err = new Error("Amount must be greater than zero.");
+        err.status = 400;
+        throw err;
+    }
     const id = uuidv4();
+    const now = new Date();
     const result = await pool.query(`
-        INSERT INTO expenses (id, amount, description, note, category, payment_method, expense_date, expensed_by, tenant_id, creator_id, warehouse_id, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
-        [id, amount, description || null, note, category, payment_method || null, expense_date, expensed_by, tenant_id, creator_id, warehouse_id, new Date()]
+        INSERT INTO expenses (id, amount, voucher, description, note, category, payment_method, expense_date, expensed_by, tenant_id, creator_id, warehouse_id, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+        [id, numericAmount, voucher || null, description || null, note, category || null, payment_method || null, expense_date || now, expensed_by, tenant_id, creator_id, warehouse_id || null, now]
     );
 
     return result.rows[0];
@@ -63,7 +71,7 @@ export const createExpenseService = async (payload) => {
 export const updateExpenseService = async (payload) => {
     const { id, note } = payload;
     const result = await pool.query(`
-        UPDATE expenses SET note=$1 updated_at=$2 WHERE id=$3 RETURNING *`,
+        UPDATE expenses SET note=$1, updated_at=$2 WHERE id=$3 RETURNING *`,
         [ note, new Date(), id]
     );
 

@@ -1,10 +1,11 @@
 import TextField from '@mui/material/TextField';
 import Autocomplete from '@mui/material/Autocomplete';
+import InputAdornment from '@mui/material/InputAdornment';
 import { Controller, useFormContext } from 'react-hook-form';
-import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+import { format } from 'date-fns';
 import { useGetWarehousesQuery } from '@/app/(control-panel)/setups/warehouses/WarehouseApi';
 
-// import { Expense } from '../../../ExpenseApi';
+const CATEGORY_OPTIONS = ['Transport', 'Utilities', 'Rent', 'Salaries', 'Supplies', 'Maintenance', 'Logistics', 'Other'];
 
 /**
  * The basic info tab.
@@ -19,41 +20,27 @@ function BasicInfoTab() {
 	return (
 		<div>
 			<div className="flex -mx-1">
-				{/* <Controller
-					control={control}
+				<Controller
 					name="expense_date"
-					render={({ field: { value, onChange } }) => (
-						<DateTimePicker
-							value={new Date(value)}
-							onChange={(val) => {
-								// onChange(val?.toISOString());
-								onChange(val);
-							}}
-							maxDate={new Date()}
-							// className="mt-8 mb-4 w-full"
+					control={control}
+					render={({ field }) => (
+						<TextField
+							{...field}
+							value={field.value ? String(field.value).slice(0, 10) : ''}
 							className="mt-2 mb-4 mx-1"
-							slotProps={{
-								textField: {
-									id: 'date',
-									label: 'Expense date',
-									InputLabelProps: {
-										shrink: true
-									},
-									fullWidth: true,
-									variant: 'outlined',
-									error: !!errors.date,
-									helperText: errors?.date?.message as string
-								},
-								actionBar: {
-									actions: ['clear', 'today']
-								}
-							}}
-							// slots={{
-							// 	openPickerIcon: BirtdayIcon
-							// }}
+							required
+							label="Expense date"
+							type="date"
+							id="expense_date"
+							variant="outlined"
+							fullWidth
+							InputLabelProps={{ shrink: true }}
+							inputProps={{ max: format(new Date(), 'yyyy-MM-dd') }}
+							error={!!errors.expense_date}
+							helperText={errors?.expense_date?.message as string}
 						/>
 					)}
-				/> */}
+				/>
 
 				<Controller
 					name="amount"
@@ -69,8 +56,10 @@ function BasicInfoTab() {
 							id="amount"
 							variant="outlined"
 							fullWidth
-							error={!!errors.voucher}
-							helperText={errors?.voucher?.message as string}
+							InputProps={{ startAdornment: <InputAdornment position="start">GHS</InputAdornment> }}
+							inputProps={{ min: 0, step: '0.01' }}
+							error={!!errors.amount}
+							helperText={errors?.amount?.message as string}
 						/>
 					)}
 				/>
@@ -84,7 +73,6 @@ function BasicInfoTab() {
 							className="mt-2 mb-4 mx-1"
 							required
 							label="Voucher"
-							// autoFocus
 							id="voucher"
 							variant="outlined"
 							fullWidth
@@ -103,7 +91,6 @@ function BasicInfoTab() {
 							className="mt-2 mb-4 mx-1"
 							required
 							label="Expensed By"
-							// autoFocus
 							id="expensed_by"
 							variant="outlined"
 							fullWidth
@@ -118,23 +105,21 @@ function BasicInfoTab() {
 				<Controller
 					name="category"
 					control={control}
-					defaultValue={[]}
+					defaultValue=""
 					render={({ field: { onChange, value } }) => (
 						<Autocomplete
 							fullWidth
 							className="mt-2 mb-4 mx-1"
-							// multiple
 							freeSolo
-							options={['Defualt']}
-							// value={value as EcommerceProduct['categories']}
-							value={value}
-							onChange={(event, newValue) => {
-								onChange(newValue);
-							}}
+							options={CATEGORY_OPTIONS}
+							value={value ?? ''}
+							inputValue={value ?? ''}
+							onChange={(_event, newValue) => onChange(newValue ?? '')}
+							onInputChange={(_event, newInputValue) => onChange(newInputValue)}
 							renderInput={(params) => (
 								<TextField
 									{...params}
-									placeholder="Select category"
+									placeholder="Select or type a category"
 									label="Categories"
 									variant="outlined"
 									InputLabelProps={{
@@ -149,19 +134,14 @@ function BasicInfoTab() {
 				<Controller
 					name="warehouse"
 					control={control}
-					defaultValue={[]}
+					defaultValue=""
 					render={({ field: { onChange, value } }) => (
 						<Autocomplete
 							fullWidth
 							className="mt-2 mb-4 mx-1"
-							// multiple
-							// freeSolo
-							options={warehouses?.map(w=>w.name)}
-							// value={value as EcommerceProduct['categories']}
-							value={value}
-							onChange={(event, newValue) => {
-								onChange(newValue);
-							}}
+							options={warehouses?.map((w) => w.name) ?? []}
+							value={value || null}
+							onChange={(_event, newValue) => onChange(newValue ?? '')}
 							renderInput={(params) => (
 								<TextField
 									{...params}
@@ -187,11 +167,14 @@ function BasicInfoTab() {
 						className="mt-2 mb-4"
 						id="note"
 						label="Description"
+						required
 						type="text"
 						multiline
 						rows={2}
 						variant="outlined"
 						fullWidth
+						error={!!errors.note}
+						helperText={(errors?.note?.message as string) ?? 'At least 5 characters'}
 					/>
 				)}
 			/>

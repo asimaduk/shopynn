@@ -12,7 +12,7 @@ const ExpenseApi = api
 		endpoints: (build) => ({
 			getExpenses: build.query<GetExpensesApiResponse, GetExpensesApiArg>({
 				query: () => ({ url: `/api/expenses` }),
-				// providesTags: ['expenses']
+				providesTags: ['expenses']
 			}),
 			getExpense: build.query<GetExpenseApiResponse, GetExpenseApiArg>({
 				query: (productId) => ({
@@ -26,7 +26,7 @@ const ExpenseApi = api
 					method: 'POST',
 					body: ExpenseModel(newExpense)
 				}),
-				// invalidatesTags: ['']
+				invalidatesTags: ['expenses']
 			}),
 			updateExpense: build.mutation<CreateExpenseApiResponse, CreateExpenseApiArg>({
 				query: (expense) => ({
@@ -34,7 +34,7 @@ const ExpenseApi = api
 					method: 'PUT',
 					body: ExpenseModel(expense)
 				}),
-				// providesTags: ['']
+				invalidatesTags: ['expenses']
 			}),
 		}),
 		overrideExisting: false
@@ -55,6 +55,7 @@ export type Expense = {
 	expensed_by?: string;
 	id: string;
 	amount: number;
+	voucher?: string;
 	description: string;
 	payment_method: string;
 	note: string;
