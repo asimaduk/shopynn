@@ -34,7 +34,7 @@ export default function NewReturn() {
 	const [createReturn, { isLoading: submitting }] = useCreateReturnMutation();
 
 	const [sourceType, setSourceType] = useState<'sale' | 'order'>(orderIdParam ? 'order' : 'sale');
-	const [sourceId, setSourceId] = useState(orderIdParam || saleIdParam || '');
+	const [sourceId, setSourceId] = useState('');
 	const [payload, setPayload] = useState<any>(null);
 	const [qtys, setQtys] = useState<Record<string, string>>({});
 	const [restockMap, setRestockMap] = useState<Record<string, boolean>>({});
@@ -43,19 +43,23 @@ export default function NewReturn() {
 	const [refundMethod, setRefundMethod] = useState('cash');
 	const [refundAmount, setRefundAmount] = useState('');
 	const [loading, setLoading] = useState(false);
+	const resolvedId: string = (sourceType === 'sale' ? payload?.sale?.id : payload?.order?.id) || '';
 
-	const loadSource = async () => {
-		if (!sourceId.trim()) {
-			dispatch(showMessage({ message: 'Enter a sale or order id' }));
+	const loadSource = async (idOverride?: string) => {
+		const lookup = (idOverride ?? sourceId).trim();
+		if (!lookup) {
+			dispatch(showMessage({ message: `Enter the ${sourceType === 'sale' ? 'invoice' : 'order'} number` }));
 			return;
 		}
 		setLoading(true);
 		try {
 			const res =
 				sourceType === 'sale'
-					? await fetchSaleReturnable(sourceId.trim()).unwrap()
-					: await fetchOrderReturnable(sourceId.trim()).unwrap();
+					? await fetchSaleReturnable(lookup).unwrap()
+					: await fetchOrderReturnable(lookup).unwrap();
 			setPayload(res);
+			const number = sourceType === 'sale' ? res?.sale?.invoice_number : res?.order?.order_number;
+			if (number) setSourceId(String(number));
 			const nextQty: Record<string, string> = {};
 			const nextRestock: Record<string, boolean> = {};
 			(res.lines || []).forEach((line: any) => {
@@ -80,7 +84,7 @@ export default function NewReturn() {
 
 	useEffect(() => {
 		if (saleIdParam || orderIdParam) {
-			void loadSource();
+			void loadSource(orderIdParam || saleIdParam || '');
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
@@ -119,6 +123,10 @@ export default function NewReturn() {
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
+		if (!resolvedId) {
+			dispatch(showMessage({ message: 'Load the sale first' }));
+			return;
+		}
 		if (!selectedLines.length) {
 			dispatch(showMessage({ message: 'Select at least one line quantity' }));
 			return;
@@ -130,7 +138,7 @@ export default function NewReturn() {
 		try {
 			const amt = Number(String(refundAmount || goodsValue).replace(/,/g, ''));
 			await createReturn({
-				...(sourceType === 'sale' ? { sale_id: sourceId.trim() } : { order_id: sourceId.trim() }),
+				...(sourceType === 'sale' ? { sale_id: resolvedId } : { order_id: resolvedId }),
 				reason,
 				notes: notes.trim() || undefined,
 				refund_method: refundMethod,
@@ -166,19 +174,32 @@ export default function NewReturn() {
 									select
 									label="Source"
 									value={sourceType}
-									onChange={(e) => setSourceType(e.target.value as 'sale' | 'order')}
+									onChange={(e) => {
+										setSourceType(e.target.value as 'sale' | 'order');
+										setPayload(null);
+									}}
 									sx={{ minWidth: 120 }}
 								>
 									<MenuItem value="sale">Sale</MenuItem>
 									<MenuItem value="order">Order</MenuItem>
 								</TextField>
 								<TextField
-									label={sourceType === 'sale' ? 'Sale ID' : 'Order ID'}
+									label={sourceType === 'sale' ? 'Invoice number' : 'Order number'}
+									placeholder={sourceType === 'sale' ? 'e.g. 1003' : 'e.g. ORD-1001'}
 									value={sourceId}
-									onChange={(e) => setSourceId(e.target.value)}
+									onChange={(e) => {
+										setSourceId(e.target.value);
+										setPayload(null);
+									}}
+									onKeyDown={(e) => {
+										if (e.key === 'Enter') {
+											e.preventDefault();
+											void loadSource();
+										}
+									}}
 									fullWidth
 								/>
-								<Button type="button" variant="outlined" onClick={loadSource} disabled={loading}>
+								<Button type="button" variant="outlined" onClick={() => void loadSource()} disabled={loading}>
 									Load
 								</Button>
 							</div>

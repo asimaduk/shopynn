@@ -197,11 +197,13 @@ export const getSaleReturnableLinesService = async (user, saleId) => {
                 c.name AS customer_name, c.phone AS customer_phone, c.store_credit_balance
          FROM sales s
          LEFT JOIN customers c ON c.id = s.customer_id
-         WHERE s.id = $1 AND s.tenant_id = $2`,
-        [saleId, user.tenant_id]
+         WHERE (s.id::text = $1 OR s.invoice_number = $1) AND s.tenant_id = $2
+         LIMIT 1`,
+        [String(saleId || "").trim().replace(/^#/, ""), user.tenant_id]
     );
     const sale = saleRes.rows[0];
     if (!sale) return null;
+    saleId = sale.id;
 
     const linesRes = await pool.query(
         `SELECT sd.id AS sale_detail_id, sd.product_id, sd.quantity, sd.unit_price, sd.warehouse_id,
@@ -297,11 +299,13 @@ export const getOrderReturnableLinesService = async (user, orderId) => {
                 c.name AS customer_name, c.phone AS customer_phone, c.store_credit_balance
          FROM orders o
          LEFT JOIN customers c ON c.id = o.customer_id
-         WHERE o.id = $1 AND o.tenant_id = $2`,
-        [orderId, user.tenant_id]
+         WHERE (o.id::text = $1 OR o.order_number = $1) AND o.tenant_id = $2
+         LIMIT 1`,
+        [String(orderId || "").trim().replace(/^#/, ""), user.tenant_id]
     );
     const order = orderRes.rows[0];
     if (!order) return null;
+    orderId = order.id;
 
     const linesRes = await pool.query(
         `SELECT oi.id AS order_item_id, oi.product_id, oi.quantity, oi.unit_price, oi.line_total, oi.warehouse_id,
