@@ -1,7 +1,7 @@
 'use client';
 
 import type { CSSProperties } from 'react';
-import { formatInvoiceDate, formatMoney, type SaleInvoice } from '@/utils/saleInvoice';
+import { formatInvoiceDate, formatMoney, invoiceBalance, type SaleInvoice } from '@/utils/saleInvoice';
 import { formatQty } from '@/utils/formatQty';
 
 /** Shopynn invoice brand accent — used sparingly on A4 layouts. */
@@ -156,6 +156,7 @@ type InvoiceDocumentProps = {
 };
 
 export default function InvoiceDocument({ invoice, className, style }: InvoiceDocumentProps) {
+	const owed = invoiceBalance(invoice);
 	const contactBits = [invoice.customer_phone, invoice.customer_email].filter(Boolean);
 
 	return (
@@ -257,10 +258,27 @@ export default function InvoiceDocument({ invoice, className, style }: InvoiceDo
 							</div>
 						</>
 					) : null}
-					<div className="inv-due">
-						<span>Amount due</span>
-						<span className="amount">{formatMoney(invoice.total_amount, invoice.currency)}</span>
-					</div>
+					{owed ? (
+						<>
+							<div className="inv-total-row">
+								<span>Total</span>
+								<span>{formatMoney(invoice.total_amount, invoice.currency)}</span>
+							</div>
+							<div className="inv-total-row">
+								<span>Amount paid</span>
+								<span>{formatMoney(owed.paid, invoice.currency)}</span>
+							</div>
+							<div className="inv-due">
+								<span>Balance due</span>
+								<span className="amount">{formatMoney(owed.balance, invoice.currency)}</span>
+							</div>
+						</>
+					) : (
+						<div className="inv-due">
+							<span>Amount due</span>
+							<span className="amount">{formatMoney(invoice.total_amount, invoice.currency)}</span>
+						</div>
+					)}
 					{invoice.payment_method === 'Cash' &&
 					invoice.amount_tendered != null &&
 					Number.isFinite(Number(invoice.amount_tendered)) ? (

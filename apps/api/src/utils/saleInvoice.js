@@ -14,6 +14,14 @@ function formatMoney(amount, currency = 'GHS') {
     return `${currency} ${n.toFixed(2)}`;
 }
 
+/** Outstanding balance on a part-paid / credit sale; null when fully paid or unknown. */
+function invoiceBalance(invoice) {
+    const balance = Number(invoice.balance_due);
+    if (!Number.isFinite(balance) || balance <= 0.02) return null;
+    const paid = Number(invoice.amount_paid);
+    return { paid: Number.isFinite(paid) ? paid : Math.max(0, invoice.total_amount - balance), balance };
+}
+
 function formatDate(value) {
     if (!value) {
         return new Date().toLocaleString(undefined, {
@@ -93,6 +101,8 @@ export function buildInvoiceFromSaleRow(sale, tenant = {}, warehouseName = '') {
             sale.amount_tendered != null && sale.amount_tendered !== ''
                 ? Number(sale.amount_tendered)
                 : null,
+        amount_paid: sale.amount_paid != null && sale.amount_paid !== '' ? Number(sale.amount_paid) : null,
+        balance_due: sale.balance_due != null && sale.balance_due !== '' ? Number(sale.balance_due) : null,
         change_amount:
             sale.change_amount != null && sale.change_amount !== ''
                 ? Number(sale.change_amount)
@@ -129,6 +139,11 @@ export function formatInvoicePlainText(invoice) {
         lines.push(`Discount: ${formatMoney(invoice.discount_amount, invoice.currency)}`);
     }
     lines.push(`TOTAL: ${formatMoney(invoice.total_amount, invoice.currency)}`);
+    const owed = invoiceBalance(invoice);
+    if (owed) {
+        lines.push(`Paid: ${formatMoney(owed.paid, invoice.currency)}`);
+        lines.push(`BALANCE DUE: ${formatMoney(owed.balance, invoice.currency)}`);
+    }
     if (
         invoice.payment_method === 'Cash' &&
         invoice.amount_tendered != null &&
@@ -323,10 +338,27 @@ export async function buildSaleInvoicePdfBuffer(invoice) {
             y += 14;
         }
 
+        const owed = invoiceBalance(invoice);
+        if (owed) {
+            doc.fillColor(MUTED).font('Helvetica').fontSize(9);
+            doc.text('Total', totalsX, y, { width: 100 });
+            doc.fillColor(INK).text(formatMoney(invoice.total_amount, invoice.currency), totalsX + 100, y, {
+                width: 120,
+                align: 'right',
+            });
+            y += 16;
+            doc.fillColor(MUTED).text('Amount paid', totalsX, y, { width: 100 });
+            doc.fillColor(INK).text(formatMoney(owed.paid, invoice.currency), totalsX + 100, y, {
+                width: 120,
+                align: 'right',
+            });
+            y += 14;
+        }
+
         doc.roundedRect(totalsX, y, totalsWidth, 32, 4).fill(ACCENT);
         doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(10);
-        doc.text('Amount due', totalsX + 12, y + 10, { width: 90 });
-        doc.fontSize(12).text(formatMoney(invoice.total_amount, invoice.currency), totalsX + 90, y + 9, {
+        doc.text(owed ? 'Balance due' : 'Amount due', totalsX + 12, y + 10, { width: 90 });
+        doc.fontSize(12).text(formatMoney(owed ? owed.balance : invoice.total_amount, invoice.currency), totalsX + 90, y + 9, {
             width: totalsWidth - 102,
             align: 'right',
         });

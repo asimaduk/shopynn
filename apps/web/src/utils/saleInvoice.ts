@@ -33,7 +33,17 @@ export type SaleInvoice = {
 	total_amount: number;
 	amount_tendered?: number | null;
 	change_amount?: number | null;
+	amount_paid?: number | null;
+	balance_due?: number | null;
 };
+
+/** Outstanding balance on a part-paid / credit sale; null when fully paid or unknown. */
+export function invoiceBalance(invoice: SaleInvoice): { paid: number; balance: number } | null {
+	const balance = Number(invoice.balance_due);
+	if (!Number.isFinite(balance) || balance <= 0.02) return null;
+	const paid = Number(invoice.amount_paid);
+	return { paid: Number.isFinite(paid) ? paid : Math.max(0, invoice.total_amount - balance), balance };
+}
 
 function escapeHtml(value: unknown) {
 	return String(value ?? '')
@@ -147,7 +157,11 @@ export function buildInvoiceFromSaleOrder(
 		change_amount:
 			order.change_amount != null && order.change_amount !== ''
 				? Number(order.change_amount)
-				: null
+				: null,
+		amount_paid:
+			order.amount_paid != null && order.amount_paid !== '' ? Number(order.amount_paid) : null,
+		balance_due:
+			order.balance_due != null && order.balance_due !== '' ? Number(order.balance_due) : null
 	};
 }
 
@@ -180,6 +194,11 @@ export function formatInvoiceText(invoice: SaleInvoice): string {
 		lines.push(`Discount: ${formatMoney(invoice.discount_amount, invoice.currency)}`);
 	}
 	lines.push(`TOTAL: ${formatMoney(invoice.total_amount, invoice.currency)}`);
+	const owed = invoiceBalance(invoice);
+	if (owed) {
+		lines.push(`Paid: ${formatMoney(owed.paid, invoice.currency)}`);
+		lines.push(`BALANCE DUE: ${formatMoney(owed.balance, invoice.currency)}`);
+	}
 	if (
 		invoice.payment_method === 'Cash' &&
 		invoice.amount_tendered != null &&
@@ -305,6 +324,7 @@ export function getInvoicePreviewHtml(invoice: SaleInvoice): string {
 
 	const contactBits = [invoice.customer_phone, invoice.customer_email].filter(Boolean);
 	const discount = Number(invoice.discount_amount) || 0;
+	const owedHtml = invoiceBalance(invoice);
 	const totalsRows =
 		discount > 0
 			? `
@@ -359,10 +379,19 @@ export function getInvoicePreviewHtml(invoice: SaleInvoice): string {
       <div class="inv-totals-wrap">
         <div class="inv-totals">
           ${totalsRows}
+          ${
+						owedHtml
+							? `<div class="inv-total-row"><span>Total</span><span>${escapeHtml(formatMoney(invoice.total_amount, invoice.currency))}</span></div>
+          <div class="inv-total-row"><span>Amount paid</span><span>${escapeHtml(formatMoney(owedHtml.paid, invoice.currency))}</span></div>
           <div class="inv-due">
+            <span>Balance due</span>
+            <span class="amount">${escapeHtml(formatMoney(owedHtml.balance, invoice.currency))}</span>
+          </div>`
+							: `<div class="inv-due">
             <span>Amount due</span>
             <span class="amount">${escapeHtml(formatMoney(invoice.total_amount, invoice.currency))}</span>
-          </div>
+          </div>`
+					}
           ${
 						invoice.payment_method === 'Cash' &&
 						invoice.amount_tendered != null &&
