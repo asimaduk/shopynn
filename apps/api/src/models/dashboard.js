@@ -264,7 +264,7 @@ export const getDashboardDataService = async (user, options = {}) => {
 /**
  * Profit and loss report for a tenant over a date range.
  * Revenue and COGS from sales (same logic as COGS report); expenses from expenses table.
- * Default: last 30 days. Override via startDate/endDate or from/to.
+ * Default: all time. Override via startDate/endDate or from/to (endDate exclusive).
  * Respects user_type for revenue (non-admin sees only own sales).
  */
 export const getProfitAndLossService = async (user, requestQuery = {}) => {
@@ -278,7 +278,8 @@ export const getProfitAndLossService = async (user, requestQuery = {}) => {
         `SELECT COALESCE(SUM(amount), 0)::numeric AS total
          FROM expenses
          WHERE tenant_id = $1
-           AND (COALESCE(expense_date, created_at)::date BETWEEN $2::date AND $3::date)`,
+           AND COALESCE(expense_date, created_at)::date >= $2::date
+           AND COALESCE(expense_date, created_at)::date < $3::date`,
         [tenant_id, startDate, endDate]
     );
     const expenses = Number(expenseResult.rows[0]?.total ?? 0);

@@ -1004,20 +1004,21 @@ export async function resolveProductUnitCost(client, { productId, tenantId, ware
 
 /**
  * COGS report for a tenant over a date range.
- * Defaults to last 30 days if no date range is provided.
+ * Without a date range it covers all time up to and including today; endDate is exclusive.
  * Cost basis: saledetails.unit_cost snapshot, else purchase weighted avg, else products.actual_cost.
+ * Completed returns are netted off the original sale line: revenue for every returned unit,
+ * cost only for units put back into stock (written-off units stay a cost).
  * Respects user_type for revenue (non-admin sees only own sales).
  */
 export const getCogsReportService = async (user, requestQuery = {}) => {
     const { tenant_id, id: userId } = user;
 
-    const defaultEnd = new Date();
-    const defaultStart = new Date(defaultEnd.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const defaultEnd = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     const startDate =
         requestQuery.startDate ||
         requestQuery.from ||
-        defaultStart.toISOString().slice(0, 10);
+        "1970-01-01";
     const endDate =
         requestQuery.endDate ||
         requestQuery.to ||
@@ -1068,7 +1069,8 @@ export const getCogsReportService = async (user, requestQuery = {}) => {
         WITH sales_lines AS (
             SELECT
                 sd.product_id,
-                sd.quantity,
+                GREATEST(sd.quantity - COALESCE(ret.returned_qty, 0), 0) AS quantity,
+                GREATEST(sd.quantity - COALESCE(ret.restocked_qty, 0), 0) AS cost_quantity,
                 sd.unit_price,
                 COALESCE(
                     sd.unit_cost,
@@ -1079,6 +1081,16 @@ export const getCogsReportService = async (user, requestQuery = {}) => {
             FROM saledetails sd
             JOIN sales s ON sd.sale_id = s.id
             JOIN products p ON p.id = sd.product_id AND p.tenant_id = s.tenant_id
+            LEFT JOIN LATERAL (
+                SELECT
+                    SUM(rd.quantity) AS returned_qty,
+                    SUM(rd.quantity) FILTER (WHERE rd.restock) AS restocked_qty
+                FROM return_details rd
+                JOIN returns r ON r.id = rd.return_id
+                WHERE rd.sale_detail_id = sd.id
+                  AND r.tenant_id = s.tenant_id
+                  AND r.status = 'completed'
+            ) ret ON true
             LEFT JOIN LATERAL (
                 SELECT CASE
                     WHEN SUM(pd.quantity) > 0
@@ -1097,7 +1109,7 @@ export const getCogsReportService = async (user, requestQuery = {}) => {
                 product_id,
                 COALESCE(SUM(quantity), 0)::numeric AS sold_qty,
                 COALESCE(SUM(quantity * unit_price), 0)::numeric AS revenue,
-                COALESCE(SUM(quantity * line_unit_cost), 0)::numeric AS cogs
+                COALESCE(SUM(cost_quantity * line_unit_cost), 0)::numeric AS cogs
             FROM sales_lines
             GROUP BY product_id
         )
