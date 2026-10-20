@@ -24,7 +24,7 @@ export default function Returns() {
 			id: r.id,
 			reference: r.reference_number || r.id,
 			date: r.created_at ? String(r.created_at).slice(0, 10) : '',
-			customer: r.customer_name || '—',
+			customer: r.customer_name || 'Walk-in',
 			originalSaleRef: r.sale_invoice_number || r.order_number || '—',
 			amount: Number(r.total_amount || r.refund_amount || 0),
 			status:

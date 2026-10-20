@@ -13,7 +13,11 @@ import Chip from '@mui/material/Chip';
 import { useParams } from 'next/navigation';
 import Link from '@fuse/core/Link';
 import ReturnDetailHeader from './ReturnDetailHeader';
-import { getSalesReturnById } from '../returnsListData';
+import { useMemo } from 'react';
+import FuseLoading from '@fuse/core/FuseLoading';
+import { useGetReturnQuery } from '../../../TradingApi';
+import type { SaleReturnRecord } from '../returnsListData';
+import { formatGhsCurrency } from '../../../../dashboards/analytics/daily-sales/formatGhsCurrency';
 
 function statusColor(s: string) {
 	switch (s) {
@@ -27,7 +31,29 @@ function statusColor(s: string) {
 export default function ReturnDetail() {
 	const params = useParams();
 	const id = typeof params?.id === 'string' ? params.id : null;
-	const record = id ? getSalesReturnById(id) : null;
+	const { data, isLoading } = useGetReturnQuery(id ?? '', { skip: !id });
+	const record: SaleReturnRecord | null = useMemo(() => {
+		if (!data?.id) return null;
+		const status = String(data.status || '').toLowerCase();
+		return {
+			id: data.id,
+			reference: data.reference_number || data.id,
+			date: data.created_at || '',
+			customer: data.customer_name || 'Walk-in',
+			originalSaleRef: data.sale_invoice_number || data.order_number || '—',
+			amount: Number(data.total_amount || data.refund_amount || 0),
+			status: status === 'draft' ? 'pending' : status === 'cancelled' ? 'rejected' : 'approved',
+			items: (Array.isArray(data.details) ? data.details : []).map((d: any) => ({
+				productName: d.product_name || '—',
+				sku: d.sku || '—',
+				quantity: Number(d.quantity) || 0,
+				unitPrice: Number(d.unit_price) || 0,
+				reason: d.reason || data.reason || undefined
+			}))
+		};
+	}, [data]);
+
+	if (id && isLoading) return <FuseLoading />;
 
 	if (!id || !record) {
 		return (
@@ -70,7 +96,7 @@ export default function ReturnDetail() {
 						<div>
 							<Typography variant="caption" color="text.secondary">Total amount</Typography>
 							<Typography fontWeight="bold">
-								{record.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 })}
+								{formatGhsCurrency(record.amount, 2, 2)}
 							</Typography>
 						</div>
 					</div>
@@ -93,10 +119,10 @@ export default function ReturnDetail() {
 									<TableCell>{line.sku}</TableCell>
 									<TableCell align="right">{line.quantity}</TableCell>
 									<TableCell align="right">
-										{line.unitPrice.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+										{formatGhsCurrency(line.unitPrice, 2, 2)}
 									</TableCell>
 									<TableCell align="right">
-										{(line.quantity * line.unitPrice).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+										{formatGhsCurrency((line.quantity * line.unitPrice), 2, 2)}
 									</TableCell>
 									<TableCell>{line.reason ?? '—'}</TableCell>
 								</TableRow>
