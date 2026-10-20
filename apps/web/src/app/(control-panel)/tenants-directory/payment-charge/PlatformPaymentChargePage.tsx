@@ -18,7 +18,7 @@ import {
 } from '../../billing/SubscriptionApi';
 import toast from 'react-hot-toast';
 
-export default function PlatformPaymentChargePage() {
+function PlatformPaymentChargePageContent() {
 	const { data, isLoading, refetch } = useGetMomoPaymentChargeQuery();
 	const [update, { isLoading: saving }] = useUpdateMomoPaymentChargeMutation();
 	const [enabled, setEnabled] = useState(true);
@@ -52,7 +52,7 @@ export default function PlatformPaymentChargePage() {
 	};
 
 	return (
-		<PlanFeatureGate requiredFeatures={['tenants.directory.view']} requiredPermissions={['tenants.directory.view']}>
+		<>
 			<Box className="flex h-full w-full flex-auto flex-col px-4 pb-8 pt-6 sm:px-6 sm:pt-8">
 				<PageBreadcrumb className="mb-4" />
 				<Typography component="h1" className="text-3xl font-extrabold tracking-tight">
@@ -92,6 +92,14 @@ export default function PlatformPaymentChargePage() {
 					</Paper>
 				)}
 			</Box>
+		</>
+	);
+}
+
+export default function PlatformPaymentChargePage() {
+	return (
+		<PlanFeatureGate requiredFeatures={['tenants.directory.view']} requiredPermissions={['tenants.directory.view']}>
+			<PlatformPaymentChargePageContent />
 		</PlanFeatureGate>
 	);
 }

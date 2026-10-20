@@ -55,7 +55,7 @@ function formatWhen(iso?: string) {
 	}
 }
 
-export default function MobileAppVersionsPage() {
+function MobileAppVersionsPageContent() {
 	const [platform, setPlatform] = useState<PlatformKey>('android');
 	const { data, isLoading, refetch } = useGetAppVersionsQuery({ platform });
 	const [createVersion, { isLoading: creating }] = useCreateAppVersionMutation();
@@ -149,7 +149,7 @@ export default function MobileAppVersionsPage() {
 	};
 
 	return (
-		<PlanFeatureGate requiredFeatures={['tenants.directory.view']} requiredPermissions={['tenants.directory.view']}>
+		<>
 			<Box className="flex h-full w-full flex-auto flex-col px-4 pb-8 pt-6 sm:px-6 sm:pt-8">
 				<PageBreadcrumb className="mb-4" />
 				<Typography component="h1" className="text-3xl font-extrabold tracking-tight">
@@ -327,6 +327,14 @@ export default function MobileAppVersionsPage() {
 					</Box>
 				)}
 			</Box>
+		</>
+	);
+}
+
+export default function MobileAppVersionsPage() {
+	return (
+		<PlanFeatureGate requiredFeatures={['tenants.directory.view']} requiredPermissions={['tenants.directory.view']}>
+			<MobileAppVersionsPageContent />
 		</PlanFeatureGate>
 	);
 }

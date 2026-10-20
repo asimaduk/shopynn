@@ -71,7 +71,7 @@ const QUEUES: {
 	}
 ];
 
-export default function WithdrawalRequestsPage() {
+function WithdrawalRequestsPageContent() {
 	const [statusFilter, setStatusFilter] = useState<QueueStatus>('processing');
 	const [payoutRefById, setPayoutRefById] = useState<Record<string, string>>({});
 	const [rejectReasonById, setRejectReasonById] = useState<Record<string, string>>({});
@@ -155,7 +155,7 @@ export default function WithdrawalRequestsPage() {
 	};
 
 	return (
-		<PlanFeatureGate requiredFeatures={['tenants.directory.view']} requiredPermissions={['tenants.directory.view']}>
+		<>
 			<Box className="flex h-full w-full flex-auto flex-col px-4 pb-8 pt-6 sm:px-6 sm:pt-8">
 				<PageBreadcrumb className="mb-4" />
 
@@ -448,6 +448,14 @@ export default function WithdrawalRequestsPage() {
 					</Box>
 				)}
 			</Box>
+		</>
+	);
+}
+
+export default function WithdrawalRequestsPage() {
+	return (
+		<PlanFeatureGate requiredFeatures={['tenants.directory.view']} requiredPermissions={['tenants.directory.view']}>
+			<WithdrawalRequestsPageContent />
 		</PlanFeatureGate>
 	);
 }
