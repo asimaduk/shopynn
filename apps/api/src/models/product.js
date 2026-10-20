@@ -376,6 +376,7 @@ export const getProductsByCategoryService = async (user, category_id, queryParam
     const cleaned = data.map((d) => {
         delete d.store_name;
         delete d.quantity_available;
+        delete d.minimum_stock_level;
         delete d.warehouse_id;
         d.inventory = (d.stores_quantities || []).reduce(
             (a, b) => toNum(a, { defaultValue: 0 }) + toNum(b?.quantity_available, { defaultValue: 0 }),
