@@ -154,7 +154,7 @@ function ProductsTable() {
 				Cell: ({ row }) => (
 					<Typography
 						component={Link}
-						to={`/inventory/products/${row.original.slug}/view`}
+						to={`/inventory/products/${row.original.slug || row.original.id}/view`}
 						role="button"
 						sx={{
 							color: 'primary.main',
@@ -288,7 +288,7 @@ function ProductsTable() {
 						key={0}
 						onClick={() => {
 							closeMenu();
-							navigate(`/inventory/products/${row.original.slug}/view`);
+							navigate(`/inventory/products/${row.original.slug || row.original.id}/view`);
 						}}
 					>
 						<ListItemIcon>
@@ -300,7 +300,7 @@ function ProductsTable() {
 						key={1}
 						onClick={() => {
 							closeMenu();
-							navigate(`/inventory/products/${row.original.slug}`);
+							navigate(`/inventory/products/${row.original.slug || row.original.id}`);
 						}}
 					>
 						<ListItemIcon>

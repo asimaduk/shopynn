@@ -515,6 +515,7 @@ export const getProductByIdService = async (id) => {
     );
 
     const stores_quantities = invResult.rows.map((row) => ({
+        id: row.id,
         name: row.store_name,
         quantity_available: toNum(row.quantity_available, { defaultValue: 0 }),
         minimum_stock_level:
@@ -543,7 +544,9 @@ export const getProductBySlugService = async (slug, tenantId) => {
                 thumbnail, picture1, picture2, picture3, picture4,
                 product_type, measurement_unit, allows_fractional_qty, min_order_qty, qty_step
          FROM products
-         WHERE slug = $1 AND tenant_id = $2`,
+         WHERE (slug = $1 OR id::text = $1) AND tenant_id = $2
+         ORDER BY (slug = $1) DESC NULLS LAST
+         LIMIT 1`,
         [slug, tenantId]
     );
     const row = result.rows[0];
