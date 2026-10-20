@@ -388,7 +388,8 @@ const TenantDirectoryDetail = ({ navigation, route }) => {
                                             style={{ marginTop: 4 }}
                                         />
                                     ) : null}
-                                    {tenant.industry_name ? (
+                                    {/* Industry is hidden for now. */}
+                                    {false && tenant.industry_name ? (
                                         <View
                                             style={{
                                                 alignSelf: 'flex-start',

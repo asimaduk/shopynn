@@ -73,9 +73,10 @@ export default function TenantDirectoryDetailDialog({
 							<Typography variant="body2">
 								<strong>Address:</strong> {String(tenant.address ?? '—')}
 							</Typography>
+							{/* Industry is hidden for now.
 							<Typography variant="body2">
 								<strong>Industry:</strong> {String(tenant.industry_name ?? '—')}
-							</Typography>
+							</Typography> */}
 							<Typography variant="body2">
 								<strong>Created:</strong> {formatDate(String(tenant.created_at ?? '') || undefined)}
 							</Typography>

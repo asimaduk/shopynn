@@ -266,10 +266,11 @@ const CompanyProfile = ({ navigation }) => {
             AppAlert.alert('Required', 'Please enter your company address.');
             return;
         }
-        if (!industryForApi) {
-            AppAlert.alert('Required', 'Please select your industry or company type.');
-            return;
-        }
+        // Industry is hidden for now.
+        // if (!industryForApi) {
+        //     AppAlert.alert('Required', 'Please select your industry or company type.');
+        //     return;
+        // }
 
         setSaving(true);
         try {
@@ -284,7 +285,7 @@ const CompanyProfile = ({ navigation }) => {
                 phone,
                 address,
                 email,
-                industry_id: industryForApi,
+                industry_id: industryForApi || undefined,
                 settings: {
                     bulk_discount: bulk,
                 },
@@ -491,6 +492,7 @@ const CompanyProfile = ({ navigation }) => {
                                 style={{ flex: 1, color: colors.text, paddingVertical: 10, fontFamily: 'FiraSans-Regular' }}
                             />
                         </View>
+                        {/* Industry is hidden for now.
                         <AppText label="Industry" fontSize={12} color={colors.textSecondary} style={{ marginTop: 14, marginBottom: 6 }} />
                         <TouchableOpacity
                             activeOpacity={0.8}
@@ -524,7 +526,7 @@ const CompanyProfile = ({ navigation }) => {
                                     fontFamily: 'FiraSans-Regular',
                                 }}
                             />
-                        ) : null}
+                        ) : null} */}
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16 }}>
                             <Lucide name="hash" color={colors.textSecondary} size={20} />
                             <View style={{ flex: 1, marginLeft: 10 }}>

@@ -91,10 +91,11 @@ const CompanyDetailsForm = React.memo(function CompanyDetailsForm({
             AppAlert.alert('Required', 'Please enter your company email.');
             return;
         }
-        if (!companyIndustry) {
-            AppAlert.alert('Required', 'Please select your industry or company type.');
-            return;
-        }
+        // Industry is hidden for now.
+        // if (!companyIndustry) {
+        //     AppAlert.alert('Required', 'Please select your industry or company type.');
+        //     return;
+        // }
         setShowConfirmModal(true);
     }, [validatedData]);
 
@@ -157,6 +158,7 @@ const CompanyDetailsForm = React.memo(function CompanyDetailsForm({
                     onChangeText={(val) => updateField('companyName', val)}
                     icon="building-2"
                 />
+                {/* Industry is hidden for now.
                 <View style={styles.inputGroup}>
                     <AppText label="Industry / Company type" fontSize={14} variant={1} color={colors.text} style={{ marginBottom: 8 }} />
                     <TouchableOpacity
@@ -187,7 +189,7 @@ const CompanyDetailsForm = React.memo(function CompanyDetailsForm({
                             />
                         </View>
                     )}
-                </View>
+                </View> */}
                 <InputField
                     label="Address"
                     placeholder="Street, city, region"
@@ -287,11 +289,12 @@ const CompanyDetailsForm = React.memo(function CompanyDetailsForm({
                     />
                     <View style={[styles.confirmSummary, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
                         <ConfirmRow label="Company" value={validatedData.name} colors={colors} />
+                        {/* Industry is hidden for now.
                         <ConfirmRow
                             label="Industry"
                             value={form.industry === 'other' ? validatedData.companyIndustry : (selectedIndustryMeta?.label ?? validatedData.companyIndustry)}
                             colors={colors}
-                        />
+                        /> */}
                         <ConfirmRow label="Address" value={validatedData.companyAddress} colors={colors} />
                         <ConfirmRow label="Phone" value={formatPhone(validatedData.companyPhone)} colors={colors} />
                         <ConfirmRow label="Email" value={validatedData.companyEmail} colors={colors} />
@@ -374,7 +377,7 @@ const CompanyDetailsSetup = ({ navigation }) => {
                 phone: companyPhone,
                 address: companyAddress,
                 email: companyEmail,
-                industry_id: companyIndustry,
+                industry_id: companyIndustry || undefined,
             };
             try {
                 console.log('body', body);

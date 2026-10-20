@@ -161,12 +161,13 @@ export default function CompanyProfilePage() {
 			toast.error('Company name is required');
 			return;
 		}
-		const industryForApi =
-			industryId === OTHER_INDUSTRY ? industryOther.trim() : industryId.trim();
-		if (!industryForApi) {
-			toast.error('Please select your industry or company type.');
-			return;
-		}
+		// Industry is hidden for now.
+		// const industryForApi =
+		// 	industryId === OTHER_INDUSTRY ? industryOther.trim() : industryId.trim();
+		// if (!industryForApi) {
+		// 	toast.error('Please select your industry or company type.');
+		// 	return;
+		// }
 
 		const thresholdNum = Math.max(
 			1,
@@ -260,7 +261,7 @@ export default function CompanyProfilePage() {
 						{profileAlreadySet ? (
 							<Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
 								Your account is set up. You can change any company field below whenever you need —
-								including logo, contact details, industry, and bulk discount.
+								including logo, contact details and bulk discount.
 							</Alert>
 						) : null}
 
@@ -381,6 +382,7 @@ export default function CompanyProfilePage() {
 										)
 									}}
 								/>
+								{/* Industry is hidden for now.
 								<TextField
 									select
 									label="Industry"
@@ -416,7 +418,7 @@ export default function CompanyProfilePage() {
 										required
 										placeholder="Type your industry"
 									/>
-								) : null}
+								) : null} */}
 								<TextField
 									label="Address"
 									value={address}

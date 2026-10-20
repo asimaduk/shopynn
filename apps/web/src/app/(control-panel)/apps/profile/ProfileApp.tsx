@@ -439,13 +439,14 @@ function ProfileApp() {
 									<Typography className="font-medium">{companyName}</Typography>
 								</Box>
 							</Box>
+							{/* Industry is hidden for now.
 							<Box className="flex items-start gap-3 p-3 rounded-lg" sx={{ bgcolor: 'action.hover' }}>
 								<FuseSvgIcon size={22} color="action" className="shrink-0 mt-0.5">heroicons-outline:briefcase</FuseSvgIcon>
 								<Box>
 									<Typography variant="caption" color="text.secondary">Industry</Typography>
 									<Typography className="font-medium">{companyIndustry}</Typography>
 								</Box>
-							</Box>
+							</Box> */}
 							<Box className="flex items-start gap-3 p-3 rounded-lg sm:col-span-2" sx={{ bgcolor: 'action.hover' }}>
 								<FuseSvgIcon size={22} color="action" className="shrink-0 mt-0.5">heroicons-outline:map-pin</FuseSvgIcon>
 								<Box>
