@@ -1,7 +1,7 @@
 /**
  * Secure token storage using OS Keychain/Keystore.
- * Always mirrors to AsyncStorage so /users/me right after login never races
- * a Keychain read miss (common on iOS simulator / New Arch).
+ * Tokens are kept in memory for the session so reads right after login never race the Keychain.
+ * AsyncStorage (unencrypted) is only used when the Keychain is unavailable on the device.
  * Use for BRS_ACCESS_TOKEN and BRS_REFRESH_TOKEN only.
  */
 import * as Keychain from 'react-native-keychain';
@@ -11,9 +11,13 @@ const SERVICE_ACCESS = 'com.shopynn.auth.access';
 const SERVICE_REFRESH = 'com.shopynn.auth.refresh';
 const ACCESS_TOKEN_KEY = 'BRS_ACCESS_TOKEN';
 const REFRESH_TOKEN_KEY = 'BRS_REFRESH_TOKEN';
-const MIGRATION_DONE_KEY = 'BRS_KEYCHAIN_MIGRATION_DONE';
+const MIGRATION_DONE_KEY = 'BRS_KEYCHAIN_MIGRATION_V2';
+
+// Not restored from backups or onto another device.
+const KEYCHAIN_OPTIONS = { accessible: Keychain.ACCESSIBLE?.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY };
 
 let useKeychain = true;
+const memory = { access: undefined, refresh: undefined };
 
 async function getKeychain(service) {
     if (!useKeychain) return null;
@@ -29,7 +33,7 @@ async function getKeychain(service) {
 async function setKeychain(service, value) {
     if (!useKeychain) return false;
     try {
-        await Keychain.setGenericPassword(service, value || '', { service });
+        await Keychain.setGenericPassword(service, value || '', { service, ...KEYCHAIN_OPTIONS });
         return true;
     } catch {
         useKeychain = false;
@@ -44,7 +48,7 @@ async function removeKeychain(service) {
 }
 
 /**
- * One-time migration: move tokens from AsyncStorage to Keychain (keep AsyncStorage mirror).
+ * One-time migration: move plaintext tokens from AsyncStorage into the Keychain, then delete them.
  */
 async function migrateFromAsyncStorage() {
     try {
@@ -52,43 +56,54 @@ async function migrateFromAsyncStorage() {
         if (done === 'true') return;
         const access = await AsyncStorage.getItem(ACCESS_TOKEN_KEY);
         const refresh = await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
-        if (access) await setKeychain(SERVICE_ACCESS, access);
-        if (refresh) await setKeychain(SERVICE_REFRESH, refresh);
-        await AsyncStorage.setItem(MIGRATION_DONE_KEY, 'true');
+        const movedAccess = access ? await setKeychain(SERVICE_ACCESS, access) : true;
+        const movedRefresh = refresh ? await setKeychain(SERVICE_REFRESH, refresh) : true;
+        if (movedAccess && movedRefresh) {
+            await AsyncStorage.multiRemove([ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY]);
+            await AsyncStorage.setItem(MIGRATION_DONE_KEY, 'true');
+        }
     } catch (_) {}
 }
 
-/**
- * Get access token (Keychain first, then AsyncStorage fallback).
- */
-export async function getAccessToken() {
+async function readToken(slot, service, fallbackKey) {
+    if (memory[slot] !== undefined) return memory[slot];
     await migrateFromAsyncStorage();
-    const value = await getKeychain(SERVICE_ACCESS);
-    if (value) return value;
-    return AsyncStorage.getItem(ACCESS_TOKEN_KEY);
+    const value = (await getKeychain(service)) ?? (await AsyncStorage.getItem(fallbackKey));
+    memory[slot] = value || null;
+    return memory[slot];
+}
+
+async function writeToken(slot, service, fallbackKey, value) {
+    memory[slot] = value;
+    if (await setKeychain(service, value)) {
+        await AsyncStorage.removeItem(fallbackKey);
+    } else {
+        await AsyncStorage.setItem(fallbackKey, value);
+    }
+}
+
+/**
+ * Get access token (memory, then Keychain, then the AsyncStorage fallback).
+ */
+export function getAccessToken() {
+    return readToken('access', SERVICE_ACCESS, ACCESS_TOKEN_KEY);
 }
 
 /**
  * Get refresh token.
  */
-export async function getRefreshToken() {
-    await migrateFromAsyncStorage();
-    const value = await getKeychain(SERVICE_REFRESH);
-    if (value) return value;
-    return AsyncStorage.getItem(REFRESH_TOKEN_KEY);
+export function getRefreshToken() {
+    return readToken('refresh', SERVICE_REFRESH, REFRESH_TOKEN_KEY);
 }
 
 /**
  * Set access and optional refresh token after login/refresh.
- * Dual-write Keychain + AsyncStorage so the next request always finds the token.
  */
 export async function setTokens(accessToken, refreshToken = null) {
     if (!accessToken) return;
-    await setKeychain(SERVICE_ACCESS, accessToken);
-    await AsyncStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+    await writeToken('access', SERVICE_ACCESS, ACCESS_TOKEN_KEY, accessToken);
     if (refreshToken != null) {
-        await setKeychain(SERVICE_REFRESH, refreshToken);
-        await AsyncStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+        await writeToken('refresh', SERVICE_REFRESH, REFRESH_TOKEN_KEY, refreshToken);
     }
 }
 
@@ -96,6 +111,8 @@ export async function setTokens(accessToken, refreshToken = null) {
  * Clear all auth tokens (logout / session expired).
  */
 export async function clearTokens() {
+    memory.access = null;
+    memory.refresh = null;
     await removeKeychain(SERVICE_ACCESS);
     await removeKeychain(SERVICE_REFRESH);
     await AsyncStorage.multiRemove([ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY]);
