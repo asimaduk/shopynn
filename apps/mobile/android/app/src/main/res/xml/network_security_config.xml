@@ -1,10 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Release: HTTPS only, system CAs only. User-installed CAs are not trusted, so a proxy
-     certificate on the device can't decrypt API traffic. Debug overrides live in src/debug. -->
+<!-- Release: system CAs only. User-installed CAs are not trusted, so a proxy certificate on the
+     device can't decrypt API traffic. Cleartext is allowed only because the Shopynn Print agent
+     runs on a checkout PC at a user-entered LAN IP; Shopynn's own hosts are HTTPS-only.
+     Debug overrides live in src/debug. -->
 <network-security-config>
-    <base-config cleartextTrafficPermitted="false">
+    <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
     </base-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">shopynn.app</domain>
+        <domain includeSubdomains="true">up.railway.app</domain>
+        <domain includeSubdomains="true">vercel.app</domain>
+        <domain includeSubdomains="true">paystack.co</domain>
+        <domain includeSubdomains="true">paystack.com</domain>
+        <domain includeSubdomains="true">amazonaws.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
 </network-security-config>
