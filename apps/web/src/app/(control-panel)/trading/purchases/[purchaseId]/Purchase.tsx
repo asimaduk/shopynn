@@ -44,6 +44,11 @@ function Purchase() {
 		[purchase?.payment_status]
 	);
 	const received = Number(purchase?.current_status) === 1;
+	const purchaseProducts: Array<{ quantity?: number | string; returned_qty?: number | string }> =
+		Array.isArray(purchase?.products) ? purchase.products : [];
+	const fullyReturned =
+		purchaseProducts.length > 0 &&
+		purchaseProducts.every((p) => Number(p.returned_qty || 0) >= Number(p.quantity || 0));
 
 	/**
 	 * Tab Change
@@ -100,7 +105,7 @@ function Purchase() {
 						>
 							<Box
 								sx={{
-									backgroundColor: paymentMeta.bannerBg,
+									backgroundColor: fullyReturned ? '#6b7280' : paymentMeta.bannerBg,
 									borderRadius: 2,
 									px: 2.5,
 									py: 2,
@@ -113,7 +118,7 @@ function Purchase() {
 							>
 								<div>
 									<Typography className="text-xl font-semibold text-white">
-										{paymentMeta.bannerLabel(received)}
+										{fullyReturned ? 'Returned to supplier' : paymentMeta.bannerLabel(received)}
 									</Typography>
 									<Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', mt: 0.5 }}>
 										{(purchase.attendant || purchase.receiver_name)
@@ -161,6 +166,7 @@ function Purchase() {
 										className='font-medium text-right'>
 										{purchase.number_of_items} item(s)
 									</Typography>
+									{!fullyReturned && (
 									<div className="flex justify-end mt-2">
 										<Button
 											component={Link}
@@ -172,6 +178,7 @@ function Purchase() {
 											Return to supplier
 										</Button>
 									</div>
+									)}
 								</div>
 							</motion.div>
 						</div>

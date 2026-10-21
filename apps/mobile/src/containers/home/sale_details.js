@@ -964,7 +964,7 @@ const SaleDetails = ({ navigation, route }) => {
                         <AppText label="Send invoice" variant={1} fontSize={15} color="#fff" style={{ marginLeft: 8 }} />
                     </TouchableOpacity>
                 )}
-                {!isPendingUpload ? (
+                {!isPendingUpload && returnState !== 'full' ? (
                     <TouchableOpacity
                         activeOpacity={0.85}
                         onPress={() =>

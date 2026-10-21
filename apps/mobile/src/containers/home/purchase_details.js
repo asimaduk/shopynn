@@ -53,10 +53,18 @@ const PurchaseDetails = ({ navigation, route }) => {
         0,
         Number(item.total_amount ?? item.amount ?? 0) - Number(item.discount_amount || 0),
     );
+    const products = Array.isArray(item.products) ? item.products : [];
+    const returnedValue = products.reduce(
+        (sum, p) => sum + Number(p.returned_qty || 0) * Number(p.unit_price || 0),
+        0,
+    );
+    const fullyReturned =
+        products.length > 0 && products.every((p) => Number(p.returned_qty || 0) >= Number(p.quantity || 0));
     const isUnpaidOrPartial = Number(item.payment_status) !== PAYMENT_STATUS.PAID;
     const payStatus = Number(item.payment_status);
-    const statusBanner =
-        payStatus === PAYMENT_STATUS.PAID
+    const statusBanner = fullyReturned
+        ? { bg: '#6b7280', label: 'Returned to supplier', icon: 'undo-2' }
+        : payStatus === PAYMENT_STATUS.PAID
             ? {
                   bg: config.GREEN_COLOR,
                   label: item.current_status == 1 ? 'Received · Paid' : 'Paid',
@@ -84,20 +92,30 @@ const PurchaseDetails = ({ navigation, route }) => {
         const id = purchaseId || routeItem?.id;
         if (!id || id === 'N/A') return;
         let mounted = true;
-        setLoading(true);
-        purchasesApi
-            .get(id)
-            .then((data) => {
-                if (mounted && data) setItem((prev) => ({ ...prev, ...data }));
-            })
-            .catch(() => {})
-            .finally(() => {
-                if (mounted) setLoading(false);
-            });
+        let firstLoad = true;
+        // Reload on focus so returns made from this screen show when coming back.
+        const load = () => {
+            if (firstLoad) setLoading(true);
+            purchasesApi
+                .get(id)
+                .then((data) => {
+                    if (mounted && data) setItem((prev) => ({ ...prev, ...data }));
+                })
+                .catch(() => {})
+                .finally(() => {
+                    firstLoad = false;
+                    if (mounted) setLoading(false);
+                });
+        };
+        load();
+        const unsubscribe = navigation.addListener('focus', () => {
+            if (!firstLoad) load();
+        });
         return () => {
             mounted = false;
+            unsubscribe();
         };
-    }, [purchaseId, routeItem?.id]);
+    }, [purchaseId, routeItem?.id, navigation]);
 
     const backPress = () => navigation.goBack();
     const markAsSent = () => {
@@ -307,6 +325,17 @@ const PurchaseDetails = ({ navigation, route }) => {
                                 style={{ marginLeft: 6 }}
                             />
                         </View>
+                        {returnedValue > 0 ? (
+                            <View style={[styles.tag, { backgroundColor: colors.surfaceSecondary }]}>
+                                <Lucide name="undo-2" size={14} color="#c2410c" />
+                                <AppText
+                                    label={`Returned ${formatCurrency(returnedValue)}`}
+                                    fontSize={12}
+                                    color="#c2410c"
+                                    style={{ marginLeft: 6 }}
+                                />
+                            </View>
+                        ) : null}
                     </View>
                 </DetailSection>
 
@@ -317,7 +346,15 @@ const PurchaseDetails = ({ navigation, route }) => {
                 </DetailSection>
 
                 <DetailSection title="Payment">
-                    <DetailRow icon={paymentStatusIcon} label="Status" value={paymentStatusLabel(item.payment_status)} />
+                    <DetailRow
+                        icon={fullyReturned ? 'undo-2' : paymentStatusIcon}
+                        label="Status"
+                        value={
+                            fullyReturned && !(Number(item.amount_paid) > 0)
+                                ? 'Returned — nothing owed'
+                                : paymentStatusLabel(item.payment_status)
+                        }
+                    />
                     <DetailRow icon="wallet" label="Method" value={paymentTypeLabel(item.payment_type)} />
                     <DetailRow icon="coins" label="Amount paid" value={formatCurrency(Number(item.amount_paid) || 0)} />
                     <DetailRow icon="hash" label="Reference" value={item.payment_reference || '—'} />
@@ -376,6 +413,14 @@ const PurchaseDetails = ({ navigation, route }) => {
                                     color={colors.textTertiary}
                                     style={{ marginTop: 2 }}
                                 />
+                                {Number(prod.returned_qty) > 0 ? (
+                                    <AppText
+                                        label={`${formatQuantity(prod.returned_qty)} returned to supplier`}
+                                        fontSize={12}
+                                        color="#c2410c"
+                                        style={{ marginTop: 2 }}
+                                    />
+                                ) : null}
                             </View>
                             <AppText
                                 label={formatCurrency(Number(prod.quantity || 0) * Number(prod.unit_price || 0))}
@@ -387,7 +432,7 @@ const PurchaseDetails = ({ navigation, route }) => {
                     ))}
                 </DetailSection>
 
-                {canReturnToSupplier && item.id && item.id !== 'N/A' && item.products?.length ? (
+                {canReturnToSupplier && item.id && item.id !== 'N/A' && products.length && !fullyReturned ? (
                     <TouchableOpacity
                         activeOpacity={0.8}
                         onPress={() => navigation.navigate('NewPurchaseReturn', { purchaseId: item.id })}
