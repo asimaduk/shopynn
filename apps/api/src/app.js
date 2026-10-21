@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -25,7 +26,35 @@ app.use(
         },
     })
 );
-app.use(cors());
+app.disable("x-powered-by");
+// API images are embedded by the web and site origins, so resources must be loadable cross-origin.
+app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+
+const DEFAULT_CORS_ORIGINS = [
+    "https://admin-shopynn.vercel.app",
+    "https://shopynn.vercel.app",
+    "https://shopynn.app",
+    "https://www.shopynn.app",
+];
+const corsOrigins = new Set(
+    (process.env.CORS_ORIGINS || DEFAULT_CORS_ORIGINS.join(","))
+        .split(",")
+        .map((o) => o.trim().replace(/\/$/, ""))
+        .filter(Boolean)
+);
+const isLocalOrigin = (origin) => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+// Requests without an Origin (mobile app, webhooks, server-to-server) are not CORS requests.
+app.use(
+    cors({
+        origin: (origin, cb) =>
+            cb(
+                null,
+                !origin ||
+                    corsOrigins.has(origin) ||
+                    (process.env.NODE_ENV !== "production" && isLocalOrigin(origin))
+            ),
+    })
+);
 
 // health (Railway / load balancers)
 app.get('/health', (_req, res) => {
