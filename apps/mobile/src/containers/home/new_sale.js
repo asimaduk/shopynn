@@ -552,7 +552,8 @@ const NewSale = ({ navigation, route }) => {
 
     const goToSalesAfterSale = () => {
         allowLeaveRef.current = true;
-        navigation.navigate('Home', { screen: 'Sales' });
+        // navigate() pushes in React Navigation 7, which would leave this screen (and its paid cart) in the stack.
+        navigation.popTo('Home', { screen: 'Sales' });
     };
 
     const backPress = () => {
