@@ -228,6 +228,7 @@ export const sendNewsletterCampaignService = async (id, userId) => {
             await sendEmailService({
                 sender_name: BRAND_NAME,
                 receipient: sub.email,
+                from: "hello",
                 subject: campaign.subject,
                 html: htmlBody,
                 text: textBody,

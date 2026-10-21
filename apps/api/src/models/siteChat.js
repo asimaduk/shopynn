@@ -84,6 +84,7 @@ export const startOrContinueSiteChatService = async ({
         await sendEmailService({
             sender_name: BRAND_NAME,
             receipient: normalizedEmail,
+            from: "support",
             subject: `We received your chat — ${BRAND_NAME}`,
             text: `Hi ${trimmedName},\n\nThanks for messaging us. Our team will reply here and by email when we're back online.\n\n— ${BRAND_NAME}`,
             html: `<p>Hi ${escapeHtml(trimmedName)},</p><p>Thanks for messaging us. Our team will reply as soon as we can.</p><p>— ${BRAND_NAME}</p>`,
@@ -230,6 +231,7 @@ export const replyToSiteChatSessionService = async (id, { message }, userId) => 
     await sendEmailService({
         sender_name: BRAND_NAME,
         receipient: session.email,
+        from: "support",
         subject: `New reply from ${BRAND_NAME}`,
         text: `Hi ${session.name},\n\n${trimmed}\n\n— ${BRAND_NAME} Support`,
         html: `<p>Hi ${escapeHtml(session.name)},</p><p>${escapeHtml(trimmed).replace(/\n/g, "<br/>")}</p><p>— ${BRAND_NAME} Support</p>`,

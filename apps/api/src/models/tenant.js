@@ -30,6 +30,7 @@ async function sendShopOwnerWelcomeEmail({ email, firstName, shopName, subscript
     await sendEmailService({
         sender_name: "Shopynn",
         receipient: email,
+        from: "support",
         subject: `Welcome to Shopynn, ${firstName || "there"}!`,
         text: `Hi ${firstName || "there"}, welcome to Shopynn. ${shopName || "Your shop"} is set up. Sign in with ${email} and the password you chose. ${isActive ? `Your ${planLabel} plan is active${endsOn ? ` until ${endsOn}` : ""}.` : "Open Subscription in the app to pay and activate your plan."}`,
         html: `

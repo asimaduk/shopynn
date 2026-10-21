@@ -1,66 +1,108 @@
-// const sgMail = require('@sendgrid/mail');
-// sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+import fs from "node:fs/promises";
+import path from "node:path";
 
-import nodemailer from "nodemailer";
-import dotenv from "dotenv";
-dotenv.config();
+const RESEND_URL = "https://api.resend.com/emails";
 
-const transporter = nodemailer.createTransport({
-    service: 'Gmail',
-    // host: "smtp.ethereal.email",
-    // port: 587,
-    // secure: false, // true for 465, false for other ports
-    auth: {
-        user: "mail.asimadu@gmail.com",
-        pass: process.env.GOOGLE_APP_PASSWORD,
-    },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 20000,
-});
+/**
+ * Sender mailboxes. Each email picks one by purpose (`from: "support"`); the address is
+ * `<local>@MAIL_DOMAIN` unless overridden with MAIL_FROM_<NAME> (e.g. MAIL_FROM_SUPPORT).
+ * Every address must be on a domain verified in Resend.
+ */
+const SENDERS = {
+    noreply: { local: "no-reply", name: "Shopynn" },
+    support: { local: "support", name: "Shopynn Support" },
+    billing: { local: "billing", name: "Shopynn Billing" },
+    hello: { local: "hello", name: "Shopynn" },
+};
 
-transporter.verify((err,status)=> {
-    console.log(`Email verification status: ${status} | error: ${err ?? "No error"}`);
-})
+const DEFAULT_SENDER = "noreply";
+
+const mailDomain = () => (process.env.MAIL_DOMAIN || "shopynn.app").trim().toLowerCase();
+
+export const senderAddress = (key) => {
+    const sender = SENDERS[key] ? key : DEFAULT_SENDER;
+    const override = process.env[`MAIL_FROM_${sender.toUpperCase()}`]?.trim();
+    return override || `${SENDERS[sender].local}@${mailDomain()}`;
+};
+
+const formatAddress = (name, address) => {
+    const clean = String(name || "").replace(/["<>\r\n]/g, "").trim();
+    return clean ? `${clean} <${address}>` : address;
+};
+
+const toList = (value) => {
+    if (!value) return [];
+    const list = Array.isArray(value) ? value : String(value).split(",");
+    return list.map((v) => String(v).trim()).filter(Boolean);
+};
+
+/**
+ * Resolves who an email is from and where replies go.
+ * `from` is a sender key (noreply, support, billing, hello); unknown keys fall back to noreply.
+ * no-reply mail gets Reply-To support@ unless the caller sets `reply_to`.
+ */
+export const resolveSender = ({ from, sender_name, reply_to } = {}) => {
+    const key = SENDERS[from] ? from : DEFAULT_SENDER;
+    const address = senderAddress(key);
+    const replyTo = toList(reply_to);
+    if (!replyTo.length && key === "noreply") replyTo.push(senderAddress("support"));
+    return {
+        from: formatAddress(sender_name || SENDERS[key].name, address),
+        replyTo,
+    };
+};
+
+const toResendAttachment = async (att) => {
+    let content = att.content;
+    if (content == null && att.path) content = await fs.readFile(att.path);
+    if (content == null) return null;
+    const base64 = Buffer.isBuffer(content)
+        ? content.toString("base64")
+        : att.encoding === "base64"
+          ? String(content)
+          : Buffer.from(String(content)).toString("base64");
+    const out = { filename: att.filename || (att.path ? path.basename(att.path) : "attachment"), content: base64 };
+    if (att.contentType) out.content_type = att.contentType;
+    if (att.cid) out.content_id = att.cid;
+    return out;
+};
+
+export const buildResendPayload = async (data) => {
+    const { receipient, subject, title, message, bcc, text, html, attachments } = data;
+    const { from, replyTo } = resolveSender(data);
+    const payload = {
+        from,
+        to: toList(receipient),
+        subject,
+        html: html ?? `<b>${title ?? ""}</b>\n<p>${message ?? ""}</p>`,
+    };
+    if (text) payload.text = text;
+    const bccList = toList(bcc);
+    if (bccList.length) payload.bcc = bccList;
+    if (replyTo.length) payload.reply_to = replyTo;
+    if (Array.isArray(attachments) && attachments.length > 0) {
+        payload.attachments = (await Promise.all(attachments.map(toResendAttachment))).filter(Boolean);
+    }
+    return payload;
+};
 
 export const sendEmailService = async (data) => {
-    // const msg = {
-    //     to: 'asimaduk@gmail.com', // Change to your recipient
-    //     from: 'mail.asimadu@gmail.com', // Change to your verified sender
-    //     subject: 'Sending with SendGrid is Fun',
-    //     text: 'and easy to do anywhere, even with Node.js',
-    //     html: '<strong>and easy to do anywhere, even with Node.js</strong>',
-    // }
-    
-    // const resp = await sgMail.send(msg);
-    // console.log('resp is',resp);
-    // return resp;
-    // //   .then((response) => {
-    // //     console.log(response[0].statusCode)
-    // //     console.log(response[0].headers)
-    // //   })
-    // //   .catch((error) => {
-    // //     console.error(error)
-    // //   })
+    const apiKey = process.env.RESEND_API_KEY?.trim();
+    if (!apiKey) throw new Error("Email is not configured (RESEND_API_KEY is missing).");
 
-    const { sender_name, receipient, subject, title, message, bcc, text, html, attachments } = data;
+    const payload = await buildResendPayload(data);
+    if (!payload.to.length) throw new Error("Email has no recipient.");
 
-    const mailOptions = {
-        from: `"${sender_name}" <mail.asimadu@gmail.com>`,
-        to: receipient,
-        subject: subject,
-        html: html ?? `<b>${title ?? ''}</b>\n<p>${message ?? ''}</p>`,
-    };
-    if (text) mailOptions.text = text;
-    if (bcc) {
-        mailOptions.bcc = bcc;
+    const res = await fetch(RESEND_URL, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(20000),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        throw new Error(`Resend ${res.status}: ${body?.message || body?.name || "send failed"}`);
     }
-    if (Array.isArray(attachments) && attachments.length > 0) {
-        mailOptions.attachments = attachments;
-    }
-
-    const info = await transporter.sendMail(mailOptions);
-
-    console.log("Message sent:", info.messageId);
-    return info;
-}
+    console.log("Message sent:", body.id);
+    return { messageId: body.id };
+};

@@ -1349,7 +1349,9 @@ export const sendSaleInvoiceEmailService = async (saleId, tenant_id, { email } =
     const tenant = await loadTenantForInvoice(tenant_id);
     const companyName = tenant.name || tenant.organization || 'Shopynn';
     await sendEmailService({
+        from: "noreply",
         sender_name: companyName,
+        reply_to: tenant.email || undefined,
         receipient: to,
         subject: `Invoice ${pkg.invoice.invoice_number}`,
         title: `Invoice from ${companyName}`,
@@ -1443,7 +1445,8 @@ const sendStockLevelAlert = async (tenant_id, prod) => {
 
     const [primary, ...bccList] = recipients;
     const data = {
-        sender_name: "Shopynn Support",
+        from: "noreply",
+        sender_name: "Shopynn Alerts",
         receipient: primary,
         bcc: bccList.length > 0 ? bccList.join(", ") : undefined,
         subject,

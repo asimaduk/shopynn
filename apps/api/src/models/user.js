@@ -654,7 +654,8 @@ export const createUserService = async (payload) => {
             (isOnboarding || email_credentials);
         if (sendCreds) {
             const data = {
-                sender_name: "Shopynn Support",
+                from: "noreply",
+                sender_name: "Shopynn",
                 receipient: normalizedEmail,
                 subject: "Welcome to Shopynn - Your account is ready",
                 title: "Your temporary login credentials",
@@ -874,7 +875,8 @@ export const forgotPasswordService = async (email) => {
         );
 
         const data = {
-            sender_name: "Shopynn Support",
+            from: "noreply",
+            sender_name: "Shopynn",
             receipient: user.email,
             subject: "Reset your password",
             title: "Your password has been reset",

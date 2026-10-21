@@ -126,6 +126,7 @@ export async function sendBroadcastService({
                 await sendEmailService({
                     sender_name: "Shopynn",
                     receipient: to,
+                    from: "noreply",
                     subject: titleTrim,
                     text: bodyTrim,
                     html: `<div style="font-family:system-ui,sans-serif;line-height:1.5">

@@ -87,6 +87,7 @@ export async function sendShopOwnerEmailOtpService(email) {
     sendEmailService({
         sender_name: "Shopynn",
         receipient: normalized,
+        from: "noreply",
         subject: "Verify your email — Shopynn shop signup",
         title: "Your verification code",
         message: `Use this code to verify your owner login email:\n\n${code}\n\nThis code expires in 10 minutes. If you did not request this, you can ignore this email.`,
@@ -225,6 +226,7 @@ export async function sendCustomerChangeEmailOtpService({ userId, email }) {
     await sendEmailService({
         sender_name: "Shopynn",
         receipient: normalized,
+        from: "noreply",
         subject: "Confirm your new email — Shopynn",
         title: "Your verification code",
         message: `Use this code to confirm your new Shopynn email:\n\n${code}\n\nThis code expires in 10 minutes. If you did not request this, you can ignore this email.`,

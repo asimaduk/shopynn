@@ -28,6 +28,7 @@ export const createContactRequestService = async ({ name, email, message }) => {
         await sendEmailService({
             sender_name: BRAND_NAME,
             receipient: normalizedEmail,
+            from: "support",
             subject: `We received your message — ${BRAND_NAME}`,
             text: `Hi ${trimmedName},\n\nThanks for reaching out. We received your message and will get back to you soon.\n\n— ${BRAND_NAME}`,
             html: `<p>Hi ${escapeHtml(trimmedName)},</p><p>Thanks for reaching out. We received your message and will get back to you soon.</p><p>— ${BRAND_NAME}</p>`,
@@ -135,6 +136,7 @@ export const replyToContactRequestService = async (id, { message }, userId) => {
     await sendEmailService({
         sender_name: staffName,
         receipient: request.email,
+        from: "support",
         subject: `Re: Your message to ${BRAND_NAME}`,
         text: `Hi ${request.name},\n\n${trimmed}\n\n— ${staffName}`,
         html: `<p>Hi ${escapeHtml(request.name)},</p><p>${escapeHtml(trimmed).replace(/\n/g, "<br/>")}</p><p>— ${escapeHtml(staffName)}</p>`,

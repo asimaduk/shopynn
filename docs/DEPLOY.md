@@ -75,7 +75,7 @@ Copy from `apps/api/.env.example`. Required at minimum:
 - `FRONTEND_URL` / `PAYMENT_CALLBACK_URL` (point at admin web, e.g. `https://admin-shopynn.vercel.app`)
 - AWS/S3 keys if uploads are enabled
 - `FIREBASE_SERVICE_ACCOUNT_JSON` — stringified Firebase Admin service account JSON (for FCM push). Prefer this over a file path on Railway.
-- `GOOGLE_APP_PASSWORD` — Gmail app password for transactional / broadcast email
+- `RESEND_API_KEY` and `MAIL_DOMAIN` (e.g. `shopynn.app`, verified in Resend) — all email goes through the Resend API. Each email picks a sender mailbox by purpose: `no-reply@` (codes, alerts, invoices, password emails; replies go to `support@`), `support@` (welcome, contact and chat replies), `hello@` (newsletter), `billing@`. Override any of them with `MAIL_FROM_NOREPLY`, `MAIL_FROM_SUPPORT`, `MAIL_FROM_HELLO` or `MAIL_FROM_BILLING`.
 
 Never commit real `.env` files or the Firebase JSON under `secrets/`.
 

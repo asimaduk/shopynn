@@ -419,6 +419,7 @@ export async function runDailySalesSummaryNotifications() {
                     await sendEmailService({
                         sender_name: mailSenderName(),
                         receipient: String(row.email).trim(),
+                        from: "noreply",
                         subject: email.subject,
                         title: email.title,
                         message: email.text,
