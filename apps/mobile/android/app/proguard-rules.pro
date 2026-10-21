@@ -11,3 +11,8 @@
 
 # whisper.rn
 -keep class com.rnwhisper.** { *; }
+
+# React Native: classes looked up by name from native code (JNI). R8 can't see those references.
+-keep class com.facebook.react.devsupport.CxxInspectorPackagerConnection { *; }
+-keep class com.facebook.react.devsupport.CxxInspectorPackagerConnection$* { *; }
+-keep class com.facebook.react.devsupport.inspector.** { *; }
