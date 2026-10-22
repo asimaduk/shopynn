@@ -201,6 +201,7 @@ export const approveAdminSettlement = async (req, res, next) => {
         await recordAudit(req, "WITHDRAWAL_APPROVE", "settlement", req.params.id, { amount: updated.amount ?? null }, updated.tenant_id);
     } catch (error) {
         if (
+            error.status === 409 ||
             error.message?.includes("already marked") ||
             error.message?.includes("cannot be approved") ||
             error.message?.includes("Rejected")
@@ -219,6 +220,7 @@ export const rejectAdminSettlement = async (req, res, next) => {
         await recordAudit(req, "WITHDRAWAL_REJECT", "settlement", req.params.id, { amount: updated.amount ?? null }, updated.tenant_id);
     } catch (error) {
         if (
+            error.status === 409 ||
             error.message?.includes("cannot be rejected") ||
             error.message?.includes("already rejected") ||
             error.message?.includes("Paid settlements")
@@ -237,6 +239,7 @@ export const markAdminSettlementPaid = async (req, res, next) => {
         await recordAudit(req, "WITHDRAWAL_PAID", "settlement", req.params.id, { amount: updated.amount ?? null }, updated.tenant_id);
     } catch (error) {
         if (
+            error.status === 409 ||
             error.message?.includes("already marked") ||
             error.message?.includes("cannot be marked paid") ||
             error.message?.includes("Cancelled settlements")

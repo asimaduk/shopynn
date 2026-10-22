@@ -13,6 +13,11 @@ import { isAutoWithdrawalEnabled } from "../services/paymentGateway.js";
 const SUCCESS_STATUSES = new Set(["success", "paid", "completed"]);
 const ACTIVE_SETTLEMENT_STATUSES = new Set(["requested", "pending", "paid"]);
 const RESERVED_SETTLEMENT_STATUSES = new Set(["requested", "pending", "processing"]);
+function settlementChangedError() {
+    const err = new Error("This withdrawal was just updated by someone else. Refresh and try again.");
+    err.status = 409;
+    return err;
+}
 
 function toMoney(value) {
     const n = Number(value);
@@ -20,8 +25,28 @@ function toMoney(value) {
     return Math.round(n * 100) / 100;
 }
 
-async function sumDigitalCollections(tenantId) {
-    const res = await pool.query(
+/**
+ * Runs fn(client) in a transaction holding the tenant's settlement lock, so a balance check and
+ * the withdrawal it allows can't interleave with another request for the same shop.
+ */
+async function withTenantSettlementLock(tenantId, fn) {
+    const client = await pool.connect();
+    try {
+        await client.query("BEGIN");
+        await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`tenant_settlement:${tenantId}`]);
+        const result = await fn(client);
+        await client.query("COMMIT");
+        return result;
+    } catch (error) {
+        await client.query("ROLLBACK").catch(() => {});
+        throw error;
+    } finally {
+        client.release();
+    }
+}
+
+async function sumDigitalCollections(tenantId, db = pool) {
+    const res = await db.query(
         `SELECT COALESCE(SUM(
             CASE
               WHEN p.face_amount IS NOT NULL THEN p.face_amount
@@ -38,9 +63,9 @@ async function sumDigitalCollections(tenantId) {
     return toMoney(res.rows[0]?.total);
 }
 
-async function sumSettlements(tenantId, statuses) {
+async function sumSettlements(tenantId, statuses, db = pool) {
     const list = [...statuses];
-    const res = await pool.query(
+    const res = await db.query(
         `SELECT COALESCE(SUM(amount), 0)::numeric AS total
          FROM tenant_settlements
          WHERE tenant_id = $1
@@ -50,12 +75,11 @@ async function sumSettlements(tenantId, statuses) {
     return toMoney(res.rows[0]?.total);
 }
 
-export const getTenantSettlementSummaryService = async (tenantId) => {
-    const [digitalCollected, settledPaid, reservedPending] = await Promise.all([
-        sumDigitalCollections(tenantId),
-        sumSettlements(tenantId, ["paid"]),
-        sumSettlements(tenantId, [...RESERVED_SETTLEMENT_STATUSES]),
-    ]);
+export const getTenantSettlementSummaryService = async (tenantId, db = pool) => {
+    // Sequential: a transaction client can't run queries in parallel.
+    const digitalCollected = await sumDigitalCollections(tenantId, db);
+    const settledPaid = await sumSettlements(tenantId, ["paid"], db);
+    const reservedPending = await sumSettlements(tenantId, [...RESERVED_SETTLEMENT_STATUSES], db);
     const availableBalance = toMoney(Math.max(0, digitalCollected - settledPaid - reservedPending));
     return {
         digital_collected: digitalCollected,
@@ -93,30 +117,31 @@ export const createTenantSettlementService = async (user, tenantId, body = {}) =
     if (!amount || amount <= 0) {
         throw new Error("Settlement amount must be greater than zero.");
     }
-    const summary = await getTenantSettlementSummaryService(tenantId);
-    const available = toMoney(summary.available_balance);
-    if (available <= 0) {
-        throw new Error("No available balance to pay out.");
-    }
-    if (amount > available + 0.01) {
-        throw new Error(
-            `Amount exceeds available balance (GHS ${available.toFixed(2)}).`
-        );
-    }
     const note = body.note != null ? String(body.note).trim() : "";
-    const id = uuidv4();
-    const res = await pool.query(
-        `INSERT INTO tenant_settlements (
-            id, tenant_id, amount, currency, status, note, source, created_by, created_at, updated_at
-         ) VALUES ($1, $2, $3, 'GHS', 'pending', $4, 'admin', $5, now(), now())
-         RETURNING *`,
-        [id, tenantId, amount, note || null, user?.id || null]
-    );
-    return res.rows[0];
+    return withTenantSettlementLock(tenantId, async (db) => {
+        const summary = await getTenantSettlementSummaryService(tenantId, db);
+        const available = toMoney(summary.available_balance);
+        if (available <= 0) {
+            throw new Error("No available balance to pay out.");
+        }
+        if (amount > available + 0.01) {
+            throw new Error(
+                `Amount exceeds available balance (GHS ${available.toFixed(2)}).`
+            );
+        }
+        const res = await db.query(
+            `INSERT INTO tenant_settlements (
+                id, tenant_id, amount, currency, status, note, source, created_by, created_at, updated_at
+             ) VALUES ($1, $2, $3, 'GHS', 'pending', $4, 'admin', $5, now(), now())
+             RETURNING *`,
+            [uuidv4(), tenantId, amount, note || null, user?.id || null]
+        );
+        return res.rows[0];
+    });
 };
 
-async function assertNoInFlightMerchantWithdrawal(tenantId) {
-    const res = await pool.query(
+async function assertNoInFlightMerchantWithdrawal(tenantId, db = pool) {
+    const res = await db.query(
         `SELECT id FROM tenant_settlements
          WHERE tenant_id = $1
            AND source = 'merchant'
@@ -134,14 +159,7 @@ export const requestMerchantWithdrawalService = async (user, tenantId, body = {}
     if (!amount || amount <= 0) {
         throw new Error("Withdrawal amount must be greater than zero.");
     }
-    await assertNoInFlightMerchantWithdrawal(tenantId);
     const profile = await assertTenantPayoutProfileComplete(tenantId);
-    const summary = await getTenantSettlementSummaryService(tenantId);
-    if (amount > summary.available_balance + 0.01) {
-        throw new Error(
-            `Amount exceeds available balance (GHS ${summary.available_balance.toFixed(2)}).`
-        );
-    }
     const note = body.note != null ? String(body.note).trim() : "";
     const snapshot = payoutProfileToSnapshot(profile);
     const id = uuidv4();
@@ -149,25 +167,34 @@ export const requestMerchantWithdrawalService = async (user, tenantId, body = {}
     const autoPay = isAutoWithdrawalEnabled();
     const initialStatus = autoPay ? "processing" : "requested";
 
-    const insertRes = await pool.query(
-        `INSERT INTO tenant_settlements (
-            id, tenant_id, amount, currency, status, note, source, requested_by, payout_snapshot,
-            payout_channel, paystack_transfer_reference, created_at, updated_at
-         ) VALUES ($1, $2, $3, 'GHS', $4, $5, 'merchant', $6, $7::jsonb, $8, $9, now(), now())
-         RETURNING *`,
-        [
-            id,
-            tenantId,
-            amount,
-            initialStatus,
-            note || null,
-            user?.id || null,
-            JSON.stringify(snapshot),
-            autoPay ? "paystack" : "manual",
-            autoPay ? transferReference : null,
-        ]
-    );
-    const settlement = insertRes.rows[0];
+    const settlement = await withTenantSettlementLock(tenantId, async (db) => {
+        await assertNoInFlightMerchantWithdrawal(tenantId, db);
+        const summary = await getTenantSettlementSummaryService(tenantId, db);
+        if (amount > summary.available_balance + 0.01) {
+            throw new Error(
+                `Amount exceeds available balance (GHS ${summary.available_balance.toFixed(2)}).`
+            );
+        }
+        const insertRes = await db.query(
+            `INSERT INTO tenant_settlements (
+                id, tenant_id, amount, currency, status, note, source, requested_by, payout_snapshot,
+                payout_channel, paystack_transfer_reference, created_at, updated_at
+             ) VALUES ($1, $2, $3, 'GHS', $4, $5, 'merchant', $6, $7::jsonb, $8, $9, now(), now())
+             RETURNING *`,
+            [
+                id,
+                tenantId,
+                amount,
+                initialStatus,
+                note || null,
+                user?.id || null,
+                JSON.stringify(snapshot),
+                autoPay ? "paystack" : "manual",
+                autoPay ? transferReference : null,
+            ]
+        );
+        return insertRes.rows[0];
+    });
 
     if (!autoPay) {
         return settlement;
@@ -194,48 +221,50 @@ export const requestMerchantWithdrawalService = async (user, tenantId, body = {}
 };
 
 export const retryMerchantWithdrawalService = async (user, tenantId, settlementId) => {
-    const existing = await pool.query(
-        `SELECT * FROM tenant_settlements WHERE id = $1 AND tenant_id = $2 LIMIT 1`,
-        [settlementId, tenantId]
-    );
-    const row = existing.rows[0];
-    if (!row) throw new Error("Withdrawal not found.");
-    if (String(row.source || "").toLowerCase() !== "merchant") {
-        throw new Error("This withdrawal cannot be retried.");
-    }
-    const status = String(row.status || "").toLowerCase();
-    if (status !== "failed") {
-        throw new Error("Only failed withdrawals can be retried.");
-    }
     if (!isAutoWithdrawalEnabled()) {
         throw new Error("Automatic Paystack withdrawals are not enabled.");
     }
-
-    await assertNoInFlightMerchantWithdrawal(tenantId);
-
-    const amount = toMoney(row.amount);
-    const summary = await getTenantSettlementSummaryService(tenantId);
-    if (amount > summary.available_balance + 0.01) {
-        throw new Error(
-            `Amount exceeds available balance (GHS ${summary.available_balance.toFixed(2)}).`
-        );
-    }
-
     const profile = await assertTenantPayoutProfileComplete(tenantId);
     const transferReference = `wd_${String(settlementId).replace(/-/g, "").slice(0, 20)}_${Date.now().toString(36).slice(-6)}`;
 
-    await pool.query(
-        `UPDATE tenant_settlements
-         SET status = 'processing',
-             rejection_reason = NULL,
-             payout_channel = 'paystack',
-             paystack_transfer_reference = $2,
-             paystack_transfer_code = NULL,
-             payout_reference = NULL,
-             updated_at = now()
-         WHERE id = $1`,
-        [settlementId, transferReference]
-    );
+    const row = await withTenantSettlementLock(tenantId, async (db) => {
+        const existing = await db.query(
+            `SELECT * FROM tenant_settlements WHERE id = $1 AND tenant_id = $2 LIMIT 1`,
+            [settlementId, tenantId]
+        );
+        const current = existing.rows[0];
+        if (!current) throw new Error("Withdrawal not found.");
+        if (String(current.source || "").toLowerCase() !== "merchant") {
+            throw new Error("This withdrawal cannot be retried.");
+        }
+        if (String(current.status || "").toLowerCase() !== "failed") {
+            throw new Error("Only failed withdrawals can be retried.");
+        }
+
+        await assertNoInFlightMerchantWithdrawal(tenantId, db);
+
+        const summary = await getTenantSettlementSummaryService(tenantId, db);
+        if (toMoney(current.amount) > summary.available_balance + 0.01) {
+            throw new Error(
+                `Amount exceeds available balance (GHS ${summary.available_balance.toFixed(2)}).`
+            );
+        }
+
+        await db.query(
+            `UPDATE tenant_settlements
+             SET status = 'processing',
+                 rejection_reason = NULL,
+                 payout_channel = 'paystack',
+                 paystack_transfer_reference = $2,
+                 paystack_transfer_code = NULL,
+                 payout_reference = NULL,
+                 updated_at = now()
+             WHERE id = $1`,
+            [settlementId, transferReference]
+        );
+        return current;
+    });
+    const amount = toMoney(row.amount);
 
     try {
         const transferResult = await executePaystackWithdrawal({
@@ -270,10 +299,11 @@ export const approveTenantSettlementService = async (user, settlementId) => {
          SET status = 'pending',
              created_by = COALESCE(created_by, $2),
              updated_at = now()
-         WHERE id = $1
+         WHERE id = $1 AND lower(status) = 'requested'
          RETURNING *`,
         [settlementId, user?.id || null]
     );
+    if (!res.rows[0]) throw settlementChangedError();
     return res.rows[0];
 };
 
@@ -291,10 +321,11 @@ export const rejectTenantSettlementService = async (user, settlementId, body = {
          SET status = 'rejected',
              rejection_reason = $2,
              updated_at = now()
-         WHERE id = $1
+         WHERE id = $1 AND lower(status) = 'requested'
          RETURNING *`,
         [settlementId, reason || null]
     );
+    if (!res.rows[0]) throw settlementChangedError();
     return res.rows[0];
 };
 
@@ -353,9 +384,10 @@ export const markTenantSettlementPaidService = async (user, settlementId, body =
              paid_by = $4,
              paid_at = now(),
              updated_at = now()
-         WHERE id = $1
+         WHERE id = $1 AND lower(status) = $5
          RETURNING *`,
-        [settlementId, payoutReference, note, user?.id || null]
+        [settlementId, payoutReference, note, user?.id || null, String(row.status).toLowerCase()]
     );
+    if (!res.rows[0]) throw settlementChangedError();
     return res.rows[0];
 };
