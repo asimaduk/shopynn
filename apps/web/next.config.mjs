@@ -1,8 +1,18 @@
 import { withSerwist } from '@serwist/turbopack';
 
 /** @type {import('next').NextConfig} */
+const securityHeaders = [
+	{ key: 'X-Frame-Options', value: 'DENY' },
+	{ key: 'Content-Security-Policy', value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'" },
+	{ key: 'X-Content-Type-Options', value: 'nosniff' },
+	{ key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+	// Microphone is used by voice product search.
+	{ key: 'Permissions-Policy', value: 'camera=(), geolocation=(), microphone=(self)' }
+];
+
 const nextConfig = {
 	reactStrictMode: true,
+	poweredByHeader: false,
 	typescript: {
 		// Dangerously allow production builds to successfully complete even if
 		// your project has type errors.
@@ -17,6 +27,10 @@ const nextConfig = {
 		}
 	},
 	headers: async () => [
+		{
+			source: '/:path*',
+			headers: securityHeaders
+		},
 		{
 			source: '/serwist/:path*',
 			headers: [
