@@ -10,6 +10,7 @@ import useTheme from '../../hooks/useTheme';
 import { merchants as merchantsApi } from '../../services/api';
 import { hasPermission } from '../../utils/permissions';
 import AppAlert from '../../utils/appAlert';
+import { PickerModal, agentTypeLabel, userDisplayName } from './merchant_shared';
 
 function eligibleUserLabel(u) {
     const name = [u.first_name, u.last_name].filter(Boolean).join(' ').trim();
@@ -60,6 +61,30 @@ const MerchantAdd = ({ navigation }) => {
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [agentType, setAgentType] = useState('agent');
+    const [managerId, setManagerId] = useState('');
+    const [managers, setManagers] = useState([]);
+    const [managerPickerOpen, setManagerPickerOpen] = useState(false);
+
+    useEffect(() => {
+        if (!canManage) return;
+        merchantsApi
+            .adminList()
+            .then((res) => {
+                const rows = Array.isArray(res?.merchants) ? res.merchants : [];
+                setManagers(rows.filter((r) => r.agent_type === 'manager' && r.status === 'active'));
+            })
+            .catch(() => setManagers([]));
+    }, [canManage]);
+
+    const managerOptions = useMemo(
+        () => [
+            { value: '', label: 'No manager', hint: 'Reports directly to Shopynn.' },
+            ...managers.map((r) => ({ value: r.id, label: userDisplayName(r), hint: `${r.team_size ?? 0} agents` })),
+        ],
+        [managers],
+    );
+    const selectedManager = managers.find((r) => r.id === managerId);
 
     const loadEligible = useCallback(async () => {
         if (!canManage) return;
@@ -144,10 +169,15 @@ const MerchantAdd = ({ navigation }) => {
         }
 
         const commissionLabel = commission == null ? 'None' : `${commission}%`;
+        const roleLabel =
+            agentType === 'manager'
+                ? agentTypeLabel('manager')
+                : `${agentTypeLabel('agent')}${selectedManager ? ` · Team of ${userDisplayName(selectedManager)}` : ''}`;
+        const roleFields = { agent_type: agentType, manager_id: agentType === 'manager' ? null : managerId || null };
         const confirmMessage =
             mode === 'new'
-                ? `Create a merchant partner for ${email.trim()} (${firstName.trim()} ${lastName.trim()}).\n\nDefault commission: ${commissionLabel}`
-                : `Promote ${eligibleUserLabel(selectedUser)} to merchant partner.\n\nDefault commission: ${commissionLabel}`;
+                ? `Create a merchant partner for ${email.trim()} (${firstName.trim()} ${lastName.trim()}).\n\nRole: ${roleLabel}\nDefault commission: ${commissionLabel}`
+                : `Promote ${eligibleUserLabel(selectedUser)} to merchant partner.\n\nRole: ${roleLabel}\nDefault commission: ${commissionLabel}`;
 
         AppAlert.alert('Add merchant partner?', confirmMessage, [
             { text: 'Cancel', style: 'cancel' },
@@ -165,6 +195,7 @@ const MerchantAdd = ({ navigation }) => {
                                     phone: phone.trim(),
                                 },
                                 default_commission_percent: commission,
+                                ...roleFields,
                             });
                             AppAlert.alert('Done', 'Merchant created. A temporary password was emailed to the new user.', [
                                 { text: 'OK', onPress: () => navigation.goBack() },
@@ -173,6 +204,7 @@ const MerchantAdd = ({ navigation }) => {
                             await merchantsApi.promote({
                                 user_id: selectedUser.id,
                                 default_commission_percent: commission,
+                                ...roleFields,
                             });
                             AppAlert.alert('Done', 'Merchant record created.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
                         }
@@ -438,6 +470,41 @@ const MerchantAdd = ({ navigation }) => {
                         backgroundColor: colors.background,
                     }}
                 >
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                        {['agent', 'manager'].map((t) => {
+                            const active = agentType === t;
+                            return (
+                                <TouchableOpacity
+                                    key={t}
+                                    onPress={() => setAgentType(t)}
+                                    style={{
+                                        flex: 1,
+                                        paddingVertical: 10,
+                                        borderRadius: 8,
+                                        borderWidth: 1,
+                                        alignItems: 'center',
+                                        borderColor: active ? config.THEME_COLOR : colors.border,
+                                        backgroundColor: active ? config.THEME_COLOR + '22' : colors.surface,
+                                    }}
+                                >
+                                    <AppText label={agentTypeLabel(t)} fontSize={13} color={active ? colors.text : colors.textSecondary} />
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+                    {agentType === 'agent' ? (
+                        <TouchableOpacity
+                            onPress={() => setManagerPickerOpen(true)}
+                            style={[inputStyle, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+                        >
+                            <AppText
+                                label={selectedManager ? `Manager: ${userDisplayName(selectedManager)}` : 'Manager: none'}
+                                fontSize={14}
+                                color={selectedManager ? colors.text : colors.textSecondary}
+                            />
+                            <Lucide name="chevron-down" size={18} color={colors.textTertiary} />
+                        </TouchableOpacity>
+                    ) : null}
                     <TextInput
                         value={promotePct}
                         onChangeText={setPromotePct}
@@ -466,6 +533,18 @@ const MerchantAdd = ({ navigation }) => {
                     </TouchableOpacity>
                 </View>
             </KeyboardAvoidingView>
+            <PickerModal
+                visible={managerPickerOpen}
+                title="Agent manager"
+                message="The manager earns a 20% override on this agent's commission."
+                options={managerOptions}
+                selected={managerId}
+                onSelect={(v) => {
+                    setManagerId(v);
+                    setManagerPickerOpen(false);
+                }}
+                onClose={() => setManagerPickerOpen(false)}
+            />
         </SafeAreaView>
     );
 };

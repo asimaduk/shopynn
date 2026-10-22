@@ -24,6 +24,14 @@ import { merchants as merchantsApi } from '../../services/api';
 import { isFreeTierTenant } from '../../utils/billingCatalog';
 import { hasPermission } from '../../utils/permissions';
 import { formatPhone } from '../../utils/format';
+import {
+    AGENT_STATUS,
+    CommissionPill,
+    StatusPill,
+    agentTypeLabel,
+    commissionKindLabel,
+    managerDisplayName,
+} from './merchant_shared';
 
 function fmtMoney(v) {
     const n = Number(v);
@@ -64,6 +72,8 @@ const MerchantPortal = ({ navigation }) => {
     const canGoBack = typeof navigation.canGoBack === 'function' && navigation.canGoBack();
     const canManageMerchants = hasPermission(user, 'merchants.view');
     const canOperateMerchantPortal = hasPermission(user, ['merchants.operate', 'merchants.view']);
+    const canApprovePayouts = hasPermission(user, 'merchants.payouts.approve');
+    const canManageTeam = hasPermission(user, 'merchants.manage_team');
 
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -84,8 +94,9 @@ const MerchantPortal = ({ navigation }) => {
             let t = [];
             let c = [];
             if (m?.id && canOperateMerchantPortal) {
+                const active = !m.status || m.status === 'active';
                 const [tRes, cRes] = await Promise.all([
-                    merchantsApi.onboardedTenants(),
+                    active ? merchantsApi.onboardedTenants() : Promise.resolve(null),
                     merchantsApi.commissions(),
                 ]);
                 t = Array.isArray(tRes?.tenants) ? tRes.tenants : [];
@@ -249,6 +260,87 @@ const MerchantPortal = ({ navigation }) => {
             </View>
         ) : null;
 
+    const pendingApprovalCount = adminMerchants.filter((r) => r.status === 'pending_approval').length;
+    const merchantActive = !merchant?.status || merchant.status === 'active';
+    const quickLinks = [
+        merchant?.id && canOperateMerchantPortal
+            ? { key: 'earnings', icon: 'wallet', label: 'My earnings', screen: 'MerchantEarnings' }
+            : null,
+        merchant?.agent_type === 'manager' && merchantActive && canManageTeam
+            ? { key: 'team', icon: 'users', label: 'My team', screen: 'MerchantTeam' }
+            : null,
+        canApprovePayouts ? { key: 'payouts', icon: 'banknote', label: 'Agent payouts', screen: 'AgentPayouts' } : null,
+    ].filter(Boolean);
+
+    const renderQuickLinks = () => (
+        <>
+            {merchant?.id && !merchantActive ? (
+                <View style={[cardStyle, { backgroundColor: 'rgba(245,158,11,0.12)', borderColor: 'rgba(245,158,11,0.4)' }]}>
+                    <AppText
+                        label={
+                            merchant.status === 'pending_approval'
+                                ? 'Your agent account is awaiting Shopynn approval. You can onboard shops once approved.'
+                                : 'Your agent account is not active. Contact Shopynn if you think this is a mistake.'
+                        }
+                        fontSize={13}
+                        color={colors.text}
+                    />
+                </View>
+            ) : null}
+            {canManageMerchants && pendingApprovalCount > 0 ? (
+                <TouchableOpacity
+                    onPress={() => {
+                        setTab('all');
+                        setSearch('');
+                    }}
+                    activeOpacity={0.8}
+                    style={[
+                        cardStyle,
+                        {
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 10,
+                            backgroundColor: 'rgba(245,158,11,0.12)',
+                            borderColor: 'rgba(245,158,11,0.4)',
+                        },
+                    ]}
+                >
+                    <Lucide name="user-check" size={20} color="#d97706" />
+                    <AppText
+                        label={`${pendingApprovalCount} recruit${pendingApprovalCount === 1 ? '' : 's'} awaiting your approval. Open a partner to approve or reject.`}
+                        fontSize={13}
+                        color={colors.text}
+                        style={{ flex: 1 }}
+                    />
+                </TouchableOpacity>
+            ) : null}
+            {quickLinks.length ? (
+                <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
+                    {quickLinks.map((q) => (
+                        <TouchableOpacity
+                            key={q.key}
+                            onPress={() => navigation.navigate(q.screen)}
+                            activeOpacity={0.8}
+                            style={{
+                                flex: 1,
+                                alignItems: 'center',
+                                gap: 6,
+                                paddingVertical: 12,
+                                borderRadius: 12,
+                                backgroundColor: colors.surface,
+                                borderWidth: 1,
+                                borderColor: colors.border,
+                            }}
+                        >
+                            <Lucide name={q.icon} size={20} color={config.THEME_COLOR} />
+                            <AppText label={q.label} fontSize={12} variant={1} color={colors.text} />
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            ) : null}
+        </>
+    );
+
     const renderMerchantItem = ({ item: row }) => (
         <TouchableOpacity
             style={[cardStyle, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}
@@ -268,7 +360,10 @@ const MerchantPortal = ({ navigation }) => {
                 <Lucide name="user" size={22} color={config.THEME_COLOR} />
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
-                <AppText label={userDisplayName(row)} variant={1} color={colors.text} fontSize={16} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <AppText label={userDisplayName(row)} variant={1} color={colors.text} fontSize={16} style={{ flexShrink: 1 }} numberOfLines={1} />
+                    {row.status && row.status !== 'active' ? <StatusPill meta={AGENT_STATUS[row.status]} fallback={row.status} /> : null}
+                </View>
                 <AppText
                     label={[row.email, formatPhone(row.phone)].filter(Boolean).join(' · ') || '—'}
                     variant={2}
@@ -277,7 +372,20 @@ const MerchantPortal = ({ navigation }) => {
                     style={{ marginTop: 4 }}
                 />
                 <AppText
-                    label={`${row.onboarded_count ?? 0} businesses · Default ${
+                    label={
+                        row.agent_type === 'manager'
+                            ? `${agentTypeLabel(row.agent_type)} · ${row.team_size ?? 0} agents`
+                            : managerDisplayName(row)
+                              ? `${agentTypeLabel(row.agent_type)} · Team of ${managerDisplayName(row)}`
+                              : agentTypeLabel(row.agent_type)
+                    }
+                    variant={2}
+                    color={config.THEME_COLOR}
+                    fontSize={12}
+                    style={{ marginTop: 4 }}
+                />
+                <AppText
+                    label={`${row.serving_count ?? row.onboarded_count ?? 0} businesses · Default ${
                         row.default_commission_percent != null && row.default_commission_percent !== ''
                             ? `${fmtMoney(row.default_commission_percent)}%`
                             : '—'
@@ -518,22 +626,16 @@ const MerchantPortal = ({ navigation }) => {
                         borderBottomColor: colors.border,
                     }}
                 >
-                    <View style={{ flex: 1.7, paddingRight: 4 }}>
-                        <AppText label="Tenant" fontSize={11} color={colors.textTertiary} variant={1} />
+                    <View style={{ flex: 2, paddingRight: 4 }}>
+                        <AppText label="Business" fontSize={11} color={colors.textTertiary} variant={1} />
                     </View>
-                    <View style={{ flex: 1, paddingRight: 4 }}>
-                        <AppText label="Base" fontSize={11} color={colors.textTertiary} variant={1} />
-                    </View>
-                    <View style={{ flex: 0.6, paddingRight: 4 }}>
-                        <AppText label="%" fontSize={11} color={colors.textTertiary} variant={1} />
-                    </View>
-                    <View style={{ flex: 1, paddingRight: 4 }}>
+                    <View style={{ flex: 1.1, paddingRight: 4 }}>
                         <AppText label="Comm." fontSize={11} color={colors.textTertiary} variant={1} />
                     </View>
-                    <View style={{ flex: 0.85, paddingRight: 4 }}>
+                    <View style={{ flex: 1.1, paddingRight: 4 }}>
                         <AppText label="Status" fontSize={11} color={colors.textTertiary} variant={1} />
                     </View>
-                    <View style={{ flex: 1 }}>
+                    <View style={{ flex: 0.9 }}>
                         <AppText label="Created" fontSize={11} color={colors.textTertiary} variant={1} />
                     </View>
                 </View>
@@ -550,33 +652,23 @@ const MerchantPortal = ({ navigation }) => {
                             backgroundColor: colors.surface,
                         }}
                     >
-                        <View style={{ flex: 1.7, paddingRight: 4 }}>
+                        <View style={{ flex: 2, paddingRight: 4 }}>
                             <AppText label={c.tenant_name || String(c.tenant_id || '—')} fontSize={12} color={colors.text} numberOfLines={2} />
+                            <AppText label={commissionKindLabel(c)} fontSize={10} color={colors.textTertiary} numberOfLines={1} style={{ marginTop: 2 }} />
                         </View>
-                        <View style={{ flex: 1, paddingRight: 4 }}>
-                            <AppText label={`GH₵ ${fmtMoney(c.base_amount)}`} fontSize={11} color={colors.textSecondary} />
-                        </View>
-                        <View style={{ flex: 0.6, paddingRight: 4 }}>
-                            <AppText label={`${fmtMoney(c.commission_percent)}`} fontSize={11} color={colors.textSecondary} />
-                        </View>
-                        <View style={{ flex: 1, paddingRight: 4 }}>
+                        <View style={{ flex: 1.1, paddingRight: 4 }}>
                             <AppText label={`GH₵ ${fmtMoney(c.commission_amount)}`} fontSize={11} color={colors.text} />
+                            <AppText
+                                label={`${fmtMoney(c.commission_percent)}% of ${fmtMoney(c.base_amount)}`}
+                                fontSize={9}
+                                color={colors.textTertiary}
+                                style={{ marginTop: 2 }}
+                            />
                         </View>
-                        <View style={{ flex: 0.85, paddingRight: 4 }}>
-                            <View
-                                style={{
-                                    paddingHorizontal: 6,
-                                    paddingVertical: 3,
-                                    borderRadius: 6,
-                                    alignSelf: 'flex-start',
-                                    backgroundColor:
-                                        c.status === 'paid' ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)',
-                                }}
-                            >
-                                <AppText label={c.status || '—'} variant={1} fontSize={10} color={colors.text} />
-                            </View>
+                        <View style={{ flex: 1.1, paddingRight: 4 }}>
+                            <CommissionPill commission={c} />
                         </View>
-                        <View style={{ flex: 1 }}>
+                        <View style={{ flex: 0.9 }}>
                             <AppText label={fmtDate(c.created_at)} fontSize={10} color={colors.textTertiary} />
                         </View>
                     </View>
@@ -641,7 +733,10 @@ const MerchantPortal = ({ navigation }) => {
             <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
                 {renderScreenHeader()}
                 <View style={{ flex: 1 }}>
-                    <View style={{ paddingHorizontal: 12 }}>{renderSearchBar()}</View>
+                    <View style={{ paddingHorizontal: 12, paddingTop: 10 }}>
+                        {renderQuickLinks()}
+                        {renderSearchBar()}
+                    </View>
                     <FlatList
                         data={filteredAdminMerchants}
                         keyExtractor={(item) => item.id}
@@ -733,7 +828,7 @@ const MerchantPortal = ({ navigation }) => {
         borderColor: colors.border,
     };
 
-    const showOnboardFab = Boolean(showPartnerTabs && canOperateMerchantPortal && tab !== 'all');
+    const showOnboardFab = Boolean(showPartnerTabs && canOperateMerchantPortal && merchantActive && tab !== 'all');
     const showPromoteFab = Boolean(canManageMerchants && tab === 'all');
     const scrollBottomPad =
         showOnboardFab || showPromoteFab ? fabBottomOffset + FAB_SIZE + 12 : bottomInsetPad;
@@ -743,7 +838,10 @@ const MerchantPortal = ({ navigation }) => {
             <View style={{ paddingHorizontal: 16, paddingTop: 6, paddingBottom: 4 }}>
                 <AppText label={heroSubtitle} variant={2} color={colors.textSecondary} fontSize={14} />
             </View>
-            <View style={{ paddingHorizontal: 12 }}>{renderSearchBar()}</View>
+            <View style={{ paddingHorizontal: 12, paddingTop: 8 }}>
+                {renderQuickLinks()}
+                {renderSearchBar()}
+            </View>
 
             {showPartnerTabs && tab !== 'all' ? (
                 <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 12, marginBottom: 14 }}>

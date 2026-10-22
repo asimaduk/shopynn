@@ -667,13 +667,42 @@ export const merchants = {
     submitOtp: (tenantId, body) =>
         axios.post(`/merchants/tenants/${tenantId}/payments/submit-otp`, body).then((res) => getData(res)),
     commissions: (params) => axios.get('/merchants/commissions', { params }).then((res) => getData(res)),
-    /** Body: `{ user_id, default_commission_percent? }` or `{ create_user: { first_name, last_name, email, phone }, default_commission_percent? }` — password is auto-generated and emailed */
+    /** Body: `{ user_id | create_user: { first_name, last_name, email, phone }, default_commission_percent?, agent_type?, manager_id? }` — password is auto-generated and emailed */
     promote: (body) => axios.post('/merchants/promote', body).then((res) => getData(res)),
     markPaid: (id) => axios.patch(`/merchants/commissions/${id}/mark-paid`).then((res) => getData(res)),
     adminList: () => axios.get('/merchants/admin/list').then((res) => getData(res)),
     eligibleUsers: () => axios.get('/merchants/admin/eligible-users').then((res) => getData(res)),
     adminDetail: (id) => axios.get(`/merchants/admin/${id}`).then((res) => getData(res)),
-    revoke: (id) => axios.delete(`/merchants/admin/${id}`).then((res) => getData(res)),
+    deactivate: (id, reason) =>
+        axios.post(`/merchants/admin/${id}/deactivate`, { reason }).then((res) => getData(res)),
+    reactivate: (id) => axios.post(`/merchants/admin/${id}/reactivate`).then((res) => getData(res)),
+    /** Body: `{ agent_type?, manager_id? }` */
+    updateAdmin: (id, body) => axios.patch(`/merchants/admin/${id}`, body).then((res) => getData(res)),
+    approveRecruit: (id) => axios.post(`/merchants/admin/${id}/approve`).then((res) => getData(res)),
+    rejectRecruit: (id, reason) =>
+        axios.post(`/merchants/admin/${id}/reject`, { reason }).then((res) => getData(res)),
+    cancelCommission: (id, reason) =>
+        axios.post(`/merchants/admin/commissions/${id}/cancel`, { reason }).then((res) => getData(res)),
+
+    team: () => axios.get('/merchants/team').then((res) => getData(res)),
+    teamTenants: () => axios.get('/merchants/team/tenants').then((res) => getData(res)),
+    /** Body: `{ first_name, last_name, email, phone }` */
+    recruit: (body) => axios.post('/merchants/team/recruit', body).then((res) => getData(res)),
+    reassignTeamTenant: (tenantId, merchantId) =>
+        axios.put(`/merchants/team/tenants/${tenantId}/serving`, { merchant_id: merchantId }).then((res) => getData(res)),
+    deactivateTeamAgent: (id, reason) =>
+        axios.post(`/merchants/team/${id}/deactivate`, { reason }).then((res) => getData(res)),
+
+    earnings: () => axios.get('/merchants/earnings').then((res) => getData(res)),
+    /** Body: `{ momo_network, momo_number, account_holder_name }` */
+    savePayoutProfile: (body) => axios.put('/merchants/payout-profile', body).then((res) => getData(res)),
+    adminPayouts: (status) =>
+        axios.get('/merchants/admin/payouts', { params: status ? { status } : undefined }).then((res) => getData(res)),
+    preparePayouts: () => axios.post('/merchants/admin/payouts/prepare').then((res) => getData(res)),
+    approvePayout: (id) => axios.post(`/merchants/admin/payouts/${id}/approve`).then((res) => getData(res)),
+    rejectPayout: (id, reason) =>
+        axios.post(`/merchants/admin/payouts/${id}/reject`, { reason }).then((res) => getData(res)),
+    markPayoutFailed: (id) => axios.post(`/merchants/admin/payouts/${id}/mark-failed`).then((res) => getData(res)),
 };
 
 // —— Industries ——

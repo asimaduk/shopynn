@@ -128,6 +128,9 @@ import Roles from '../containers/settings/roles';
 import AuditLogDetails from '../containers/settings/audit_log_details';
 import MerchantPortal from '../containers/settings/merchant_portal';
 import MerchantDetail from '../containers/settings/merchant_detail';
+import MerchantEarnings from '../containers/settings/merchant_earnings';
+import MerchantTeam from '../containers/settings/merchant_team';
+import AgentPayouts from '../containers/settings/agent_payouts';
 import MerchantAdd from '../containers/settings/merchant_add';
 import MerchantOnboard from '../containers/settings/merchant_onboard';
 import MerchantCollect from '../containers/settings/merchant_collect';
@@ -546,6 +549,9 @@ function MainNavigator({ user, onNavigationStateChange }) {
                 <Stack.Screen name="MerchantPortal" component={MerchantPortal} options={{ headerShown: false }} />
                 <Stack.Screen name="MerchantAdd" component={MerchantAdd} options={{ headerShown: false }} />
                 <Stack.Screen name="MerchantDetail" component={MerchantDetail} options={{ headerShown: false }} />
+                <Stack.Screen name="MerchantEarnings" component={MerchantEarnings} options={{ headerShown: false }} />
+                <Stack.Screen name="MerchantTeam" component={MerchantTeam} options={{ headerShown: false }} />
+                <Stack.Screen name="AgentPayouts" component={AgentPayouts} options={{ headerShown: false }} />
                 <Stack.Screen name="TenantsDirectory" component={TenantsDirectory} options={{ headerShown: false }} />
                 <Stack.Screen name="TenantDirectoryDetail" component={TenantDirectoryDetail} options={{ headerShown: false }} />
                 <Stack.Screen name="BillingCatalog" component={BillingCatalog} options={{ headerShown: false }} />
