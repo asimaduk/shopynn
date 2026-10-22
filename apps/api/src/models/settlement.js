@@ -45,6 +45,24 @@ async function withTenantSettlementLock(tenantId, fn) {
     }
 }
 
+/**
+ * MoMo refunds are paid from Shopynn's Paystack balance, so the shop must still hold enough
+ * unwithdrawn collections to cover one. Call inside the return's transaction: the lock is held
+ * until it commits, so a withdrawal can't take the same money in between.
+ */
+export const assertGatewayRefundCovered = async (client, tenantId, amount) => {
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`tenant_settlement:${tenantId}`]);
+    const summary = await getTenantSettlementSummaryService(tenantId, client);
+    if (toMoney(amount) > summary.available_balance + 0.01) {
+        const err = new Error(
+            `Your Shopynn balance (GHS ${summary.available_balance.toFixed(2)}) can't cover this MoMo refund because the money has already been withdrawn or is being withdrawn. Refund in cash or store credit instead.`
+        );
+        err.status = 400;
+        err.code = "MOMO_REFUND_EXCEEDS_BALANCE";
+        throw err;
+    }
+};
+
 async function sumDigitalCollections(tenantId, db = pool) {
     const res = await db.query(
         `SELECT COALESCE(SUM(

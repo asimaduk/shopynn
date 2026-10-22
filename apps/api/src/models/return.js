@@ -2,6 +2,7 @@ import pool from "../config/db.js";
 import { v4 as uuidv4 } from "uuid";
 import { applyStoreCreditEntry, toMoney } from "./storeCredit.js";
 import { refundTransaction } from "../services/paymentGateway.js";
+import { assertGatewayRefundCovered } from "./settlement.js";
 import { defaultMinimumStockLevel } from "../util/reorderLevel.js";
 const COMPLETED = "completed";
 
@@ -696,6 +697,7 @@ export const createReturnService = async (payload) => {
                     "MOMO_REFUND_EXHAUSTED"
                 );
             }
+            await assertGatewayRefundCovered(client, tenantId, remittance);
         }
 
         if (refundMethod === "store_credit" && remittance <= 0.02 && arReduction <= 0.02 && refundAmount > 0.02) {
