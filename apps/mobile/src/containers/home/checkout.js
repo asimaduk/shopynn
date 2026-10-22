@@ -90,7 +90,6 @@ const Checkout = ({ navigation }) => {
     const [storeMinAmount, setStoreMinAmount] = useState(0);
     const [paymentMode, setPaymentMode] = useState('full');
     const [payTiming, setPayTiming] = useState('now');
-    const [initialPayment, setInitialPayment] = useState('');
 
     const items = getCartItems();
     const totalItems = useMemo(
@@ -123,14 +122,6 @@ const Checkout = ({ navigation }) => {
             setPaymentMode('full');
         }
     }, [allInstallmentEligible, paymentMode]);
-
-    useEffect(() => {
-        if (paymentMode === 'installment' && requiredInitial > 0) {
-            setInitialPayment(String(requiredInitial));
-        } else if (paymentMode === 'full') {
-            setInitialPayment('');
-        }
-    }, [paymentMode, requiredInitial]);
 
     useEffect(() => {
         let mounted = true;
@@ -176,17 +167,6 @@ const Checkout = ({ navigation }) => {
             );
             return;
         }
-        const initialAmt = paymentMode === 'installment' ? Number(initialPayment || 0) : 0;
-        if (paymentMode === 'installment') {
-            if (initialAmt < requiredInitial - 0.02) {
-                AppAlert.alert('Initial payment', `Minimum initial payment is GH₵ ${requiredInitial.toFixed(2)}.`);
-                return;
-            }
-            if (initialAmt > total + 0.02) {
-                AppAlert.alert('Initial payment', 'Initial payment cannot exceed order total.');
-                return;
-            }
-        }
         setLoading(true);
         try {
             const payload = {
@@ -202,7 +182,6 @@ const Checkout = ({ navigation }) => {
             };
             if (paymentMode === 'installment') {
                 payload.payment_mode = 'installment';
-                payload.initial_payment_amount = initialAmt;
             }
             const createdOrder = await orders.create(payload);
             clearCart();
@@ -441,35 +420,14 @@ const Checkout = ({ navigation }) => {
                                         },
                                     ]}
                                 >
-                                    {requiredInitial > 0 ? (
-                                        <AppText
-                                            label={`Minimum initial payment: GH₵ ${requiredInitial.toFixed(2)}`}
-                                            fontSize={12}
-                                            color={colors.textSecondary}
-                                            style={{ marginBottom: 8 }}
-                                        />
-                                    ) : null}
-                                    <TextInput
-                                        value={initialPayment}
-                                        onChangeText={setInitialPayment}
-                                        placeholder="Initial payment (optional)"
-                                        placeholderTextColor={colors.placeholder}
-                                        keyboardType="decimal-pad"
-                                        style={[
-                                            styles.input,
-                                            {
-                                                borderColor: colors.border,
-                                                color: colors.text,
-                                                minHeight: 46,
-                                                backgroundColor: colors.background,
-                                            },
-                                        ]}
-                                    />
                                     <AppText
-                                        label={`Balance after checkout: GH₵ ${Math.max(0, total - Number(initialPayment || 0)).toFixed(2)}`}
+                                        label={
+                                            requiredInitial > 0
+                                                ? `Nothing is charged now. Once the store confirms, your first payment must be at least GH₵ ${requiredInitial.toFixed(2)}, then pay the rest of GH₵ ${total.toFixed(2)} over time.`
+                                                : `Nothing is charged now. Once the store confirms, pay GH₵ ${total.toFixed(2)} over time from your order details.`
+                                        }
                                         fontSize={12}
-                                        color={config.THEME_COLOR}
-                                        style={{ marginTop: 8 }}
+                                        color={colors.textSecondary}
                                     />
                                 </View>
                             ) : null}

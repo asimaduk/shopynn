@@ -19,13 +19,13 @@ import {
     assertFulfillmentAllowedForInstallment,
     applyOrderPartialPayment,
     computeRequiredInitialPayment,
+    resolveMinInstallmentPayment,
     createInstallmentLedgerRow,
     enrichOrderInstallmentFields,
     getInstallmentPaymentsForOrder,
     isInstallmentOrder,
     loadProductsForInstallmentCheck,
     normalizePaymentMode,
-    resolveMinPartialPayment,
     toMoney,
     validateInstallmentCart,
     validatePartialPaymentAmount,
@@ -776,25 +776,24 @@ export const createOrderService = async (user, payload = {}) => {
             productIds
         );
         const isInstallment = normalizePaymentMode(payment_mode) === "installment";
-        let amountPaid = 0;
-        let balanceDue = toMoney(subtotal);
-        let orderPaymentStatus = "unpaid";
+        // Nothing is collected at checkout: the deposit is charged (or recorded as cash) after the
+        // store confirms, and resolveMinInstallmentPayment makes that first payment cover it.
+        const amountPaid = 0;
+        const balanceDue = toMoney(subtotal);
+        const orderPaymentStatus = isInstallment ? "installment_active" : "unpaid";
 
         if (isInstallment) {
             validateInstallmentCart(installmentProducts);
             const requiredInitial = computeRequiredInitialPayment(subtotal, installmentProducts);
-            const initialRaw = initial_payment_amount ?? payload.initialPaymentAmount ?? 0;
-            amountPaid = toMoney(initialRaw);
-            if (amountPaid < requiredInitial - 0.02) {
+            const planned = toMoney(initial_payment_amount ?? payload.initialPaymentAmount ?? 0);
+            if (planned > 0 && planned < requiredInitial - 0.02) {
                 throw new Error(
                     `Minimum initial payment is GHS ${requiredInitial.toFixed(2)} for pay-over-time checkout.`
                 );
             }
-            if (amountPaid > subtotal + 0.02) {
+            if (planned > subtotal + 0.02) {
                 throw new Error("Initial payment cannot exceed order total.");
             }
-            balanceDue = toMoney(Math.max(0, subtotal - amountPaid));
-            orderPaymentStatus = balanceDue <= 0 ? "paid" : "installment_active";
         }
 
         let insertOrderResult = null;
@@ -897,18 +896,6 @@ export const createOrderService = async (user, payload = {}) => {
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, now())`,
             [uuidv4(), orderId, user.tenant_id, null, "pending", "Order created", user.id]
         );
-
-        if (isInstallment && amountPaid > 0) {
-            await createInstallmentLedgerRow(client, {
-                order_id: orderId,
-                tenant_id: user.tenant_id,
-                amount: amountPaid,
-                payment_method: "checkout_initial",
-                status: "completed",
-                recorded_by: user.id,
-                note: "Initial payment at checkout",
-            });
-        }
 
         await client.query("COMMIT");
 
@@ -1600,7 +1587,7 @@ export const initiatePartialOrderPaymentService = async (user, orderId, body = {
         order.warehouse_id,
         productIds
     );
-    const minPartial = resolveMinPartialPayment(products);
+    const minPartial = resolveMinInstallmentPayment(order, products);
     const payAmount = validatePartialPaymentAmount(amount, order.balance_due, minPartial);
 
     const payment_method_type = payment_method === "mobile_money" ? "mobile_money" : "card";
@@ -1724,7 +1711,7 @@ export const recordPartialCashForOrderService = async (user, orderId, body = {})
         order.warehouse_id,
         productIds
     );
-    const minPartial = resolveMinPartialPayment(products);
+    const minPartial = resolveMinInstallmentPayment(order, products);
     const payAmount = validatePartialPaymentAmount(body?.amount, order.balance_due, minPartial);
     const note = body?.note != null ? String(body.note).trim() : "";
     const method = String(body?.payment_method || body?.method || "cash").trim().toLowerCase();

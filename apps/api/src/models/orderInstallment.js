@@ -67,6 +67,13 @@ export function resolveMinPartialPayment(products) {
     return toMoney(min);
 }
 
+/** Minimum for the next payment; the first one must also cover the deposit the products require. */
+export function resolveMinInstallmentPayment(order, products) {
+    const min = resolveMinPartialPayment(products);
+    if (toMoney(order.amount_paid) > 0.02) return min;
+    return toMoney(Math.max(min, computeRequiredInitialPayment(toMoney(order.total_amount), products)));
+}
+
 export function validatePartialPaymentAmount(amount, balanceDue, minPartial) {
     const amt = toMoney(amount);
     const balance = toMoney(balanceDue);
@@ -117,7 +124,7 @@ export async function createInstallmentLedgerRow(client, payload) {
             payments_id, recorded_by, note, created_at, completed_at
         ) VALUES (
             $1, $2, $3, $4, $5, $6,
-            $7, $8, $9, now(), CASE WHEN $6 = 'completed' THEN now() ELSE NULL END
+            $7, $8, $9, now(), CASE WHEN $10 THEN now() ELSE NULL END
         )`,
         [
             id,
@@ -129,6 +136,7 @@ export async function createInstallmentLedgerRow(client, payload) {
             payments_id,
             recorded_by,
             note,
+            status === "completed",
         ]
     );
     return id;
