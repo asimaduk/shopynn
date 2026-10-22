@@ -72,7 +72,9 @@ export const approveAgentPayout = async (req, res, next) => {
                 ? "Payout sent."
                 : payout.status === "failed"
                   ? `Payout failed: ${payout.failure_reason || "unknown error"}`
-                  : "Payout sent to Paystack; waiting for confirmation.";
+                  : payout.status === "pending_approval"
+                    ? payout.failure_reason || "Payout needs approval again."
+                    : "Payout sent to Paystack; waiting for confirmation.";
         handleResponse(res, 200, message, { payout });
     } catch (error) {
         if (error.message?.includes("switched off")) return handleResponse(res, 400, error.message, null);

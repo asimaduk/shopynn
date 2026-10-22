@@ -197,11 +197,19 @@ async function getOrCreateAgentRecipient(profile) {
         momo_number: normalizePhoneForPaystack(profile.momo_number),
         bank_code: bankCode,
     });
+    // Only cache the recipient if the agent hasn't changed their details in the meantime.
     await pool.query(
         `UPDATE merchant_payout_profiles
          SET paystack_recipient_code = $2, paystack_bank_code = $3, updated_at = now()
-         WHERE merchant_id = $1`,
-        [profile.merchant_id, recipient.recipient_code, bankCode]
+         WHERE merchant_id = $1 AND momo_network = $4 AND momo_number = $5 AND account_holder_name = $6`,
+        [
+            profile.merchant_id,
+            recipient.recipient_code,
+            bankCode,
+            profile.momo_network,
+            profile.momo_number,
+            profile.account_holder_name,
+        ]
     );
     return recipient.recipient_code;
 }
@@ -339,6 +347,34 @@ export const approveAgentPayoutService = async ({ payoutId, actorUserId }) => {
         return markPayoutFailed(payout.id, "The agent has no mobile money payout details.");
     }
 
+    // The admin approved the details shown on the payout. If the agent changed them since, send the
+    // payout back for review with the new details instead of paying an unreviewed number.
+    const snapshot = payout.payout_snapshot || {};
+    const reviewed =
+        snapshot.momo_network === profile.momo_network &&
+        snapshot.momo_number === profile.momo_number &&
+        snapshot.account_holder_name === profile.account_holder_name;
+    if (!reviewed) {
+        const r = await pool.query(
+            `UPDATE merchant_payouts
+             SET status = 'pending_approval', approved_by = NULL, approved_at = NULL,
+                 payout_snapshot = $2::jsonb, failure_reason = $3, updated_at = now()
+             WHERE id = $1 AND status = 'processing'
+             RETURNING *`,
+            [
+                payout.id,
+                JSON.stringify({
+                    payout_method: "momo",
+                    momo_network: profile.momo_network,
+                    momo_number: profile.momo_number,
+                    account_holder_name: profile.account_holder_name,
+                }),
+                "The agent changed their MoMo details after this payout was prepared. Check the new details and approve again.",
+            ]
+        );
+        return r.rows[0] || null;
+    }
+
     let recipientCode;
     try {
         recipientCode = await getOrCreateAgentRecipient(profile);
@@ -350,11 +386,9 @@ export const approveAgentPayoutService = async ({ payoutId, actorUserId }) => {
     const reference = `ap_${String(payout.id).replace(/-/g, "").slice(0, 24)}_${payout.attempts}`;
     await pool.query(
         `UPDATE merchant_payouts
-         SET paystack_transfer_reference = $2, payout_channel = $3,
-             payout_snapshot = payout_snapshot || jsonb_build_object('momo_number', $4::text, 'momo_network', $5::text),
-             updated_at = now()
+         SET paystack_transfer_reference = $2, payout_channel = $3, updated_at = now()
          WHERE id = $1`,
-        [payout.id, reference, isPaystackConfigured() ? "paystack" : "paystack_stub", profile.momo_number, profile.momo_network]
+        [payout.id, reference, isPaystackConfigured() ? "paystack" : "paystack_stub"]
     );
 
     let transfer;

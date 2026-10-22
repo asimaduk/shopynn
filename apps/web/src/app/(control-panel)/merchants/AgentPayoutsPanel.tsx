@@ -78,6 +78,8 @@ export default function AgentPayoutsPanel() {
 			const s = res.payout.status;
 			if (s === 'paid') toast.success('Payout sent.');
 			else if (s === 'failed') toast.error(`Payout failed: ${res.payout.failure_reason ?? 'unknown error'}`);
+			else if (s === 'pending_approval')
+				toast.error(res.payout.failure_reason ?? 'MoMo details changed. Check them and approve again.');
 			else toast.success('Sent to Paystack; waiting for confirmation.');
 		} catch (e) {
 			toast.error(errorMessage(e, 'Could not send payout'));
