@@ -23,7 +23,7 @@ import { canManageCustomerSignupCodes, canManageSubscription } from '@auth/permi
 import Link from '@fuse/core/Link';
 
 const MARKETING_SITE_URL = (
-	process.env.NEXT_PUBLIC_MARKETING_SITE_URL || 'https://shopynn.vercel.app'
+	process.env.NEXT_PUBLIC_MARKETING_SITE_URL || 'https://shopynn.app'
 ).replace(/\/$/, '');
 
 function storefrontOrderUrl(code: string) {

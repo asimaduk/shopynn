@@ -35,7 +35,7 @@ import { canManageCustomerSignupCodes } from '@auth/permissions';
 import { useGetWarehousesQuery } from '../../../../setups/warehouses/WarehouseApi';
 
 const MARKETING_SITE_URL = (
-	process.env.NEXT_PUBLIC_MARKETING_SITE_URL || 'https://shopynn.vercel.app'
+	process.env.NEXT_PUBLIC_MARKETING_SITE_URL || 'https://shopynn.app'
 ).replace(/\/$/, '');
 
 function storefrontProductUrl(referenceCode: string, productSlugOrId: string) {

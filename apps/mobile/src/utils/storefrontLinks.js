@@ -1,6 +1,6 @@
 import config from '../config';
 
-const SITE_BASE = String(config.MARKETING_SITE_URL || 'https://shopynn.vercel.app').replace(/\/$/, '');
+const SITE_BASE = String(config.MARKETING_SITE_URL || 'https://shopynn.app').replace(/\/$/, '');
 
 export function storefrontStoreUrl(referenceCode) {
     const code = String(referenceCode || '')

@@ -11,7 +11,7 @@ export default {
     VERSION_NUMBER: 1,
     BASE_API,
     /** Marketing site (Vercel). Used by About App website / privacy / terms links. */
-    MARKETING_SITE_URL: 'https://shopynn.vercel.app',
+    MARKETING_SITE_URL: 'https://shopynn.app',
     /** Local receipt agent default (override via More → Print agent). Checkout PC with USB printer — not Railway. */
     LOCAL_PRINT_URL: 'http://127.0.0.1:3001/print',
     /** Matches ims-web default theme `themesConfig.default` (Fuse primary / secondary.light) */

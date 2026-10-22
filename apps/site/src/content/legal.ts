@@ -10,7 +10,7 @@ export const privacyPolicy = {
   sections: [
     {
       heading: "1. Who this policy applies to",
-      body: `This policy applies to visitors of our marketing site (including shopynn.vercel.app and any custom domain), businesses that sign up for Shopynn, and users invited to a customer’s Shopynn account (e.g. staff, managers).
+      body: `This policy applies to visitors of our marketing site (shopynn.app), businesses that sign up for Shopynn, and users invited to a customer’s Shopynn account (e.g. staff, managers).
 
 If you interact with a retailer that uses Shopynn, that business may also process your data under its own policies. Where we process data on their behalf, we act as a service provider to that business.`,
     },

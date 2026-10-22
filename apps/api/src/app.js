@@ -32,6 +32,7 @@ app.disable("x-powered-by");
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 
 const DEFAULT_CORS_ORIGINS = [
+    "https://dashboard.shopynn.app",
     "https://admin-shopynn.vercel.app",
     "https://shopynn.vercel.app",
     "https://shopynn.app",

@@ -17,13 +17,14 @@ Monorepo layout:
 Create **two** Vercel projects from the **same** Git repo:
 
 1. **admin-shopynn** (formerly shopynn-web)
-   - Production URL: `https://admin-shopynn.vercel.app`
+   - Production URL: `https://dashboard.shopynn.app` (Vercel alias `admin-shopynn.vercel.app`)
    - Root Directory: `apps/web`
    - Framework: Next.js
    - Env (Production): set all of these to the new origin after any domain rename:
-     - `AUTH_URL=https://admin-shopynn.vercel.app`
-     - `NEXTAUTH_URL=https://admin-shopynn.vercel.app` (if used)
-     - `NEXT_PUBLIC_BASE_URL=https://admin-shopynn.vercel.app`
+     - `AUTH_URL=https://dashboard.shopynn.app`
+     - `NEXTAUTH_URL=https://dashboard.shopynn.app` (if used)
+     - `NEXT_PUBLIC_BASE_URL=https://dashboard.shopynn.app`
+     - `NEXT_PUBLIC_MARKETING_SITE_URL=https://shopynn.app` (storefront links)
    - Ignored Build Step:
      ```bash
      bash scripts/vercel-ignore-web.sh
@@ -31,7 +32,7 @@ Create **two** Vercel projects from the **same** Git repo:
    - Equivalent: `npx turbo-ignore @shopynn/web`
 
 2. **shopynn-site**
-   - Production URL: `https://shopynn.vercel.app` (update About App `MARKETING_SITE_URL` if renamed)
+   - Production URL: `https://shopynn.app` (Vercel alias `shopynn.vercel.app`; mobile `MARKETING_SITE_URL` points here)
    - Root Directory: `apps/site`
    - Framework: **TanStack Start** (not Next.js — this app is Vite + TanStack Start)
    - Leave Build Command / Output Directory empty (Nitro writes `.vercel/output`)
@@ -41,7 +42,7 @@ Create **two** Vercel projects from the **same** Git repo:
      bash scripts/vercel-ignore-site.sh
      ```
    - Equivalent: `npx turbo-ignore @shopynn/site`
-   - Env: `VITE_API_BASE_URL` (Railway API origin), `VITE_WEB_APP_URL` (admin web origin, e.g. `https://admin-shopynn.vercel.app`)
+   - Env: `VITE_API_BASE_URL` (Railway API origin), `VITE_WEB_APP_URL` (dashboard origin, `https://dashboard.shopynn.app`)
    - These must also be listed under `build.env` in root `turbo.json` (Turbo strips undeclared Vercel envs)
 
 `turbo-ignore` / these scripts exit `0` to **skip** the deploy when the commit does not touch that app (so an API-only push will not rebuild Vercel).
@@ -72,8 +73,8 @@ Copy from `apps/api/.env.example`. Required at minimum:
 - Listen on Railway’s `PORT` (app reads `PORT` then `APP_PORT`; do not hard-pin a different port)
 - `JWT_SECRET`
 - `PAYSTACK_SECRET_KEY` (production payments / withdrawals)
-- `FRONTEND_URL` / `PAYMENT_CALLBACK_URL` (point at admin web, e.g. `https://admin-shopynn.vercel.app`)
-- `CORS_ORIGINS` (optional, comma-separated) — browser origins allowed to call the API. Defaults to `admin-shopynn.vercel.app`, `shopynn.vercel.app`, `shopynn.app` and `www.shopynn.app`; set it when a web or site domain changes. Requests with no Origin header (mobile app, webhooks) are always allowed.
+- `FRONTEND_URL` / `PAYMENT_CALLBACK_URL` (point at the dashboard, `https://dashboard.shopynn.app`; keep the same path the current value uses)
+- `CORS_ORIGINS` (optional, comma-separated) — browser origins allowed to call the API. Defaults to `dashboard.shopynn.app`, `admin-shopynn.vercel.app`, `shopynn.vercel.app`, `shopynn.app` and `www.shopynn.app`. If it is set on Railway it replaces the defaults, so it must include `https://dashboard.shopynn.app`. Requests with no Origin header (mobile app, webhooks) are always allowed.
 - AWS/S3 keys if uploads are enabled
 - `FIREBASE_SERVICE_ACCOUNT_JSON` — stringified Firebase Admin service account JSON (for FCM push). Prefer this over a file path on Railway.
 - `RESEND_API_KEY` and `MAIL_DOMAIN` (e.g. `shopynn.app`, verified in Resend) — all email goes through the Resend API. Each email picks a sender mailbox by purpose: `no-reply@` (codes, alerts, invoices, password emails; replies go to `support@`), `support@` (welcome, contact and chat replies), `hello@` (newsletter), `billing@`. Override any of them with `MAIL_FROM_NOREPLY`, `MAIL_FROM_SUPPORT`, `MAIL_FROM_HELLO` or `MAIL_FROM_BILLING`.
@@ -84,12 +85,12 @@ Never commit real `.env` files or the Firebase JSON under `secrets/`.
 
 - Public API base URL pointing at the Railway API (whatever env name the app already uses, e.g. `NEXT_PUBLIC_*` / existing config)
 - Auth secrets (`AUTH_SECRET`)
-- After renaming the Vercel domain, update `AUTH_URL` / `NEXTAUTH_URL` / `NEXT_PUBLIC_BASE_URL` to match (e.g. `https://admin-shopynn.vercel.app`) and redeploy
+- After renaming the domain, update `AUTH_URL` / `NEXTAUTH_URL` / `NEXT_PUBLIC_BASE_URL` to match (`https://dashboard.shopynn.app`) and redeploy
 
 ### Vercel — `@shopynn/site`
 
 - `VITE_API_BASE_URL` — Railway API origin (no trailing slash), e.g. `https://shopynn-production.up.railway.app`
-- `VITE_WEB_APP_URL` — admin web origin for sign-in links (e.g. `https://admin-shopynn.vercel.app`), then redeploy site
+- `VITE_WEB_APP_URL` — dashboard origin for sign-in links (`https://dashboard.shopynn.app`), then redeploy site
 - Any analytics keys
 
 ### Mobile — `@shopynn/mobile`
