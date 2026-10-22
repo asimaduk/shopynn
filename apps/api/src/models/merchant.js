@@ -2,7 +2,14 @@ import pool from "../config/db.js";
 import { v4 as uuidv4 } from "uuid";
 import { createTenantService } from "./tenant.js";
 import { createUserService, activateUserWithCredentialsService } from "./user.js";
-import { QUOTE_STATUS, QUOTE_KIND, COMMISSION_KIND, SUBSCRIPTION_RESIDUAL_COMMISSION_RATE } from "../constants/billingCatalog.js";
+import {
+    QUOTE_STATUS,
+    QUOTE_KIND,
+    COMMISSION_KIND,
+    SUBSCRIPTION_RESIDUAL_COMMISSION_RATE,
+    ONBOARDING_COMMISSION_CLAWBACK_DAYS,
+} from "../constants/billingCatalog.js";
+import { createManagerOverrideForCommissionService, COMMISSION_LIFECYCLE_SQL } from "./agentPayout.js";
 import {
     buildQuoteLinesForOnboardService,
     insertOnboardingQuoteService,
@@ -305,16 +312,22 @@ export const getCommissionsForMerchantService = async (merchantId, requestQuery 
     const status = requestQuery.status ? String(requestQuery.status).trim() : null;
     const params = [merchantId];
     let where = "mc.merchant_id = $1";
-    if (status && (status === "pending" || status === "paid")) {
+    if (status && ["pending", "in_payout", "paid", "cancelled"].includes(status)) {
         params.push(status);
         where += ` AND mc.status = $${params.length}`;
     }
     const r = await pool.query(
         `SELECT mc.id, mc.merchant_id, mc.tenant_id, mc.subscription_id, mc.base_amount, mc.commission_percent,
                 mc.commission_amount, mc.status, mc.paid_at, mc.notes, mc.created_at,
-                t.name AS tenant_name, t.organization AS tenant_organization
+                mc.commission_kind, mc.payable_after, mc.payout_id, mc.cancel_reason,
+                ${COMMISSION_LIFECYCLE_SQL} AS lifecycle,
+                t.name AS tenant_name, t.organization AS tenant_organization,
+                su.first_name AS source_agent_first_name, su.last_name AS source_agent_last_name
          FROM merchant_commissions mc
          INNER JOIN tenants t ON t.id = mc.tenant_id
+         LEFT JOIN merchant_commissions src ON src.id = mc.source_commission_id
+         LEFT JOIN merchants sm ON sm.id = src.merchant_id
+         LEFT JOIN users su ON su.id = sm.user_id
          WHERE ${where}
          ORDER BY mc.created_at DESC`,
         params
@@ -390,7 +403,7 @@ export const listTeamMembersService = async (managerId) => {
     const r = await pool.query(
         `SELECT ${MERCHANT_ADMIN_COLUMNS},
                 COALESCE((SELECT SUM(mc.commission_amount) FROM merchant_commissions mc
-                          WHERE mc.merchant_id = m.id AND mc.status = 'pending'), 0)::numeric(12,2) AS pending_commission_ghs,
+                          WHERE mc.merchant_id = m.id AND mc.status IN ('pending', 'in_payout')), 0)::numeric(12,2) AS pending_commission_ghs,
                 COALESCE((SELECT SUM(mc.commission_amount) FROM merchant_commissions mc
                           WHERE mc.merchant_id = m.id AND mc.status = 'paid'), 0)::numeric(12,2) AS paid_commission_ghs
          FROM merchants m
@@ -881,7 +894,7 @@ export const createResidualCommissionForSubscriptionPaymentService = async ({
             base_amount, commission_percent, commission_amount,
             onboarding_commission_amount, subscription_commission_amount,
             status, payable_after, commission_kind, notes, created_at
-        ) VALUES ($1,$2,$3,$4,NULL,$5,$6,$7,$8,0,$8,'pending',now(),$9,$10,now())`,
+        ) VALUES ($1,$2,$3,$4,NULL,$5,$6,$7,$8,0,$8,'pending',now() + make_interval(days => $11),$9,$10,now())`,
         [
             id,
             servingMerchantId,
@@ -893,7 +906,9 @@ export const createResidualCommissionForSubscriptionPaymentService = async ({
             commission_amount,
             COMMISSION_KIND.RESIDUAL,
             "10% subscription residual",
+            ONBOARDING_COMMISSION_CLAWBACK_DAYS,
         ]
     );
+    await createManagerOverrideForCommissionService(id);
     return { id, commission_amount, merchant_id: servingMerchantId };
 };

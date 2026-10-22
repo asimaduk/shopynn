@@ -25,11 +25,13 @@ import useUser from '@auth/useUser';
 import { hasPermissionCodes } from '@auth/permissions';
 import toast from 'react-hot-toast';
 import PageBreadcrumb from 'src/components/PageBreadcrumb';
-import { useGetAdminMerchantDetailQuery, useMarkCommissionPaidMutation } from './MerchantApi';
+import { useCancelCommissionMutation, useGetAdminMerchantDetailQuery, useMarkCommissionPaidMutation } from './MerchantApi';
+import CommissionStatusChip from './CommissionStatusChip';
 import {
 	AGENT_STATUS_COLOR,
 	AGENT_STATUS_LABEL,
 	agentTypeLabel,
+	commissionKindLabel,
 	formatDate,
 	formatMoney,
 	managerDisplayName,
@@ -59,6 +61,22 @@ export default function MerchantDetailPage({ merchantId }: MerchantDetailPagePro
 	});
 
 	const [markPaid, { isLoading: marking }] = useMarkCommissionPaidMutation();
+	const [cancelCommission, { isLoading: cancelling }] = useCancelCommissionMutation();
+
+	const handleCancel = async (commissionId: string) => {
+		const reason = window.prompt(
+			'Cancel this commission (e.g. the payment was refunded)? Any manager override on it is cancelled too. Reason:'
+		);
+		if (reason === null) return;
+		try {
+			await cancelCommission({ id: commissionId, reason }).unwrap();
+			toast.success('Commission cancelled.');
+			await refetch();
+		} catch (e: unknown) {
+			const err = e as { data?: { message?: string }; error?: string };
+			toast.error(err?.data?.message || err?.error || 'Could not cancel commission');
+		}
+	};
 	const [switchTenant, setSwitchTenant] = useState<{ id: string; name: string | null } | null>(null);
 
 	const merchant = data?.merchant;
@@ -371,11 +389,9 @@ export default function MerchantDetailPage({ merchantId }: MerchantDetailPagePro
 										<TableHead>
 											<TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.04) }}>
 												<TableCell sx={{ fontWeight: 700 }}>Business</TableCell>
+												<TableCell sx={{ fontWeight: 700 }}>Type</TableCell>
 												<TableCell align="right" sx={{ fontWeight: 700 }}>
 													Base
-												</TableCell>
-												<TableCell align="right" sx={{ fontWeight: 700 }}>
-													%
 												</TableCell>
 												<TableCell align="right" sx={{ fontWeight: 700 }}>
 													Commission
@@ -402,24 +418,24 @@ export default function MerchantDetailPage({ merchantId }: MerchantDetailPagePro
 												commissions.map((c) => (
 													<TableRow key={c.id} hover>
 														<TableCell>{c.tenant_name ?? c.tenant_id}</TableCell>
+														<TableCell>{commissionKindLabel(c)}</TableCell>
 														<TableCell align="right">GHS {formatMoney(c.base_amount)}</TableCell>
-														<TableCell align="right">{formatMoney(c.commission_percent)}</TableCell>
 														<TableCell align="right">GHS {formatMoney(c.commission_amount)}</TableCell>
 														<TableCell>
-															<Chip
-																size="small"
-																label={c.status}
-																color={c.status === 'paid' ? 'success' : 'warning'}
-																variant={c.status === 'paid' ? 'filled' : 'outlined'}
-															/>
+															<CommissionStatusChip commission={c} />
 														</TableCell>
 														<TableCell>{formatDate(c.created_at)}</TableCell>
 														{canMarkCommissionsPaid ? (
 															<TableCell align="right">
 																{c.status === 'pending' ? (
-																	<Button size="small" disabled={marking} onClick={() => handleMarkPaid(c.id)} variant="outlined">
-																		Mark paid
-																	</Button>
+																	<Box className="flex justify-end gap-1">
+																		<Button size="small" disabled={marking || cancelling} onClick={() => handleMarkPaid(c.id)} variant="outlined">
+																			Mark paid
+																		</Button>
+																		<Button size="small" color="warning" disabled={marking || cancelling} onClick={() => handleCancel(c.id)}>
+																			Cancel (refund)
+																		</Button>
+																	</Box>
 																) : (
 																	'—'
 																)}

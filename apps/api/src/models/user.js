@@ -949,7 +949,7 @@ export const assignMerchantPermissionsToUserRoleService = async ({
             return { status: 404, message: "Role not found for this tenant." };
         }
 
-        const permissionCodes = ["merchants.view", "merchants.operate", "merchants.manage_team", "tenants.directory.view"];
+        const permissionCodes = ["merchants.view", "merchants.operate", "merchants.manage_team", "merchants.payouts.approve", "tenants.directory.view"];
         const permsResult = await client.query(
             `SELECT id, code FROM permissions WHERE code = ANY($1::text[])`,
             [permissionCodes]

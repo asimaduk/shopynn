@@ -95,6 +95,61 @@ export type MerchantCommissionRow = {
 	created_at: string;
 	tenant_name?: string | null;
 	tenant_organization?: string | null;
+	commission_kind?: 'acquisition' | 'residual' | 'override';
+	payable_after?: string | null;
+	payout_id?: string | null;
+	cancel_reason?: string | null;
+	lifecycle?: CommissionLifecycle;
+	source_agent_first_name?: string | null;
+	source_agent_last_name?: string | null;
+};
+
+export type CommissionLifecycle = 'held' | 'payable' | 'in_payout' | 'paid' | 'cancelled';
+
+export type PayoutStatus = 'pending_approval' | 'processing' | 'paid' | 'failed' | 'rejected';
+
+export type MomoNetwork = 'mtn' | 'vodafone' | 'airteltigo';
+
+export type AgentPayoutProfile = {
+	merchant_id: string;
+	payout_method: 'momo';
+	momo_network: MomoNetwork;
+	momo_number: string;
+	account_holder_name: string;
+	updated_at?: string;
+};
+
+export type AgentPayoutRow = {
+	id: string;
+	merchant_id?: string;
+	amount: string | number;
+	fee_absorbed?: string | number;
+	status: PayoutStatus;
+	commission_count: number;
+	failure_reason?: string | null;
+	payout_snapshot?: { momo_network?: string; momo_number?: string; account_holder_name?: string } | null;
+	payout_channel?: string | null;
+	paystack_transfer_reference?: string | null;
+	attempts?: number;
+	created_at: string;
+	approved_at?: string | null;
+	paid_at?: string | null;
+	first_name?: string | null;
+	last_name?: string | null;
+	email?: string | null;
+	phone?: string | null;
+	agent_type?: AgentType;
+};
+
+export type AgentEarnings = {
+	held_ghs: string | number;
+	payable_ghs: string | number;
+	in_payout_ghs: string | number;
+	paid_ghs: string | number;
+	next_release_at: string | null;
+	payout_min_ghs: number;
+	payout_schedule: string;
+	payouts: AgentPayoutRow[];
 };
 
 export type IndustryRow = {
@@ -358,6 +413,66 @@ const MerchantApi = api
 				}),
 				invalidatesTags: ['merchant']
 			}),
+			getMyEarnings: build.query<{ earnings: AgentEarnings; payout_profile: AgentPayoutProfile | null }, void>({
+				query: () => ({ url: '/api/merchants/earnings' }),
+				providesTags: ['merchant']
+			}),
+			savePayoutProfile: build.mutation<
+				{ payout_profile: AgentPayoutProfile },
+				{ momo_network: MomoNetwork; momo_number: string; account_holder_name: string }
+			>({
+				query: (body) => ({ url: '/api/merchants/payout-profile', method: 'PUT', body }),
+				invalidatesTags: ['merchant']
+			}),
+			getAgentPayouts: build.query<
+				{ payouts: AgentPayoutRow[]; live_transfers_blocked: boolean },
+				{ status?: PayoutStatus } | void
+			>({
+				query: (arg) => ({
+					url: '/api/merchants/admin/payouts',
+					params: arg && arg.status ? { status: arg.status } : undefined
+				}),
+				providesTags: ['merchant']
+			}),
+			prepareAgentPayouts: build.mutation<
+				{
+					created: { id: string; name: string; amount: number }[];
+					skipped_no_profile: { merchant_id: string; name: string; payable_ghs: string }[];
+					min_ghs: number;
+				},
+				void
+			>({
+				query: () => ({ url: '/api/merchants/admin/payouts/prepare', method: 'POST' }),
+				invalidatesTags: ['merchant']
+			}),
+			approveAgentPayout: build.mutation<{ payout: AgentPayoutRow }, string>({
+				query: (id) => ({ url: `/api/merchants/admin/payouts/${id}/approve`, method: 'POST' }),
+				invalidatesTags: ['merchant']
+			}),
+			rejectAgentPayout: build.mutation<unknown, { id: string; reason?: string }>({
+				query: ({ id, reason }) => ({
+					url: `/api/merchants/admin/payouts/${id}/reject`,
+					method: 'POST',
+					body: { reason }
+				}),
+				invalidatesTags: ['merchant']
+			}),
+			markAgentPayoutFailed: build.mutation<unknown, { id: string; reason?: string }>({
+				query: ({ id, reason }) => ({
+					url: `/api/merchants/admin/payouts/${id}/mark-failed`,
+					method: 'POST',
+					body: { reason }
+				}),
+				invalidatesTags: ['merchant']
+			}),
+			cancelCommission: build.mutation<unknown, { id: string; reason?: string }>({
+				query: ({ id, reason }) => ({
+					url: `/api/merchants/admin/commissions/${id}/cancel`,
+					method: 'POST',
+					body: { reason }
+				}),
+				invalidatesTags: ['merchant']
+			}),
 			getIndustries: build.query<IndustryRow[], void>({
 				query: () => ({ url: '/api/industries' })
 			})
@@ -378,6 +493,14 @@ export const {
 	useGetAdminMerchantsQuery,
 	useGetEligibleMerchantUsersQuery,
 	useGetAdminMerchantDetailQuery,
+	useGetMyEarningsQuery,
+	useSavePayoutProfileMutation,
+	useGetAgentPayoutsQuery,
+	usePrepareAgentPayoutsMutation,
+	useApproveAgentPayoutMutation,
+	useRejectAgentPayoutMutation,
+	useMarkAgentPayoutFailedMutation,
+	useCancelCommissionMutation,
 	useDeactivateMerchantMutation,
 	useReactivateMerchantMutation,
 	useUpdateMerchantAdminMutation,

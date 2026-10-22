@@ -29,6 +29,17 @@ import {
     initiateTenantPayment,
     submitTenantPaymentOtp,
 } from "../controllers/merchant.js";
+import {
+    getMyEarnings,
+    getMyPayoutProfile,
+    saveMyPayoutProfile,
+    listAgentPayouts,
+    prepareAgentPayouts,
+    approveAgentPayout,
+    rejectAgentPayout,
+    markAgentPayoutFailed,
+    cancelCommission,
+} from "../controllers/agentPayout.js";
 
 const router = express.Router();
 
@@ -38,6 +49,32 @@ const platformAdmin = [
     requireFeature("merchants.view"),
     requirePermission("merchants.view"),
 ];
+
+const payoutApprover = [
+    auth,
+    requireActiveSubscription,
+    requireFeature("merchants.payouts.approve"),
+    requirePermission("merchants.payouts.approve"),
+];
+
+const anyAgent = [
+    auth,
+    requireActiveSubscription,
+    requireFeature("merchants.operate"),
+    requireAnyPermission("merchants.operate", "merchants.view"),
+    requireMerchantRecord,
+];
+
+router.get("/earnings", ...anyAgent, getMyEarnings);
+router.get("/payout-profile", ...anyAgent, getMyPayoutProfile);
+router.put("/payout-profile", ...anyAgent, saveMyPayoutProfile);
+
+router.get("/admin/payouts", ...payoutApprover, listAgentPayouts);
+router.post("/admin/payouts/prepare", ...payoutApprover, prepareAgentPayouts);
+router.post("/admin/payouts/:id/approve", ...payoutApprover, approveAgentPayout);
+router.post("/admin/payouts/:id/reject", ...payoutApprover, rejectAgentPayout);
+router.post("/admin/payouts/:id/mark-failed", ...payoutApprover, markAgentPayoutFailed);
+router.post("/admin/commissions/:id/cancel", ...platformAdmin, cancelCommission);
 
 const agentManager = [
     auth,

@@ -39,9 +39,19 @@ import MerchantPromoteDialog from './MerchantPromoteDialog';
 import DeactivateAgentDialog from './DeactivateAgentDialog';
 import AgentTeamDialog from './AgentTeamDialog';
 import MerchantTeamPanel from './MerchantTeamPanel';
-import { AGENT_STATUS_LABEL, formatDate, formatMoney, managerDisplayName, userDisplayName } from './merchantFormatters';
+import AgentEarningsPanel from './AgentEarningsPanel';
+import AgentPayoutsPanel from './AgentPayoutsPanel';
+import CommissionStatusChip from './CommissionStatusChip';
+import {
+	AGENT_STATUS_LABEL,
+	commissionKindLabel,
+	formatDate,
+	formatMoney,
+	managerDisplayName,
+	userDisplayName
+} from './merchantFormatters';
 
-type PortalTab = 'businesses' | 'commissions' | 'team' | 'team_shops' | 'all';
+type PortalTab = 'businesses' | 'commissions' | 'earnings' | 'team' | 'team_shops' | 'all' | 'payouts';
 
 function errorMessage(e: unknown, fallback: string) {
 	const err = e as { data?: { message?: string }; error?: string };
@@ -53,6 +63,7 @@ export default function MerchantsPage() {
 	const { data: user } = useUser();
 	const canManageMerchants = hasPermissionCodes(user, 'merchants.view');
 	const canOperateMerchantPortal = hasPermissionCodes(user, ['merchants.operate', 'merchants.view']);
+	const canApprovePayouts = hasPermissionCodes(user, 'merchants.payouts.approve');
 
 	const { data: meData, isLoading: loadingMe } = useGetMerchantMeQuery(undefined, {
 		refetchOnMountOrArgChange: true
@@ -84,6 +95,7 @@ export default function MerchantsPage() {
 	);
 
 	const [tab, setTab] = useState<PortalTab>('businesses');
+	const [adminTab, setAdminTab] = useState<'agents' | 'payouts'>('agents');
 	const [promoteOpen, setPromoteOpen] = useState(false);
 	const [deactivateTarget, setDeactivateTarget] = useState<AdminMerchantRow | null>(null);
 	const [teamTarget, setTeamTarget] = useState<AdminMerchantRow | null>(null);
@@ -198,12 +210,24 @@ export default function MerchantsPage() {
 						onAddMerchant={() => setPromoteOpen(true)}
 					/>
 					{pendingBanner}
-					<MerchantsTable
-						data={adminMerchants}
-						isLoading={loadingAdminMerchants}
-						onAction={handleAdminAction}
-						busy={adminBusy}
-					/>
+					{canApprovePayouts ? (
+						<Tabs value={adminTab} onChange={(_, v) => setAdminTab(v)} className="mb-2">
+							<Tab value="agents" label={`Agents (${adminMerchants.length})`} />
+							<Tab value="payouts" label="Payouts" />
+						</Tabs>
+					) : null}
+					{adminTab === 'payouts' && canApprovePayouts ? (
+						<Paper className="flex flex-auto flex-col overflow-auto rounded-t-lg shadow-1 rounded-b-none" elevation={0}>
+							<AgentPayoutsPanel />
+						</Paper>
+					) : (
+						<MerchantsTable
+							data={adminMerchants}
+							isLoading={loadingAdminMerchants}
+							onAction={handleAdminAction}
+							busy={adminBusy}
+						/>
+					)}
 					<MerchantPromoteDialog open={promoteOpen} onClose={() => setPromoteOpen(false)} />
 				</div>
 			</>
@@ -308,12 +332,18 @@ export default function MerchantsPage() {
 					<Tabs value={effectiveTab} onChange={(_, v) => setTab(v)} className="border-b border-divider px-2">
 						{merchantActive ? <Tab value="businesses" label={`Businesses (${tenants.length})`} /> : null}
 						<Tab value="commissions" label={`Commissions (${commissions.length})`} />
+						<Tab value="earnings" label="Earnings" />
 						{isManager ? <Tab value="team" label="My team" /> : null}
 						{isManager ? <Tab value="team_shops" label="Team shops" /> : null}
 						{canManageMerchants ? <Tab value="all" label={`All agents (${adminMerchants.length})`} /> : null}
+						{canApprovePayouts ? <Tab value="payouts" label="Payouts" /> : null}
 					</Tabs>
 
-					{effectiveTab === 'team' || effectiveTab === 'team_shops' ? (
+					{effectiveTab === 'earnings' ? (
+						<AgentEarningsPanel />
+					) : effectiveTab === 'payouts' ? (
+						<AgentPayoutsPanel />
+					) : effectiveTab === 'team' || effectiveTab === 'team_shops' ? (
 						merchant ? (
 							<MerchantTeamPanel
 								manager={merchant}
@@ -423,8 +453,8 @@ export default function MerchantsPage() {
 							<TableHead>
 								<TableRow>
 									<TableCell>Business</TableCell>
+									<TableCell>Type</TableCell>
 									<TableCell align="right">Base</TableCell>
-									<TableCell align="right">%</TableCell>
 									<TableCell align="right">Commission</TableCell>
 									<TableCell>Status</TableCell>
 									<TableCell>Created</TableCell>
@@ -434,16 +464,11 @@ export default function MerchantsPage() {
 								{commissions.map((c) => (
 									<TableRow key={c.id} hover>
 										<TableCell>{c.tenant_name ?? c.tenant_id}</TableCell>
+										<TableCell>{commissionKindLabel(c)}</TableCell>
 										<TableCell align="right">GHS {formatMoney(c.base_amount)}</TableCell>
-										<TableCell align="right">{formatMoney(c.commission_percent)}</TableCell>
 										<TableCell align="right">GHS {formatMoney(c.commission_amount)}</TableCell>
 										<TableCell>
-											<Chip
-												size="small"
-												label={c.status}
-												color={c.status === 'paid' ? 'success' : 'warning'}
-												variant={c.status === 'paid' ? 'filled' : 'outlined'}
-											/>
+											<CommissionStatusChip commission={c} />
 										</TableCell>
 										<TableCell>{formatDate(c.created_at)}</TableCell>
 									</TableRow>

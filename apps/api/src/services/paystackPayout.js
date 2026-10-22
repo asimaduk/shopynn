@@ -24,7 +24,7 @@ function profileFingerprint(profile) {
     return `bank|${profile.paystack_bank_code || profile.bank_name}|${profile.bank_account_number}`;
 }
 
-function normalizePhoneForPaystack(raw) {
+export function normalizePhoneForPaystack(raw) {
     const digits = String(raw || "").replace(/\D/g, "");
     if (digits.startsWith("233") && digits.length >= 12) {
         return `0${digits.slice(3)}`;

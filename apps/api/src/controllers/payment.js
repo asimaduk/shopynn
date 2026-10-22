@@ -507,15 +507,14 @@ export const paymentWebhook = async (req, res, next) => {
         } else if (event === "charge.failed" || event === "charge.failed_charge") {
             await updatePaymentStatusByTransactionRefService(reference, "failed");
             await syncOrderPaymentAfterFailure(reference);
-        } else if (event === "transfer.success") {
+        } else if (event === "transfer.success" || event === "transfer.failed" || event === "transfer.reversed") {
+            const status = event.slice("transfer.".length);
             const { handlePaystackTransferWebhook } = await import("../services/paystackPayout.js");
-            await handlePaystackTransferWebhook({ ...data, status: "success" });
-        } else if (event === "transfer.failed") {
-            const { handlePaystackTransferWebhook } = await import("../services/paystackPayout.js");
-            await handlePaystackTransferWebhook({ ...data, status: "failed" });
-        } else if (event === "transfer.reversed") {
-            const { handlePaystackTransferWebhook } = await import("../services/paystackPayout.js");
-            await handlePaystackTransferWebhook({ ...data, status: "reversed" });
+            const settlement = await handlePaystackTransferWebhook({ ...data, status });
+            if (!settlement) {
+                const { handleAgentPayoutTransferWebhook } = await import("../models/agentPayout.js");
+                await handleAgentPayoutTransferWebhook({ ...data, status });
+            }
         }
         res.status(200).send("OK");
     } catch (error) {

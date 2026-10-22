@@ -1,4 +1,10 @@
-import type { AdminMerchantRow, AgentStatus } from './MerchantApi';
+import type {
+	AdminMerchantRow,
+	AgentStatus,
+	CommissionLifecycle,
+	MerchantCommissionRow,
+	PayoutStatus
+} from './MerchantApi';
 
 export const AGENT_STATUS_LABEL: Record<AgentStatus, string> = {
 	pending_approval: 'Awaiting approval',
@@ -13,6 +19,52 @@ export const AGENT_STATUS_COLOR: Record<AgentStatus, 'warning' | 'success' | 'de
 	rejected: 'error',
 	deactivated: 'default'
 };
+
+export const COMMISSION_LIFECYCLE_LABEL: Record<CommissionLifecycle, string> = {
+	held: 'On hold',
+	payable: 'Payable',
+	in_payout: 'In payout',
+	paid: 'Paid',
+	cancelled: 'Cancelled'
+};
+
+export const COMMISSION_LIFECYCLE_COLOR: Record<CommissionLifecycle, 'default' | 'info' | 'warning' | 'success' | 'error'> = {
+	held: 'default',
+	payable: 'info',
+	in_payout: 'warning',
+	paid: 'success',
+	cancelled: 'error'
+};
+
+export const PAYOUT_STATUS_LABEL: Record<PayoutStatus, string> = {
+	pending_approval: 'Awaiting approval',
+	processing: 'Processing',
+	paid: 'Paid',
+	failed: 'Failed',
+	rejected: 'Rejected'
+};
+
+export const PAYOUT_STATUS_COLOR: Record<PayoutStatus, 'warning' | 'info' | 'success' | 'error' | 'default'> = {
+	pending_approval: 'warning',
+	processing: 'info',
+	paid: 'success',
+	failed: 'error',
+	rejected: 'default'
+};
+
+export const MOMO_NETWORK_LABEL: Record<string, string> = {
+	mtn: 'MTN',
+	vodafone: 'Telecel (Vodafone)',
+	airteltigo: 'AirtelTigo'
+};
+
+export function commissionKindLabel(c: Pick<MerchantCommissionRow, 'commission_kind' | 'source_agent_first_name' | 'source_agent_last_name'>) {
+	if (c.commission_kind === 'override') {
+		const who = [c.source_agent_first_name, c.source_agent_last_name].filter(Boolean).join(' ');
+		return who ? `Team override · ${who}` : 'Team override';
+	}
+	return c.commission_kind === 'residual' ? 'Renewal' : 'Onboarding';
+}
 
 export function agentTypeLabel(type: string | null | undefined) {
 	return type === 'manager' ? 'Agent manager' : 'Field agent';

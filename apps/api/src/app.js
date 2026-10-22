@@ -8,6 +8,7 @@ import errorhandling from "./middleware/errorhandler.js";
 import indexroute from "./routes/index.js";
 import { startSubscriptionStatusJob } from "./jobs/subscriptionStatusJob.js";
 import { startDailySalesSummaryNotificationJob } from "./jobs/dailySalesSummaryNotificationJob.js";
+import { startAgentPayoutJob } from "./jobs/agentPayoutJob.js";
 import { ensureBillingCatalogSeededService } from "./models/billingCatalog.js";
 import { backfillOrderSalesService } from "./models/orderSale.js";
 
@@ -69,6 +70,7 @@ app.use(errorhandling);
 
 startSubscriptionStatusJob();
 startDailySalesSummaryNotificationJob();
+startAgentPayoutJob();
 // Self-heal empty billing catalog after data restores (migrations already applied).
 ensureBillingCatalogSeededService().catch((err) => {
     console.error("startup billing catalog ensure failed:", err?.message || err);

@@ -122,6 +122,7 @@ const PLATFORM_NAV_FEATURES = new Set([
 	'merchants.view',
 	'merchants.operate',
 	'merchants.manage_team',
+	'merchants.payouts.approve',
 	'tenants.directory.view',
 	'newsletter.subscribers.view',
 	'newsletter.campaigns.view',

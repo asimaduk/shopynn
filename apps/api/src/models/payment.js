@@ -15,6 +15,7 @@ import {
     lockServingAgentOnFirstPaymentService,
     isMerchantActiveService,
 } from "./merchant.js";
+import { createManagerOverrideForCommissionService } from "./agentPayout.js";
 import crypto from "crypto";
 
 const buildTransactionRef = (paymentMethodType = "PAY") => {
@@ -967,12 +968,13 @@ export const syncOnboardingQuotePaymentAfterSuccess = async (transaction_ref, te
         if (fallback && (await isMerchantActiveService(fallback))) creditedMerchantId = fallback;
     }
     if (creditedMerchantId) {
-        await finalizeMerchantCommissionForQuoteService(
+        const commission = await finalizeMerchantCommissionForQuoteService(
             payment.quote_id,
             creditedMerchantId,
             quote.tenant_id,
             quote.subscription_id
         );
+        if (commission?.id) await createManagerOverrideForCommissionService(commission.id);
         await lockServingAgentOnFirstPaymentService(quote.tenant_id, creditedMerchantId);
     }
 

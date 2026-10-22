@@ -182,7 +182,21 @@ export const ONBOARDING_COMMISSION_CLAWBACK_DAYS = 30;
 export const COMMISSION_KIND = {
     ACQUISITION: "acquisition",
     RESIDUAL: "residual",
+    /** Agent manager's share of a team member's commission (paid on top, not deducted). */
+    OVERRIDE: "override",
 };
+
+function envNumber(name, fallback) {
+    const n = Number(process.env[name]);
+    return Number.isFinite(n) && n >= 0 ? n : fallback;
+}
+
+/** Manager override as a fraction of the agent's commission. */
+export const MANAGER_OVERRIDE_RATE = envNumber("AGENT_MANAGER_OVERRIDE_RATE", 0.2);
+/** Payable commission must reach this before a weekly payout is prepared. */
+export const AGENT_PAYOUT_MIN_GHS = envNumber("AGENT_PAYOUT_MIN_GHS", 50);
+/** Paystack's Ghana MoMo transfer fee, absorbed by Shopynn (recorded for reporting only). */
+export const AGENT_PAYOUT_MOMO_FEE_GHS = 1;
 
 export const COMMISSION_ELIGIBLE = {
     ONBOARDING_15: "onboarding_15",

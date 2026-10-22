@@ -180,6 +180,7 @@ INSERT INTO permissions (id, code, name, description, created_at) VALUES
 (gen_random_uuid()::text, 'merchants.view', 'View merchant admin', 'Register merchants and manage partner admin', now()),
 (gen_random_uuid()::text, 'merchants.operate', 'Merchant partner operations', 'Onboard linked businesses and view own commissions', now()),
 (gen_random_uuid()::text, 'merchants.manage_team', 'Manage agent team', 'Recruit field agents, view the team''s shops and earnings, reassign shops within the team', now()),
+(gen_random_uuid()::text, 'merchants.payouts.approve', 'Approve agent payouts', 'Approve and send agent commission payouts via Paystack', now()),
 
 -- Platform / directory (all tenants)
 (gen_random_uuid()::text, 'tenants.directory.view', 'View tenant directory', 'List all businesses (tenants), subscriptions, and related details', now()),
@@ -307,6 +308,7 @@ JOIN (
             'merchants.view',
             'merchants.operate',
             'merchants.manage_team',
+            'merchants.payouts.approve',
             'tenants.directory.view',
             'newsletter.subscribers.view',
             'newsletter.campaigns.view',
@@ -347,6 +349,7 @@ JOIN (
             'merchants.view',
             'merchants.operate',
             'merchants.manage_team',
+            'merchants.payouts.approve',
             'tenants.directory.view',
             'newsletter.subscribers.view',
             'newsletter.campaigns.view',
