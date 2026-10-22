@@ -164,7 +164,9 @@ const SubscriptionApi = api.enhanceEndpoints({ addTagTypes: subscriptionTagTypes
 		}),
 		getMySettlementSummary: build.query<
 			{
+				/** Net of MoMo refunds paid back through Paystack. */
 				digital_collected: number;
+				momo_refunded: number;
 				settled_paid: number;
 				pending_settlements: number;
 				available_balance: number;

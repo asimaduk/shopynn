@@ -63,6 +63,24 @@ async function sumDigitalCollections(tenantId, db = pool) {
     return toMoney(res.rows[0]?.total);
 }
 
+/**
+ * MoMo/card refunds are paid back through Shopynn's Paystack balance, so they come out of what the
+ * shop can withdraw. Cash and store-credit refunds don't touch collected funds. Pending refunds count
+ * too: the money may already be on its way back to the customer.
+ */
+async function sumGatewayRefunds(tenantId, db = pool) {
+    const res = await db.query(
+        `SELECT COALESCE(SUM(refund_amount), 0)::numeric AS total
+         FROM returns
+         WHERE tenant_id = $1
+           AND status = 'completed'
+           AND lower(coalesce(refund_method, '')) = 'momo'
+           AND lower(coalesce(refund_status, '')) IN ('pending', 'completed')`,
+        [tenantId]
+    );
+    return toMoney(res.rows[0]?.total);
+}
+
 async function sumSettlements(tenantId, statuses, db = pool) {
     const list = [...statuses];
     const res = await db.query(
@@ -77,12 +95,15 @@ async function sumSettlements(tenantId, statuses, db = pool) {
 
 export const getTenantSettlementSummaryService = async (tenantId, db = pool) => {
     // Sequential: a transaction client can't run queries in parallel.
-    const digitalCollected = await sumDigitalCollections(tenantId, db);
+    const grossCollected = await sumDigitalCollections(tenantId, db);
+    const momoRefunded = await sumGatewayRefunds(tenantId, db);
     const settledPaid = await sumSettlements(tenantId, ["paid"], db);
     const reservedPending = await sumSettlements(tenantId, [...RESERVED_SETTLEMENT_STATUSES], db);
+    const digitalCollected = toMoney(Math.max(0, grossCollected - momoRefunded));
     const availableBalance = toMoney(Math.max(0, digitalCollected - settledPaid - reservedPending));
     return {
         digital_collected: digitalCollected,
+        momo_refunded: momoRefunded,
         settled_paid: settledPaid,
         pending_settlements: reservedPending,
         available_balance: availableBalance,
