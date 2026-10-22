@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import {
     createTransferService as createTransferCore,
 } from "./transfer.js";
-import { deleteS3Objects } from "../util/s3Delete.js";
+import { deleteS3Objects, keyHasPrefix, tenantImagePrefix } from "../util/s3Delete.js";
 import { normalizeProductRow, toNum } from "../util/productNormalize.js";
 
 export const getAllProductsCountService = async (user) => {
@@ -771,7 +771,8 @@ export const changeProductPriceService = async (payload) => {
 }
 
 export const updateProductImagesService = async (payload) => {
-    const { id, thumbnail, picture1, picture2, picture3, picture4 } = payload;
+    const { id, tenant_id, thumbnail, picture1, picture2, picture3, picture4 } = payload;
+    if (!tenant_id) throw new Error("tenant_id is required.");
 
     const norm = (v) => {
         if (v === undefined || v === null || v === '') return null;
@@ -780,8 +781,8 @@ export const updateProductImagesService = async (payload) => {
     };
 
     const current = await pool.query(
-        `SELECT thumbnail, picture1, picture2, picture3, picture4 FROM products WHERE id = $1`,
-        [id]
+        `SELECT thumbnail, picture1, picture2, picture3, picture4 FROM products WHERE id = $1 AND tenant_id = $2`,
+        [id, tenant_id]
     );
     if (!current.rows?.[0]) return null;
 
@@ -797,17 +798,25 @@ export const updateProductImagesService = async (payload) => {
     const newP4 = norm(picture4);
 
     const newKeys = [newThumb, newP1, newP2, newP3, newP4].filter(Boolean);
+    const ownPrefix = tenantImagePrefix(tenant_id);
+    const oldKeySet = new Set(oldKeys);
+    const foreign = newKeys.find((k) => !oldKeySet.has(k) && !keyHasPrefix(k, [ownPrefix]));
+    if (foreign) {
+        const err = new Error("Upload product images through Shopynn before attaching them.");
+        err.status = 400;
+        throw err;
+    }
     const newKeySet = new Set(newKeys);
     const keysToDelete = oldKeys.filter((k) => !newKeySet.has(k));
 
     if (keysToDelete.length > 0) {
-        await deleteS3Objects(keysToDelete);
+        await deleteS3Objects(keysToDelete, { allowedPrefixes: [ownPrefix] });
     }
 
     const result = await pool.query(
         `
-        UPDATE products SET thumbnail=$1, picture1=$2, picture2=$3, picture3=$4, picture4=$5, updated_at=$6  WHERE id=$7 RETURNING id`,
-        [newThumb, newP1, newP2, newP3, newP4, new Date(), id]
+        UPDATE products SET thumbnail=$1, picture1=$2, picture2=$3, picture3=$4, picture4=$5, updated_at=$6  WHERE id=$7 AND tenant_id=$8 RETURNING id`,
+        [newThumb, newP1, newP2, newP3, newP4, new Date(), id, tenant_id]
     );
 
     return result.rows[0];

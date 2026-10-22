@@ -182,7 +182,7 @@ export const changeProductStatus = async (req, res, next) => {
 export const updateProductImages = async (req, res, next) => {
     try {
         await assertOwnProduct(req, req.body.id);
-        const updatedProduct = await updateProductImagesService(req.body);
+        const updatedProduct = await updateProductImagesService({ ...req.body, tenant_id: req.user.tenant_id });
         if(!updatedProduct) return handleResponse(res, 404, "Not found.")
         handleResponse(res, 201, "Product updated.", updatedProduct);
     } catch (error) {
@@ -203,6 +203,7 @@ export const uploadProductImages = async (req, res, next) => {
         };
         const payload = {
             id,
+            tenant_id: req.user.tenant_id,
             thumbnail: findKey("thumbnail"),
             picture1: findKey("picture1"),
             picture2: findKey("picture2"),

@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 import { handleResponse } from "../util/handleresponse.js";
 import { getPreferencesService, updatePreferencesService } from "../models/userPreferences.js";
 import { createAuditLogService } from "../models/auditLog.js";
-import { deleteS3Objects } from "../util/s3Delete.js";
+import { deleteS3Objects, userImagePrefix } from "../util/s3Delete.js";
 import { createUpload, s3Configured } from "../util/s3Upload.js";
 import { v4 as uuidv4 } from "uuid";
 
@@ -65,7 +65,7 @@ export const setMyProfileImage = async (req, res, next) => {
 
         // Best-effort cleanup of previous S3 object when replacing avatar.
         if (existingKey && existingKey !== file.key) {
-            await deleteS3Objects([existingKey]);
+            await deleteS3Objects([existingKey], { allowedPrefixes: [userImagePrefix(req.user.id)] });
         }
 
         await logProfileImageAudit(req, "PROFILE_IMAGE_UPDATE", {
@@ -91,7 +91,7 @@ export const removeMyProfileImage = async (req, res, next) => {
 
         if (existingKey) {
             // Best-effort delete: don't block user-facing removal on storage errors.
-            await deleteS3Objects([existingKey]);
+            await deleteS3Objects([existingKey], { allowedPrefixes: [userImagePrefix(req.user.id)] });
         }
 
         const preferences = await updatePreferencesService(req.user.id, {

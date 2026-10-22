@@ -360,7 +360,13 @@ export const getMyPreferences = async (req, res, next) => {
 
 export const updateMyPreferences = async (req, res, next) => {
     try {
-        const preferences = await updatePreferencesService(req.user.id, req.body);
+        const body = req.body && typeof req.body === "object" ? { ...req.body } : {};
+        // The profile image is managed by /me/profile-image, which only accepts keys it uploaded.
+        if (body.profile && typeof body.profile === "object") {
+            const { image_key, image_url, ...profile } = body.profile;
+            body.profile = profile;
+        }
+        const preferences = await updatePreferencesService(req.user.id, body);
         handleResponse(res, 200, "Preferences updated.", preferences);
     } catch (error) {
         next(error);
