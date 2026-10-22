@@ -1,7 +1,8 @@
 /**
  * Secure token storage using OS Keychain/Keystore.
  * Tokens are kept in memory for the session so reads right after login never race the Keychain.
- * AsyncStorage (unencrypted) is only used when the Keychain is unavailable on the device.
+ * Tokens are never written to AsyncStorage: if the Keychain can't store them they live in memory
+ * only, and the user signs in again after restarting the app.
  * Use for BRS_ACCESS_TOKEN and BRS_REFRESH_TOKEN only.
  */
 import * as Keychain from 'react-native-keychain';
@@ -9,34 +10,39 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SERVICE_ACCESS = 'com.shopynn.auth.access';
 const SERVICE_REFRESH = 'com.shopynn.auth.refresh';
-const ACCESS_TOKEN_KEY = 'BRS_ACCESS_TOKEN';
-const REFRESH_TOKEN_KEY = 'BRS_REFRESH_TOKEN';
-const MIGRATION_DONE_KEY = 'BRS_KEYCHAIN_MIGRATION_V2';
+// Older builds kept tokens here in plaintext; read only to move them into the Keychain.
+const LEGACY_ACCESS_KEY = 'BRS_ACCESS_TOKEN';
+const LEGACY_REFRESH_KEY = 'BRS_REFRESH_TOKEN';
+const LEGACY_MIGRATION_FLAG = 'BRS_KEYCHAIN_MIGRATION_V2';
 
 // Not restored from backups or onto another device.
 const KEYCHAIN_OPTIONS = { accessible: Keychain.ACCESSIBLE?.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY };
 
-let useKeychain = true;
 const memory = { access: undefined, refresh: undefined };
 
-async function getKeychain(service) {
-    if (!useKeychain) return null;
+async function withRetry(fn) {
     try {
-        const creds = await Keychain.getGenericPassword({ service });
-        return creds ? creds.password : null;
+        return await fn();
     } catch {
-        useKeychain = false;
-        return null;
+        return fn();
+    }
+}
+
+/** @returns {Promise<{ ok: boolean, value: string|null }>} */
+async function getKeychain(service) {
+    try {
+        const creds = await withRetry(() => Keychain.getGenericPassword({ service }));
+        return { ok: true, value: creds ? creds.password : null };
+    } catch {
+        return { ok: false, value: null };
     }
 }
 
 async function setKeychain(service, value) {
-    if (!useKeychain) return false;
     try {
-        await Keychain.setGenericPassword(service, value || '', { service, ...KEYCHAIN_OPTIONS });
+        await withRetry(() => Keychain.setGenericPassword(service, value || '', { service, ...KEYCHAIN_OPTIONS }));
         return true;
     } catch {
-        useKeychain = false;
         return false;
     }
 }
@@ -47,53 +53,56 @@ async function removeKeychain(service) {
     } catch (_) {}
 }
 
-/**
- * One-time migration: move plaintext tokens from AsyncStorage into the Keychain, then delete them.
- */
-async function migrateFromAsyncStorage() {
-    try {
-        const done = await AsyncStorage.getItem(MIGRATION_DONE_KEY);
-        if (done === 'true') return;
-        const access = await AsyncStorage.getItem(ACCESS_TOKEN_KEY);
-        const refresh = await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
-        const movedAccess = access ? await setKeychain(SERVICE_ACCESS, access) : true;
-        const movedRefresh = refresh ? await setKeychain(SERVICE_REFRESH, refresh) : true;
-        if (movedAccess && movedRefresh) {
-            await AsyncStorage.multiRemove([ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY]);
-            await AsyncStorage.setItem(MIGRATION_DONE_KEY, 'true');
-        }
-    } catch (_) {}
+/** Move any plaintext tokens left by older builds into the Keychain (or memory), then delete them. */
+let legacyMigration = null;
+function migrateLegacyTokens() {
+    if (!legacyMigration) {
+        legacyMigration = (async () => {
+            try {
+                const [[, access], [, refresh]] = await AsyncStorage.multiGet([LEGACY_ACCESS_KEY, LEGACY_REFRESH_KEY]);
+                if (access) {
+                    if (memory.access === undefined) memory.access = access;
+                    await setKeychain(SERVICE_ACCESS, access);
+                }
+                if (refresh) {
+                    if (memory.refresh === undefined) memory.refresh = refresh;
+                    await setKeychain(SERVICE_REFRESH, refresh);
+                }
+                await AsyncStorage.multiRemove([LEGACY_ACCESS_KEY, LEGACY_REFRESH_KEY, LEGACY_MIGRATION_FLAG]);
+            } catch (_) {}
+        })();
+    }
+    return legacyMigration;
 }
 
-async function readToken(slot, service, fallbackKey) {
+async function readToken(slot, service) {
     if (memory[slot] !== undefined) return memory[slot];
-    await migrateFromAsyncStorage();
-    const value = (await getKeychain(service)) ?? (await AsyncStorage.getItem(fallbackKey));
+    await migrateLegacyTokens();
+    if (memory[slot] !== undefined) return memory[slot];
+    const { ok, value } = await getKeychain(service);
+    // Don't cache a failed read as "signed out"; the next call tries the Keychain again.
+    if (!ok) return null;
     memory[slot] = value || null;
     return memory[slot];
 }
 
-async function writeToken(slot, service, fallbackKey, value) {
+async function writeToken(slot, service, value) {
     memory[slot] = value;
-    if (await setKeychain(service, value)) {
-        await AsyncStorage.removeItem(fallbackKey);
-    } else {
-        await AsyncStorage.setItem(fallbackKey, value);
-    }
+    await setKeychain(service, value);
 }
 
 /**
- * Get access token (memory, then Keychain, then the AsyncStorage fallback).
+ * Get access token (memory, then Keychain).
  */
 export function getAccessToken() {
-    return readToken('access', SERVICE_ACCESS, ACCESS_TOKEN_KEY);
+    return readToken('access', SERVICE_ACCESS);
 }
 
 /**
  * Get refresh token.
  */
 export function getRefreshToken() {
-    return readToken('refresh', SERVICE_REFRESH, REFRESH_TOKEN_KEY);
+    return readToken('refresh', SERVICE_REFRESH);
 }
 
 /**
@@ -101,9 +110,9 @@ export function getRefreshToken() {
  */
 export async function setTokens(accessToken, refreshToken = null) {
     if (!accessToken) return;
-    await writeToken('access', SERVICE_ACCESS, ACCESS_TOKEN_KEY, accessToken);
+    await writeToken('access', SERVICE_ACCESS, accessToken);
     if (refreshToken != null) {
-        await writeToken('refresh', SERVICE_REFRESH, REFRESH_TOKEN_KEY, refreshToken);
+        await writeToken('refresh', SERVICE_REFRESH, refreshToken);
     }
 }
 
@@ -115,5 +124,5 @@ export async function clearTokens() {
     memory.refresh = null;
     await removeKeychain(SERVICE_ACCESS);
     await removeKeychain(SERVICE_REFRESH);
-    await AsyncStorage.multiRemove([ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY]);
+    await AsyncStorage.multiRemove([LEGACY_ACCESS_KEY, LEGACY_REFRESH_KEY]);
 }
