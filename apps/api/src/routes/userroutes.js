@@ -1,5 +1,5 @@
 import express from "express";
-import { assignMerchantPermissionsToUserRole, changePasswordWithTemporary, createUser, deleteUser, forgotPassword, getAllUsers, getMyPreferences, getUserById, getUserDetails, loginUser, resetPassword, sendPhoneLoginOtp, toggleUserActive, updateMyFcmToken, updateMyPreferences, updateUser, verifyPhoneLoginOtp } from "../controllers/user.js";
+import { changePasswordWithTemporary, createUser, deleteUser, forgotPassword, getAllUsers, getMyPreferences, getUserById, getUserDetails, loginUser, resetPassword, sendPhoneLoginOtp, toggleUserActive, updateMyFcmToken, updateMyPreferences, updateUser, verifyPhoneLoginOtp } from "../controllers/user.js";
 import { signupCustomerAccount, sendCustomerSignupPhoneOtp, verifyCustomerSignupPhoneOtp, verifyStoreReferencePublic } from "../controllers/customerProfile.js";
 import {
     sendShopOwnerSignupEmailOtp,
@@ -45,7 +45,6 @@ router.post('/me/change-email/verify', auth, credentialCheckLimit, verifyCustome
 router.post('/me/change-phone/send-otp', auth, otpSendLimit, sendChangePhoneOtp);
 router.post('/me/change-phone/verify', auth, credentialCheckLimit, verifyChangePhoneOtp);
 router.put('/toggle-active', auth, requireActiveSubscription, requirePermission('users.toggle_active'), toggleUserActive);
-router.post('/assign-merchant-permissions', auth, requireActiveSubscription, requirePermission('users.update'), assignMerchantPermissionsToUserRole);
 router.post('/reset-password', auth, requireActiveSubscription, resetPassword);
 router.post('/change-password', auth, requireActiveSubscription, changePasswordWithTemporary);
 router.put('/:id/delete', auth, requireActiveSubscription, requirePermission('users.delete'), deleteUser);

@@ -672,7 +672,7 @@ export const createUserService = async (payload) => {
 }
 
 export const updateUserService = async (payload) => {
-    const { id, first_name, last_name, email, fcm_token, phone, is_active, role_id, warehouse_id, user_permissions = [] } = payload;
+    const { id, first_name, last_name, email, fcm_token, phone, is_active, role_id, warehouse_id } = payload;
     await assertNotCustomerPortalUser(id);
     const updates = [];
     const values = [];
@@ -712,20 +712,6 @@ export const updateUserService = async (payload) => {
                 `INSERT INTO user_roles (id, user_id, role_id, assigned_by, created_at)
                  VALUES ($1, $2, $3, $4, $5)`,
                 [uuidv4(), id, role_id, id, new Date()]
-            );
-        }
-    }
-
-    // Update user permissions if user_permissions is provided (array)
-    if (Array.isArray(user_permissions) && user_permissions.length > 0) {
-        // Remove all previous direct user permissions
-        await pool.query("DELETE FROM role_permissions WHERE role_id = $1", [role_id]);
-        // Insert new permissions
-        for (const permissionId of user_permissions) {
-            await pool.query(
-                `INSERT INTO role_permissions (id, role_id, permission_id)
-                VALUES ($1, $2, $3)`,
-                [uuidv4(), role_id, permissionId]
             );
         }
     }

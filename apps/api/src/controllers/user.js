@@ -1,4 +1,4 @@
-import { createUserService, deleteUserService, getAllUsersService, getUserByIdService, updateUserService, toggleUserActiveService, loginService, resetPasswordService, forgotPasswordService, getUserDetailsService, changePasswordWithTemporaryService, assignMerchantPermissionsToUserRoleService } from "../models/user.js";
+import { createUserService, deleteUserService, getAllUsersService, getUserByIdService, updateUserService, toggleUserActiveService, loginService, resetPasswordService, forgotPasswordService, getUserDetailsService, changePasswordWithTemporaryService } from "../models/user.js";
 import { createAuditLogService } from "../models/auditLog.js";
 import { recordAudit } from "../util/audit.js";
 import { getPreferencesService, updatePreferencesService } from "../models/userPreferences.js";
@@ -391,27 +391,3 @@ export const getUserDetails = async (req, res, next) => {
         next(error);
     }
 }
-
-export const assignMerchantPermissionsToUserRole = async (req, res, next) => {
-    try {
-        const { user_id, role_id } = req.body || {};
-        if (!user_id || !role_id) {
-            return handleResponse(res, 400, "user_id and role_id are required.", null);
-        }
-
-        const result = await assignMerchantPermissionsToUserRoleService({
-            user_id,
-            role_id,
-            tenant_id: req.user?.tenant_id,
-            assigned_by: req.user?.id,
-        });
-
-        if (!result || result.status >= 400) {
-            return handleResponse(res, result?.status || 400, result?.message || "Failed.", null);
-        }
-
-        handleResponse(res, 200, "Merchant permissions tied and role assigned.", result);
-    } catch (error) {
-        next(error);
-    }
-};

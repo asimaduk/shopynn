@@ -421,7 +421,7 @@ export const listTeamTenantsService = async (managerId) => {
         `SELECT ${TENANT_LIST_COLUMNS},
                 au.first_name AS agent_first_name, au.last_name AS agent_last_name
          FROM tenants t
-         INNER JOIN merchants am ON am.id = ${TENANT_AGENT_SQL}
+         INNER JOIN merchants am ON ${TENANT_AGENT_SQL} = am.id
          INNER JOIN users au ON au.id = am.user_id
          ${TENANT_LIST_JOINS}
          WHERE am.id = $1 OR am.manager_id = $1
@@ -767,7 +767,7 @@ export const reassignTeamTenantService = async ({ managerRow, tenantId, merchant
     const scope = await pool.query(
         `SELECT t.id, t.serving_merchant_id, t.onboarded_by_merchant_id
          FROM tenants t
-         INNER JOIN merchants am ON am.id = ${TENANT_AGENT_SQL}
+         INNER JOIN merchants am ON ${TENANT_AGENT_SQL} = am.id
          WHERE t.id = $1 AND (am.id = $2 OR am.manager_id = $2)`,
         [tenantId, managerRow.id]
     );

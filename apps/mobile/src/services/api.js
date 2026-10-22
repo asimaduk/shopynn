@@ -231,7 +231,6 @@ export const users = {
     update: (id, body) => axios.put(`/users/${id}`, body).then((res) => getData(res)),
     delete: (id, body) => axios.put(`/users/${id}/delete`, body).then((res) => res.data),
     toggleActive: (body) => axios.put('/users/toggle-active', body).then((res) => getData(res)),
-    assignMerchantPermissions: (body) => axios.post('/users/assign-merchant-permissions', body).then((res) => getData(res)),
     verifyStoreReference: (reference_code) =>
         axios.post('/users/customer-signup/verify-reference', { reference_code }).then((res) => getData(res)),
     sendCustomerSignupOtp: (body) =>
