@@ -6,6 +6,7 @@ import pool from "../config/db.js";
 import crypto from "crypto";
 import { v4 as uuidv4 } from "uuid";
 import { sendSmsService } from "../services/sms.js";
+import { maskPhone, otpForLog } from "../util/devOtp.js";
 import { normalizeStorefrontPhone } from "./storefront.js";
 const PURPOSE = "change_phone";
 const OTP_TTL_MS = 10 * 60 * 1000;
@@ -89,7 +90,7 @@ export async function sendChangePhoneOtpService({ userId, phone }) {
     });
 
     if (!sms.ok) {
-        console.info(`[change phone OTP] phone=${normalized} code=${code} sms=${sms.error || "n/a"}`);
+        console.info(`[change phone OTP] phone=${maskPhone(normalized)} code=${otpForLog(code)} sms=${sms.error || "n/a"}`);
     }
 
     const result = {

@@ -81,7 +81,6 @@ export const providers: Provider[] = [
 			});
 
 			const resJson = await res.json();
-			console.log('resJson',resJson);
 			if (resJson.data?.passwordExpired || resJson.data?.code === 'PASSWORD_EXPIRED') {
 				throwPasswordExpiredCredentials();
 			}

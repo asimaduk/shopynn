@@ -81,8 +81,6 @@ function AuthJsCredentialsSignUpForm() {
 	async function onSubmit(formData: FormType) {
 		setProcessing(true)
 		const { businessName, email, firstname, lastname } = formData;
-		console.log('data...',formData);
-
 		setTimeout(() => {
 			setProcessing(false)
 		}, 5000);

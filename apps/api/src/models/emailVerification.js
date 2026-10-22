@@ -2,6 +2,7 @@ import pool from "../config/db.js";
 import crypto from "crypto";
 import { v4 as uuidv4 } from "uuid";
 import { sendEmailService } from "./mail.js";
+import { maskEmail, otpForLog } from "../util/devOtp.js";
 
 const PURPOSE_SHOP_OWNER = "shop_owner_signup";
 const PURPOSE_CUSTOMER_CHANGE_EMAIL = "customer_change_email";
@@ -94,7 +95,7 @@ export async function sendShopOwnerEmailOtpService(email) {
         text: `Your Shopynn verification code is ${code}. It expires in 10 minutes.`,
         html: `<p>Use this code to verify your owner login email:</p><p style="font-size:28px;font-weight:bold;letter-spacing:4px">${code}</p><p>This code expires in 10 minutes.</p>`,
     }).catch((err) => {
-        console.info(`[shop owner signup OTP] email=${normalized} code=${code} mail=${err?.message || "n/a"}`);
+        console.info(`[shop owner signup OTP] email=${maskEmail(normalized)} code=${otpForLog(code)} mail=${err?.message || "n/a"}`);
     });
 
     return { email: normalized, expires_in_seconds: Math.floor(OTP_TTL_MS / 1000) };

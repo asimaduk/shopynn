@@ -13,7 +13,7 @@ import { resolveStoreReferencePublicService } from "./customerProfile.js";
 import { CUSTOMER_PORTAL_PERMISSION_CODES } from "../constants/permissionCodes.js";
 import { sendSmsService } from "../services/sms.js";
 import { createOrderService, settleOrderPaymentByReference } from "./order.js";
-import { allowOtpWithoutSms } from "../util/devOtp.js";
+import { allowOtpWithoutSms, maskPhone, otpForLog } from "../util/devOtp.js";
 import { isCustomerOnlyAccount } from "../util/customerAccount.js";
 
 const PURPOSE_PHONE = "storefront_phone";
@@ -275,7 +275,7 @@ export async function sendStorefrontPhoneOtpService({ phone, reference_code }) {
 
     if (!sms.ok) {
         console.info(
-            `[storefront OTP] phone=${normalized} store=${store.reference_code} code=${code} sms=${sms.error || "n/a"}`
+            `[storefront OTP] phone=${maskPhone(normalized)} store=${store.reference_code} code=${otpForLog(code)} sms=${sms.error || "n/a"}`
         );
         if (!allowOtpWithoutSms()) {
             await pool.query(`DELETE FROM email_verification_codes WHERE id = $1`, [id]);

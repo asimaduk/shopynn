@@ -7,6 +7,7 @@ import crypto from "crypto";
 import { signUserToken } from "../util/authToken.js";
 import { v4 as uuidv4 } from "uuid";
 import { sendSmsService } from "../services/sms.js";
+import { maskPhone, otpForLog } from "../util/devOtp.js";
 import { resolveStoreReferencePublicService } from "./customerProfile.js";
 import {
     ensureStorefrontCustomer,
@@ -73,7 +74,7 @@ export async function sendCustomerSignupPhoneOtpService({ phone, reference_code 
 
     if (!sms.ok) {
         console.info(
-            `[customer signup OTP] phone=${normalized} store=${store.reference_code} code=${code} sms=${sms.error || "n/a"}`
+            `[customer signup OTP] phone=${maskPhone(normalized)} store=${store.reference_code} code=${otpForLog(code)} sms=${sms.error || "n/a"}`
         );
     }
 

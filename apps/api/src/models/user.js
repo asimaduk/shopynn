@@ -13,6 +13,7 @@ import {
 import { SUPER_ADMIN_EXCLUDED_PERMISSION_CODES } from "../constants/permissionCodes.js";
 import { getUserPermissionsService } from "./userRole.js";
 import { getBulkDiscountFromSettings } from "../utils/bulkDiscount.js";
+import { maskEmail } from "../util/devOtp.js";
 
 const saltRounds = 12;
 
@@ -422,11 +423,11 @@ async function assertNotCustomerPortalUser(userId) {
     }
 }
 
-const sendCredentials = async (data, plainPassword) => {
+const sendCredentials = async (data) => {
     try {
         await sendEmailService(data);
     } catch (err) {
-        console.info(`[new user credentials] email=${data?.receipient} temp_password=${plainPassword} mail=${err?.message || "n/a"}`);
+        console.error(`[new user credentials] email send failed for ${maskEmail(data?.receipient)}; reset the password to resend: ${err?.message || "n/a"}`);
     }
 }
 
@@ -507,7 +508,6 @@ export const createUserService = async (payload) => {
             plainPassword = String(password).trim();
         } else {
             plainPassword = generatePassword(10);
-            console.log("gen pass plain", plainPassword);
         }
         passwordHash = await bcrypt.hash(plainPassword, saltRounds);
     }
@@ -658,7 +658,7 @@ export const createUserService = async (payload) => {
                 title: "Your temporary login credentials",
                 message: `Hello ${first_name},<br/><br/>Your Shopynn account has been created successfully.<br/><br/>You can sign in with the credentials below:<br/>- Email: <strong>${normalizedEmail}</strong><br/>- Temporary password: <strong>${plainPassword}</strong><br/><br/>For your security, this temporary password expires in 30 minutes and must be changed at first login.<br/><br/>If you did not expect this account setup, please contact Shopynn Support immediately.<br/><br/>Regards,<br/>Shopynn Support Team`,
             };
-            sendCredentials(data, plainPassword);
+            sendCredentials(data);
         }
         return { id: newUser.id };
     }

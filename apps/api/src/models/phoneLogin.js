@@ -8,6 +8,7 @@ import crypto from "crypto";
 import { signUserToken } from "../util/authToken.js";
 import { v4 as uuidv4 } from "uuid";
 import { sendSmsService } from "../services/sms.js";
+import { maskPhone, otpForLog } from "../util/devOtp.js";
 import { normalizeStorefrontPhone } from "./storefront.js";
 import { isCustomerOnlyAccount } from "../util/customerAccount.js";
 
@@ -105,7 +106,7 @@ export async function sendPhoneLoginOtpService({ phone }) {
     });
 
     if (!sms.ok) {
-        console.info(`[phone login OTP] phone=${normalized} code=${code} sms=${sms.error || "n/a"}`);
+        console.info(`[phone login OTP] phone=${maskPhone(normalized)} code=${otpForLog(code)} sms=${sms.error || "n/a"}`);
     }
 
     const result = {
