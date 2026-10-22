@@ -6,7 +6,11 @@ export const DEFAULT_PRINT_AGENT_PORT = 3001;
 export type PrintAgentConfig = {
 	host: string;
 	port: number;
+	/** Pairing code printed by the agent; sent as X-Print-Key. */
+	key: string;
 };
+
+const DEFAULT_CONFIG: PrintAgentConfig = { host: DEFAULT_PRINT_AGENT_HOST, port: DEFAULT_PRINT_AGENT_PORT, key: '' };
 
 export function normalizePrintAgentHost(raw: unknown): string {
 	let host = String(raw || '').trim();
@@ -23,27 +27,35 @@ export function normalizePrintAgentPort(raw: unknown): number {
 	return n;
 }
 
+export function normalizePrintAgentKey(raw: unknown): string {
+	return String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
 export function loadPrintAgentConfig(): PrintAgentConfig {
-	if (typeof window === 'undefined') {
-		return { host: DEFAULT_PRINT_AGENT_HOST, port: DEFAULT_PRINT_AGENT_PORT };
-	}
+	if (typeof window === 'undefined') return { ...DEFAULT_CONFIG };
 	try {
 		const raw = localStorage.getItem(STORAGE_KEY);
-		if (!raw) return { host: DEFAULT_PRINT_AGENT_HOST, port: DEFAULT_PRINT_AGENT_PORT };
-		const parsed = JSON.parse(raw) as { host?: string; port?: number | string };
+		if (!raw) return { ...DEFAULT_CONFIG };
+		const parsed = JSON.parse(raw) as { host?: string; port?: number | string; key?: string };
 		return {
 			host: normalizePrintAgentHost(parsed.host) || DEFAULT_PRINT_AGENT_HOST,
-			port: normalizePrintAgentPort(parsed.port)
+			port: normalizePrintAgentPort(parsed.port),
+			key: normalizePrintAgentKey(parsed.key)
 		};
 	} catch {
-		return { host: DEFAULT_PRINT_AGENT_HOST, port: DEFAULT_PRINT_AGENT_PORT };
+		return { ...DEFAULT_CONFIG };
 	}
 }
 
-export function savePrintAgentConfig(config: { host?: string; port?: number | string }): PrintAgentConfig {
+export function savePrintAgentConfig(config: {
+	host?: string;
+	port?: number | string;
+	key?: string;
+}): PrintAgentConfig {
 	const next: PrintAgentConfig = {
 		host: normalizePrintAgentHost(config.host) || DEFAULT_PRINT_AGENT_HOST,
-		port: normalizePrintAgentPort(config.port)
+		port: normalizePrintAgentPort(config.port),
+		key: normalizePrintAgentKey(config.key)
 	};
 	if (typeof window !== 'undefined') {
 		localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
@@ -59,4 +71,17 @@ export function getPrintAgentPrintUrl(config?: PrintAgentConfig): string {
 export function getPrintAgentHealthUrl(config?: PrintAgentConfig): string {
 	const c = config || loadPrintAgentConfig();
 	return `http://${c.host}:${c.port}/health`;
+}
+
+export function getPrintAgentPairUrl(config?: PrintAgentConfig): string {
+	const c = config || loadPrintAgentConfig();
+	return `http://${c.host}:${c.port}/pair`;
+}
+
+export function printAgentHeaders(
+	config?: PrintAgentConfig,
+	extra: Record<string, string> = {}
+): Record<string, string> {
+	const key = normalizePrintAgentKey((config || loadPrintAgentConfig()).key);
+	return key ? { ...extra, 'X-Print-Key': key } : { ...extra };
 }

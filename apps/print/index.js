@@ -1,17 +1,123 @@
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
-const cors = require('cors');
 const escpos = require('escpos');
 escpos.USB = require('escpos-usb');
 const pkg = require('./package.json');
 
+// Bound to all interfaces so phones on the shop Wi-Fi can reach it; /print and /pair are
+// protected by the pairing key and the browser origin allowlist below instead.
 const PRINT_HOST = process.env.PRINT_HOST || '0.0.0.0';
 const PRINT_PORT = Number(process.env.PRINT_PORT) || 3001;
+const DATA_DIR = process.env.PRINT_DATA_DIR || path.join(__dirname, 'data');
+
+const DEFAULT_ALLOWED_ORIGINS = [
+    'https://dashboard.shopynn.app',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+];
+const ALLOWED_ORIGINS = new Set([
+    ...DEFAULT_ALLOWED_ORIGINS,
+    ...String(process.env.PRINT_ALLOWED_ORIGINS || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+]);
+
+const KEY_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+function normalizeKey(raw) {
+    return String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+function formatKey(key) {
+    return key.replace(/(.{5})(?=.)/g, '$1-');
+}
+
+/** 10 characters from a 32-letter alphabet (~50 bits), generated once and kept in DATA_DIR. */
+function loadOrCreatePairingKey() {
+    if (process.env.PRINT_PAIRING_KEY) return normalizeKey(process.env.PRINT_PAIRING_KEY);
+    const file = path.join(DATA_DIR, 'pairing-key');
+    try {
+        const existing = normalizeKey(fs.readFileSync(file, 'utf8'));
+        if (existing.length >= 10) return existing;
+    } catch (_) {
+        /* first run */
+    }
+    let key = '';
+    for (const byte of crypto.randomBytes(10)) key += KEY_ALPHABET[byte % KEY_ALPHABET.length];
+    fs.mkdirSync(DATA_DIR, { recursive: true, mode: 0o700 });
+    fs.writeFileSync(file, key, { mode: 0o600 });
+    return key;
+}
+
+const PAIRING_KEY = loadOrCreatePairingKey();
+
+function keyMatches(raw) {
+    const given = Buffer.from(normalizeKey(raw));
+    const expected = Buffer.from(PAIRING_KEY);
+    return given.length === expected.length && crypto.timingSafeEqual(given, expected);
+}
+
+const FAILED_KEY_LIMIT = 10;
+const FAILED_KEY_WINDOW_MS = 10 * 60 * 1000;
+const failedKeyAttempts = new Map();
+
+function tooManyFailures(ip) {
+    const entry = failedKeyAttempts.get(ip);
+    if (!entry || Date.now() > entry.resetAt) return false;
+    return entry.count >= FAILED_KEY_LIMIT;
+}
+
+function recordFailure(ip) {
+    const now = Date.now();
+    const entry = failedKeyAttempts.get(ip);
+    if (!entry || now > entry.resetAt) {
+        failedKeyAttempts.set(ip, { count: 1, resetAt: now + FAILED_KEY_WINDOW_MS });
+    } else {
+        entry.count += 1;
+    }
+}
+
+function requirePairingKey(req, res, next) {
+    const ip = req.ip || 'unknown';
+    if (tooManyFailures(ip)) {
+        return res.status(429).send({ status: 429, message: 'Too many wrong pairing codes. Try again in 10 minutes.' });
+    }
+    if (!keyMatches(req.get('X-Print-Key'))) {
+        recordFailure(ip);
+        return res.status(401).send({
+            status: 401,
+            code: 'PAIRING_REQUIRED',
+            message: 'Enter this print agent’s pairing code in Shopynn (Print agent → Print pairing code).',
+        });
+    }
+    next();
+}
 
 let device;
 
 const app = express();
-app.use(express.json({ limit: '1mb' }));
-app.use(cors());
+
+// Browsers may only call the agent from Shopynn pages. Native apps send no Origin.
+app.use((req, res, next) => {
+    const origin = req.get('Origin');
+    if (!origin) return next();
+    if (!ALLOWED_ORIGINS.has(origin)) {
+        return res.status(403).send({ status: 403, message: 'This website is not allowed to use Shopynn Print.' });
+    }
+    res.set('Access-Control-Allow-Origin', origin);
+    res.set('Vary', 'Origin');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, X-Print-Key');
+    if (req.get('Access-Control-Request-Private-Network')) {
+        res.set('Access-Control-Allow-Private-Network', 'true');
+    }
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    next();
+});
+app.use(express.json({ limit: '256kb' }));
 
 const DIVIDER = '--------------------------------';
 
@@ -74,12 +180,23 @@ function probeUsbPrinter() {
     }
 }
 
-app.get('/health', (_req, res) => {
+app.get('/health', (req, res) => {
     let printerConnected = false;
     try {
         printerConnected = probeUsbPrinter();
     } catch (_) {
         printerConnected = false;
+    }
+    const suppliedKey = req.get('X-Print-Key');
+    let keyValid = null;
+    if (suppliedKey) {
+        const ip = req.ip || 'unknown';
+        if (tooManyFailures(ip)) {
+            keyValid = false;
+        } else {
+            keyValid = keyMatches(suppliedKey);
+            if (!keyValid) recordFailure(ip);
+        }
     }
     res.status(200).json({
         ok: true,
@@ -87,23 +204,85 @@ app.get('/health', (_req, res) => {
         version: pkg.version || '1.0.0',
         printer_connected: printerConnected,
         port: PRINT_PORT,
+        pairing_required: true,
+        key_valid: keyValid,
     });
 });
 
-app.post('/print', async (req, res) => {
+/** Opens the USB printer, or responds 503 and returns null. */
+function ensureDevice(res) {
+    if (device) return device;
     try {
-        if (!device) {
-            try {
-                device = new escpos.USB();
-            } catch (usbErr) {
-                return res.status(503).send({
-                    status: 503,
-                    message:
-                        'No USB thermal printer found. Plug in the printer and restart Shopynn Print. ' +
-                        (usbErr?.message || ''),
-                });
-            }
-        }
+        device = new escpos.USB();
+        return device;
+    } catch (usbErr) {
+        res.status(503).send({
+            status: 503,
+            message:
+                'No USB thermal printer found. Plug in the printer and restart Shopynn Print. ' +
+                (usbErr?.message || ''),
+        });
+        return null;
+    }
+}
+
+const PAIR_PRINT_INTERVAL_MS = 30 * 1000;
+let lastPairPrintAt = 0;
+
+/**
+ * Prints the pairing code on the receipt printer, so only someone standing at the printer can
+ * read it. Throttled so it can't be used to waste paper.
+ */
+app.post('/pair', async (_req, res) => {
+    const now = Date.now();
+    if (now - lastPairPrintAt < PAIR_PRINT_INTERVAL_MS) {
+        return res.status(429).send({ status: 429, message: 'Pairing code was just printed. Check the printer.' });
+    }
+    if (!ensureDevice(res)) return;
+    lastPairPrintAt = now;
+    try {
+        const printer = new escpos.Printer(device, { encoding: 'GB18030' });
+        await new Promise((resolve, reject) => {
+            device.open((err) => {
+                if (err) {
+                    device = null;
+                    reject(err);
+                    return;
+                }
+                try {
+                    printer
+                        .font('a')
+                        .align('ct')
+                        .text('Shopynn Print pairing code')
+                        .text(DIVIDER)
+                        .style('b')
+                        .size(1, 1)
+                        .text(formatKey(PAIRING_KEY))
+                        .size(0, 0)
+                        .style('NORMAL')
+                        .text(DIVIDER)
+                        .text('Enter this code in Shopynn')
+                        .text('under Print agent.')
+                        .text('Keep it private.')
+                        .text('\n')
+                        .cut()
+                        .close();
+                    resolve();
+                } catch (printErr) {
+                    reject(printErr);
+                }
+            });
+        });
+        res.status(200).send({ status: 200, message: 'Pairing code printed. Enter it to finish connecting.' });
+    } catch (error) {
+        console.error('Pairing print failed:', error?.message || error);
+        res.status(500).send({ status: 500, message: `Could not print the pairing code: ${error?.message || error}` });
+    }
+});
+
+app.post('/print', requirePairingKey, async (req, res) => {
+    try {
+        if (!ensureDevice(res)) return;
 
         const body = req.body || {};
         const invoice_number = body.invoice_number || body.invoiceNumber || '—';
@@ -253,4 +432,5 @@ app.post('/print', async (req, res) => {
 
 app.listen(PRINT_PORT, PRINT_HOST, () => {
     console.log(`Shopynn Print v${pkg.version || '1.0.0'} listening on http://${PRINT_HOST}:${PRINT_PORT}`);
+    console.log('Pair a device from Shopynn: Print agent → Print pairing code.');
 });

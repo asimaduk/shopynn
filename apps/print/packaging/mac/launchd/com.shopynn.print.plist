@@ -24,6 +24,8 @@
 		<string>0.0.0.0</string>
 		<key>PRINT_PORT</key>
 		<string>3001</string>
+		<key>PRINT_DATA_DIR</key>
+		<string>/usr/local/shopynn-print/data</string>
 	</dict>
 </dict>
 </plist>

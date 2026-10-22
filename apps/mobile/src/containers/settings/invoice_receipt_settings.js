@@ -26,6 +26,7 @@ import {
     getPrintAgentPrintUrl,
     normalizePrintAgentHost,
     normalizePrintAgentPort,
+    printAgentHeaders,
 } from '../../utils/printAgent';
 import { users as usersApi, sales as salesApi } from '../../services/api';
 import AppAlert from '../../utils/appAlert';
@@ -229,6 +230,7 @@ const InvoiceReceiptSettings = ({ navigation }) => {
         const draft = {
             printAgentHost: normalizePrintAgentHost(printHost),
             printAgentPort: normalizePrintAgentPort(printPort),
+            printAgentKey: appSettings.printAgentKey,
         };
         if (!draft.printAgentHost) {
             setAgentStatus('error');
@@ -242,12 +244,21 @@ const InvoiceReceiptSettings = ({ navigation }) => {
         try {
             const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
             const timer = setTimeout(() => controller?.abort?.(), 5000);
-            const res = await fetch(url, { method: 'GET', signal: controller?.signal });
+            const res = await fetch(url, { method: 'GET', headers: printAgentHeaders(draft), signal: controller?.signal });
             clearTimeout(timer);
             const data = await res.json().catch(() => ({}));
             if (!res.ok) {
                 setAgentStatus('error');
                 setStatusMessage(data.message || `Agent returned HTTP ${res.status}.`);
+                return;
+            }
+            if (data.pairing_required && data.key_valid !== true) {
+                setAgentStatus('error');
+                setStatusMessage(
+                    data.key_valid === false
+                        ? 'Agent reachable, but the pairing code is wrong. Fix it under More → Print agent.'
+                        : 'Agent reachable, but not paired. Enter the pairing code under More → Print agent.',
+                );
                 return;
             }
             if (data.printer_connected) {

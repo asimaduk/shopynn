@@ -18,7 +18,7 @@ import useTheme from '../../hooks/useTheme';
 import { sales as salesApi, warehouses as warehousesApi, customers as customersApi, payments as paymentsApi, platformSettings, normalizeList } from '../../services/api';
 import { MOMO_NETWORK_OPTIONS, getMomoNetworkIcon, validateMomoNumberForProvider, isTelecelMomoProvider } from '../../utils/momoNetworks';
 import { hasPermission, hasFeature, getScreenPlanAccess, navigateToScreenOrUpgrade } from '../../utils/permissions';
-import { getPrintAgentPrintUrl, readPrintAgentResponse } from '../../utils/printAgent';
+import { getPrintAgentPrintUrl, printAgentHeaders, readPrintAgentResponse } from '../../utils/printAgent';
 import { SALES_LIST_REFRESH_EVENT } from '../../utils/salesEvents';
 import { claimPendingSale, releasePendingSale } from '../../utils/syncPendingSales';
 import NetInfo from '@react-native-community/netinfo';
@@ -1511,7 +1511,10 @@ const NewSale = ({ navigation, route }) => {
                 try {
                     const printRes = await fetch(printUrl, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                        headers: printAgentHeaders(appSettings, {
+                            'Content-Type': 'application/json',
+                            Accept: 'application/json',
+                        }),
                         body: JSON.stringify(printPayload),
                     });
                     const { data: printData } = await readPrintAgentResponse(printRes);

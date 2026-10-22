@@ -25,7 +25,7 @@ import {
 	shareInvoicePdfFile
 } from '@/utils/saleInvoice';
 import { useLazyGetSaleInvoicePdfQuery, useSendSaleInvoiceMutation } from '../TradingApi';
-import { getPrintAgentPrintUrl } from '@/utils/printAgent';
+import { getPrintAgentPrintUrl, printAgentHeaders } from '@/utils/printAgent';
 import {
 	normalizeWarehousePrinterType,
 	type WarehousePrinterType
@@ -107,7 +107,7 @@ export default function SaleInvoiceDialog({
 		try {
 			const res = await fetch(printUrl, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: printAgentHeaders(undefined, { 'Content-Type': 'application/json' }),
 				body: JSON.stringify(order)
 			});
 			const data = await res.json().catch(() => ({}));

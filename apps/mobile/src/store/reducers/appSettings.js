@@ -20,6 +20,7 @@ import {
     DEFAULT_PRINT_AGENT_HOST,
     DEFAULT_PRINT_AGENT_PORT,
     normalizePrintAgentHost,
+    normalizePrintAgentKey,
     normalizePrintAgentPort,
 } from '../../utils/printAgent';
 import {
@@ -49,6 +50,8 @@ const initialState = {
     /** LAN IP/hostname of the PC running Shopynn Print (USB thermal). */
     printAgentHost: DEFAULT_PRINT_AGENT_HOST,
     printAgentPort: DEFAULT_PRINT_AGENT_PORT,
+    /** Pairing code printed by the agent; sent as X-Print-Key. */
+    printAgentKey: '',
 };
 
 export default function appSettings(state = initialState, action) {
@@ -104,6 +107,9 @@ export default function appSettings(state = initialState, action) {
             }
             if (action.payload && Object.prototype.hasOwnProperty.call(action.payload, 'port')) {
                 next.printAgentPort = normalizePrintAgentPort(action.payload.port);
+            }
+            if (action.payload && Object.prototype.hasOwnProperty.call(action.payload, 'key')) {
+                next.printAgentKey = normalizePrintAgentKey(action.payload.key);
             }
             return next;
         }

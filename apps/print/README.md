@@ -3,8 +3,20 @@
 On-prem USB thermal receipt agent. Runs on the checkout PC (not Railway/Vercel).
 
 - Listens on `http://0.0.0.0:3001`
-- `GET /health` — agent status + USB probe
-- `POST /print` — ESC/POS receipt body (same payload as mobile/web New Sale)
+- `GET /health` — agent status + USB probe; with an `X-Print-Key` header it also reports `key_valid`
+- `POST /pair` — prints the pairing code on the receipt printer (at most once every 30 seconds)
+- `POST /print` — ESC/POS receipt body (same payload as mobile/web New Sale); requires `X-Print-Key`
+
+## Security
+
+- **Pairing code.** On first start the agent generates a 10-character code and saves it to
+  `data/pairing-key` (mode 0600; `PRINT_DATA_DIR` overrides the folder). `/print` rejects requests
+  without it. The code is only shown by printing it on the receipt printer, so someone has to be
+  at the till to pair a phone or browser. After 10 wrong codes from one IP in 10 minutes the agent
+  answers 429. To rotate the code, delete `data/pairing-key` and restart the agent, then re-pair devices.
+- **Browser origins.** Web pages may only call the agent from `https://dashboard.shopynn.app` or
+  `localhost:3000`; other sites get 403. Add more with `PRINT_ALLOWED_ORIGINS` (comma separated).
+  Native apps send no `Origin` and are allowed (they still need the pairing code).
 
 ## Merchant install
 
@@ -12,7 +24,7 @@ On-prem USB thermal receipt agent. Runs on the checkout PC (not Railway/Vercel).
 1. Open `ShopynnPrint-<version>.pkg` (built via `npm run package:mac`).
 2. Complete the installer (admin password).
 3. Plug in the USB thermal printer.
-4. In Shopynn mobile: **More → Print agent** → enter this Mac’s LAN IP → **Test connection** → Save.
+4. In Shopynn mobile: **More → Print agent** → enter this Mac’s LAN IP → **Print pairing code** → type the printed code → **Test connection** → Save.
 5. Set the warehouse printer type to **Thermal**.
 
 Uninstall:
@@ -25,8 +37,8 @@ sudo bash /path/to/repo/apps/print/packaging/mac/scripts/uninstall.sh
 2. Finish the wizard (service installs automatically on port **3001**).
 3. Plug in the USB thermal printer.
 4. **Install WinUSB with Zadig** if the printer is not detected (see below — usually once per PC).
-5. In Shopynn mobile: **More → Print agent** → enter this PC’s LAN IP → **Test connection** → Save.  
-   On web: **Settings → Invoice & Receipt** → Print agent.
+5. In Shopynn mobile: **More → Print agent** → enter this PC’s LAN IP → **Print pairing code** → type the printed code → **Test connection** → Save.  
+   On web: **Settings → Invoice & Receipt** → Print agent (same steps).
 6. Set the warehouse printer type to **Thermal**.
 7. Allow inbound TCP **3001** in Windows Firewall if phones print over Wi‑Fi.
 
@@ -69,6 +81,9 @@ curl -s http://127.0.0.1:3001/health
 Env:
 - `PRINT_HOST` (default `0.0.0.0`)
 - `PRINT_PORT` (default `3001`)
+- `PRINT_DATA_DIR` (default `./data`; holds `pairing-key`)
+- `PRINT_PAIRING_KEY` (optional fixed code instead of the generated one)
+- `PRINT_ALLOWED_ORIGINS` (extra browser origins, comma separated)
 
 ## Build packages
 

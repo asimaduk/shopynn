@@ -17,10 +17,12 @@ import FeatureUnavailable from '../../../parity/FeatureUnavailable';
 import { useGetReceiptSettingsQuery, useUpdateReceiptSettingsMutation } from '../../../parity/ParityApi';
 import {
 	getPrintAgentHealthUrl,
+	getPrintAgentPairUrl,
 	getPrintAgentPrintUrl,
 	loadPrintAgentConfig,
 	normalizePrintAgentHost,
 	normalizePrintAgentPort,
+	printAgentHeaders,
 	savePrintAgentConfig
 } from '@/utils/printAgent';
 import {
@@ -104,6 +106,8 @@ export default function ReceiptSettingsPage() {
 	const [invoiceNext, setInvoiceNext] = useState(String(DEFAULT_INVOICE_NEXT_NUMBER));
 	const [printHost, setPrintHost] = useState('127.0.0.1');
 	const [printPort, setPrintPort] = useState('3001');
+	const [printKey, setPrintKey] = useState('');
+	const [pairing, setPairing] = useState(false);
 	const [agentStatus, setAgentStatus] = useState<AgentStatus>('idle');
 	const [statusMessage, setStatusMessage] = useState('');
 	const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -117,6 +121,7 @@ export default function ReceiptSettingsPage() {
 		const cfg = loadPrintAgentConfig();
 		setPrintHost(cfg.host);
 		setPrintPort(String(cfg.port));
+		setPrintKey(cfg.key);
 		const inv = loadInvoiceNumberingConfig();
 		setInvoicePrefix(inv.prefix);
 		setInvoiceRegister(inv.registerCode);
@@ -152,7 +157,7 @@ export default function ReceiptSettingsPage() {
 
 		try {
 			await updateReceiptSettings({ receiptCompanyName: companyName.trim() }).unwrap();
-			const saved = savePrintAgentConfig({ host, port: printPort });
+			const saved = savePrintAgentConfig({ host, port: printPort, key: printKey });
 			setPrintHost(saved.host);
 			setPrintPort(String(saved.port));
 			const invSaved = saveInvoiceNumberingConfig({
@@ -181,7 +186,7 @@ export default function ReceiptSettingsPage() {
 			return;
 		}
 
-		const cfg = savePrintAgentConfig({ host, port: printPort });
+		const cfg = savePrintAgentConfig({ host, port: printPort, key: printKey });
 		setPrintHost(cfg.host);
 		setPrintPort(String(cfg.port));
 		setAgentStatus('testing');
@@ -192,17 +197,30 @@ export default function ReceiptSettingsPage() {
 			const timer = window.setTimeout(() => controller?.abort(), 5000);
 			const res = await fetch(getPrintAgentHealthUrl(cfg), {
 				method: 'GET',
+				headers: printAgentHeaders(cfg),
 				signal: controller?.signal
 			});
 			window.clearTimeout(timer);
 			const body = (await res.json().catch(() => ({}))) as {
 				message?: string;
 				printer_connected?: boolean;
+				pairing_required?: boolean;
+				key_valid?: boolean | null;
 			};
 
 			if (!res.ok) {
 				setAgentStatus('error');
 				setStatusMessage(body.message || `Agent returned HTTP ${res.status}.`);
+				return;
+			}
+
+			if (body.pairing_required && body.key_valid !== true) {
+				setAgentStatus('error');
+				setStatusMessage(
+					body.key_valid === false
+						? 'Agent reachable, but the pairing code is wrong. Click “Print pairing code” and enter the code from the receipt.'
+						: 'Agent reachable, but not paired. Click “Print pairing code” and enter the code from the receipt.'
+				);
 				return;
 			}
 
@@ -226,6 +244,30 @@ export default function ReceiptSettingsPage() {
 		}
 	};
 
+	const onPrintPairingCode = async () => {
+		const host = normalizePrintAgentHost(printHost);
+		if (!host) {
+			setAgentStatus('error');
+			setStatusMessage('Enter a host / IP first.');
+			return;
+		}
+		setPairing(true);
+		try {
+			const res = await fetch(
+				getPrintAgentPairUrl({ host, port: normalizePrintAgentPort(printPort), key: '' }),
+				{ method: 'POST' }
+			);
+			const body = (await res.json().catch(() => ({}))) as { message?: string };
+			setAgentStatus(res.ok ? 'idle' : 'error');
+			setStatusMessage(body.message || (res.ok ? 'Pairing code printed.' : `Agent returned HTTP ${res.status}.`));
+		} catch (err) {
+			setAgentStatus('error');
+			setStatusMessage(err instanceof Error ? err.message : 'Could not reach the print agent.');
+		} finally {
+			setPairing(false);
+		}
+	};
+
 	const statusChip =
 		agentStatus === 'ok' ? (
 			<Chip size="small" color="success" label="Printer ready" />
@@ -241,7 +283,8 @@ export default function ReceiptSettingsPage() {
 
 	const endpointPreview = getPrintAgentPrintUrl({
 		host: normalizePrintAgentHost(printHost) || '127.0.0.1',
-		port: normalizePrintAgentPort(printPort)
+		port: normalizePrintAgentPort(printPort),
+		key: ''
 	});
 
 	return (
@@ -417,6 +460,30 @@ export default function ReceiptSettingsPage() {
 						/>
 					</Box>
 
+					<TextField
+						fullWidth
+						className="mt-4"
+						label="Pairing code"
+						type="password"
+						autoComplete="off"
+						value={printKey}
+						disabled={saving || agentStatus === 'testing'}
+						onChange={(e) => {
+							setPrintKey(e.target.value);
+							setAgentStatus('idle');
+							setStatusMessage('');
+							markDirty();
+						}}
+						helperText="Click “Print pairing code” to print it on the receipt printer, then type it here."
+						InputProps={{
+							startAdornment: (
+								<InputAdornment position="start">
+									<FuseSvgIcon size={18}>heroicons-outline:key</FuseSvgIcon>
+								</InputAdornment>
+							)
+						}}
+					/>
+
 					<Typography variant="caption" color="text.secondary" className="mt-3 block font-mono">
 						Endpoint: {endpointPreview}
 					</Typography>
@@ -454,6 +521,15 @@ export default function ReceiptSettingsPage() {
 							}
 						>
 							{agentStatus === 'testing' ? 'Testing…' : 'Test connection'}
+						</Button>
+						<Button
+							type="button"
+							variant="outlined"
+							onClick={onPrintPairingCode}
+							disabled={pairing || agentStatus === 'testing' || saving}
+							startIcon={<FuseSvgIcon size={18}>heroicons-outline:printer</FuseSvgIcon>}
+						>
+							{pairing ? 'Printing…' : 'Print pairing code'}
 						</Button>
 					</Box>
 				</SectionCard>

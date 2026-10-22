@@ -39,6 +39,21 @@ export function getPrintAgentHealthUrl(appSettings) {
     return base ? `${base}/health` : null;
 }
 
+export function getPrintAgentPairUrl(appSettings) {
+    const base = getPrintAgentBaseUrl(appSettings);
+    return base ? `${base}/pair` : null;
+}
+
+/** Pairing code printed by the agent, e.g. `ABCDE-FGH23`. */
+export function normalizePrintAgentKey(raw) {
+    return String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+export function printAgentHeaders(appSettings, extra = {}) {
+    const key = normalizePrintAgentKey(appSettings?.printAgentKey);
+    return key ? { ...extra, 'X-Print-Key': key } : { ...extra };
+}
+
 /**
  * Print agent should return JSON. Wrong host / offline gateway often returns HTML (`<!DOCTYPE…`),
  * which makes response.json() throw "Unexpected character: <".

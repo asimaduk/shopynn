@@ -12,8 +12,12 @@ import {
     DEFAULT_PRINT_AGENT_HOST,
     DEFAULT_PRINT_AGENT_PORT,
     getPrintAgentHealthUrl,
+    getPrintAgentPairUrl,
     normalizePrintAgentHost,
+    normalizePrintAgentKey,
     normalizePrintAgentPort,
+    printAgentHeaders,
+    readPrintAgentResponse,
 } from '../../utils/printAgent';
 import AppAlert from '../../utils/appAlert';
 
@@ -23,12 +27,21 @@ const PrintAgentSettings = ({ navigation }) => {
     const appSettings = useSelector((s) => s.appSettings) || {};
     const [host, setHost] = useState(appSettings.printAgentHost || DEFAULT_PRINT_AGENT_HOST);
     const [port, setPort] = useState(String(appSettings.printAgentPort ?? DEFAULT_PRINT_AGENT_PORT));
+    const [key, setKey] = useState(appSettings.printAgentKey || '');
     const [testing, setTesting] = useState(false);
+    const [pairing, setPairing] = useState(false);
 
     useEffect(() => {
         setHost(appSettings.printAgentHost || DEFAULT_PRINT_AGENT_HOST);
         setPort(String(appSettings.printAgentPort ?? DEFAULT_PRINT_AGENT_PORT));
-    }, [appSettings.printAgentHost, appSettings.printAgentPort]);
+        setKey(appSettings.printAgentKey || '');
+    }, [appSettings.printAgentHost, appSettings.printAgentPort, appSettings.printAgentKey]);
+
+    const buildDraft = () => ({
+        printAgentHost: normalizePrintAgentHost(host),
+        printAgentPort: normalizePrintAgentPort(port),
+        printAgentKey: normalizePrintAgentKey(key),
+    });
 
     const save = () => {
         const normalizedHost = normalizePrintAgentHost(host);
@@ -40,16 +53,14 @@ const PrintAgentSettings = ({ navigation }) => {
             setPrintAgent({
                 host: normalizedHost,
                 port: normalizePrintAgentPort(port),
+                key,
             }),
         );
         AppAlert.alert('Saved', 'Print agent settings updated.');
     };
 
     const testConnection = async () => {
-        const draft = {
-            printAgentHost: normalizePrintAgentHost(host),
-            printAgentPort: normalizePrintAgentPort(port),
-        };
+        const draft = buildDraft();
         if (!draft.printAgentHost) {
             AppAlert.alert('Host required', 'Enter the LAN IP of the computer running Shopynn Print.');
             return;
@@ -59,7 +70,7 @@ const PrintAgentSettings = ({ navigation }) => {
         try {
             const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
             const timer = setTimeout(() => controller?.abort?.(), 5000);
-            const res = await fetch(url, { method: 'GET', signal: controller?.signal });
+            const res = await fetch(url, { method: 'GET', headers: printAgentHeaders(draft), signal: controller?.signal });
             clearTimeout(timer);
             const data = await res.json().catch(() => ({}));
             if (!res.ok) {
@@ -67,6 +78,15 @@ const PrintAgentSettings = ({ navigation }) => {
                 return;
             }
             const printer = data.printer_connected ? 'Printer detected' : 'Agent OK — no USB printer detected yet';
+            if (data.pairing_required && data.key_valid !== true) {
+                AppAlert.alert(
+                    'Pairing code needed',
+                    data.key_valid === false
+                        ? `${printer}, but the pairing code is wrong. Tap “Print pairing code” and enter the code from the receipt.`
+                        : `${printer}. Tap “Print pairing code” and enter the code from the receipt.`,
+                );
+                return;
+            }
             AppAlert.alert('Connected', `${printer}\n${url.replace('/health', '')}`);
         } catch (err) {
             AppAlert.alert(
@@ -77,6 +97,24 @@ const PrintAgentSettings = ({ navigation }) => {
             );
         } finally {
             setTesting(false);
+        }
+    };
+
+    const printPairingCode = async () => {
+        const draft = buildDraft();
+        if (!draft.printAgentHost) {
+            AppAlert.alert('Host required', 'Enter the LAN IP of the computer running Shopynn Print.');
+            return;
+        }
+        setPairing(true);
+        try {
+            const res = await fetch(getPrintAgentPairUrl(draft), { method: 'POST' });
+            const { ok, data } = await readPrintAgentResponse(res);
+            AppAlert.alert(ok ? 'Check the printer' : 'Could not print code', data?.message || '');
+        } catch (err) {
+            AppAlert.alert('Not reachable', err?.message || 'Could not reach the print agent.');
+        } finally {
+            setPairing(false);
         }
     };
 
@@ -124,7 +162,47 @@ const PrintAgentSettings = ({ navigation }) => {
                             { borderColor: colors.border, color: colors.text, backgroundColor: colors.background, width: 120 },
                         ]}
                     />
+                    <AppText label="Pairing code" fontSize={12} color={colors.textSecondary} style={{ marginTop: 12, marginBottom: 6 }} />
+                    <TextInput
+                        placeholder="ABCDE-FGH23"
+                        placeholderTextColor={colors.textTertiary}
+                        value={key}
+                        onChangeText={setKey}
+                        autoCapitalize="characters"
+                        autoCorrect={false}
+                        secureTextEntry
+                        style={[
+                            styles.input,
+                            { borderColor: colors.border, color: colors.text, backgroundColor: colors.background },
+                        ]}
+                    />
+                    <AppText
+                        label="Tap “Print pairing code” to print it on the receipt printer, then type it here."
+                        fontSize={12}
+                        color={colors.textSecondary}
+                        style={{ marginTop: 6 }}
+                    />
                 </View>
+
+                <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={printPairingCode}
+                    disabled={pairing}
+                    style={[styles.secondaryBtn, { borderColor: config.THEME_COLOR }]}
+                >
+                    {pairing ? (
+                        <ActivityIndicator color={config.THEME_COLOR} />
+                    ) : (
+                        <Lucide name="printer" color={config.THEME_COLOR} size={18} />
+                    )}
+                    <AppText
+                        label={pairing ? 'Printing…' : 'Print pairing code'}
+                        variant={1}
+                        color={config.THEME_COLOR}
+                        fontSize={15}
+                        style={{ marginLeft: 8 }}
+                    />
+                </TouchableOpacity>
 
                 <TouchableOpacity
                     activeOpacity={0.8}
