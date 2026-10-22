@@ -8,6 +8,8 @@ import {
 } from "../constants/billingCatalog.js";
 import { createTransferRecipient, initiateTransfer, isPaystackConfigured } from "../services/paymentGateway.js";
 import { normalizePhoneForPaystack, resolvePaystackBankCode } from "../services/paystackPayout.js";
+import { buildAgentPayoutEmail } from "../services/agentPayoutEmail.js";
+import { sendEmailService } from "./mail.js";
 
 const round2 = (n) => Math.round(Number(n) * 100) / 100;
 
@@ -374,6 +376,48 @@ export const approveAgentPayoutService = async ({ payoutId, actorUserId }) => {
     return applyAgentPayoutTransferResult(payout.id, transfer);
 };
 
+const NOTIFY_STATUSES = [PAYOUT_STATUS.PAID, PAYOUT_STATUS.FAILED, PAYOUT_STATUS.REJECTED];
+
+/** Email the agent about a paid / failed / rejected payout, once per status. Never throws. */
+export async function notifyAgentPayoutStatus(payoutId) {
+    try {
+        const claim = await pool.query(
+            `UPDATE merchant_payouts p
+             SET notified_status = p.status
+             FROM (SELECT id, notified_status AS previous FROM merchant_payouts WHERE id = $1 FOR UPDATE) prev
+             WHERE p.id = prev.id AND p.status = ANY($2::text[]) AND p.notified_status IS DISTINCT FROM p.status
+             RETURNING p.*, prev.previous`,
+            [payoutId, NOTIFY_STATUSES]
+        );
+        const payout = claim.rows[0];
+        if (!payout) return false;
+
+        const agent = (
+            await pool.query(
+                `SELECT u.email, u.first_name FROM merchants m INNER JOIN users u ON u.id = m.user_id WHERE m.id = $1`,
+                [payout.merchant_id]
+            )
+        ).rows[0];
+        const email = buildAgentPayoutEmail(payout, agent);
+        if (!agent?.email || !email) return false;
+        try {
+            await sendEmailService({ sender_name: "Shopynn", from: "billing", receipient: agent.email, ...email });
+            return true;
+        } catch (e) {
+            await pool.query(`UPDATE merchant_payouts SET notified_status = $2 WHERE id = $1 AND notified_status = $3`, [
+                payout.id,
+                payout.previous,
+                payout.status,
+            ]);
+            console.error(`[agent-payout] email for payout ${payout.id} (${payout.status}) failed: ${e.message}`);
+            return false;
+        }
+    } catch (e) {
+        console.error(`[agent-payout] notify ${payoutId} failed: ${e.message}`);
+        return false;
+    }
+}
+
 async function markPayoutFailed(payoutId, reason) {
     await pool.query(
         `UPDATE merchant_commissions SET status = 'in_payout', paid_at = NULL WHERE payout_id = $1 AND status = 'paid'`,
@@ -423,11 +467,14 @@ export const handleAgentPayoutTransferWebhook = async (data = {}) => {
         [refs]
     );
     if (!r.rows[0]) return null;
-    return applyAgentPayoutTransferResult(r.rows[0].id, {
+    const payout = await applyAgentPayoutTransferResult(r.rows[0].id, {
         status: data.status,
         transfer_code: data.transfer_code || data.code,
         message: data.complete_message || data.reason || null,
     });
+    // Not awaited: Paystack should get its 200 without waiting on the email provider.
+    notifyAgentPayoutStatus(r.rows[0].id);
+    return payout;
 };
 
 /** Admin: drop a payout that is awaiting approval or failed; its commissions become payable again. */

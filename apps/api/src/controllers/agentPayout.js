@@ -10,6 +10,7 @@ import {
     markAgentPayoutFailedService,
     cancelCommissionService,
     agentPayoutsLiveBlocked,
+    notifyAgentPayoutStatus,
 } from "../models/agentPayout.js";
 
 export const getMyEarnings = async (req, res, next) => {
@@ -65,6 +66,7 @@ export const approveAgentPayout = async (req, res, next) => {
     try {
         const payout = await approveAgentPayoutService({ payoutId: req.params.id, actorUserId: req.user?.id });
         if (!payout) return handleResponse(res, 404, "No payout awaiting approval or retry with that id.", null);
+        await notifyAgentPayoutStatus(payout.id);
         const message =
             payout.status === "paid"
                 ? "Payout sent."
@@ -82,6 +84,7 @@ export const rejectAgentPayout = async (req, res, next) => {
     try {
         const payout = await rejectAgentPayoutService({ payoutId: req.params.id, reason: req.body?.reason });
         if (!payout) return handleResponse(res, 404, "No payout awaiting approval or failed with that id.", null);
+        await notifyAgentPayoutStatus(payout.id);
         handleResponse(res, 200, "Payout rejected. Its commissions are payable again.", { payout });
     } catch (error) {
         next(error);
@@ -92,6 +95,7 @@ export const markAgentPayoutFailed = async (req, res, next) => {
     try {
         const payout = await markAgentPayoutFailedService({ payoutId: req.params.id, reason: req.body?.reason });
         if (!payout) return handleResponse(res, 404, "No processing payout with that id.", null);
+        await notifyAgentPayoutStatus(payout.id);
         handleResponse(res, 200, "Payout marked failed.", { payout });
     } catch (error) {
         next(error);
