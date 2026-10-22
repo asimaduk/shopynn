@@ -8,7 +8,16 @@ import {
     getCommissionsForMerchantService,
     markCommissionPaidService,
     listMerchantsForAdminService,
-    revokeMerchantRecordService,
+    deactivateMerchantService,
+    reactivateMerchantService,
+    updateMerchantAdminService,
+    recruitFieldAgentForManagerService,
+    approveRecruitedAgentService,
+    rejectRecruitedAgentService,
+    getTeamMemberService,
+    listTeamMembersService,
+    listTeamTenantsService,
+    reassignTeamTenantService,
     getMerchantDetailForAdminService,
     listEligibleUsersForMerchantPromoteService,
     createPayLaterQuoteForTenantService,
@@ -49,7 +58,7 @@ export const promoteMerchant = async (req, res, next) => {
                 return handleResponse(res, 400, "Tenant context required.", null);
             }
             const { first_name, last_name, email, phone } = req.body.create_user;
-            const { default_commission_percent } = req.body;
+            const { default_commission_percent, agent_type, manager_id } = req.body;
             if (!String(first_name || "").trim() || !String(last_name || "").trim()) {
                 return handleResponse(res, 400, "create_user requires first_name and last_name.", null);
             }
@@ -67,6 +76,8 @@ export const promoteMerchant = async (req, res, next) => {
                 email: String(email).trim(),
                 phone: String(phone).trim(),
                 default_commission_percent,
+                agent_type,
+                manager_id,
             });
             if (result?.error) {
                 return handleResponse(res, 400, result.error, null);
@@ -80,15 +91,17 @@ export const promoteMerchant = async (req, res, next) => {
             return;
         }
 
-        const { user_id, default_commission_percent } = req.body;
-        const result = await createMerchantRecordService({ user_id, default_commission_percent });
+        const { user_id, default_commission_percent, agent_type, manager_id } = req.body;
+        const result = await createMerchantRecordService({
+            user_id,
+            default_commission_percent,
+            agent_type,
+            manager_id,
+            approved_by: actorId,
+        });
         handleResponse(res, 201, "Merchant record created.", result);
     } catch (error) {
-        if (
-            error.message?.includes("required") ||
-            error.message?.includes("not found") ||
-            error.message?.includes("already registered")
-        ) {
+        if (isAgentInputError(error)) {
             return handleResponse(res, 400, error.message, null);
         }
         next(error);
@@ -305,13 +318,162 @@ export const submitTenantPaymentOtp = async (req, res, next) => {
     }
 };
 
-export const revokeMerchant = async (req, res, next) => {
+function isAgentInputError(error) {
+    const msg = error?.message || "";
+    return [
+        "required",
+        "not found",
+        "already registered",
+        "agent_type",
+        "manager",
+        "Manager",
+        "not active",
+        "on your team",
+        "Only active",
+    ].some((s) => msg.includes(s));
+}
+
+function readNamePayload(body = {}) {
+    const first_name = String(body.first_name || "").trim();
+    const last_name = String(body.last_name || "").trim();
+    const email = String(body.email || "").trim();
+    const phone = String(body.phone || "").trim();
+    if (!first_name || !last_name) return { error: "first_name and last_name are required." };
+    if (!email) return { error: "email is required." };
+    if (!phone) return { error: "phone is required." };
+    return { first_name, last_name, email, phone };
+}
+
+export const deactivateMerchant = async (req, res, next) => {
     try {
-        const deleted = await revokeMerchantRecordService(req.params.id);
-        if (!deleted) {
+        const result = await deactivateMerchantService({
+            merchantId: req.params.id,
+            actorUserId: req.user?.id,
+            reason: req.body?.reason,
+        });
+        if (!result) {
             return handleResponse(res, 404, "Merchant not found.", null);
         }
-        handleResponse(res, 200, "Merchant revoked.", deleted);
+        handleResponse(res, 200, "Agent deactivated.", result);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const reactivateMerchant = async (req, res, next) => {
+    try {
+        const result = await reactivateMerchantService({ merchantId: req.params.id });
+        if (!result) return handleResponse(res, 404, "No deactivated agent with that id.", null);
+        handleResponse(res, 200, "Agent reactivated.", result);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const updateMerchantAdmin = async (req, res, next) => {
+    try {
+        const { agent_type, manager_id } = req.body || {};
+        const result = await updateMerchantAdminService({
+            merchantId: req.params.id,
+            agent_type,
+            manager_id,
+            actorUserId: req.user?.id,
+        });
+        if (!result) return handleResponse(res, 404, "Merchant not found.", null);
+        handleResponse(res, 200, "Agent updated.", result);
+    } catch (error) {
+        if (isAgentInputError(error) || error.message?.includes("team")) {
+            return handleResponse(res, 400, error.message, null);
+        }
+        next(error);
+    }
+};
+
+export const approveRecruitedAgent = async (req, res, next) => {
+    try {
+        const result = await approveRecruitedAgentService({ merchantId: req.params.id, actorUserId: req.user?.id });
+        if (!result) return handleResponse(res, 404, "No pending recruit with that id.", null);
+        handleResponse(res, 200, "Agent approved. A temporary password was emailed to them.", result);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const rejectRecruitedAgent = async (req, res, next) => {
+    try {
+        const result = await rejectRecruitedAgentService({
+            merchantId: req.params.id,
+            actorUserId: req.user?.id,
+            reason: req.body?.reason,
+        });
+        if (!result) return handleResponse(res, 404, "No pending recruit with that id.", null);
+        handleResponse(res, 200, "Recruit rejected.", result);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getMyTeam = async (req, res, next) => {
+    try {
+        const members = await listTeamMembersService(req.merchant.id);
+        handleResponse(res, 200, "Team.", { members });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getMyTeamTenants = async (req, res, next) => {
+    try {
+        const tenants = await listTeamTenantsService(req.merchant.id);
+        handleResponse(res, 200, "Team businesses.", { tenants });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const recruitTeamAgent = async (req, res, next) => {
+    try {
+        const input = readNamePayload(req.body);
+        if (input.error) return handleResponse(res, 400, input.error, null);
+        const result = await recruitFieldAgentForManagerService({
+            managerRow: req.merchant,
+            actorUserId: req.user?.id,
+            ...input,
+        });
+        if (result?.error) return handleResponse(res, 400, result.error, null);
+        handleResponse(res, 201, "Recruit submitted. Shopynn will review and email their login once approved.", result);
+    } catch (error) {
+        if (isAgentInputError(error)) return handleResponse(res, 400, error.message, null);
+        next(error);
+    }
+};
+
+export const reassignTeamTenant = async (req, res, next) => {
+    try {
+        const result = await reassignTeamTenantService({
+            managerRow: req.merchant,
+            tenantId: req.params.tenantId,
+            merchantId: req.body?.merchant_id,
+            reason: req.body?.reason,
+            actorUserId: req.user?.id,
+        });
+        handleResponse(res, 200, "Business reassigned.", result);
+    } catch (error) {
+        if (isAgentInputError(error)) return handleResponse(res, 400, error.message, null);
+        next(error);
+    }
+};
+
+export const deactivateTeamAgent = async (req, res, next) => {
+    try {
+        const member = await getTeamMemberService(req.merchant.id, req.params.merchantId);
+        if (!member) return handleResponse(res, 404, "Agent not found on your team.", null);
+        const result = await deactivateMerchantService({
+            merchantId: member.id,
+            actorUserId: req.user?.id,
+            reason: req.body?.reason,
+        });
+        handleResponse(res, 200, "Agent deactivated.", result);
     } catch (error) {
         next(error);
     }

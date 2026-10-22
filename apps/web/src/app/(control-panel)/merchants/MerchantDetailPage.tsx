@@ -26,7 +26,15 @@ import { hasPermissionCodes } from '@auth/permissions';
 import toast from 'react-hot-toast';
 import PageBreadcrumb from 'src/components/PageBreadcrumb';
 import { useGetAdminMerchantDetailQuery, useMarkCommissionPaidMutation } from './MerchantApi';
-import { formatDate, formatMoney, userDisplayName } from './merchantFormatters';
+import {
+	AGENT_STATUS_COLOR,
+	AGENT_STATUS_LABEL,
+	agentTypeLabel,
+	formatDate,
+	formatMoney,
+	managerDisplayName,
+	userDisplayName
+} from './merchantFormatters';
 import SwitchServingMerchantDialog from '../tenants-directory/SwitchServingMerchantDialog';
 
 function initialsFromName(name: string) {
@@ -56,6 +64,7 @@ export default function MerchantDetailPage({ merchantId }: MerchantDetailPagePro
 	const merchant = data?.merchant;
 	const tenants = data?.tenants ?? [];
 	const commissions = data?.commissions ?? [];
+	const team = data?.team ?? [];
 	const pendingCount = commissions.filter((c) => c.status === 'pending').length;
 	const displayName = merchant ? userDisplayName(merchant) : '';
 
@@ -144,7 +153,10 @@ export default function MerchantDetailPage({ merchantId }: MerchantDetailPagePro
 									</Avatar>
 									<Box className="min-w-0 flex-1">
 										<Typography variant="overline" className="mb-0.5 font-semibold tracking-widest" sx={{ color: 'primary.main' }}>
-											Field agent
+											{agentTypeLabel(merchant.agent_type)}
+											{merchant.agent_type !== 'manager' && merchant.manager_first_name
+												? ` · Team of ${managerDisplayName(merchant)}`
+												: ''}
 										</Typography>
 										<Typography variant="h4" className="font-bold tracking-tight">
 											{displayName}
@@ -158,6 +170,14 @@ export default function MerchantDetailPage({ merchantId }: MerchantDetailPagePro
 								</motion.div>
 
 								<Stack direction="row" flexWrap="wrap" gap={1} className="shrink-0 sm:pt-1">
+									{merchant.status ? (
+										<Chip
+											label={AGENT_STATUS_LABEL[merchant.status]}
+											color={AGENT_STATUS_COLOR[merchant.status]}
+											size="medium"
+											sx={{ fontWeight: 600 }}
+										/>
+									) : null}
 									<Chip
 										label={`${tenants.length} ${tenants.length === 1 ? 'business' : 'businesses'}`}
 										size="medium"
@@ -209,9 +229,73 @@ export default function MerchantDetailPage({ merchantId }: MerchantDetailPagePro
 						</Paper>
 
 						<Stack spacing={4}>
+							{merchant.agent_type === 'manager' ? (
+								<Box>
+									<Typography variant="h6" className="mb-3 font-bold">
+										Team ({team.length})
+									</Typography>
+									<TableContainer component={Paper} variant="outlined" className="rounded-xl shadow-none">
+										<Table size="small">
+											<TableHead>
+												<TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.04) }}>
+													<TableCell sx={{ fontWeight: 700 }}>Agent</TableCell>
+													<TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+													<TableCell align="right" sx={{ fontWeight: 700 }}>
+														Shops
+													</TableCell>
+													<TableCell align="right" sx={{ fontWeight: 700 }}>
+														Pending
+													</TableCell>
+													<TableCell align="right" sx={{ fontWeight: 700 }}>
+														Paid
+													</TableCell>
+												</TableRow>
+											</TableHead>
+											<TableBody>
+												{team.length === 0 ? (
+													<TableRow>
+														<TableCell colSpan={5}>
+															<Typography color="text.secondary" className="py-4 text-center">
+																No agents on this team yet.
+															</Typography>
+														</TableCell>
+													</TableRow>
+												) : (
+													team.map((m) => (
+														<TableRow
+															key={m.id}
+															hover
+															component={Link}
+															to={`/merchants/${m.id}`}
+															sx={{ textDecoration: 'none' }}
+														>
+															<TableCell>{userDisplayName(m)}</TableCell>
+															<TableCell>
+																{m.status ? (
+																	<Chip
+																		size="small"
+																		label={AGENT_STATUS_LABEL[m.status]}
+																		color={AGENT_STATUS_COLOR[m.status]}
+																		variant="outlined"
+																	/>
+																) : (
+																	'—'
+																)}
+															</TableCell>
+															<TableCell align="right">{m.serving_count ?? 0}</TableCell>
+															<TableCell align="right">GHS {formatMoney(m.pending_commission_ghs)}</TableCell>
+															<TableCell align="right">GHS {formatMoney(m.paid_commission_ghs)}</TableCell>
+														</TableRow>
+													))
+												)}
+											</TableBody>
+										</Table>
+									</TableContainer>
+								</Box>
+							) : null}
 							<Box>
 								<Typography variant="h6" className="mb-3 font-bold">
-									Onboarded businesses
+									Businesses
 								</Typography>
 								<TableContainer component={Paper} variant="outlined" className="rounded-xl shadow-none">
 									<Table size="small">
@@ -250,8 +334,10 @@ export default function MerchantDetailPage({ merchantId }: MerchantDetailPagePro
 																: ''}
 														</TableCell>
 														<TableCell>
-															{(t as { is_serving_agent?: boolean }).is_serving_agent ? (
+															{t.is_serving_agent ? (
 																<Chip size="small" color="success" label="Yes" variant="outlined" />
+															) : t.awaiting_first_payment ? (
+																<Chip size="small" color="warning" label="Awaiting first payment" variant="outlined" />
 															) : (
 																<Chip size="small" label="No" variant="outlined" />
 															)}

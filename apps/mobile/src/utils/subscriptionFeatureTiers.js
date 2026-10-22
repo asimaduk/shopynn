@@ -25,7 +25,7 @@ const BASIC_EXCLUDED = new Set([
     'purchase_orders.create', 'purchase_orders.receive', 'purchase_orders.view', 'orders.view', 'orders.details.view',
     'orders.create', 'orders.update', 'orders.cancel', 'orders.export', 'orders.store.manage', 'orders.store.view',
     'orders.analytics.view', 'orders.automation.manage', 'orders.multi_store.manage', 'orders.delivery.manage',
-    'data_export.run', 'data_export.view', 'merchants.view', 'merchants.operate', 'tenants.directory.view',
+    'data_export.run', 'data_export.view', 'merchants.view', 'merchants.operate', 'merchants.manage_team', 'tenants.directory.view',
     'newsletter.subscribers.view', 'newsletter.campaigns.view', 'newsletter.campaigns.send', 'broadcasts.send', 'contact_requests.view',
     'contact_requests.respond', 'site_chat.sessions.view', 'site_chat.sessions.respond', 'payments.view',
 ]);
@@ -35,7 +35,7 @@ const STANDARD_EXCLUDED = new Set([
     'orders.view', 'orders.details.view', 'orders.create', 'orders.update', 'orders.cancel',
     'orders.export', 'orders.store.manage', 'orders.store.view', 'orders.analytics.view', 'orders.automation.manage',
     'orders.multi_store.manage', 'orders.delivery.manage', 'data_export.run', 'data_export.view',
-    'audit_logs.view', 'audit_logs.details.view', 'audit.view', 'merchants.view', 'merchants.operate', 'tenants.directory.view',
+    'audit_logs.view', 'audit_logs.details.view', 'audit.view', 'merchants.view', 'merchants.operate', 'merchants.manage_team', 'tenants.directory.view',
     'newsletter.subscribers.view', 'newsletter.campaigns.view', 'newsletter.campaigns.send', 'broadcasts.send', 'contact_requests.view',
     'contact_requests.respond', 'site_chat.sessions.view', 'site_chat.sessions.respond', 'payments.view',
 ]);

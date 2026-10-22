@@ -2,10 +2,16 @@ import { apiService as api } from 'src/store/apiService';
 
 export const merchantTagTypes = ['merchant'] as const;
 
+export type AgentType = 'agent' | 'manager';
+export type AgentStatus = 'pending_approval' | 'active' | 'rejected' | 'deactivated';
+
 export type MerchantRecord = {
 	id: string;
 	user_id: string;
 	default_commission_percent: string | number | null;
+	agent_type?: AgentType;
+	manager_id?: string | null;
+	status?: AgentStatus;
 	created_at?: string;
 	updated_at?: string;
 };
@@ -16,6 +22,30 @@ export type AdminMerchantRow = MerchantRecord & {
 	email?: string | null;
 	phone?: string | null;
 	onboarded_count?: number;
+	serving_count?: number;
+	awaiting_payment_count?: number;
+	team_size?: number;
+	status_reason?: string | null;
+	manager_first_name?: string | null;
+	manager_last_name?: string | null;
+	recruited_by?: string | null;
+	recruited_by_first_name?: string | null;
+	recruited_by_last_name?: string | null;
+	approved_at?: string | null;
+	deactivated_at?: string | null;
+};
+
+export type TeamMemberRow = AdminMerchantRow & {
+	pending_commission_ghs?: string | number;
+	paid_commission_ghs?: string | number;
+};
+
+export type DeactivateAgentResult = {
+	id: string;
+	status: AgentStatus;
+	handed_to: string | null;
+	shops_moved: number;
+	unchanged?: boolean;
 };
 
 /** Tenant user without a merchants row (add-merchant picker). */
@@ -43,7 +73,12 @@ export type OnboardedTenantRow = {
 	quote_status?: string | null;
 	quote_total_ghs?: string | number | null;
 	serving_merchant_id?: string | null;
+	onboarded_by_merchant_id?: string | null;
+	agent_merchant_id?: string | null;
+	awaiting_first_payment?: boolean;
 	is_serving_agent?: boolean;
+	agent_first_name?: string | null;
+	agent_last_name?: string | null;
 };
 
 export type MerchantCommissionRow = {
@@ -197,16 +232,21 @@ const MerchantApi = api
 			}),
 			promoteMerchant: build.mutation<
 				unknown,
-				| { user_id: string; default_commission_percent?: number | null }
-				| {
-						create_user: {
-							first_name: string;
-							last_name: string;
-							email: string;
-							phone: string;
-						};
-						default_commission_percent?: number | null;
-				  }
+				(
+					| { user_id: string }
+					| {
+							create_user: {
+								first_name: string;
+								last_name: string;
+								email: string;
+								phone: string;
+							};
+					  }
+				) & {
+					default_commission_percent?: number | null;
+					agent_type?: AgentType;
+					manager_id?: string | null;
+				}
 			>({
 				query: (body) => ({
 					url: '/api/merchants/promote',
@@ -224,16 +264,90 @@ const MerchantApi = api
 				providesTags: ['merchant']
 			}),
 			getAdminMerchantDetail: build.query<
-				{ merchant: AdminMerchantRow; tenants: OnboardedTenantRow[]; commissions: MerchantCommissionRow[] },
+				{
+					merchant: AdminMerchantRow;
+					tenants: OnboardedTenantRow[];
+					commissions: MerchantCommissionRow[];
+					team: TeamMemberRow[];
+				},
 				string
 			>({
 				query: (id) => ({ url: `/api/merchants/admin/${id}` }),
 				providesTags: ['merchant']
 			}),
-			revokeMerchant: build.mutation<unknown, string>({
+			deactivateMerchant: build.mutation<DeactivateAgentResult, { merchantId: string; reason?: string }>({
+				query: ({ merchantId, reason }) => ({
+					url: `/api/merchants/admin/${merchantId}/deactivate`,
+					method: 'POST',
+					body: { reason }
+				}),
+				invalidatesTags: ['merchant']
+			}),
+			reactivateMerchant: build.mutation<unknown, string>({
 				query: (merchantId) => ({
+					url: `/api/merchants/admin/${merchantId}/reactivate`,
+					method: 'POST'
+				}),
+				invalidatesTags: ['merchant']
+			}),
+			updateMerchantAdmin: build.mutation<
+				unknown,
+				{ merchantId: string; agent_type?: AgentType; manager_id?: string | null }
+			>({
+				query: ({ merchantId, ...body }) => ({
 					url: `/api/merchants/admin/${merchantId}`,
-					method: 'DELETE'
+					method: 'PATCH',
+					body
+				}),
+				invalidatesTags: ['merchant']
+			}),
+			approveRecruit: build.mutation<unknown, string>({
+				query: (merchantId) => ({
+					url: `/api/merchants/admin/${merchantId}/approve`,
+					method: 'POST'
+				}),
+				invalidatesTags: ['merchant']
+			}),
+			rejectRecruit: build.mutation<unknown, { merchantId: string; reason?: string }>({
+				query: ({ merchantId, reason }) => ({
+					url: `/api/merchants/admin/${merchantId}/reject`,
+					method: 'POST',
+					body: { reason }
+				}),
+				invalidatesTags: ['merchant']
+			}),
+			getMyTeam: build.query<{ members: TeamMemberRow[] }, void>({
+				query: () => ({ url: '/api/merchants/team' }),
+				providesTags: ['merchant']
+			}),
+			getMyTeamTenants: build.query<{ tenants: OnboardedTenantRow[] }, void>({
+				query: () => ({ url: '/api/merchants/team/tenants' }),
+				providesTags: ['merchant']
+			}),
+			recruitTeamAgent: build.mutation<
+				unknown,
+				{ first_name: string; last_name: string; email: string; phone: string }
+			>({
+				query: (body) => ({
+					url: '/api/merchants/team/recruit',
+					method: 'POST',
+					body
+				}),
+				invalidatesTags: ['merchant']
+			}),
+			reassignTeamTenant: build.mutation<unknown, { tenantId: string; merchant_id: string; reason?: string }>({
+				query: ({ tenantId, ...body }) => ({
+					url: `/api/merchants/team/tenants/${tenantId}/serving`,
+					method: 'PUT',
+					body
+				}),
+				invalidatesTags: ['merchant']
+			}),
+			deactivateTeamAgent: build.mutation<DeactivateAgentResult, { merchantId: string; reason?: string }>({
+				query: ({ merchantId, reason }) => ({
+					url: `/api/merchants/team/${merchantId}/deactivate`,
+					method: 'POST',
+					body: { reason }
 				}),
 				invalidatesTags: ['merchant']
 			}),
@@ -264,7 +378,16 @@ export const {
 	useGetAdminMerchantsQuery,
 	useGetEligibleMerchantUsersQuery,
 	useGetAdminMerchantDetailQuery,
-	useRevokeMerchantMutation,
+	useDeactivateMerchantMutation,
+	useReactivateMerchantMutation,
+	useUpdateMerchantAdminMutation,
+	useApproveRecruitMutation,
+	useRejectRecruitMutation,
+	useGetMyTeamQuery,
+	useGetMyTeamTenantsQuery,
+	useRecruitTeamAgentMutation,
+	useReassignTeamTenantMutation,
+	useDeactivateTeamAgentMutation,
 	useGetIndustriesQuery,
 	useGetTenantQuoteQuery,
 	useCreatePayLaterQuoteMutation,

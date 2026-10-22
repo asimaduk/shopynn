@@ -23,6 +23,7 @@ export const CUSTOMER_SHOPPING_PERMISSION_CODES = [
 export const PLATFORM_PERMISSION_CODES = [
     "merchants.view",
     "merchants.operate",
+    "merchants.manage_team",
     "tenants.directory.view",
     "newsletter.subscribers.view",
     "newsletter.campaigns.view",

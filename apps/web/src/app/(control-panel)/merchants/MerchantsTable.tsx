@@ -1,74 +1,111 @@
 import { useMemo } from 'react';
 import { type MRT_ColumnDef } from 'material-react-table';
 import DataTable from 'src/components/data-table/DataTable';
-import { Paper, MenuItem, ListItemIcon } from '@mui/material';
+import { Chip, Paper, MenuItem, ListItemIcon } from '@mui/material';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import type { AdminMerchantRow } from './MerchantApi';
-import { formatDateShort, formatMoney, userDisplayName } from './merchantFormatters';
+import {
+	AGENT_STATUS_COLOR,
+	AGENT_STATUS_LABEL,
+	agentTypeLabel,
+	formatDateShort,
+	managerDisplayName,
+	userDisplayName
+} from './merchantFormatters';
+
+export type MerchantRowAction = 'view' | 'approve' | 'reject' | 'team' | 'deactivate' | 'reactivate';
 
 type MerchantsTableProps = {
 	data: AdminMerchantRow[];
 	isLoading: boolean;
-	onViewDetails: (row: AdminMerchantRow) => void;
-	onRevoke: (row: AdminMerchantRow) => void;
-	revoking: boolean;
+	onAction: (action: MerchantRowAction, row: AdminMerchantRow) => void;
+	busy: boolean;
 	/** When true, omit outer Paper (use inside another container). */
 	embedded?: boolean;
 };
 
-function MerchantsTable({
-	data,
-	isLoading,
-	onViewDetails,
-	onRevoke,
-	revoking,
-	embedded
-}: MerchantsTableProps) {
+function MerchantsTable({ data, isLoading, onAction, busy, embedded }: MerchantsTableProps) {
 	const columns = useMemo<MRT_ColumnDef<AdminMerchantRow>[]>(
 		() => [
 			{
 				accessorKey: 'user',
-				header: 'Merchant',
+				header: 'Agent',
 				enableColumnFilter: false,
 				muiTableHeadCellProps: { sx: { pl: 3 } },
 				muiTableBodyCellProps: { sx: { pl: 3 } },
 				accessorFn: (row) => userDisplayName(row),
 				Cell: ({ row }) => (
-					<span className="font-medium">{userDisplayName(row.original)}</span>
+					<div>
+						<div className="font-medium">{userDisplayName(row.original)}</div>
+						<div className="text-sm opacity-60">{row.original.email ?? row.original.phone ?? ''}</div>
+					</div>
 				)
 			},
 			{
-				accessorKey: 'email',
-				header: 'Email',
-				accessorFn: (row) => row.email ?? '—'
+				accessorKey: 'agent_type',
+				header: 'Role',
+				size: 130,
+				accessorFn: (row) => agentTypeLabel(row.agent_type)
 			},
 			{
-				accessorKey: 'phone',
-				header: 'Phone',
-				accessorFn: (row) => row.phone ?? '—'
-			},
-			{
-				accessorKey: 'default_commission_percent',
-				header: 'Default %',
-				size: 100,
+				accessorKey: 'manager',
+				header: 'Manager / team',
 				accessorFn: (row) =>
-					row.default_commission_percent != null && row.default_commission_percent !== ''
-						? formatMoney(row.default_commission_percent)
-						: '—'
+					row.agent_type === 'manager' ? `${row.team_size ?? 0} active agents` : managerDisplayName(row)
 			},
 			{
-				accessorKey: 'onboarded_count',
-				header: 'Businesses',
-				size: 110,
-				accessorFn: (row) => row.onboarded_count ?? 0
+				accessorKey: 'status',
+				header: 'Status',
+				size: 140,
+				accessorFn: (row) => (row.status ? AGENT_STATUS_LABEL[row.status] : '—'),
+				Cell: ({ row }) =>
+					row.original.status ? (
+						<Chip
+							size="small"
+							label={AGENT_STATUS_LABEL[row.original.status]}
+							color={AGENT_STATUS_COLOR[row.original.status]}
+							variant="outlined"
+						/>
+					) : (
+						'—'
+					)
+			},
+			{
+				accessorKey: 'serving_count',
+				header: 'Shops',
+				size: 90,
+				accessorFn: (row) => row.serving_count ?? 0
+			},
+			{
+				accessorKey: 'awaiting_payment_count',
+				header: 'Unpaid',
+				size: 90,
+				accessorFn: (row) => row.awaiting_payment_count ?? 0
 			},
 			{
 				accessorKey: 'created_at',
-				header: 'Date added',
+				header: 'Added',
+				size: 120,
 				accessorFn: (row) => (row.created_at ? formatDateShort(row.created_at) : '—')
 			}
 		],
 		[]
+	);
+
+	const menuItem = (key: MerchantRowAction, label: string, icon: string, row: AdminMerchantRow, closeMenu: () => void) => (
+		<MenuItem
+			key={key}
+			disabled={busy && key !== 'view'}
+			onClick={() => {
+				closeMenu();
+				onAction(key, row);
+			}}
+		>
+			<ListItemIcon>
+				<FuseSvgIcon size={20}>{icon}</FuseSvgIcon>
+			</ListItemIcon>
+			{label}
+		</MenuItem>
 	);
 
 	const table = (
@@ -83,33 +120,22 @@ function MerchantsTable({
 			state={{ isLoading }}
 			enableRowSelection={false}
 			enableRowActions
-			renderRowActionMenuItems={({ row, closeMenu }) => [
-				<MenuItem
-					key="view"
-					onClick={() => {
-						closeMenu();
-						onViewDetails(row.original);
-					}}
-				>
-					<ListItemIcon>
-						<FuseSvgIcon size={20}>heroicons-outline:eye</FuseSvgIcon>
-					</ListItemIcon>
-					View details
-				</MenuItem>,
-				<MenuItem
-					key="revoke"
-					disabled={revoking}
-					onClick={() => {
-						closeMenu();
-						onRevoke(row.original);
-					}}
-				>
-					<ListItemIcon>
-						<FuseSvgIcon size={20}>heroicons-outline:no-symbol</FuseSvgIcon>
-					</ListItemIcon>
-					Revoke merchant
-				</MenuItem>
-			]}
+			renderRowActionMenuItems={({ row, closeMenu }) => {
+				const r = row.original;
+				const items = [menuItem('view', 'View details', 'heroicons-outline:eye', r, closeMenu)];
+				if (r.status === 'pending_approval') {
+					items.push(menuItem('approve', 'Approve & send login', 'heroicons-outline:check-circle', r, closeMenu));
+					items.push(menuItem('reject', 'Reject', 'heroicons-outline:x-circle', r, closeMenu));
+				}
+				if (r.status === 'active') {
+					items.push(menuItem('team', 'Role & team', 'heroicons-outline:user-group', r, closeMenu));
+					items.push(menuItem('deactivate', 'Deactivate', 'heroicons-outline:no-symbol', r, closeMenu));
+				}
+				if (r.status === 'deactivated') {
+					items.push(menuItem('reactivate', 'Reactivate', 'heroicons-outline:arrow-path', r, closeMenu));
+				}
+				return items;
+			}}
 		/>
 	);
 

@@ -169,8 +169,10 @@ export const toggleUserActiveService = async (payload) => {
 export const getUserByIdService = async (id) => {
     const userRes = await pool.query("SELECT u.id, u.first_name, u.last_name, u.deleted, u.merchant_id, u.email, u.phone, u.last_login, u.tenant_id, u.is_active, (u.temporary_password IS NOT NULL AND u.temporary_password = u.password) AS must_reset_password, u.warehouse_id, w.name AS warehouse_name FROM users u LEFT JOIN warehouses w ON u.warehouse_id = w.id WHERE u.id = $1", [id]);
     if(userRes.rowCount){
-        const merchantRes = await pool.query(`SELECT id FROM merchants WHERE user_id = $1 LIMIT 1`, [userRes.rows[0].id]);
+        const merchantRes = await pool.query(`SELECT id, agent_type, status FROM merchants WHERE user_id = $1 LIMIT 1`, [userRes.rows[0].id]);
         userRes.rows[0].merchant_id = merchantRes.rows[0]?.id ?? null;
+        userRes.rows[0].merchant_agent_type = merchantRes.rows[0]?.agent_type ?? null;
+        userRes.rows[0].merchant_status = merchantRes.rows[0]?.status ?? null;
         // Fetch tenant details (name, address, phone, email) as "company" in response data
         let company = null;
         if(userRes.rows[0]?.tenant_id){
@@ -849,6 +851,32 @@ export const changePasswordWithTemporaryService = async (payload = {}) => {
     return { status: 200 };
 }
 
+/** Activates a user that was created inactive (e.g. a recruit awaiting approval) and emails a temporary password. */
+export const activateUserWithCredentialsService = async (userId) => {
+    const result = await pool.query(`SELECT id, first_name, email FROM users WHERE id = $1`, [userId]);
+    if (!result.rowCount) return { status: 404, message: "User not found." };
+    const user = result.rows[0];
+
+    const plainPassword = generatePassword(10);
+    const passwordHash = await bcrypt.hash(plainPassword, saltRounds);
+    await pool.query(
+        `UPDATE users
+         SET password = $1, temporary_password = $1, password_expires_at = $2, is_active = true, updated_at = $3
+         WHERE id = $4`,
+        [passwordHash, new Date(Date.now() + 24 * 60 * 60 * 1000), new Date(), user.id]
+    );
+
+    sendNewPassword({
+        from: "noreply",
+        sender_name: "Shopynn",
+        receipient: user.email,
+        subject: "Welcome to Shopynn - Your agent account is ready",
+        title: "Your temporary login credentials",
+        message: `Hello ${user.first_name},<br/><br/>Your Shopynn field agent account has been approved.<br/><br/>You can sign in with the credentials below:<br/>- Email: <strong>${user.email}</strong><br/>- Temporary password: <strong>${plainPassword}</strong><br/><br/>This temporary password expires in 24 hours and must be changed at first login. If it expires, use "Forgot password" on the sign-in screen.<br/><br/>Regards,<br/>Shopynn Support Team`,
+    });
+    return { status: 200 };
+};
+
 export const forgotPasswordService = async (email) => {
     const normalized = typeof email === "string" ? email.trim().toLowerCase() : "";
     if (!normalized) return { status: 400, message: "Email is required." };
@@ -921,7 +949,7 @@ export const assignMerchantPermissionsToUserRoleService = async ({
             return { status: 404, message: "Role not found for this tenant." };
         }
 
-        const permissionCodes = ["merchants.view", "merchants.operate", "tenants.directory.view"];
+        const permissionCodes = ["merchants.view", "merchants.operate", "merchants.manage_team", "tenants.directory.view"];
         const permsResult = await client.query(
             `SELECT id, code FROM permissions WHERE code = ANY($1::text[])`,
             [permissionCodes]

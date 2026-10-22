@@ -10,7 +10,11 @@ import {
     finalizeMerchantCommissionForQuoteService,
     getOnboardingQuoteByIdService,
 } from "./onboardingQuote.js";
-import { createResidualCommissionForSubscriptionPaymentService } from "./merchant.js";
+import {
+    createResidualCommissionForSubscriptionPaymentService,
+    lockServingAgentOnFirstPaymentService,
+    isMerchantActiveService,
+} from "./merchant.js";
 import crypto from "crypto";
 
 const buildTransactionRef = (paymentMethodType = "PAY") => {
@@ -949,20 +953,27 @@ export const syncOnboardingQuotePaymentAfterSuccess = async (transaction_ref, te
 
     await markQuotePaidService(payment.quote_id);
 
-    if (quote.merchant_id) {
+    // Credit the agent who raised the quote; if they have since been deactivated, the shop's
+    // current agent (their manager after hand-over). Inactive agents earn nothing.
+    let creditedMerchantId = null;
+    if (quote.merchant_id && (await isMerchantActiveService(quote.merchant_id))) {
+        creditedMerchantId = quote.merchant_id;
+    } else {
+        const t = await pool.query(
+            `SELECT COALESCE(serving_merchant_id, onboarded_by_merchant_id) AS agent_id FROM tenants WHERE id = $1`,
+            [quote.tenant_id]
+        );
+        const fallback = t.rows[0]?.agent_id;
+        if (fallback && (await isMerchantActiveService(fallback))) creditedMerchantId = fallback;
+    }
+    if (creditedMerchantId) {
         await finalizeMerchantCommissionForQuoteService(
             payment.quote_id,
-            quote.merchant_id,
+            creditedMerchantId,
             quote.tenant_id,
             quote.subscription_id
         );
-        // Ensure serving agent is set for residual renewals going forward
-        await pool.query(
-            `UPDATE tenants
-             SET serving_merchant_id = COALESCE(serving_merchant_id, $2), updated_at = now()
-             WHERE id = $1`,
-            [quote.tenant_id, quote.merchant_id]
-        );
+        await lockServingAgentOnFirstPaymentService(quote.tenant_id, creditedMerchantId);
     }
 
     return quote;

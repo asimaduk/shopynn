@@ -12,12 +12,16 @@ import Tab from '@mui/material/Tab';
 import Box from '@mui/material/Box';
 import Autocomplete, { createFilterOptions } from '@mui/material/Autocomplete';
 import CircularProgress from '@mui/material/CircularProgress';
+import MenuItem from '@mui/material/MenuItem';
 import toast from 'react-hot-toast';
 import {
 	usePromoteMerchantMutation,
 	useGetEligibleMerchantUsersQuery,
+	useGetAdminMerchantsQuery,
+	type AgentType,
 	type EligibleMerchantUserOption
 } from './MerchantApi';
+import { userDisplayName } from './merchantFormatters';
 
 function eligibleUserLabel(u: EligibleMerchantUserOption) {
 	const name = [u.first_name, u.last_name].filter(Boolean).join(' ').trim();
@@ -57,7 +61,19 @@ export default function MerchantPromoteDialog({ open, onClose }: MerchantPromote
 	const [lastName, setLastName] = useState('');
 	const [email, setEmail] = useState('');
 	const [phone, setPhone] = useState('');
+	const [agentType, setAgentType] = useState<AgentType>('agent');
+	const [managerId, setManagerId] = useState('');
 	const { data: authUser } = useUser();
+
+	const { data: agentsData } = useGetAdminMerchantsQuery(undefined, { skip: !open });
+	const managers = useMemo(
+		() => (agentsData?.merchants ?? []).filter((m) => m.agent_type === 'manager' && m.status === 'active'),
+		[agentsData?.merchants]
+	);
+	const teamFields = {
+		agent_type: agentType,
+		manager_id: agentType === 'agent' ? managerId || null : null
+	};
 
 	const { data: eligibleData, isLoading: loadingUsers, isError: eligibleError } =
 		useGetEligibleMerchantUsersQuery(undefined, {
@@ -82,6 +98,8 @@ export default function MerchantPromoteDialog({ open, onClose }: MerchantPromote
 			setLastName('');
 			setEmail('');
 			setPhone('');
+			setAgentType('agent');
+			setManagerId('');
 		}
 	}, [open]);
 
@@ -103,7 +121,8 @@ export default function MerchantPromoteDialog({ open, onClose }: MerchantPromote
 			try {
 				await promoteMerchant({
 					user_id: selectedUser.id,
-					default_commission_percent: commission
+					default_commission_percent: commission,
+					...teamFields
 				}).unwrap();
 				toast.success('Merchant record created.');
 				onClose();
@@ -135,7 +154,8 @@ export default function MerchantPromoteDialog({ open, onClose }: MerchantPromote
 					email: email.trim(),
 					phone: phone.trim()
 				},
-				default_commission_percent: commission
+				default_commission_percent: commission,
+				...teamFields
 			}).unwrap();
 			toast.success('Field agent created. A temporary password was sent to their email.');
 			onClose();
@@ -249,6 +269,36 @@ export default function MerchantPromoteDialog({ open, onClose }: MerchantPromote
 						/>
 					</Box>
 				)}
+				<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+					<TextField
+						select
+						label="Role"
+						size="small"
+						value={agentType}
+						onChange={(e) => setAgentType(e.target.value as AgentType)}
+						fullWidth
+					>
+						<MenuItem value="agent">Field agent</MenuItem>
+						<MenuItem value="manager">Agent manager</MenuItem>
+					</TextField>
+					{agentType === 'agent' ? (
+						<TextField
+							select
+							label="Manager"
+							size="small"
+							value={managerId}
+							onChange={(e) => setManagerId(e.target.value)}
+							fullWidth
+						>
+							<MenuItem value="">No manager</MenuItem>
+							{managers.map((m) => (
+								<MenuItem key={m.id} value={m.id}>
+									{userDisplayName(m)}
+								</MenuItem>
+							))}
+						</TextField>
+					) : null}
+				</div>
 				<TextField
 					fullWidth
 					size="small"

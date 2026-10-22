@@ -21,19 +21,32 @@ import useUser from '@auth/useUser';
 import { hasPermissionCodes } from '@auth/permissions';
 import toast from 'react-hot-toast';
 import PageBreadcrumb from 'src/components/PageBreadcrumb';
+import Alert from '@mui/material/Alert';
 import type { AdminMerchantRow } from './MerchantApi';
 import {
 	useGetMerchantMeQuery,
 	useGetOnboardedTenantsQuery,
 	useGetMerchantCommissionsQuery,
 	useGetAdminMerchantsQuery,
-	useRevokeMerchantMutation
+	useDeactivateMerchantMutation,
+	useReactivateMerchantMutation,
+	useApproveRecruitMutation,
+	useRejectRecruitMutation
 } from './MerchantApi';
 import MerchantsHeader from './MerchantsHeader';
-import MerchantsTable from './MerchantsTable';
+import MerchantsTable, { type MerchantRowAction } from './MerchantsTable';
 import MerchantPromoteDialog from './MerchantPromoteDialog';
-import RevokeMerchantConfirmDialog from './RevokeMerchantConfirmDialog';
-import { formatDate, formatMoney, userDisplayName } from './merchantFormatters';
+import DeactivateAgentDialog from './DeactivateAgentDialog';
+import AgentTeamDialog from './AgentTeamDialog';
+import MerchantTeamPanel from './MerchantTeamPanel';
+import { AGENT_STATUS_LABEL, formatDate, formatMoney, managerDisplayName, userDisplayName } from './merchantFormatters';
+
+type PortalTab = 'businesses' | 'commissions' | 'team' | 'team_shops' | 'all';
+
+function errorMessage(e: unknown, fallback: string) {
+	const err = e as { data?: { message?: string }; error?: string };
+	return err?.data?.message || err?.error || fallback;
+}
 
 export default function MerchantsPage() {
 	const router = useRouter();
@@ -45,21 +58,24 @@ export default function MerchantsPage() {
 		refetchOnMountOrArgChange: true
 	});
 	const merchant = meData?.merchant ?? null;
+	const merchantActive = merchant?.status == null || merchant.status === 'active';
+	const isManager = merchant?.agent_type === 'manager' && merchantActive;
 
 	const { data: adminMerchantsData, isLoading: loadingAdminMerchants } = useGetAdminMerchantsQuery(
 		undefined,
 		{ skip: !canManageMerchants, refetchOnMountOrArgChange: true }
 	);
 	const adminMerchants = adminMerchantsData?.merchants ?? [];
+	const pendingRecruits = adminMerchants.filter((m) => m.status === 'pending_approval');
 
 	const onboardedBusinessTotal = useMemo(
-		() => adminMerchants.reduce((s, m) => s + (Number(m.onboarded_count) || 0), 0),
+		() => adminMerchants.reduce((s, m) => s + (Number(m.serving_count) || 0), 0),
 		[adminMerchants]
 	);
 
 	const skipLists = !merchant?.id || !canOperateMerchantPortal;
 	const { data: tenantsData, isLoading: loadingTenants } = useGetOnboardedTenantsQuery(undefined, {
-		skip: skipLists,
+		skip: skipLists || !merchantActive,
 		refetchOnMountOrArgChange: true
 	});
 	const { data: commissionsData, isLoading: loadingCommissions } = useGetMerchantCommissionsQuery(
@@ -67,46 +83,89 @@ export default function MerchantsPage() {
 		{ skip: skipLists, refetchOnMountOrArgChange: true }
 	);
 
-	const [tab, setTab] = useState(0);
+	const [tab, setTab] = useState<PortalTab>('businesses');
 	const [promoteOpen, setPromoteOpen] = useState(false);
-	const [revokeTarget, setRevokeTarget] = useState<AdminMerchantRow | null>(null);
+	const [deactivateTarget, setDeactivateTarget] = useState<AdminMerchantRow | null>(null);
+	const [teamTarget, setTeamTarget] = useState<AdminMerchantRow | null>(null);
 
-	const [revokeMerchant, { isLoading: revoking }] = useRevokeMerchantMutation();
+	const [deactivateMerchant, { isLoading: deactivating }] = useDeactivateMerchantMutation();
+	const [reactivateMerchant, { isLoading: reactivating }] = useReactivateMerchantMutation();
+	const [approveRecruit, { isLoading: approving }] = useApproveRecruitMutation();
+	const [rejectRecruit, { isLoading: rejecting }] = useRejectRecruitMutation();
+	const adminBusy = deactivating || reactivating || approving || rejecting;
 
 	const tenants = tenantsData?.tenants ?? [];
 	const commissions = commissionsData?.commissions ?? [];
 
-	const handleViewMerchantDetails = (row: AdminMerchantRow) => {
-		router.push(`/merchants/${row.id}`);
-	};
-
-	const handleRevokeMerchantRequest = (row: AdminMerchantRow) => {
-		setRevokeTarget(row);
-	};
-
-	const handleRevokeMerchantConfirm = async () => {
-		if (!revokeTarget) return;
+	const handleAdminAction = async (action: MerchantRowAction, row: AdminMerchantRow) => {
+		const name = userDisplayName(row);
 		try {
-			await revokeMerchant(revokeTarget.id).unwrap();
-			toast.success('User is no longer a merchant.');
-			setRevokeTarget(null);
-		} catch (e: unknown) {
-			const err = e as { data?: { message?: string }; error?: string };
-			toast.error(err?.data?.message || err?.error || 'Could not remove merchant');
+			if (action === 'view') {
+				router.push(`/merchants/${row.id}`);
+			} else if (action === 'team') {
+				setTeamTarget(row);
+			} else if (action === 'deactivate') {
+				setDeactivateTarget(row);
+			} else if (action === 'approve') {
+				await approveRecruit(row.id).unwrap();
+				toast.success(`${name} approved. Their login was emailed to ${row.email ?? 'them'}.`);
+			} else if (action === 'reject') {
+				if (!window.confirm(`Reject ${name}? They will not get a login.`)) return;
+				await rejectRecruit({ merchantId: row.id }).unwrap();
+				toast.success(`${name} rejected.`);
+			} else if (action === 'reactivate') {
+				await reactivateMerchant(row.id).unwrap();
+				toast.success(`${name} reactivated. Shops that were handed over stay with their new agent.`);
+			}
+		} catch (e) {
+			toast.error(errorMessage(e, 'Action failed'));
 		}
 	};
 
-	const revokeDialog = (
-		<RevokeMerchantConfirmDialog
-			open={revokeTarget != null}
-			merchantLabel={revokeTarget ? userDisplayName(revokeTarget) : ''}
-			loading={revoking}
-			onClose={() => setRevokeTarget(null)}
-			onConfirm={handleRevokeMerchantConfirm}
-		/>
-	);
+	const handleDeactivateConfirm = async (reason: string) => {
+		if (!deactivateTarget) return;
+		try {
+			const res = await deactivateMerchant({ merchantId: deactivateTarget.id, reason }).unwrap();
+			toast.success(`Agent deactivated. ${res.shops_moved} shop(s) handed over.`);
+			setDeactivateTarget(null);
+		} catch (e) {
+			toast.error(errorMessage(e, 'Could not deactivate agent'));
+		}
+	};
 
-	const loadingPortal = !skipLists && (loadingTenants || loadingCommissions);
+	const deactivateHeir =
+		deactivateTarget?.manager_id &&
+		adminMerchants.some((m) => m.id === deactivateTarget.manager_id && m.status === 'active')
+			? managerDisplayName(deactivateTarget)
+			: null;
+
+	const adminDialogs = canManageMerchants ? (
+		<>
+			<DeactivateAgentDialog
+				open={deactivateTarget != null}
+				agentLabel={deactivateTarget ? userDisplayName(deactivateTarget) : ''}
+				handOverTo={deactivateHeir}
+				isManager={deactivateTarget?.agent_type === 'manager'}
+				loading={deactivating}
+				onClose={() => setDeactivateTarget(null)}
+				onConfirm={handleDeactivateConfirm}
+			/>
+			<AgentTeamDialog agent={teamTarget} allAgents={adminMerchants} onClose={() => setTeamTarget(null)} />
+		</>
+	) : null;
+
+	const pendingBanner =
+		canManageMerchants && pendingRecruits.length > 0 ? (
+			<Alert severity="warning" className="mb-3">
+				{pendingRecruits.length} recruit{pendingRecruits.length === 1 ? '' : 's'} awaiting approval:{' '}
+				{pendingRecruits
+					.map((m) => `${userDisplayName(m)}${m.manager_first_name ? ` (by ${managerDisplayName(m)})` : ''}`)
+					.join(', ')}
+				. Use the row menu to approve or reject.
+			</Alert>
+		) : null;
+
+	const loadingPortal = !skipLists && ((merchantActive && loadingTenants) || loadingCommissions);
 
 	const title = useMemo(() => 'Clients / Shops', []);
 
@@ -122,7 +181,7 @@ export default function MerchantsPage() {
 		if (canManageMerchants) {
 			return (
 			<>
-				{revokeDialog}
+				{adminDialogs}
 				<GlobalStyles
 					styles={() => ({
 						'#root': {
@@ -138,12 +197,12 @@ export default function MerchantsPage() {
 						showAddMerchant
 						onAddMerchant={() => setPromoteOpen(true)}
 					/>
+					{pendingBanner}
 					<MerchantsTable
 						data={adminMerchants}
 						isLoading={loadingAdminMerchants}
-						onViewDetails={handleViewMerchantDetails}
-						onRevoke={handleRevokeMerchantRequest}
-						revoking={revoking}
+						onAction={handleAdminAction}
+						busy={adminBusy}
 					/>
 					<MerchantPromoteDialog open={promoteOpen} onClose={() => setPromoteOpen(false)} />
 				</div>
@@ -200,9 +259,11 @@ export default function MerchantsPage() {
 		);
 	}
 
+	const effectiveTab: PortalTab = !merchantActive && tab === 'businesses' ? 'commissions' : tab;
+
 	return (
 		<>
-			{revokeDialog}
+			{adminDialogs}
 			<GlobalStyles
 				styles={() => ({
 					'#root': {
@@ -215,7 +276,7 @@ export default function MerchantsPage() {
 					merchantUserCount={adminMerchants.length}
 					onboardedBusinessTotal={onboardedBusinessTotal}
 					isLoading={loadingAdminMerchants && canManageMerchants}
-					showOnboardBusiness={!!merchant}
+					showOnboardBusiness={!!merchant && merchantActive}
 					showAddMerchant={canManageMerchants}
 					onAddMerchant={() => setPromoteOpen(true)}
 					title={title}
@@ -224,7 +285,7 @@ export default function MerchantsPage() {
 							'…'
 						) : (
 							<>
-								{tenants.length} {tenants.length === 1 ? 'business' : 'businesses'} onboarded
+								{tenants.length} {tenants.length === 1 ? 'business' : 'businesses'}
 								<span className="mx-2 opacity-50">·</span>
 								{commissions.length} commission {commissions.length === 1 ? 'record' : 'records'}
 							</>
@@ -232,21 +293,39 @@ export default function MerchantsPage() {
 					}
 				/>
 
+				{!merchantActive && merchant?.status ? (
+					<Alert severity="info" className="mb-3">
+						Your agent account is {AGENT_STATUS_LABEL[merchant.status].toLowerCase()}. You can still see
+						the commission you have earned.
+					</Alert>
+				) : null}
+				{pendingBanner}
+
 				<Paper
 					className="flex flex-auto flex-col overflow-hidden rounded-t-lg shadow-1 rounded-b-none"
 					elevation={0}
 				>
-					<Tabs value={tab} onChange={(_, v) => setTab(v)} className="border-b border-divider px-2">
-						<Tab label={`Businesses (${tenants.length})`} />
-						<Tab label={`Commissions (${commissions.length})`} />
-						{canManageMerchants ? <Tab label={`All merchants (${adminMerchants.length})`} /> : null}
+					<Tabs value={effectiveTab} onChange={(_, v) => setTab(v)} className="border-b border-divider px-2">
+						{merchantActive ? <Tab value="businesses" label={`Businesses (${tenants.length})`} /> : null}
+						<Tab value="commissions" label={`Commissions (${commissions.length})`} />
+						{isManager ? <Tab value="team" label="My team" /> : null}
+						{isManager ? <Tab value="team_shops" label="Team shops" /> : null}
+						{canManageMerchants ? <Tab value="all" label={`All agents (${adminMerchants.length})`} /> : null}
 					</Tabs>
 
-					{loadingPortal && tab !== 2 ? (
+					{effectiveTab === 'team' || effectiveTab === 'team_shops' ? (
+						merchant ? (
+							<MerchantTeamPanel
+								manager={merchant}
+								managerName={user?.displayName || 'You'}
+								view={effectiveTab === 'team' ? 'members' : 'shops'}
+							/>
+						) : null
+					) : loadingPortal && effectiveTab !== 'all' ? (
 						<Box className="flex min-h-[200px] items-center justify-center p-8">
 							<FuseLoading />
 						</Box>
-					) : tab === 0 ? (
+					) : effectiveTab === 'businesses' ? (
 						<Table size="small">
 							<TableHead>
 								<TableRow>
@@ -261,7 +340,18 @@ export default function MerchantsPage() {
 							<TableBody>
 								{tenants.map((t) => (
 									<TableRow key={t.id} hover>
-										<TableCell>{t.name ?? '—'}</TableCell>
+										<TableCell>
+											{t.name ?? '—'}
+											{t.awaiting_first_payment ? (
+												<Chip
+													size="small"
+													label="Awaiting first payment"
+													color="warning"
+													variant="outlined"
+													className="ml-2"
+												/>
+											) : null}
+										</TableCell>
 										<TableCell>{t.organization ?? '—'}</TableCell>
 										<TableCell>{t.phone ?? '—'}</TableCell>
 										<TableCell>
@@ -328,7 +418,7 @@ export default function MerchantsPage() {
 								)}
 							</TableBody>
 						</Table>
-					) : tab === 1 ? (
+					) : effectiveTab === 'commissions' ? (
 						<Table size="small">
 							<TableHead>
 								<TableRow>
@@ -378,9 +468,8 @@ export default function MerchantsPage() {
 									embedded
 									data={adminMerchants}
 									isLoading={false}
-									onViewDetails={handleViewMerchantDetails}
-									onRevoke={handleRevokeMerchantRequest}
-									revoking={revoking}
+									onAction={handleAdminAction}
+									busy={adminBusy}
 								/>
 							)}
 						</div>

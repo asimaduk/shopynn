@@ -1,6 +1,6 @@
 import express from "express";
 import auth from "../middleware/auth.js";
-import requireMerchant from "../middleware/requireMerchant.js";
+import requireMerchant, { requireMerchantRecord, requireAgentManager } from "../middleware/requireMerchant.js";
 import requireActiveSubscription from "../middleware/requireActiveSubscription.js";
 import requireFeature from "../middleware/requireFeature.js";
 import { requirePermission, requireAnyPermission } from "../middleware/requirePermission.js";
@@ -14,7 +14,16 @@ import {
     listAdminMerchants,
     listEligibleMerchantUsers,
     getAdminMerchantDetail,
-    revokeMerchant,
+    deactivateMerchant,
+    reactivateMerchant,
+    updateMerchantAdmin,
+    approveRecruitedAgent,
+    rejectRecruitedAgent,
+    getMyTeam,
+    getMyTeamTenants,
+    recruitTeamAgent,
+    reassignTeamTenant,
+    deactivateTeamAgent,
     getTenantQuote,
     createTenantPayLaterQuote,
     initiateTenantPayment,
@@ -22,6 +31,33 @@ import {
 } from "../controllers/merchant.js";
 
 const router = express.Router();
+
+const platformAdmin = [
+    auth,
+    requireActiveSubscription,
+    requireFeature("merchants.view"),
+    requirePermission("merchants.view"),
+];
+
+const agentManager = [
+    auth,
+    requireActiveSubscription,
+    requireFeature("merchants.operate"),
+    requirePermission("merchants.manage_team"),
+    requireAgentManager,
+];
+
+router.patch("/admin/:id", ...platformAdmin, updateMerchantAdmin);
+router.post("/admin/:id/deactivate", ...platformAdmin, deactivateMerchant);
+router.post("/admin/:id/reactivate", ...platformAdmin, reactivateMerchant);
+router.post("/admin/:id/approve", ...platformAdmin, approveRecruitedAgent);
+router.post("/admin/:id/reject", ...platformAdmin, rejectRecruitedAgent);
+
+router.get("/team", ...agentManager, getMyTeam);
+router.get("/team/tenants", ...agentManager, getMyTeamTenants);
+router.post("/team/recruit", ...agentManager, recruitTeamAgent);
+router.put("/team/tenants/:tenantId/serving", ...agentManager, reassignTeamTenant);
+router.post("/team/:merchantId/deactivate", ...agentManager, deactivateTeamAgent);
 
 router.get("/me", auth, getMerchantMe);
 router.get(
@@ -54,7 +90,7 @@ router.delete(
     requireActiveSubscription,
     requireFeature("merchants.view"),
     requirePermission("merchants.view"),
-    revokeMerchant
+    deactivateMerchant
 );
 router.post(
     "/promote",
@@ -124,7 +160,7 @@ router.get(
     requireActiveSubscription,
     requireFeature("merchants.operate"),
     requireAnyPermission("merchants.operate", "merchants.view"),
-    requireMerchant,
+    requireMerchantRecord,
     getMerchantCommissions
 );
 router.patch(

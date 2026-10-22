@@ -211,22 +211,17 @@ export const getPendingQuoteForTenantService = async (tenantId) => {
     return mapQuote(r.rows[0], lines);
 };
 
+/** The shop's agent (serving, or onboarding until first payment) or that agent's manager. */
 export const merchantCanAccessTenantService = async (merchantId, tenantId) => {
-    const serving = await pool.query(
-        `SELECT 1 FROM tenants WHERE id = $1 AND serving_merchant_id = $2 LIMIT 1`,
+    const r = await pool.query(
+        `SELECT 1
+         FROM tenants t
+         INNER JOIN merchants am ON am.id = COALESCE(t.serving_merchant_id, t.onboarded_by_merchant_id)
+         WHERE t.id = $1 AND (am.id = $2 OR am.manager_id = $2)
+         LIMIT 1`,
         [tenantId, merchantId]
     );
-    if (serving.rowCount > 0) return true;
-    const r = await pool.query(
-        `SELECT 1 FROM merchant_commissions WHERE merchant_id = $1 AND tenant_id = $2 LIMIT 1`,
-        [merchantId, tenantId]
-    );
-    if (r.rowCount > 0) return true;
-    const q = await pool.query(
-        `SELECT 1 FROM onboarding_quotes WHERE merchant_id = $1 AND tenant_id = $2 LIMIT 1`,
-        [merchantId, tenantId]
-    );
-    return q.rowCount > 0;
+    return r.rowCount > 0;
 };
 
 const isSubscriptionResidualEligible = (tag) =>

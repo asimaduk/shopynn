@@ -7,6 +7,7 @@ import pool from "../config/db.js";
 const PERMISSION_LIST_EXCLUDES = [
     'merchants.view',
     'merchants.operate',
+    'merchants.manage_team',
     'tenants.directory.view',
     'newsletter.subscribers.view',
     'newsletter.campaigns.view',

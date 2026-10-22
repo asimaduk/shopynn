@@ -121,6 +121,7 @@ function normalizeRequiredList(raw?: string[] | string): string[] {
 const PLATFORM_NAV_FEATURES = new Set([
 	'merchants.view',
 	'merchants.operate',
+	'merchants.manage_team',
 	'tenants.directory.view',
 	'newsletter.subscribers.view',
 	'newsletter.campaigns.view',
