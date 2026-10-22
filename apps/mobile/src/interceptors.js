@@ -83,10 +83,18 @@ const processQueue = (err, token = null) => {
     failedQueue = [];
 };
 
+let sessionExpiredHandler = null;
+
+/** Registered by the app root so a rejected token signs the user out. */
+export const setSessionExpiredHandler = (handler) => {
+    sessionExpiredHandler = handler;
+};
+
 const showSessionExpired = () => {
     if (isAlertVisible) return;
     isAlertVisible = true;
-    AppAlert.alert('', 'Access denied.', [{ text: 'OK', onPress: () => { isAlertVisible = false; } }], { onDismiss: () => { isAlertVisible = false; } });
+    Promise.resolve(sessionExpiredHandler?.()).catch(() => {});
+    AppAlert.alert('', 'Your session has expired. Please sign in again.', [{ text: 'OK', onPress: () => { isAlertVisible = false; } }], { onDismiss: () => { isAlertVisible = false; } });
 };
 
 axios.defaults.timeout = API_TIMEOUT;

@@ -6,7 +6,10 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import str from './store';
 import ApplicationNavigator from './navigators';
 import Toast from 'react-native-toast-message';
-import './interceptors';
+import { setSessionExpiredHandler } from './interceptors';
+import { clearTokens } from './utils/secureStorage';
+import { clearSensitiveOfflineData } from './utils/secureOfflineStorage';
+import { SET_USER, SET_LOGGED_IN } from './store/actions/user';
 import { configureSocialAuth } from './utils/socialAuth';
 import messaging from '@react-native-firebase/messaging';
 import PushNotification from 'react-native-push-notification';
@@ -27,6 +30,13 @@ import AppAlert from './utils/appAlert';
 LogBox.ignoreAllLogs();
 
 const { store, persistor } = str();
+
+setSessionExpiredHandler(async () => {
+	await clearTokens();
+	await clearSensitiveOfflineData();
+	store.dispatch({ type: SET_USER, payload: {} });
+	store.dispatch({ type: SET_LOGGED_IN, payload: false });
+});
 
 function isFirebaseReady() {
 	try {

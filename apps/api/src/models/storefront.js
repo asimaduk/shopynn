@@ -6,7 +6,7 @@
 import pool from "../config/db.js";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
+import { signUserToken } from "../util/authToken.js";
 import { v4 as uuidv4 } from "uuid";
 import { normalizeProductRow } from "../util/productNormalize.js";
 import { resolveStoreReferencePublicService } from "./customerProfile.js";
@@ -548,11 +548,7 @@ export async function createStorefrontOrderService(payload = {}) {
         store,
     });
 
-    const token = jwt.sign(
-        { id: user.id, warehouse_id: user.warehouse_id, tenant_id: user.tenant_id },
-        process.env.JWT_SECRET,
-        { expiresIn: "1d" }
-    );
+    const token = await signUserToken(user, { expiresIn: "1d" });
 
     const authUser = {
         id: user.id,

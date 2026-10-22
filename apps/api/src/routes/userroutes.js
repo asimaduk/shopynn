@@ -1,5 +1,5 @@
 import express from "express";
-import { changePasswordWithTemporary, createUser, deleteUser, forgotPassword, getAllUsers, getMyPreferences, getUserById, getUserDetails, loginUser, resetPassword, sendPhoneLoginOtp, toggleUserActive, updateMyFcmToken, updateMyPreferences, updateUser, verifyPhoneLoginOtp } from "../controllers/user.js";
+import { changePasswordWithTemporary, createUser, deleteUser, forgotPassword, getAllUsers, getMyPreferences, getUserById, getUserDetails, loginUser, resetPassword, sendPhoneLoginOtp, signOutEverywhere, toggleUserActive, updateMyFcmToken, updateMyPreferences, updateUser, verifyPhoneLoginOtp } from "../controllers/user.js";
 import { signupCustomerAccount, sendCustomerSignupPhoneOtp, verifyCustomerSignupPhoneOtp, verifyStoreReferencePublic } from "../controllers/customerProfile.js";
 import {
     sendShopOwnerSignupEmailOtp,
@@ -39,6 +39,7 @@ router.get('/me/preferences', auth, requireActiveSubscription, getMyPreferences)
 router.put('/me/preferences', auth, requireActiveSubscription, updateMyPreferences);
 /** Device push token — no subscription gate so renewal alerts can still target the device. */
 router.put('/me/fcm-token', auth, updateMyFcmToken);
+router.post('/me/sign-out-everywhere', auth, signOutEverywhere);
 /** Profile contact change — OTP to the new email/phone; no subscription gate. */
 router.post('/me/change-email/send-otp', auth, otpSendLimit, sendCustomerChangeEmailOtp);
 router.post('/me/change-email/verify', auth, credentialCheckLimit, verifyCustomerChangeEmailOtp);

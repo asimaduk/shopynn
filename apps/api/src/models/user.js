@@ -1,6 +1,6 @@
 import pool from "../config/db.js";
 import { v4 as uuidv4 } from "uuid";
-import jwt from "jsonwebtoken";
+import { signUserToken } from "../util/authToken.js";
 import bcrypt from "bcrypt";
 import { sendEmailService } from "./mail.js";
 import { createWarehouseService } from "./warehouse.js";
@@ -84,20 +84,14 @@ export const loginService = async (payload) => {
                 if (expired) return { passwordExpired: true };
                 // Proven access to the reset email: the temporary password becomes the password and
                 // reset_password forces a new one, as for a new account.
-                await pool.query("UPDATE users SET password = temporary_password, updated_at = $1 WHERE id = $2", [
+                await pool.query("UPDATE users SET password = temporary_password, token_version = token_version + 1, updated_at = $1 WHERE id = $2", [
                     new Date(),
                     foundUser.id,
                 ]);
                 cmp = true;
             }
             if (cmp) {
-                const _payload = {
-                    id: foundUser.id,
-                    warehouse_id: foundUser.warehouse_id,
-                    tenant_id: foundUser.tenant_id
-                }
-                // console.log('..._payload',_payload);
-                const token = jwt.sign(_payload, process.env.JWT_SECRET);
+                const token = await signUserToken(foundUser);
                 updateLastLogin(foundUser.id)
                 return { token };
             }
@@ -158,6 +152,7 @@ export const toggleUserActiveService = async (payload) => {
     const result = await pool.query(
         `UPDATE users
          SET is_active = $1,
+             token_version = token_version + CASE WHEN $1 THEN 0 ELSE 1 END,
              updated_at = $2
          WHERE id = $3
          RETURNING id, first_name, is_active`,
@@ -682,7 +677,11 @@ export const updateUserService = async (payload) => {
     if (email !== undefined) { updates.push(`email = $${i++}`); values.push(email); }
     if (fcm_token !== undefined) { updates.push(`fcm_token = $${i++}`); values.push(fcm_token === "" ? null : fcm_token); }
     if (phone !== undefined) { updates.push(`phone = $${i++}`); values.push(phone); }
-    if (is_active !== undefined) { updates.push(`is_active = $${i++}`); values.push(is_active); }
+    if (is_active !== undefined) {
+        updates.push(`is_active = $${i++}`);
+        values.push(is_active);
+        if (!is_active) updates.push(`token_version = token_version + 1`);
+    }
     if (warehouse_id !== undefined) { updates.push(`warehouse_id = $${i++}`); values.push(warehouse_id); }
     
     if (updates.length === 0) return null;
@@ -725,6 +724,7 @@ export const deleteUserService = async (payload) => {
     const result = await pool.query(
         `UPDATE users
          SET is_active = false,
+             token_version = token_version + 1,
              deleted = true,
              deleted_at = $1,
              deleted_by = $2,
@@ -769,7 +769,7 @@ export const resetPasswordService = async (newPassword, oldPassword, id) => {
     // console.log('bcrypt',password);
  
     const result = await pool.query(`
-        UPDATE users SET password=$1, temporary_password=$2, password_expires_at=$3, updated_at=$4  WHERE id=$5 RETURNING *`,
+        UPDATE users SET password=$1, temporary_password=$2, password_expires_at=$3, token_version = token_version + 1, updated_at=$4  WHERE id=$5 RETURNING id`,
         [ password, null, null, new Date(), id]
     );
 
@@ -829,6 +829,7 @@ export const changePasswordWithTemporaryService = async (payload = {}) => {
          SET password = $1,
              temporary_password = NULL,
              password_expires_at = NULL,
+             token_version = token_version + 1,
              updated_at = $2
          WHERE id = $3`,
         [passwordHash, new Date(), user_id]
@@ -847,7 +848,8 @@ export const activateUserWithCredentialsService = async (userId) => {
     const passwordHash = await bcrypt.hash(plainPassword, saltRounds);
     await pool.query(
         `UPDATE users
-         SET password = $1, temporary_password = $1, password_expires_at = $2, is_active = true, updated_at = $3
+         SET password = $1, temporary_password = $1, password_expires_at = $2, is_active = true,
+             token_version = token_version + 1, updated_at = $3
          WHERE id = $4`,
         [passwordHash, new Date(Date.now() + 24 * 60 * 60 * 1000), new Date(), user.id]
     );

@@ -5,7 +5,7 @@
 
 import pool from "../config/db.js";
 import crypto from "crypto";
-import jwt from "jsonwebtoken";
+import { signUserToken } from "../util/authToken.js";
 import { v4 as uuidv4 } from "uuid";
 import { sendSmsService } from "../services/sms.js";
 import { normalizeStorefrontPhone } from "./storefront.js";
@@ -195,10 +195,7 @@ export async function verifyPhoneLoginOtpService({ phone, otp }) {
         [row.id]
     );
 
-    const token = jwt.sign(
-        { id: user.id, warehouse_id: user.warehouse_id, tenant_id: user.tenant_id },
-        process.env.JWT_SECRET
-    );
+    const token = await signUserToken(user);
 
     await pool.query(`UPDATE users SET last_login = now() WHERE id = $1`, [user.id]);
 

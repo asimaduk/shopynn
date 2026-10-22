@@ -43,6 +43,7 @@ export const ROUTE_GUARD_ALLOWLIST = {
     "GET /users/me/preferences": SELF("Own preferences."),
     "PUT /users/me/preferences": SELF("Own preferences."),
     "PUT /users/me/fcm-token": SELF("Own push token."),
+    "POST /users/me/sign-out-everywhere": SELF("Revokes only the caller's own tokens."),
     "POST /users/me/change-email/send-otp": SELF("Own email change, OTP-verified."),
     "POST /users/me/change-email/verify": SELF("Own email change, OTP-verified."),
     "POST /users/me/change-phone/send-otp": SELF("Own phone change, OTP-verified."),

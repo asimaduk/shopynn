@@ -1,9 +1,11 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { BaseQueryFn, FetchArgs, FetchBaseQueryError, FetchBaseQueryMeta } from '@reduxjs/toolkit/query';
 import { API_BASE_URL } from '@/utils/apiFetch';
-import { getSession } from 'next-auth/react';
+import { getSession, signOut } from 'next-auth/react';
+import { signInCallbackUrl } from '@/@auth/signOutUrl';
 
 export const globalHeaders: Record<string, string> = {}
+let signingOutAfter401 = false;
 const SUBSCRIPTION_GATE_CODES = new Set([
 	'SUBSCRIPTION_EXPIRED',
 	'SUBSCRIPTION_REQUIRED',
@@ -43,8 +45,10 @@ const baseQuery: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError, o
 	const result = await rawBaseQuery(args, api, extraOptions);
 
 	// Centralized handling for auth/subscription/feature denials.
-	if (result.error && result.error.status === 401) {
-		// Logic to handle 401 errors (e.g., refresh token)
+	if (result.error && result.error.status === 401 && typeof window !== 'undefined' && !signingOutAfter401) {
+		// The API token expired or was revoked (password change, deactivation, sign out everywhere).
+		signingOutAfter401 = true;
+		void signOut({ callbackUrl: signInCallbackUrl('reason=expired') });
 	}
 	if (result.error && (result.error.status === 403 || result.error.status === 402)) {
 		const data = (result.error as FetchBaseQueryError & { data?: any })?.data;

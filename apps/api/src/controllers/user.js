@@ -6,6 +6,7 @@ import { handleResponse } from "../util/handleresponse.js";
 import { getUserPermissionsService } from "../models/userRole.js";
 import pool from "../config/db.js";
 import { canAssignRole, isSuperAdminUser } from "../util/roleGrants.js";
+import { revokeUserTokens } from "../util/authToken.js";
 
 const ROLE_TOO_POWERFUL = "You can't give someone a role with more access than you have.";
 const OWNER_PROTECTED = "Only a Super Admin can change a Super Admin's account.";
@@ -377,6 +378,16 @@ export const updateMyFcmToken = async (req, res, next) => {
         const updatedUser = await updateUserService({ id: req.user.id, fcm_token });
         if (!updatedUser) return handleResponse(res, 404, "Not found.");
         handleResponse(res, 200, "FCM token updated.", { id: updatedUser.id });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const signOutEverywhere = async (req, res, next) => {
+    try {
+        await revokeUserTokens(req.user.id);
+        handleResponse(res, 200, "Signed out on all devices.", null);
+        await recordAudit(req, "USER_SIGN_OUT_EVERYWHERE", "user", req.user.id);
     } catch (error) {
         next(error);
     }
