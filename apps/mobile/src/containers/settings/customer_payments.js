@@ -14,6 +14,7 @@ import useTheme from '../../hooks/useTheme';
 import { useFocusEffect } from '@react-navigation/native';
 import { payments as paymentsApi, normalizeList } from '../../services/api';
 import AppAlert from '../../utils/appAlert';
+import { escapeHtml } from '../../utils/html';
 
 const dateRanges = [
     { id: '1', label: 'Today', value: 'today' },
@@ -336,12 +337,12 @@ const CustomerPayments = ({ navigation, route }) => {
     </style>
 </head>
 <body>
-    <h1>${customerName}'s Payments Report</h1>
+    <h1>${escapeHtml(customerName)}'s Payments Report</h1>
     <div class="header-info">
-        <p><strong>Date Range:</strong> ${dateRangeLabel}</p>
-        <p><strong>Export Date:</strong> ${exportDate}</p>
-        <p><strong>Total Payments:</strong> ${filteredData.length}</p>
-        <p><strong>Total Amount:</strong> GH₵ ${filteredData.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0).toFixed(2)}</p>
+        <p><strong>Date Range:</strong> ${escapeHtml(dateRangeLabel)}</p>
+        <p><strong>Export Date:</strong> ${escapeHtml(exportDate)}</p>
+        <p><strong>Total Payments:</strong> ${escapeHtml(filteredData.length)}</p>
+        <p><strong>Total Amount:</strong> GH₵ ${escapeHtml(filteredData.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0).toFixed(2))}</p>
     </div>
     <table>
         <thead>
@@ -360,11 +361,11 @@ const CustomerPayments = ({ navigation, route }) => {
             const statusClass = item.status === 'Approved' || item.status === 'Cleared' ? 'status-approved' : '';
             html += `
             <tr>
-                <td>${item.id || ''}</td>
-                <td>${item.method || ''}</td>
-                <td>GH₵ ${item.amount || ''}</td>
-                <td>${item.date || ''}</td>
-                <td class="${statusClass}">${item.status || ''}</td>
+                <td>${escapeHtml(item.id || '')}</td>
+                <td>${escapeHtml(item.method || '')}</td>
+                <td>GH₵ ${escapeHtml(item.amount || '')}</td>
+                <td>${escapeHtml(item.date || '')}</td>
+                <td class="${escapeHtml(statusClass)}">${escapeHtml(item.status || '')}</td>
             </tr>
             `;
         });

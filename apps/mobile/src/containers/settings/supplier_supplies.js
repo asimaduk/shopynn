@@ -15,6 +15,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { suppliers as suppliersApi, normalizeList } from '../../services/api';
 import { formatCurrency } from '../../utils/format';
 import AppAlert from '../../utils/appAlert';
+import { escapeHtml } from '../../utils/html';
 
 const dateRanges = [
     { id: '1', label: 'Today', value: 'today' },
@@ -326,13 +327,13 @@ const SupplierSupplies = ({ navigation, route }) => {
     </style>
 </head>
 <body>
-    <h1>${supplierName}'s Supplies Report</h1>
+    <h1>${escapeHtml(supplierName)}'s Supplies Report</h1>
     <div class="header-info">
-        <p><strong>Date Range:</strong> ${dateRangeLabel}</p>
-        <p><strong>Export Date:</strong> ${exportDate}</p>
-        <p><strong>Total Supplies:</strong> ${filteredData.length}</p>
-        <p><strong>Total Quantity:</strong> ${filteredData.reduce((sum, item) => sum + (item.quantity || 0), 0)}</p>
-        <p><strong>Total Amount:</strong> GH₵ ${filteredData.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0).toFixed(2)}</p>
+        <p><strong>Date Range:</strong> ${escapeHtml(dateRangeLabel)}</p>
+        <p><strong>Export Date:</strong> ${escapeHtml(exportDate)}</p>
+        <p><strong>Total Supplies:</strong> ${escapeHtml(filteredData.length)}</p>
+        <p><strong>Total Quantity:</strong> ${escapeHtml(filteredData.reduce((sum, item) => sum + (item.quantity || 0), 0))}</p>
+        <p><strong>Total Amount:</strong> GH₵ ${escapeHtml(filteredData.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0).toFixed(2))}</p>
     </div>
     <table>
         <thead>
@@ -350,11 +351,11 @@ const SupplierSupplies = ({ navigation, route }) => {
         filteredData.forEach((item) => {
             html += `
             <tr>
-                <td>${item.id || ''}</td>
-                <td>${item.productName || ''}</td>
-                <td>${item.quantity || ''}</td>
-                <td>GH₵ ${item.amount || ''}</td>
-                <td>${item.date || ''}</td>
+                <td>${escapeHtml(item.id || '')}</td>
+                <td>${escapeHtml(item.productName || '')}</td>
+                <td>${escapeHtml(item.quantity || '')}</td>
+                <td>GH₵ ${escapeHtml(item.amount || '')}</td>
+                <td>${escapeHtml(item.date || '')}</td>
             </tr>
             `;
         });

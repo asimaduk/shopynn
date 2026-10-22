@@ -14,6 +14,7 @@ import useTheme from '../../hooks/useTheme';
 import { useFocusEffect } from '@react-navigation/native';
 import { suppliers as suppliersApi, normalizePagedList } from '../../services/api';
 import AppAlert from '../../utils/appAlert';
+import { escapeHtml } from '../../utils/html';
 
 const PAGE_SIZE = 20;
 
@@ -394,9 +395,9 @@ const Suppliers = ({ navigation }) => {
 <body>
     <h1>Suppliers Report</h1>
     <div class="header-info">
-        <p><strong>Date Range:</strong> ${dateRangeLabel}</p>
-        <p><strong>Export Date:</strong> ${exportDate}</p>
-        <p><strong>Total Suppliers:</strong> ${filteredData.length}</p>
+        <p><strong>Date Range:</strong> ${escapeHtml(dateRangeLabel)}</p>
+        <p><strong>Export Date:</strong> ${escapeHtml(exportDate)}</p>
+        <p><strong>Total Suppliers:</strong> ${escapeHtml(filteredData.length)}</p>
     </div>
     <table>
         <thead>
@@ -416,13 +417,13 @@ const Suppliers = ({ navigation }) => {
         filteredData.forEach((item) => {
             html += `
             <tr>
-                <td>${item.id || ''}</td>
-                <td>${item.name || ''}</td>
-                <td>${item.location || ''}</td>
-                <td>${item.phone || ''}</td>
-                <td>${item.email || ''}</td>
-                <td>${item.contactPerson || ''}</td>
-                <td>${item.dateAdded || ''}</td>
+                <td>${escapeHtml(item.id || '')}</td>
+                <td>${escapeHtml(item.name || '')}</td>
+                <td>${escapeHtml(item.location || '')}</td>
+                <td>${escapeHtml(item.phone || '')}</td>
+                <td>${escapeHtml(item.email || '')}</td>
+                <td>${escapeHtml(item.contactPerson || '')}</td>
+                <td>${escapeHtml(item.dateAdded || '')}</td>
             </tr>
             `;
         });

@@ -14,6 +14,7 @@ import useTheme from '../../hooks/useTheme';
 import { returnsApi, normalizeList } from '../../services/api';
 import { toReturnRecord } from '../../utils/returnRecord';
 import AppAlert from '../../utils/appAlert';
+import { escapeHtml } from '../../utils/html';
 
 const dateRanges = [
     { id: '1', label: 'Today', value: 'today' },
@@ -313,18 +314,18 @@ const Returns = ({ navigation }) => {
     </style>
 </head>
 <body>
-    <h1>${activeTab === 'sales' ? 'Sales' : 'Purchase'} Returns Report</h1>
+    <h1>${escapeHtml(activeTab === 'sales' ? 'Sales' : 'Purchase')} Returns Report</h1>
     <div class="header-info">
-        <p><strong>Date Range:</strong> ${dateRangeLabel}</p>
-        <p><strong>Export Date:</strong> ${exportDate}</p>
-        <p><strong>Total Returns:</strong> ${filteredData.length}</p>
+        <p><strong>Date Range:</strong> ${escapeHtml(dateRangeLabel)}</p>
+        <p><strong>Export Date:</strong> ${escapeHtml(exportDate)}</p>
+        <p><strong>Total Returns:</strong> ${escapeHtml(filteredData.length)}</p>
     </div>
     <table>
         <thead>
             <tr>
                 <th>ID</th>
                 <th>Reference</th>
-                <th>${activeTab === 'sales' ? 'Customer' : 'Supplier'}</th>
+                <th>${escapeHtml(activeTab === 'sales' ? 'Customer' : 'Supplier')}</th>
                 <th>Date</th>
                 <th>Items</th>
                 <th>Amount</th>
@@ -341,14 +342,14 @@ const Returns = ({ navigation }) => {
                     'status-rejected';
             html += `
             <tr>
-                <td>${item.id || ''}</td>
-                <td>${item.ref || ''}</td>
-                <td>${activeTab === 'sales' ? (item.customer || '') : (item.supplier || '')}</td>
-                <td>${item.date || ''}</td>
-                <td>${item.items || ''}</td>
-                <td>${item.amount || ''}</td>
-                <td>${item.reason || ''}</td>
-                <td class="${statusClass}">${item.status || ''}</td>
+                <td>${escapeHtml(item.id || '')}</td>
+                <td>${escapeHtml(item.ref || '')}</td>
+                <td>${escapeHtml(activeTab === 'sales' ? (item.customer || '') : (item.supplier || ''))}</td>
+                <td>${escapeHtml(item.date || '')}</td>
+                <td>${escapeHtml(item.items || '')}</td>
+                <td>${escapeHtml(item.amount || '')}</td>
+                <td>${escapeHtml(item.reason || '')}</td>
+                <td class="${escapeHtml(statusClass)}">${escapeHtml(item.status || '')}</td>
             </tr>
             `;
         });

@@ -16,6 +16,7 @@ import useTheme from '../../hooks/useTheme';
 import { transfers as transfersApi, normalizeList } from '../../services/api';
 import { canAccessScreen, hasFeature, hasPermission } from '../../utils/permissions';
 import AppAlert from '../../utils/appAlert';
+import { escapeHtml } from '../../utils/html';
 
 const dateRanges = [
     { id: '1', label: 'Today', value: 'today' },
@@ -364,9 +365,9 @@ const ProductTransfers = ({ navigation }) => {
 <body>
     <h1>Product Transfers Report</h1>
     <div class="header-info">
-        <p><strong>Date Range:</strong> ${dateRangeLabel}</p>
-        <p><strong>Export Date:</strong> ${exportDate}</p>
-        <p><strong>Total Transfers:</strong> ${filteredData.length}</p>
+        <p><strong>Date Range:</strong> ${escapeHtml(dateRangeLabel)}</p>
+        <p><strong>Export Date:</strong> ${escapeHtml(exportDate)}</p>
+        <p><strong>Total Transfers:</strong> ${escapeHtml(filteredData.length)}</p>
     </div>
     <table>
         <thead>
@@ -389,13 +390,13 @@ const ProductTransfers = ({ navigation }) => {
                               'status-cancelled';
             html += `
             <tr>
-                <td>${item.id || ''}</td>
-                <td>${item.source_warehouse_name || ''}</td>
-                <td>${item.destination_warehouse_name || ''}</td>
-                <td>${item.itemsSummary || ''}</td>
-                <td>${item.date || ''}</td>
-                <td class="${statusClass}">${item.status || ''}</td>
-                <td>${item.reason || ''}</td>
+                <td>${escapeHtml(item.id || '')}</td>
+                <td>${escapeHtml(item.source_warehouse_name || '')}</td>
+                <td>${escapeHtml(item.destination_warehouse_name || '')}</td>
+                <td>${escapeHtml(item.itemsSummary || '')}</td>
+                <td>${escapeHtml(item.date || '')}</td>
+                <td class="${escapeHtml(statusClass)}">${escapeHtml(item.status || '')}</td>
+                <td>${escapeHtml(item.reason || '')}</td>
             </tr>
             `;
         });

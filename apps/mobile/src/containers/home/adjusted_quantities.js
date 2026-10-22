@@ -16,6 +16,7 @@ import useTheme from '../../hooks/useTheme';
 import { adjustments as adjustmentsApi, normalizeList } from '../../services/api';
 import { useFocusEffect } from '@react-navigation/native';
 import AppAlert from '../../utils/appAlert';
+import { escapeHtml } from '../../utils/html';
 
 const dateRanges = [
     { id: '1', label: 'Today', value: 'today' },
@@ -315,9 +316,9 @@ const AdjustedQuantities = ({ navigation }) => {
 <body>
     <h1>Adjusted Quantities Report</h1>
     <div class="header-info">
-        <p><strong>Date Range:</strong> ${dateRangeLabel}</p>
-        <p><strong>Export Date:</strong> ${exportDate}</p>
-        <p><strong>Total Adjustments:</strong> ${filteredData.length}</p>
+        <p><strong>Date Range:</strong> ${escapeHtml(dateRangeLabel)}</p>
+        <p><strong>Export Date:</strong> ${escapeHtml(exportDate)}</p>
+        <p><strong>Total Adjustments:</strong> ${escapeHtml(filteredData.length)}</p>
     </div>
     <table>
         <thead>
@@ -337,11 +338,11 @@ const AdjustedQuantities = ({ navigation }) => {
             const count = item.number_of_items ?? (Array.isArray(item.products) ? item.products.length : 0);
             html += `
             <tr>
-                <td>${item.reference_number || item.id || ''}</td>
-                <td>${item.warehouse_name || ''}</td>
-                <td>${dateStr}</td>
-                <td>${count}</td>
-                <td>${(item.notes || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</td>
+                <td>${escapeHtml(item.reference_number || item.id || '')}</td>
+                <td>${escapeHtml(item.warehouse_name || '')}</td>
+                <td>${escapeHtml(dateStr)}</td>
+                <td>${escapeHtml(count)}</td>
+                <td>${escapeHtml(item.notes || '')}</td>
             </tr>
             `;
         });

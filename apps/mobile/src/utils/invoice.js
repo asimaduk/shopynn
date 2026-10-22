@@ -4,16 +4,9 @@ import RNShare from 'react-native-share';
 import config from '../config';
 import { formatSalePaymentLabel } from './salePayment';
 import AppAlert from './appAlert';
+import { escapeHtml } from './html';
 
 const THEME = config.THEME_COLOR || '#0A74DA';
-
-function escapeHtml(value) {
-    return String(value ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-}
 
 function formatMoney(amount, currency = 'GH₵') {
     const n = Number(amount);

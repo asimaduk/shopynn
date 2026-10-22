@@ -127,7 +127,7 @@ export default function OrderPaymentDetailsPage() {
   <div class="receipt-wrap">
     <div class="receipt">
       <div class="center">
-        <p class="title">CHEQSTOCK RECEIPT</p>
+        <p class="title">SHOPYNN RECEIPT</p>
         <p class="muted">${escapeHtml(data?.warehouse_name || 'Store')}</p>
       </div>
       <hr class="divider" />
@@ -345,7 +345,7 @@ export default function OrderPaymentDetailsPage() {
 							}}
 						>
 							<Stack spacing={1}>
-								<Typography sx={{ textAlign: 'center', fontWeight: 800, letterSpacing: 0.5 }}>CHEQSTOCK RECEIPT</Typography>
+								<Typography sx={{ textAlign: 'center', fontWeight: 800, letterSpacing: 0.5 }}>SHOPYNN RECEIPT</Typography>
 								<Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
 									{data?.warehouse_name || 'Store'}
 								</Typography>

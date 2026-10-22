@@ -15,6 +15,7 @@ import { subscriptions as subscriptionsApi } from '../../services/api';
 import { canManageSubscription } from '../../utils/permissions';
 import AppAlert from '../../utils/appAlert';
 import { getPaymentStatusBadgeStyle } from '../../utils/paymentStatus';
+import { escapeHtml } from '../../utils/html';
 
 const formatter = new Intl.NumberFormat('en-GH', {
     style: 'currency',
@@ -293,8 +294,8 @@ const PaymentHistory = ({ navigation }) => {
 </head>
 <body>
     <h1>Payment History Report</h1>
-    <p><strong>Date Range:</strong> ${dateRangeLabel}</p>
-    <p><strong>Export Date:</strong> ${exportDate}</p>
+    <p><strong>Date Range:</strong> ${escapeHtml(dateRangeLabel)}</p>
+    <p><strong>Export Date:</strong> ${escapeHtml(exportDate)}</p>
     
     <table>
         <thead>
@@ -309,11 +310,11 @@ const PaymentHistory = ({ navigation }) => {
         <tbody>
             ${filteredData.map((item) => `
                 <tr>
-                    <td>${formatDateDisplay(item.date)}</td>
-                    <td>${item.invoice}</td>
-                    <td>${formatter.format(item.amount).replace(/GH₵\s?|GHS\s?/, 'GH₵ ')}</td>
-                    <td>${item.status.toUpperCase()}</td>
-                    <td>${item.method}</td>
+                    <td>${escapeHtml(formatDateDisplay(item.date))}</td>
+                    <td>${escapeHtml(item.invoice)}</td>
+                    <td>${escapeHtml(formatter.format(item.amount).replace(/GH₵\s?|GHS\s?/, 'GH₵ '))}</td>
+                    <td>${escapeHtml(item.status.toUpperCase())}</td>
+                    <td>${escapeHtml(item.method)}</td>
                 </tr>
             `).join('')}
         </tbody>
@@ -322,11 +323,11 @@ const PaymentHistory = ({ navigation }) => {
     <div class="summary">
         <div class="summary-row">
             <span class="label">Total Payments:</span>
-            <span class="value">${filteredData.length}</span>
+            <span class="value">${escapeHtml(filteredData.length)}</span>
         </div>
         <div class="summary-row">
             <span class="label">Total Amount:</span>
-            <span class="value">${formatter.format(totalAmount).replace(/GH₵\s?|GHS\s?/, 'GH₵ ')}</span>
+            <span class="value">${escapeHtml(formatter.format(totalAmount).replace(/GH₵\s?|GHS\s?/, 'GH₵ '))}</span>
         </div>
     </div>
     
