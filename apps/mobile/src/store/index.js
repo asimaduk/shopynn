@@ -9,8 +9,7 @@ import Utf8 from 'crypto-js/enc-utf8';
 import rootReducer from './reducers'
 
 const KEY_SERVICE = 'com.shopynn.persist.key';
-// Static key used before per-device keys. Read only to migrate existing installs, and used when
-// the Keychain is unavailable.
+// Static key used before per-device keys. Only used to read state saved by older builds.
 const LEGACY_KEY = __DEV__ ? '__test__' : 'change-me-in-production-use-env-or-build-secret';
 
 let secretKey = null;
@@ -19,20 +18,39 @@ let keyPromise = null;
 const randomKey = () =>
     Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) => b.toString(16).padStart(2, '0')).join('');
 
+async function withRetry(fn) {
+    try {
+        return await fn();
+    } catch {
+        return fn();
+    }
+}
+
+/**
+ * Per-device key from the Keychain. Null when the Keychain can't be read: state is then not saved
+ * this session (rather than saved under a weak key), and the stored copy is left for next launch.
+ */
 function loadSecretKey() {
     if (!keyPromise) {
         keyPromise = (async () => {
+            let creds;
             try {
-                const creds = await Keychain.getGenericPassword({ service: KEY_SERVICE });
-                if (creds?.password) return creds.password;
+                creds = await withRetry(() => Keychain.getGenericPassword({ service: KEY_SERVICE }));
+            } catch {
+                return null;
+            }
+            if (creds?.password) return creds.password;
+            try {
                 const key = randomKey();
-                await Keychain.setGenericPassword('persist', key, {
-                    service: KEY_SERVICE,
-                    accessible: Keychain.ACCESSIBLE?.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
-                });
+                await withRetry(() =>
+                    Keychain.setGenericPassword('persist', key, {
+                        service: KEY_SERVICE,
+                        accessible: Keychain.ACCESSIBLE?.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
+                    }),
+                );
                 return key;
             } catch {
-                return LEGACY_KEY;
+                return null;
             }
         })().then((key) => {
             secretKey = key;
@@ -52,22 +70,21 @@ function decrypt(cipher, key) {
 }
 
 const encryptor = createTransform(
-    (state) => Aes.encrypt(JSON.stringify(state), secretKey || LEGACY_KEY).toString(),
+    (state) => (secretKey ? Aes.encrypt(JSON.stringify(state), secretKey).toString() : null),
     (stored) => {
         if (typeof stored !== 'string') return undefined;
-        const key = secretKey || LEGACY_KEY;
-        const state = decrypt(stored, key);
-        return state !== undefined || key === LEGACY_KEY ? state : decrypt(stored, LEGACY_KEY);
+        const state = secretKey ? decrypt(stored, secretKey) : undefined;
+        return state !== undefined ? state : decrypt(stored, LEGACY_KEY);
     },
 );
 
-// Rehydration waits for the key; writes only start after rehydration, so they always have it.
+// Rehydration waits for the key; writes only start after rehydration, so they know whether it exists.
 const storage = {
     getItem: async (name) => {
         await loadSecretKey();
         return AsyncStorage.getItem(name);
     },
-    setItem: (name, value) => AsyncStorage.setItem(name, value),
+    setItem: (name, value) => (secretKey ? AsyncStorage.setItem(name, value) : Promise.resolve()),
     removeItem: (name) => AsyncStorage.removeItem(name),
 };
 
