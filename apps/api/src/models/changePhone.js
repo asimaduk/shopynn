@@ -4,6 +4,7 @@
 
 import pool from "../config/db.js";
 import crypto from "crypto";
+import { generateOtp } from "../util/secureRandom.js";
 import { v4 as uuidv4 } from "uuid";
 import { sendSmsService } from "../services/sms.js";
 import { maskPhone, otpForLog } from "../util/devOtp.js";
@@ -19,7 +20,6 @@ const hashOtp = (phone, code) =>
         .update(`${process.env.OTP_SECRET || "ims-email-otp"}:${PURPOSE}:${phone}:${code}`)
         .digest("hex");
 
-const generateOtp = () => String(Math.floor(100000 + Math.random() * 900000));
 
 function assertValidPhone(digits) {
     if (!digits || digits.length < 10 || digits.length > 15) {

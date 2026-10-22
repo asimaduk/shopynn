@@ -1,5 +1,6 @@
 import pool from "../config/db.js";
 import crypto from "crypto";
+import { generateOtp } from "../util/secureRandom.js";
 import { v4 as uuidv4 } from "uuid";
 import { sendEmailService } from "./mail.js";
 import { maskEmail, otpForLog } from "../util/devOtp.js";
@@ -20,7 +21,6 @@ const hashOtp = (email, code, purpose) =>
         .update(`${process.env.OTP_SECRET || "ims-email-otp"}:${purpose}:${email}:${code}`)
         .digest("hex");
 
-const generateOtp = () => String(Math.floor(100000 + Math.random() * 900000));
 
 const assertValidEmail = (normalized) => {
     if (!normalized) throw new Error("Email is required.");

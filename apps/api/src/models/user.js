@@ -14,6 +14,7 @@ import { SUPER_ADMIN_EXCLUDED_PERMISSION_CODES } from "../constants/permissionCo
 import { getUserPermissionsService } from "./userRole.js";
 import { getBulkDiscountFromSettings } from "../utils/bulkDiscount.js";
 import { maskEmail } from "../util/devOtp.js";
+import { generatePassword } from "../util/secureRandom.js";
 
 const saltRounds = 12;
 
@@ -507,7 +508,7 @@ export const createUserService = async (payload) => {
         if (!isOnboarding && password != null && String(password).trim() !== "") {
             plainPassword = String(password).trim();
         } else {
-            plainPassword = generatePassword(10);
+            plainPassword = generatePassword(12);
         }
         passwordHash = await bcrypt.hash(plainPassword, saltRounds);
     }
@@ -738,17 +739,6 @@ export const deleteUserService = async (payload) => {
     return result.rows[0];
 }
 
-function generatePassword(length) {
-    let result = '';
-    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789$_';
-    const charactersLength = characters.length;
-    for (let i = 0; i < length; i++) {
-      result += characters.charAt(Math.floor(Math.random() * charactersLength));
-    }
-    
-    return result;
-}
-
 export const resetPasswordService = async (newPassword, oldPassword, id) => {    
     if(!newPassword || !oldPassword) return {status: 400, message: "New password and old password are required"};
 
@@ -844,7 +834,7 @@ export const activateUserWithCredentialsService = async (userId) => {
     if (!result.rowCount) return { status: 404, message: "User not found." };
     const user = result.rows[0];
 
-    const plainPassword = generatePassword(10);
+    const plainPassword = generatePassword(12);
     const passwordHash = await bcrypt.hash(plainPassword, saltRounds);
     await pool.query(
         `UPDATE users
@@ -876,7 +866,7 @@ export const forgotPasswordService = async (email) => {
 
     if (result.rowCount) {
         const user = result.rows[0];
-        const plainPassword = generatePassword(10);
+        const plainPassword = generatePassword(12);
         const temporaryHash = await bcrypt.hash(plainPassword, saltRounds);
         const passwordExpiresAt = new Date(Date.now() + 30 * 60 * 1000);
 

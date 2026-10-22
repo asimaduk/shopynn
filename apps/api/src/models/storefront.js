@@ -5,6 +5,7 @@
 
 import pool from "../config/db.js";
 import crypto from "crypto";
+import { generateOtp } from "../util/secureRandom.js";
 import bcrypt from "bcrypt";
 import { signUserToken } from "../util/authToken.js";
 import { v4 as uuidv4 } from "uuid";
@@ -31,7 +32,6 @@ const hashOtp = (phone, code) =>
         .update(`${process.env.OTP_SECRET || "ims-email-otp"}:${PURPOSE_PHONE}:${phone}:${code}`)
         .digest("hex");
 
-const generateOtp = () => String(Math.floor(100000 + Math.random() * 900000));
 
 /** Normalize Ghana-friendly MSISDN to digits starting with 233 when possible. */
 export function normalizeStorefrontPhone(raw) {
