@@ -292,10 +292,9 @@ function ContactView() {
 						{contact.notes && (
 							<div className="flex">
 								<FuseSvgIcon>heroicons-outline:bars-3-bottom-left</FuseSvgIcon>
-								<div
-									className="max-w-none ml-6 prose dark:prose-invert"
-									dangerouslySetInnerHTML={{ __html: contact.notes }}
-								/>
+								<div className="max-w-none ml-6 prose dark:prose-invert whitespace-pre-wrap">
+									{contact.notes}
+								</div>
 							</div>
 						)}
 					</div>

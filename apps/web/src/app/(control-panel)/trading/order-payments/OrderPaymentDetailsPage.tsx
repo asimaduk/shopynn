@@ -14,6 +14,14 @@ import { appConfirm } from '@/utils/appConfirm';
 const formatMoney = (amount: any) => `GHS ${Number(amount || 0).toFixed(2)}`;
 const formatDateTime = (value?: string) => (value ? new Date(value).toLocaleString() : '—');
 
+const escapeHtml = (value: unknown) =>
+	String(value ?? '')
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#39;');
+
 const formatMethod = (method?: string) => {
 	const value = String(method || '').toLowerCase();
 	if (value.includes('mobile')) return 'Mobile money';
@@ -94,6 +102,7 @@ export default function OrderPaymentDetailsPage() {
 <html>
 <head>
   <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'" />
   <title>Payment Receipt</title>
   <style>
     body { font-family: Inter, Arial, sans-serif; background: #f8fafc; margin: 0; padding: 24px; color: #0f172a; }
@@ -119,23 +128,23 @@ export default function OrderPaymentDetailsPage() {
     <div class="receipt">
       <div class="center">
         <p class="title">CHEQSTOCK RECEIPT</p>
-        <p class="muted">${data?.warehouse_name || 'Store'}</p>
+        <p class="muted">${escapeHtml(data?.warehouse_name || 'Store')}</p>
       </div>
       <hr class="divider" />
       <div class="grid">
         <div class="panel">
           <div class="panel-title">Payment Details</div>
-          <div class="row"><span class="label">Reference</span><span class="value">${data?.transaction_ref || '—'}</span></div>
-          <div class="row"><span class="label">Amount</span><span class="value">${formatMoney(data?.amount)}</span></div>
-          <div class="row"><span class="label">Method</span><span class="value">${formatMethod(data?.payment_method_type)}</span></div>
-          <div class="row"><span class="label">Paid At</span><span class="value">${formatDateTime(data?.created_at)}</span></div>
+          <div class="row"><span class="label">Reference</span><span class="value">${escapeHtml(data?.transaction_ref || '—')}</span></div>
+          <div class="row"><span class="label">Amount</span><span class="value">${escapeHtml(formatMoney(data?.amount))}</span></div>
+          <div class="row"><span class="label">Method</span><span class="value">${escapeHtml(formatMethod(data?.payment_method_type))}</span></div>
+          <div class="row"><span class="label">Paid At</span><span class="value">${escapeHtml(formatDateTime(data?.created_at))}</span></div>
         </div>
         <div class="panel">
           <div class="panel-title">Order & Customer</div>
-          <div class="row"><span class="label">Order</span><span class="value">${data?.order_number || data?.order_id || '—'}</span></div>
-          <div class="row"><span class="label">Ordered At</span><span class="value">${formatDateTime(data?.ordered_at)}</span></div>
-          <div class="row"><span class="label">Customer</span><span class="value">${[data?.customer_first_name, data?.customer_last_name].filter(Boolean).join(' ') || data?.customer_email || '—'}</span></div>
-          <div class="row"><span class="label">Recorded By</span><span class="value">${[data?.creator_first_name, data?.creator_last_name].filter(Boolean).join(' ') || 'System'}</span></div>
+          <div class="row"><span class="label">Order</span><span class="value">${escapeHtml(data?.order_number || data?.order_id || '—')}</span></div>
+          <div class="row"><span class="label">Ordered At</span><span class="value">${escapeHtml(formatDateTime(data?.ordered_at))}</span></div>
+          <div class="row"><span class="label">Customer</span><span class="value">${escapeHtml([data?.customer_first_name, data?.customer_last_name].filter(Boolean).join(' ') || data?.customer_email || '—')}</span></div>
+          <div class="row"><span class="label">Recorded By</span><span class="value">${escapeHtml([data?.creator_first_name, data?.creator_last_name].filter(Boolean).join(' ') || 'System')}</span></div>
         </div>
       </div>
       <hr class="divider" />
