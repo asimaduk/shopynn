@@ -6,6 +6,7 @@
 import pool from "../config/db.js";
 import crypto from "crypto";
 import { generateOtp } from "../util/secureRandom.js";
+import { assertOtpQuota } from "../util/otpQuota.js";
 import bcrypt from "bcrypt";
 import { signUserToken } from "../util/authToken.js";
 import { v4 as uuidv4 } from "uuid";
@@ -207,6 +208,7 @@ export async function sendStorefrontPhoneOtpService({ phone, reference_code }) {
     const normalized = normalizeStorefrontPhone(phone);
     assertValidPhone(normalized);
 
+    await assertOtpQuota(normalized);
     const code = generateOtp();
     const id = uuidv4();
     const expiresAt = new Date(Date.now() + OTP_TTL_MS);

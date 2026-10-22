@@ -6,6 +6,7 @@
 import pool from "../config/db.js";
 import crypto from "crypto";
 import { generateOtp } from "../util/secureRandom.js";
+import { assertOtpQuota } from "../util/otpQuota.js";
 import { signUserToken } from "../util/authToken.js";
 import { v4 as uuidv4 } from "uuid";
 import { sendSmsService } from "../services/sms.js";
@@ -49,27 +50,10 @@ export async function sendPhoneLoginOtpService({ phone }) {
     const normalized = normalizeStorefrontPhone(phone);
     assertValidPhone(normalized);
 
+    // Same response for every number so this endpoint can't be used to find out who has an account;
+    // the SMS only goes to active customer accounts. Verify rejects everyone else.
     const user = await findActiveUserByPhone(normalized);
-    if (!user || user.deleted) {
-        const err = new Error(
-            "No Shopynn account for this number. Place an order from a store link first, or create a customer account in the app."
-        );
-        err.status = 404;
-        err.code = "PHONE_NOT_FOUND";
-        throw err;
-    }
-    if (!user.is_active) {
-        const err = new Error("Your account is inactive. Contact the store.");
-        err.status = 403;
-        err.code = "ACCOUNT_INACTIVE";
-        throw err;
-    }
-    if (!(await isCustomerOnlyAccount(user.id))) {
-        const err = new Error("Phone sign-in is for customers. Staff, please sign in with your email and password.");
-        err.status = 403;
-        err.code = "PHONE_LOGIN_CUSTOMERS_ONLY";
-        throw err;
-    }
+    const eligible = Boolean(user && !user.deleted && user.is_active && (await isCustomerOnlyAccount(user.id)));
 
     const recent = await pool.query(
         `SELECT created_at FROM email_verification_codes
@@ -90,6 +74,7 @@ export async function sendPhoneLoginOtpService({ phone }) {
         }
     }
 
+    await assertOtpQuota(normalized);
     const code = generateOtp();
     const id = uuidv4();
     const expiresAt = new Date(Date.now() + OTP_TTL_MS);
@@ -100,23 +85,27 @@ export async function sendPhoneLoginOtpService({ phone }) {
         [id, normalized, PURPOSE, hashOtp(normalized, code), expiresAt]
     );
 
-    const sms = await sendSmsService({
-        to: normalized,
-        message: `Your Shopynn login code is ${code}. It expires in 10 minutes.`,
-    });
-
-    if (!sms.ok) {
-        console.info(`[phone login OTP] phone=${maskPhone(normalized)} code=${otpForLog(code)} sms=${sms.error || "n/a"}`);
+    // Not awaited: response time must not reveal whether the number has an account.
+    if (eligible) {
+        sendSmsService({
+            to: normalized,
+            message: `Your Shopynn login code is ${code}. It expires in 10 minutes.`,
+        })
+            .then((sms) => {
+                if (!sms.ok) {
+                    console.info(`[phone login OTP] phone=${maskPhone(normalized)} code=${otpForLog(code)} sms=${sms.error || "n/a"}`);
+                }
+            })
+            .catch((err) => {
+                console.error(`[phone login OTP] phone=${maskPhone(normalized)} sms failed: ${err?.message || err}`);
+            });
     }
 
-    const result = {
+    return {
         phone: normalized,
         expires_in_seconds: Math.floor(OTP_TTL_MS / 1000),
         resend_cooldown_seconds: Math.floor(RESEND_COOLDOWN_MS / 1000),
-        sms_sent: Boolean(sms.ok),
-        first_name: user.first_name || null,
     };
-    return result;
 }
 
 export async function verifyPhoneLoginOtpService({ phone, otp }) {
@@ -126,26 +115,6 @@ export async function verifyPhoneLoginOtpService({ phone, otp }) {
     if (!/^\d{6}$/.test(code)) {
         const err = new Error("Enter the 6-digit code.");
         err.status = 400;
-        throw err;
-    }
-
-    const user = await findActiveUserByPhone(normalized);
-    if (!user || user.deleted) {
-        const err = new Error("No Shopynn account for this number.");
-        err.status = 404;
-        err.code = "PHONE_NOT_FOUND";
-        throw err;
-    }
-    if (!user.is_active) {
-        const err = new Error("Your account is inactive.");
-        err.status = 403;
-        err.code = "ACCOUNT_INACTIVE";
-        throw err;
-    }
-    if (!(await isCustomerOnlyAccount(user.id))) {
-        const err = new Error("Phone sign-in is for customers. Staff, please sign in with your email and password.");
-        err.status = 403;
-        err.code = "PHONE_LOGIN_CUSTOMERS_ONLY";
         throw err;
     }
 
@@ -188,6 +157,27 @@ export async function verifyPhoneLoginOtpService({ phone, otp }) {
         err.status = 400;
         err.code = remaining > 0 ? "OTP_INVALID" : "OTP_MAX_ATTEMPTS";
         err.attempts_remaining = remaining;
+        throw err;
+    }
+
+    // Checked only after a correct code, so a wrong guess can't reveal whether the number has an account.
+    const user = await findActiveUserByPhone(normalized);
+    if (!user || user.deleted) {
+        const err = new Error("No Shopynn account for this number.");
+        err.status = 404;
+        err.code = "PHONE_NOT_FOUND";
+        throw err;
+    }
+    if (!user.is_active) {
+        const err = new Error("Your account is inactive.");
+        err.status = 403;
+        err.code = "ACCOUNT_INACTIVE";
+        throw err;
+    }
+    if (!(await isCustomerOnlyAccount(user.id))) {
+        const err = new Error("Phone sign-in is for customers. Staff, please sign in with your email and password.");
+        err.status = 403;
+        err.code = "PHONE_LOGIN_CUSTOMERS_ONLY";
         throw err;
     }
 

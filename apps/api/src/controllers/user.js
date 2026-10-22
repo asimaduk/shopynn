@@ -265,7 +265,12 @@ export const sendPhoneLoginOtp = async (req, res, next) => {
     try {
         const { sendPhoneLoginOtpService } = await import("../models/phoneLogin.js");
         const data = await sendPhoneLoginOtpService(req.body || {});
-        handleResponse(res, 200, "OTP sent.", data);
+        handleResponse(
+            res,
+            200,
+            "If this number has a Shopynn customer account, we've sent a 6-digit code by SMS. Staff sign in with email and password.",
+            data
+        );
     } catch (error) {
         const payload = {};
         if (error?.code) payload.code = error.code;

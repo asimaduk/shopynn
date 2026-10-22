@@ -5,6 +5,7 @@
 import pool from "../config/db.js";
 import crypto from "crypto";
 import { generateOtp } from "../util/secureRandom.js";
+import { assertOtpQuota } from "../util/otpQuota.js";
 import { signUserToken } from "../util/authToken.js";
 import { v4 as uuidv4 } from "uuid";
 import { sendSmsService } from "../services/sms.js";
@@ -57,6 +58,7 @@ export async function sendCustomerSignupPhoneOtpService({ phone, reference_code 
         }
     }
 
+    await assertOtpQuota(normalized);
     const code = generateOtp();
     const id = uuidv4();
     const expiresAt = new Date(Date.now() + OTP_TTL_MS);

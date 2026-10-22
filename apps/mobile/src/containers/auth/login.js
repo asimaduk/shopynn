@@ -458,7 +458,8 @@ const Login = ({ navigation, route }) => {
             if (!isResend) {
                 Keyboard.dismiss();
                 setCodeSentNotice({
-                    message: 'We sent a 6-digit code by SMS. Enter it to sign in.',
+                    message:
+                        'If this number has a Shopynn customer account, we sent a 6-digit code by SMS. Staff sign in with email and password.',
                 });
             }
         } catch (err) {

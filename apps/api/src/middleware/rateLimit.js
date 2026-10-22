@@ -32,6 +32,13 @@ export const otpSendLimit = [
         message: "Too many codes sent to this number or email. Wait a few minutes and try again.",
         keyGenerator: perIpAndTarget("otp-send"),
     }),
+    // Same number or email from any IP: stops rotating addresses to flood one phone or inbox.
+    limiter({
+        windowMs: 60 * MINUTE,
+        limit: 6,
+        message: "Too many codes sent to this number or email. Try again in an hour.",
+        keyGenerator: (req) => `otp-send-target:${target(req) || req.ip}`,
+    }),
 ];
 
 /** Checking a code or password: slows down guessing. */

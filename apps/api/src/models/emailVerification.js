@@ -1,6 +1,7 @@
 import pool from "../config/db.js";
 import crypto from "crypto";
 import { generateOtp } from "../util/secureRandom.js";
+import { assertOtpQuota } from "../util/otpQuota.js";
 import { v4 as uuidv4 } from "uuid";
 import { sendEmailService } from "./mail.js";
 import { maskEmail, otpForLog } from "../util/devOtp.js";
@@ -73,6 +74,7 @@ export async function sendShopOwnerEmailOtpService(email) {
         }
     }
 
+    await assertOtpQuota(normalized);
     const code = generateOtp();
     const id = uuidv4();
     const expiresAt = new Date(Date.now() + OTP_TTL_MS);
@@ -213,6 +215,7 @@ export async function sendCustomerChangeEmailOtpService({ userId, email }) {
         }
     }
 
+    await assertOtpQuota(normalized);
     const code = generateOtp();
     const id = uuidv4();
     const expiresAt = new Date(Date.now() + OTP_TTL_MS);
