@@ -78,6 +78,7 @@ const MerchantPortal = ({ navigation }) => {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [merchant, setMerchant] = useState(null);
+    const [loadFailed, setLoadFailed] = useState(false);
     const [tenants, setTenants] = useState([]);
     const [commissions, setCommissions] = useState([]);
     const [adminMerchants, setAdminMerchants] = useState([]);
@@ -111,7 +112,9 @@ const MerchantPortal = ({ navigation }) => {
                 admins = Array.isArray(listRes?.merchants) ? listRes.merchants : [];
             }
             setAdminMerchants(admins);
+            setLoadFailed(false);
         } catch (e) {
+            setLoadFailed(true);
             setMerchant(null);
             setTenants([]);
             setCommissions([]);
@@ -716,7 +719,11 @@ const MerchantPortal = ({ navigation }) => {
                 >
                     <View style={cardStyle}>
                         <AppText
-                            label="You have agent permissions, but your account is not linked to an agent record yet. Ask an administrator to register you as an agent."
+                            label={
+                                loadFailed
+                                    ? 'Could not load your agent account. Check your connection and pull down to try again.'
+                                    : 'You have agent permissions, but your account is not linked to an agent record yet. Ask an administrator to register you as an agent.'
+                            }
                             variant={2}
                             color={colors.text}
                             fontSize={14}
