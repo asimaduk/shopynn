@@ -370,6 +370,18 @@ const Login = ({ navigation, route }) => {
         }
     };
 
+    // Customer sign-up already verified the phone and returned a token, so finish signing in with it.
+    const signupToken = route?.params?.signupToken;
+    useEffect(() => {
+        if (!signupToken) return;
+        navigation.setParams({ signupToken: undefined });
+        setLoading(true);
+        finishLoginWithToken(signupToken, { skipBio: true })
+            .catch(() => {})
+            .finally(() => setLoading(false));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [signupToken]);
+
     const validateAndLogin = async () => {
         const e = normalizeEmail(email);
         const p = normalizePassword(password);

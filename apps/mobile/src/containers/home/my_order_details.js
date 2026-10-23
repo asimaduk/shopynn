@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Linking, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { Linking, RefreshControl, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Lucide } from '@react-native-vector-icons/lucide';
@@ -54,6 +54,13 @@ const MyOrderDetails = ({ navigation, route }) => {
             loadOrder();
         }, [loadOrder])
     );
+
+    const [refreshing, setRefreshing] = useState(false);
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await loadOrder();
+        setRefreshing(false);
+    }, [loadOrder]);
 
     const cancellableStatus = ['pending', 'confirmed'].includes(String(order?.status || '').toLowerCase());
     const hasPayment =
@@ -208,7 +215,10 @@ const MyOrderDetails = ({ navigation, route }) => {
     return (
         <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
             <ScreenHeader onPress={() => navigation.goBack()} label="Order details" />
-            <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 40 }}>
+            <ScrollView
+                contentContainerStyle={{ padding: 12, paddingBottom: 40 }}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            >
                 <View style={[styles.heroCard, { backgroundColor: colors.surface }]}>
                     <View style={styles.heroTopRow}>
                         <View style={{ flex: 1 }}>

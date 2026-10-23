@@ -37,6 +37,7 @@ const CustomerSignup = ({ navigation }) => {
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
     const [signupDone, setSignupDone] = useState(false);
+    const [signupToken, setSignupToken] = useState(null);
     const [codeSentNotice, setCodeSentNotice] = useState(null);
     const otpInputRef = useRef(null);
 
@@ -138,13 +139,14 @@ const CustomerSignup = ({ navigation }) => {
         }
         setLoading(true);
         try {
-            await usersApi.customerSignup({
+            const data = await usersApi.customerSignup({
                 reference_code: normalizeReferenceCodeInput(referenceCode),
                 phone,
                 session_token: sessionToken,
                 first_name: firstName.trim(),
                 last_name: lastName.trim(),
             });
+            setSignupToken(data?.token ?? data?.data?.token ?? null);
             setSignupDone(true);
         } catch (error) {
             const msg = error?.response?.data?.message || error?.message || 'Signup failed.';
@@ -474,15 +476,19 @@ const CustomerSignup = ({ navigation }) => {
             <SuccessDialog
                 visible={signupDone}
                 title="You're all set"
-                message="Your customer account is ready. Sign in with your phone number to start ordering."
+                message={
+                    signupToken
+                        ? 'Your customer account is ready. You can start ordering now.'
+                        : 'Your customer account is ready. Sign in with your phone number to start ordering.'
+                }
                 details={[
                     { icon: 'store', label: 'Store', value: referenceData?.store?.name },
                     { icon: 'smartphone', label: 'Phone', value: phone },
                 ]}
-                primaryLabel="Sign in"
+                primaryLabel={signupToken ? 'Start shopping' : 'Sign in'}
                 onPrimary={() => {
                     setSignupDone(false);
-                    navigation.navigate('Login', { authMode: 'phone', prefillPhone: phone });
+                    navigation.navigate('Login', { authMode: 'phone', prefillPhone: phone, signupToken });
                 }}
             />
         </KeyboardAvoidingView>
