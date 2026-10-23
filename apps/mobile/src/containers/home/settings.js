@@ -92,9 +92,12 @@ const Settings = ({ navigation, route }) => {
         user?.profile_image ?? user?.profileImage ?? user?.avatar ?? user?.settings?.profile?.image_url,
     );
 
+    // The checklist ends in a first sale, so it is only for users who can sell (not agents).
+    const canGoLive = showGoLive && canAccessScreen(user, 'NewSale', subscriptionFeatures);
+
     const settingsItemsForSearch = useMemo(() => {
-        return SETTINGS_ITEMS.filter((item) => item.screen !== 'GoLiveWizard' || showGoLive);
-    }, [showGoLive]);
+        return SETTINGS_ITEMS.filter((item) => item.screen !== 'GoLiveWizard' || canGoLive);
+    }, [canGoLive]);
 
     const filteredItems = useMemo(() => {
         if (!searchQuery.trim()) return [];
@@ -191,7 +194,7 @@ const Settings = ({ navigation, route }) => {
     const showPeopleSection = canCustomers || canUsers;
     const showExpensesSection = canExpenditures;
     const showSetupsSection =
-        showGoLive || canWarehouses || canSuppliers || canInvoiceReceipt || canDataExport;
+        canGoLive || canWarehouses || canSuppliers || canInvoiceReceipt || canDataExport;
     const showAdminSection = canRoles || canNotificationsSetup;
     const showReportsSection = canReports;
     const showPlatformSection =
@@ -975,7 +978,7 @@ const Settings = ({ navigation, route }) => {
                             {renderMenuRows([
                                 {
                                     key: 'go-live',
-                                    show: showGoLive,
+                                    show: canGoLive,
                                     node: (
                                         <TouchableOpacity
                                             activeOpacity={0.6}
