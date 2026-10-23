@@ -285,7 +285,9 @@ const navigationConfig: FuseNavItemType[] = [
 				title: 'Go live checklist',
 				type: 'item',
 				icon: 'heroicons-outline:rocket-launch',
-				url: '/setup/go-live'
+				url: '/setup/go-live',
+				// The checklist ends in a first sale, so it is only for users who can sell (not agents).
+				requiredPermissions: ['sales.create']
 			},
 			{
 				id: 'setups.companyProfile',

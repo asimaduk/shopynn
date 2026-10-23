@@ -1,11 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import ButtonBase from '@mui/material/ButtonBase';
 import Chip from '@mui/material/Chip';
-import MenuItem from '@mui/material/MenuItem';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
 import Paper from '@mui/material/Paper';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -15,7 +19,9 @@ import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import FuseLoading from '@fuse/core/FuseLoading';
+import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import toast from 'react-hot-toast';
+import { MOMO_NETWORK_OPTIONS, momoNetworkIconSrc } from '@/utils/momoNetworks';
 import { type MomoNetwork, useGetMyEarningsQuery, useSavePayoutProfileMutation } from './MerchantApi';
 import {
 	MOMO_NETWORK_LABEL,
@@ -44,10 +50,18 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
 	);
 }
 
+/** 0241234567 → 024 123 4567 */
+function formatMomoNumber(value: string) {
+	const digits = String(value || '').replace(/\D/g, '');
+	if (digits.length !== 10) return value;
+	return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+}
+
 /** Agent: balances by stage, MoMo payout details and payout history. */
 export default function AgentEarningsPanel() {
 	const { data, isLoading } = useGetMyEarningsQuery(undefined, { refetchOnMountOrArgChange: true });
 	const [save, { isLoading: saving }] = useSavePayoutProfileMutation();
+	const [editOpen, setEditOpen] = useState(false);
 	const [network, setNetwork] = useState<MomoNetwork>('mtn');
 	const [number, setNumber] = useState('');
 	const [holder, setHolder] = useState('');
@@ -55,18 +69,18 @@ export default function AgentEarningsPanel() {
 	const profile = data?.payout_profile ?? null;
 	const earnings = data?.earnings;
 
-	useEffect(() => {
-		if (profile) {
-			setNetwork(profile.momo_network);
-			setNumber(profile.momo_number);
-			setHolder(profile.account_holder_name);
-		}
-	}, [profile]);
+	const openEditor = () => {
+		setNetwork(profile?.momo_network ?? 'mtn');
+		setNumber(profile?.momo_number ?? '');
+		setHolder(profile?.account_holder_name ?? '');
+		setEditOpen(true);
+	};
 
 	const handleSave = async () => {
 		try {
 			await save({ momo_network: network, momo_number: number.trim(), account_holder_name: holder.trim() }).unwrap();
 			toast.success('Payout details saved.');
+			setEditOpen(false);
 		} catch (e: unknown) {
 			const err = e as { data?: { message?: string }; error?: string };
 			toast.error(err?.data?.message || err?.error || 'Could not save payout details');
@@ -104,34 +118,87 @@ export default function AgentEarningsPanel() {
 			</Typography>
 
 			<Paper variant="outlined" className="rounded-xl p-4 shadow-none">
-				<Typography variant="subtitle1" className="mb-3 font-bold">
-					Mobile money payout details
-				</Typography>
-				{!profile ? (
-					<Alert severity="warning" className="mb-3">
-						Add your MoMo details so your commission can be paid.
-					</Alert>
-				) : null}
-				<Box className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-					<TextField
-						select
-						label="Network"
-						size="small"
-						value={network}
-						onChange={(e) => setNetwork(e.target.value as MomoNetwork)}
-					>
-						{Object.entries(MOMO_NETWORK_LABEL).map(([value, label]) => (
-							<MenuItem key={value} value={value}>
-								{label}
-							</MenuItem>
-						))}
-					</TextField>
+				<Box className="mb-3 flex items-center justify-between gap-3">
+					<Typography variant="subtitle1" className="font-bold">
+						Mobile money payout details
+					</Typography>
+					{profile ? (
+						<Button
+							size="small"
+							variant="outlined"
+							startIcon={<FuseSvgIcon size={16}>heroicons-outline:pencil-square</FuseSvgIcon>}
+							onClick={openEditor}
+							sx={{ textTransform: 'none' }}
+						>
+							Edit
+						</Button>
+					) : null}
+				</Box>
+				{profile ? (
+					<Box className="flex items-center gap-3">
+						<Box
+							component="img"
+							src={momoNetworkIconSrc(profile.momo_network)}
+							alt=""
+							sx={{ width: 40, height: 40, objectFit: 'contain', borderRadius: 1 }}
+						/>
+						<Box>
+							<Typography className="font-bold">{formatMomoNumber(profile.momo_number)}</Typography>
+							<Typography variant="body2" color="text.secondary">
+								{MOMO_NETWORK_LABEL[profile.momo_network] ?? profile.momo_network} · {profile.account_holder_name}
+							</Typography>
+						</Box>
+					</Box>
+				) : (
+					<>
+						<Alert severity="warning" className="mb-3">
+							Add your MoMo details so your commission can be paid.
+						</Alert>
+						<Button variant="contained" color="secondary" onClick={openEditor}>
+							Add payout details
+						</Button>
+					</>
+				)}
+			</Paper>
+
+			<Dialog open={editOpen} onClose={() => !saving && setEditOpen(false)} fullWidth maxWidth="xs">
+				<DialogTitle>Payout details</DialogTitle>
+				<DialogContent className="flex flex-col gap-3">
+					<Typography variant="body2" color="text.secondary">
+						Network
+					</Typography>
+					<Box className="grid grid-cols-3 gap-2">
+						{MOMO_NETWORK_OPTIONS.map((n) => {
+							const value = n.payoutNetwork as MomoNetwork;
+							const active = network === value;
+							return (
+								<ButtonBase
+									key={value}
+									onClick={() => setNetwork(value)}
+									aria-pressed={active}
+									className="flex flex-col items-center gap-1 rounded-lg p-2"
+									sx={{
+										border: 2,
+										borderColor: active ? 'secondary.main' : 'divider',
+										bgcolor: active ? 'action.selected' : 'transparent'
+									}}
+								>
+									<Box component="img" src={n.iconSrc} alt="" sx={{ width: 36, height: 36, objectFit: 'contain' }} />
+									<Typography variant="caption" className="font-semibold">
+										{n.label}
+									</Typography>
+								</ButtonBase>
+							);
+						})}
+					</Box>
 					<TextField
 						label="MoMo number"
 						size="small"
+						type="tel"
 						value={number}
 						onChange={(e) => setNumber(e.target.value)}
 						placeholder="024xxxxxxx"
+						className="mt-2"
 					/>
 					<TextField
 						label="Name on the MoMo account"
@@ -139,13 +206,16 @@ export default function AgentEarningsPanel() {
 						value={holder}
 						onChange={(e) => setHolder(e.target.value)}
 					/>
-				</Box>
-				<Box className="mt-3 flex justify-end">
+				</DialogContent>
+				<DialogActions>
+					<Button onClick={() => setEditOpen(false)} disabled={saving}>
+						Cancel
+					</Button>
 					<Button variant="contained" color="secondary" onClick={handleSave} disabled={saving || !number.trim() || !holder.trim()}>
 						Save details
 					</Button>
-				</Box>
-			</Paper>
+				</DialogActions>
+			</Dialog>
 
 			<Box>
 				<Typography variant="subtitle1" className="mb-2 font-bold">

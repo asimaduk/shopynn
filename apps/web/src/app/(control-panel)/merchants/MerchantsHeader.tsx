@@ -31,7 +31,7 @@ function MerchantsHeader({
 	const isMobile = useThemeMediaQuery((theme) => theme.breakpoints.down('lg'));
 
 	const defaultSubtitle =
-		merchantUserCount === 1 ? 'merchant' : 'merchants';
+		merchantUserCount === 1 ? 'agent' : 'agents';
 
 	return (
 		<div className="flex grow-0 flex-1 w-full items-center justify-between space-y-2 sm:space-y-0 py-6 sm:py-8">
