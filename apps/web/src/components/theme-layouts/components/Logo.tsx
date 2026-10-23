@@ -27,7 +27,14 @@ function Logo() {
 	const { data: user } = useUser();
 	const companyName = user?.company?.name || user?.warehouse?.name || 'Shopynn';
 	const planName = user?.subscription?.name || user?.company?.subscription?.name || 'Free';
-	const subtitle = `${planName} | ${companyName}`;
+	// Agents sit under the platform company, so its name and plan would mislead them.
+	const isAgent = Boolean(user?.merchant_id);
+	const title = isAgent ? 'Shopynn Agents' : 'Shopynn - Admin';
+	const subtitle = isAgent
+		? user?.merchant_agent_type === 'manager'
+			? 'Agent manager'
+			: 'Field agent'
+		: `${planName} | ${companyName}`;
 
 	return (
 		<Root className="flex min-w-0 flex-1 items-center">
@@ -35,13 +42,13 @@ function Logo() {
 				<img
 					className="logo-icon h-10 w-10 shrink-0 rounded-full shadow-sm"
 					src="/assets/images/logo/shopynn-mark-nav.png"
-					alt="Shopynn - Admin"
+					alt={title}
 					width={40}
 					height={40}
 				/>
 				<div className="logo-text flex min-w-0 flex-1 flex-col gap-0.5 overflow-hidden">
 					<Typography className="truncate text-lg font-semibold leading-none tracking-light">
-						Shopynn - Admin
+						{title}
 					</Typography>
 					<Typography
 						className="subtitle mt-1 truncate text-[11px] leading-none text-gray-500"

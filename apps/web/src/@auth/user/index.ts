@@ -21,6 +21,7 @@ export type User = {
 	role: string[] | string | null;
 	/** Present when session is hydrated from /users/me — merchants row id for this user. */
 	merchant_id?: string | null;
+	merchant_agent_type?: 'agent' | 'manager' | null;
 	permissions?: string[];
 	displayName: string;
 	photoURL?: string;

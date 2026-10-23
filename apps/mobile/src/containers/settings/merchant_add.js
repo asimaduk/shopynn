@@ -11,11 +11,12 @@ import { merchants as merchantsApi } from '../../services/api';
 import { hasPermission } from '../../utils/permissions';
 import AppAlert from '../../utils/appAlert';
 import { PickerModal, agentTypeLabel, userDisplayName } from './merchant_shared';
+import { formatPhone } from '../../utils/format';
 
 function eligibleUserLabel(u) {
     const name = [u.first_name, u.last_name].filter(Boolean).join(' ').trim();
     const email = u.email?.trim() || '';
-    const phone = u.phone?.trim() || '';
+    const phone = formatPhone(u.phone);
     if (name && email) return `${name} · ${email}`;
     if (name && phone) return `${name} · ${phone}`;
     if (name) return name;

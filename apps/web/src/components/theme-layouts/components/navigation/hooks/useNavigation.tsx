@@ -61,7 +61,9 @@ function useNavigation() {
           (item.id === "platform.merchants" || item.id === "adminTools.merchants") &&
           isLinkedMerchantUser
             ? { title: "Clients / Shops" }
-            : {};
+            : item.id === "platform" && isLinkedMerchantUser
+              ? { title: "Agent", subtitle: "Your shops & earnings" }
+              : {};
 
         const navAccess = resolveNavItemAccess(user, item);
         const requiredFeatures = (Array.isArray(item.requiredFeatures)

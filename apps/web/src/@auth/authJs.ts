@@ -181,6 +181,7 @@ const config = {
 							email: __data.email,
 							// id: __data.id,
 							merchant_id: __data.merchant_id ?? null,
+							merchant_agent_type: __data.merchant_agent_type ?? null,
 							isActive: __data.is_active,
 							resetPassword: __data.reset_password,
 							// role: __data.user_type === 1 ? 'admin':'staff',

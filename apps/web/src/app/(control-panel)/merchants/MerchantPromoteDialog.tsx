@@ -22,11 +22,12 @@ import {
 	type EligibleMerchantUserOption
 } from './MerchantApi';
 import { userDisplayName } from './merchantFormatters';
+import { formatPhone } from '@/utils/formatContact';
 
 function eligibleUserLabel(u: EligibleMerchantUserOption) {
 	const name = [u.first_name, u.last_name].filter(Boolean).join(' ').trim();
 	const email = u.email?.trim() || '';
-	const phone = u.phone?.trim() || '';
+	const phone = formatPhone(u.phone);
 	if (name && email) return `${name} · ${email}`;
 	if (name && phone) return `${name} · ${phone}`;
 	if (name) return name;
@@ -36,8 +37,7 @@ function eligibleUserLabel(u: EligibleMerchantUserOption) {
 }
 
 function eligibleUserPhoneLine(u: EligibleMerchantUserOption) {
-	const p = u.phone?.trim();
-	return p || '—';
+	return formatPhone(u.phone) || '—';
 }
 
 const filterEligibleUsers = createFilterOptions<EligibleMerchantUserOption>({

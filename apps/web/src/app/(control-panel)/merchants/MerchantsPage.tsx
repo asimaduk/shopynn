@@ -50,6 +50,7 @@ import {
 	managerDisplayName,
 	userDisplayName
 } from './merchantFormatters';
+import { formatPhone } from '@/utils/formatContact';
 
 type PortalTab = 'businesses' | 'commissions' | 'earnings' | 'team' | 'team_shops' | 'all' | 'payouts';
 
@@ -383,7 +384,7 @@ export default function MerchantsPage() {
 											) : null}
 										</TableCell>
 										<TableCell>{t.organization ?? '—'}</TableCell>
-										<TableCell>{t.phone ?? '—'}</TableCell>
+										<TableCell className="whitespace-nowrap">{formatPhone(t.phone) || '—'}</TableCell>
 										<TableCell>
 											{t.subscription_name ?? '—'}{' '}
 											{t.subscription_amount != null ? `(GHS ${formatMoney(t.subscription_amount)})` : ''}

@@ -42,7 +42,7 @@ function userDisplayName(row) {
     const name = [row.first_name, row.last_name].filter(Boolean).join(' ').trim();
     if (name) return name;
     if (row.email) return row.email;
-    if (row.phone) return row.phone;
+    if (row.phone) return formatPhone(row.phone);
     return 'User';
 }
 

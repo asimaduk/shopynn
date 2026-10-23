@@ -12,6 +12,7 @@ import {
 	managerDisplayName,
 	userDisplayName
 } from './merchantFormatters';
+import { formatPhone } from '@/utils/formatContact';
 
 export type MerchantRowAction = 'view' | 'approve' | 'reject' | 'team' | 'deactivate' | 'reactivate';
 
@@ -37,7 +38,7 @@ function MerchantsTable({ data, isLoading, onAction, busy, embedded }: Merchants
 				Cell: ({ row }) => (
 					<div>
 						<div className="font-medium">{userDisplayName(row.original)}</div>
-						<div className="text-sm opacity-60">{row.original.email ?? row.original.phone ?? ''}</div>
+						<div className="text-sm opacity-60">{row.original.email || formatPhone(row.original.phone)}</div>
 					</div>
 				)
 			},

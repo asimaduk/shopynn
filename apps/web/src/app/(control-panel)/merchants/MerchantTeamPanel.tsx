@@ -31,6 +31,7 @@ import {
 import DeactivateAgentDialog from './DeactivateAgentDialog';
 import RecruitAgentDialog from './RecruitAgentDialog';
 import { AGENT_STATUS_COLOR, AGENT_STATUS_LABEL, formatDate, formatMoney, userDisplayName } from './merchantFormatters';
+import { formatPhone } from '@/utils/formatContact';
 
 type MerchantTeamPanelProps = {
 	manager: MerchantRecord;
@@ -138,7 +139,7 @@ export default function MerchantTeamPanel({ manager, managerName, view }: Mercha
 											{m.email ?? ''}
 										</Typography>
 									</TableCell>
-									<TableCell>{m.phone ?? '—'}</TableCell>
+									<TableCell className="whitespace-nowrap">{formatPhone(m.phone) || '—'}</TableCell>
 									<TableCell>
 										<Chip
 											size="small"
@@ -195,7 +196,7 @@ export default function MerchantTeamPanel({ manager, managerName, view }: Mercha
 										<Chip size="small" label="Awaiting first payment" color="warning" variant="outlined" />
 									) : null}
 								</TableCell>
-								<TableCell>{t.phone ?? '—'}</TableCell>
+								<TableCell className="whitespace-nowrap">{formatPhone(t.phone) || '—'}</TableCell>
 								<TableCell>
 									{t.agent_merchant_id === manager.id
 										? 'You'

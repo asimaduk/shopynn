@@ -37,6 +37,7 @@ import {
 	managerDisplayName,
 	userDisplayName
 } from './merchantFormatters';
+import { formatPhone } from '@/utils/formatContact';
 import SwitchServingMerchantDialog from '../tenants-directory/SwitchServingMerchantDialog';
 
 function initialsFromName(name: string) {
@@ -182,7 +183,7 @@ export default function MerchantDetailPage({ merchantId }: MerchantDetailPagePro
 										<Typography variant="body1" color="text.secondary" className="mt-1">
 											{merchant.email ?? '—'}
 											{' · '}
-											{merchant.phone ?? '—'}
+											{formatPhone(merchant.phone) || '—'}
 										</Typography>
 									</Box>
 								</motion.div>
@@ -344,7 +345,7 @@ export default function MerchantDetailPage({ merchantId }: MerchantDetailPagePro
 													<TableRow key={t.id} hover>
 														<TableCell>{t.name ?? '—'}</TableCell>
 														<TableCell>{t.organization ?? '—'}</TableCell>
-														<TableCell>{t.phone ?? '—'}</TableCell>
+														<TableCell className="whitespace-nowrap">{formatPhone(t.phone) || '—'}</TableCell>
 														<TableCell>
 															{t.subscription_name ?? '—'}
 															{t.subscription_amount != null

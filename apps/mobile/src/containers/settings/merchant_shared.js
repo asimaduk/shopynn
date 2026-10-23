@@ -4,6 +4,7 @@ import AppText from '../../components/text';
 import AppModal from '../../components/app_modal';
 import config from '../../config';
 import useTheme from '../../hooks/useTheme';
+import { formatPhone } from '../../utils/format';
 
 export function fmtMoney(v) {
     const n = Number(v);
@@ -18,7 +19,7 @@ export function fmtDate(iso) {
 
 export function userDisplayName(row) {
     const name = [row?.first_name, row?.last_name].filter(Boolean).join(' ').trim();
-    return name || row?.name || row?.email || row?.phone || 'User';
+    return name || row?.name || row?.email || formatPhone(row?.phone) || 'User';
 }
 
 export function managerDisplayName(row) {

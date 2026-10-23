@@ -31,9 +31,10 @@ import {
 	formatDate,
 	formatMoney
 } from './merchantFormatters';
+import { formatPhone } from '@/utils/formatContact';
 
 function payoutAgentName(p: AgentPayoutRow) {
-	return [p.first_name, p.last_name].filter(Boolean).join(' ').trim() || p.email || p.phone || 'Agent';
+	return [p.first_name, p.last_name].filter(Boolean).join(' ').trim() || p.email || formatPhone(p.phone) || 'Agent';
 }
 
 function errorMessage(e: unknown, fallback: string) {
