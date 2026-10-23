@@ -152,6 +152,8 @@ export const onboardBusinessForMerchantService = async (merchantRow, payload) =>
 
     const result = await createTenantService({
         ...payload,
+        phone: normalizeSmsPhone(payload.phone) || payload.phone,
+        owner_phone: normalizeSmsPhone(payload.owner_phone) || payload.owner_phone,
         skip_owner_email_verification: true,
     });
     const tenantId = result.tenant?.id;
