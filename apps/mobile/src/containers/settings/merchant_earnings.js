@@ -6,9 +6,8 @@ import {
     RefreshControl,
     ActivityIndicator,
     TextInput,
-    KeyboardAvoidingView,
-    Platform,
     StyleSheet,
+    Image,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -19,7 +18,14 @@ import ScreenHeader from '../../components/screen_header';
 import useTheme from '../../hooks/useTheme';
 import { merchants as merchantsApi } from '../../services/api';
 import AppAlert from '../../utils/appAlert';
-import { MOMO_NETWORKS, PAYOUT_STATUS, StatusPill, apiErrorMessage, fmtDate, fmtMoney } from './merchant_shared';
+import AppModal from '../../components/app_modal';
+import { getMomoNetworkIcon } from '../../utils/momoNetworks';
+import { MOMO_NETWORKS, PAYOUT_STATUS, StatusPill, apiErrorMessage, fmtDate, fmtMoney, momoNetworkLabel } from './merchant_shared';
+
+const formatMomoNumber = (raw) => {
+    const d = String(raw || '').replace(/\D/g, '');
+    return d.length === 10 ? `${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6)}` : String(raw || '');
+};
 
 /** Agent / manager: commission balances by stage, MoMo payout details and payout history. */
 const MerchantEarnings = ({ navigation }) => {
@@ -35,18 +41,13 @@ const MerchantEarnings = ({ navigation }) => {
     const [number, setNumber] = useState('');
     const [holder, setHolder] = useState('');
     const [saving, setSaving] = useState(false);
+    const [editOpen, setEditOpen] = useState(false);
 
     const load = useCallback(async () => {
         try {
             const res = await merchantsApi.earnings();
             setEarnings(res?.earnings ?? null);
-            const p = res?.payout_profile ?? null;
-            setProfile(p);
-            if (p) {
-                setNetwork(p.momo_network);
-                setNumber(p.momo_number || '');
-                setHolder(p.account_holder_name || '');
-            }
+            setProfile(res?.payout_profile ?? null);
         } catch (e) {
             AppAlert.alert('Earnings', apiErrorMessage(e, 'Could not load your earnings.'));
         } finally {
@@ -61,6 +62,13 @@ const MerchantEarnings = ({ navigation }) => {
         }, [load]),
     );
 
+    const openEditor = () => {
+        setNetwork(profile?.momo_network || 'mtn');
+        setNumber(profile?.momo_number || '');
+        setHolder(profile?.account_holder_name || '');
+        setEditOpen(true);
+    };
+
     const save = async () => {
         if (!number.trim() || !holder.trim()) {
             AppAlert.alert('Payout details', 'Enter your MoMo number and the name on the account.');
@@ -74,6 +82,7 @@ const MerchantEarnings = ({ navigation }) => {
                 account_holder_name: holder.trim(),
             });
             setProfile(res?.payout_profile ?? null);
+            setEditOpen(false);
             AppAlert.alert('Saved', 'Your payout details were saved.');
         } catch (e) {
             AppAlert.alert('Payout details', apiErrorMessage(e, 'Could not save payout details.'));
@@ -118,7 +127,6 @@ const MerchantEarnings = ({ navigation }) => {
                     <ActivityIndicator color={config.THEME_COLOR} size="large" />
                 </View>
             ) : (
-                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
                     <ScrollView
                         contentContainerStyle={{ padding: 16, paddingBottom: 28 + insets.bottom }}
                         refreshControl={
@@ -155,80 +163,62 @@ const MerchantEarnings = ({ navigation }) => {
                         ) : null}
 
                         <View style={[card, { marginTop: 18 }]}>
-                            <AppText label="Mobile money payout details" variant={1} fontSize={15} color={colors.text} />
-                            {!profile ? (
-                                <View
-                                    style={{
-                                        marginTop: 10,
-                                        padding: 10,
-                                        borderRadius: 8,
-                                        backgroundColor: 'rgba(245,158,11,0.15)',
-                                    }}
-                                >
-                                    <AppText
-                                        label="Add your MoMo details so your commission can be paid."
-                                        fontSize={12}
-                                        color={colors.text}
-                                    />
-                                </View>
-                            ) : null}
-                            <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
-                                {MOMO_NETWORKS.map((n) => {
-                                    const active = n.value === network;
-                                    return (
-                                        <TouchableOpacity
-                                            key={n.value}
-                                            onPress={() => setNetwork(n.value)}
-                                            style={{
-                                                flex: 1,
-                                                paddingVertical: 10,
-                                                paddingHorizontal: 4,
-                                                borderRadius: 8,
-                                                borderWidth: 1,
-                                                alignItems: 'center',
-                                                borderColor: active ? config.THEME_COLOR : colors.border,
-                                                backgroundColor: active ? config.THEME_COLOR + '22' : colors.background,
-                                            }}
-                                        >
-                                            <AppText
-                                                label={n.label}
-                                                fontSize={11}
-                                                color={active ? colors.text : colors.textSecondary}
-                                                style={{ textAlign: 'center' }}
-                                            />
-                                        </TouchableOpacity>
-                                    );
-                                })}
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <AppText label="Mobile money payout details" variant={1} fontSize={15} color={colors.text} />
+                                {profile ? (
+                                    <TouchableOpacity
+                                        onPress={openEditor}
+                                        hitSlop={8}
+                                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                                    >
+                                        <Lucide name="pencil" size={14} color={config.THEME_COLOR} />
+                                        <AppText label="Edit" fontSize={13} color={config.THEME_COLOR} />
+                                    </TouchableOpacity>
+                                ) : null}
                             </View>
-                            <TextInput
-                                value={number}
-                                onChangeText={setNumber}
-                                placeholder="MoMo number (024xxxxxxx)"
-                                placeholderTextColor={colors.placeholder}
-                                keyboardType="phone-pad"
-                                style={input}
-                            />
-                            <TextInput
-                                value={holder}
-                                onChangeText={setHolder}
-                                placeholder="Name on the MoMo account"
-                                placeholderTextColor={colors.placeholder}
-                                style={input}
-                            />
-                            <TouchableOpacity
-                                onPress={save}
-                                disabled={saving}
-                                style={{
-                                    marginTop: 14,
-                                    backgroundColor: config.THEME_COLOR,
-                                    padding: 13,
-                                    borderRadius: 999,
-                                    alignItems: 'center',
-                                    opacity: saving ? 0.65 : 1,
-                                }}
-                            >
-                                {saving ? <ActivityIndicator color="#fff" /> : <AppText label="Save details" color="#fff" variant={1} />}
-                            </TouchableOpacity>
+                            {profile ? (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 }}>
+                                    <Image source={getMomoNetworkIcon(profile.momo_network)} style={{ width: 40, height: 40, borderRadius: 8 }} resizeMode="contain" />
+                                    <View style={{ flex: 1 }}>
+                                        <AppText label={formatMomoNumber(profile.momo_number)} variant={1} fontSize={15} color={colors.text} />
+                                        <AppText
+                                            label={`${momoNetworkLabel(profile.momo_network)} · ${profile.account_holder_name || ''}`}
+                                            fontSize={12}
+                                            color={colors.textSecondary}
+                                            style={{ marginTop: 2 }}
+                                        />
+                                    </View>
+                                </View>
+                            ) : (
+                                <>
+                                    <View
+                                        style={{
+                                            marginTop: 10,
+                                            padding: 10,
+                                            borderRadius: 8,
+                                            backgroundColor: 'rgba(245,158,11,0.15)',
+                                        }}
+                                    >
+                                        <AppText
+                                            label="Add your MoMo details so your commission can be paid."
+                                            fontSize={12}
+                                            color={colors.text}
+                                        />
+                                    </View>
+                                    <TouchableOpacity
+                                        onPress={openEditor}
+                                        style={{
+                                            marginTop: 12,
+                                            backgroundColor: config.THEME_COLOR,
+                                            padding: 13,
+                                            borderRadius: 999,
+                                            alignItems: 'center',
+                                        }}
+                                    >
+                                        <AppText label="Add payout details" color="#fff" variant={1} />
+                                    </TouchableOpacity>
+                                </>
+                            )}
                         </View>
 
                         <AppText label="Payouts" variant={1} fontSize={15} color={colors.text} style={{ marginTop: 22, marginBottom: 8 }} />
@@ -263,8 +253,76 @@ const MerchantEarnings = ({ navigation }) => {
                             </View>
                         )}
                     </ScrollView>
-                </KeyboardAvoidingView>
             )}
+            <AppModal
+                visible={editOpen}
+                title="Payout details"
+                handleClose={saving ? undefined : () => setEditOpen(false)}
+                onRequestClose={saving ? undefined : () => setEditOpen(false)}
+            >
+                <View style={{ padding: 16 }}>
+                    <AppText label="Network" fontSize={12} color={colors.textSecondary} />
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                        {MOMO_NETWORKS.map((n) => {
+                            const active = n.value === network;
+                            return (
+                                <TouchableOpacity
+                                    key={n.value}
+                                    onPress={() => setNetwork(n.value)}
+                                    style={{
+                                        flex: 1,
+                                        paddingVertical: 10,
+                                        paddingHorizontal: 4,
+                                        borderRadius: 10,
+                                        borderWidth: active ? 2 : 1,
+                                        alignItems: 'center',
+                                        gap: 6,
+                                        borderColor: active ? config.THEME_COLOR : colors.border,
+                                        backgroundColor: active ? config.THEME_COLOR + '14' : colors.background,
+                                    }}
+                                >
+                                    <Image source={getMomoNetworkIcon(n.value)} style={{ width: 36, height: 36, borderRadius: 6 }} resizeMode="contain" />
+                                    <AppText
+                                        label={n.label}
+                                        fontSize={11}
+                                        color={active ? colors.text : colors.textSecondary}
+                                        style={{ textAlign: 'center' }}
+                                    />
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+                    <TextInput
+                        value={number}
+                        onChangeText={setNumber}
+                        placeholder="MoMo number (024xxxxxxx)"
+                        placeholderTextColor={colors.placeholder}
+                        keyboardType="phone-pad"
+                        style={[input, { marginTop: 14 }]}
+                    />
+                    <TextInput
+                        value={holder}
+                        onChangeText={setHolder}
+                        placeholder="Name on the MoMo account"
+                        placeholderTextColor={colors.placeholder}
+                        style={input}
+                    />
+                    <TouchableOpacity
+                        onPress={save}
+                        disabled={saving}
+                        style={{
+                            marginTop: 16,
+                            backgroundColor: config.THEME_COLOR,
+                            padding: 13,
+                            borderRadius: 999,
+                            alignItems: 'center',
+                            opacity: saving ? 0.65 : 1,
+                        }}
+                    >
+                        {saving ? <ActivityIndicator color="#fff" /> : <AppText label="Save details" color="#fff" variant={1} />}
+                    </TouchableOpacity>
+                </View>
+            </AppModal>
         </SafeAreaView>
     );
 };
