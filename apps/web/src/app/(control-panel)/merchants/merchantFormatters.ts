@@ -54,7 +54,7 @@ export const PAYOUT_STATUS_COLOR: Record<PayoutStatus, 'warning' | 'info' | 'suc
 
 export const MOMO_NETWORK_LABEL: Record<string, string> = {
 	mtn: 'MTN',
-	vodafone: 'Telecel (Vodafone)',
+	vodafone: 'Telecel',
 	airteltigo: 'AirtelTigo'
 };
 

@@ -74,7 +74,7 @@ export const PAYOUT_STATUS = {
 
 export const MOMO_NETWORKS = [
     { value: 'mtn', label: 'MTN' },
-    { value: 'vodafone', label: 'Telecel (Vodafone)' },
+    { value: 'vodafone', label: 'Telecel' },
     { value: 'airteltigo', label: 'AirtelTigo' },
 ];
 
