@@ -25,7 +25,7 @@ function MerchantsHeader({
 	showOnboardBusiness,
 	showAddMerchant,
 	onAddMerchant,
-	title = 'Merchants',
+	title = 'Agents',
 	subtitle
 }: MerchantsHeaderProps) {
 	const isMobile = useThemeMediaQuery((theme) => theme.breakpoints.down('lg'));
@@ -90,7 +90,7 @@ function MerchantsHeader({
 							startIcon={<FuseSvgIcon size={20}>heroicons-outline:user-plus</FuseSvgIcon>}
 							onClick={onAddMerchant}
 						>
-							Add merchant
+							Add agent
 						</Button>
 					) : null}
 				</motion.div>

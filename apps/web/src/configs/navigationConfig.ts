@@ -380,7 +380,7 @@ const navigationConfig: FuseNavItemType[] = [
 		children: [
 			{
 				id: 'platform.merchants',
-				title: 'Merchants',
+				title: 'Agents',
 				type: 'item',
 				icon: 'heroicons-outline:building-office-2',
 				url: '/merchants',

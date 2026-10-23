@@ -91,7 +91,7 @@ export default function MerchantOnboardPage() {
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!merchant) {
-			toast.error('You are not registered as a merchant.');
+			toast.error('You are not registered as an agent.');
 			return;
 		}
 		const pc = form.product_categorization.trim();
@@ -163,7 +163,7 @@ export default function MerchantOnboardPage() {
 			<Box className="mx-auto max-w-lg p-6">
 				<PageBreadcrumb className="mb-4" />
 				<Paper className="p-6" variant="outlined">
-					<Typography>Merchant access required.</Typography>
+					<Typography>Agent access required.</Typography>
 					<Button component={Link} to="/merchants" className="mt-4">
 						Back
 					</Button>

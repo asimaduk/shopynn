@@ -218,7 +218,7 @@ const MerchantTeam = ({ navigation }) => {
                           <StatusPill meta={AGENT_STATUS[m.status]} fallback={m.status} />
                       </View>
                       <AppText
-                          label={`${m.serving_count ?? 0} shops · ${m.awaiting_payment_count ?? 0} awaiting payment`}
+                          label={`${m.serving_count ?? 0} ${Number(m.serving_count) === 1 ? 'shop' : 'shops'} · ${m.awaiting_payment_count ?? 0} awaiting payment`}
                           fontSize={12}
                           color={colors.textSecondary}
                           style={{ marginTop: 8 }}

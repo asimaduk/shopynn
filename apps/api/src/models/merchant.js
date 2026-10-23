@@ -20,6 +20,7 @@ import {
     getOnboardingQuoteByIdService,
 } from "./onboardingQuote.js";
 import { sendAgentOnboardWelcomeSmsService } from "../services/agentOnboardWelcomeSms.js";
+import { normalizeSmsPhone } from "../services/sms.js";
 
 /** Tenant role reused for every field agent; only `merchants.operate` is attached (plus any you add manually). */
 export const FIELD_AGENT_ROLE_NAME = "Field agent";
@@ -530,7 +531,7 @@ export const createFieldAgentUserAndMerchantService = async ({
         last_name,
         email,
         tenant_id,
-        phone,
+        phone: normalizeSmsPhone(phone) || phone,
         registration_method: "manual",
         role_id: role.id,
         user_permissions: [operatePermId],
@@ -697,7 +698,7 @@ export const recruitFieldAgentForManagerService = async ({ managerRow, actorUser
         last_name,
         email,
         tenant_id,
-        phone,
+        phone: normalizeSmsPhone(phone) || phone,
         registration_method: "manual",
         role_id: role.id,
         assigned_by_user_id: actorUserId,

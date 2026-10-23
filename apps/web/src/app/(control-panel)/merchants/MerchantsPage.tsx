@@ -240,11 +240,11 @@ export default function MerchantsPage() {
 					<div className="py-8">
 						<PageBreadcrumb className="mb-2" />
 						<Typography className="text-4xl font-extrabold leading-none tracking-tight">
-							Merchant portal
+							Agents
 						</Typography>
 						<Typography color="text.secondary" className="mt-2 max-w-md">
-							You have merchant portal permission, but your account is not linked to a merchant record yet.
-							Ask an administrator to register you as a merchant partner.
+							You have agent permissions, but your account is not linked to an agent record yet.
+							Ask an administrator to register you as an agent.
 						</Typography>
 					</div>
 				</div>
@@ -256,10 +256,10 @@ export default function MerchantsPage() {
 				<div className="py-8">
 					<PageBreadcrumb className="mb-2" />
 					<Typography className="text-4xl font-extrabold leading-none tracking-tight">
-						Merchant portal
+						Agents
 					</Typography>
 					<Typography color="text.secondary" className="mt-2 max-w-md">
-						You do not have access to merchant partner tools.
+						You do not have access to agent tools.
 					</Typography>
 				</div>
 			</div>
@@ -272,7 +272,7 @@ export default function MerchantsPage() {
 				<div className="py-8">
 					<PageBreadcrumb className="mb-2" />
 					<Typography className="text-4xl font-extrabold leading-none tracking-tight">
-						Merchant portal
+						Agents
 					</Typography>
 					<Typography color="text.secondary" className="mt-2 max-w-md">
 						You do not have merchant portal permission (merchants.operate or merchants.view). Ask an

@@ -85,7 +85,7 @@ export const promoteMerchant = async (req, res, next) => {
             handleResponse(
                 res,
                 201,
-                "Field agent created. A temporary password was emailed to the new user.",
+                `${agent_type === "manager" ? "Agent manager" : "Field agent"} created. A temporary password was emailed to the new user.`,
                 result
             );
             return;
@@ -99,7 +99,7 @@ export const promoteMerchant = async (req, res, next) => {
             manager_id,
             approved_by: actorId,
         });
-        handleResponse(res, 201, "Merchant record created.", result);
+        handleResponse(res, 201, agent_type === "manager" ? "Agent manager added." : "Field agent added.", result);
     } catch (error) {
         if (isAgentInputError(error)) {
             return handleResponse(res, 400, error.message, null);

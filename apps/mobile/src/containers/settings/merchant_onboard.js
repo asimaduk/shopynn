@@ -319,9 +319,9 @@ const MerchantOnboard = ({ navigation }) => {
                                 <Lucide name="shield-alert" size={22} color={config.THEME_COLOR} />
                             </View>
                             <View style={{ flex: 1 }}>
-                                <AppText label="Merchant access required" variant={1} color={colors.text} fontSize={17} />
+                                <AppText label="Agent access required" variant={1} color={colors.text} fontSize={17} />
                                 <AppText
-                                    label="You must be registered as a merchant partner before you can onboard businesses."
+                                    label="You must be registered as an agent before you can onboard businesses."
                                     variant={2}
                                     color={colors.textSecondary}
                                     fontSize={14}

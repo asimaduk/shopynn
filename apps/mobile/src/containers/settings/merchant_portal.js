@@ -68,7 +68,7 @@ const MerchantPortal = ({ navigation }) => {
     const { colors } = useTheme();
     const insets = useSafeAreaInsets();
     const user = useSelector(({ user: u }) => u);
-    const screenHeaderTitle = user?.merchant_id ? 'Clients / Shops' : 'Merchants';
+    const screenHeaderTitle = user?.merchant_id ? 'Clients / Shops' : 'Agents';
     const canGoBack = typeof navigation.canGoBack === 'function' && navigation.canGoBack();
     const canManageMerchants = hasPermission(user, 'merchants.view');
     const canOperateMerchantPortal = hasPermission(user, ['merchants.operate', 'merchants.view']);
@@ -695,7 +695,7 @@ const MerchantPortal = ({ navigation }) => {
                 <ScrollView contentContainerStyle={{ padding: 16 }}>
                     <View style={cardStyle}>
                         <AppText
-                            label="You do not have access to merchant partner tools."
+                            label="You do not have access to agent tools."
                             variant={2}
                             color={colors.textSecondary}
                             fontSize={14}
@@ -716,7 +716,7 @@ const MerchantPortal = ({ navigation }) => {
                 >
                     <View style={cardStyle}>
                         <AppText
-                            label="You have merchant portal permission, but your account is not linked to a merchant record yet. Ask an administrator to register you as a merchant partner."
+                            label="You have agent permissions, but your account is not linked to an agent record yet. Ask an administrator to register you as an agent."
                             variant={2}
                             color={colors.text}
                             fontSize={14}
@@ -769,7 +769,7 @@ const MerchantPortal = ({ navigation }) => {
                                     label={
                                         search.trim()
                                             ? 'No partners match your search'
-                                            : 'No merchant partners yet'
+                                            : 'No agents yet'
                                     }
                                     style={{ marginTop: 12 }}
                                     color={colors.textSecondary}
@@ -788,7 +788,7 @@ const MerchantPortal = ({ navigation }) => {
                     />
                     <TouchableOpacity
                         accessibilityRole="button"
-                        accessibilityLabel="Add merchant partner"
+                        accessibilityLabel="Add agent"
                         onPress={() => navigation.navigate('MerchantAdd')}
                         activeOpacity={0.92}
                         style={[
@@ -815,7 +815,7 @@ const MerchantPortal = ({ navigation }) => {
 
     const heroSubtitle = user?.merchant_id
         ? 'Track onboarded businesses, subscriptions, and commission payouts.'
-        : 'Manage merchant partner activity from one place.';
+        : 'Manage agent activity from one place.';
 
     const statMini = {
         flex: 1,
@@ -902,7 +902,7 @@ const MerchantPortal = ({ navigation }) => {
                         }}
                     >
                         <View style={{ flex: 1, paddingRight: 12 }}>
-                            <AppText label="Partner merchants" variant={2} color={colors.textTertiary} fontSize={12} />
+                            <AppText label="Agents" variant={2} color={colors.textTertiary} fontSize={12} />
                             <AppText
                                 label={`${search.trim() ? filteredAdminMerchants.length : adminMerchants.length} registered`}
                                 variant={1}
@@ -1080,7 +1080,7 @@ const MerchantPortal = ({ navigation }) => {
                             />
                             <AppText
                                 label={
-                                    search.trim() ? 'No partners match your search' : 'No merchant partners yet'
+                                    search.trim() ? 'No partners match your search' : 'No agents yet'
                                 }
                                 style={{ marginTop: 12 }}
                                 color={colors.textSecondary}
@@ -1137,7 +1137,7 @@ const MerchantPortal = ({ navigation }) => {
             {showPromoteFab ? (
                 <TouchableOpacity
                     accessibilityRole="button"
-                    accessibilityLabel="Add merchant partner"
+                    accessibilityLabel="Add agent"
                     onPress={() => navigation.navigate('MerchantAdd')}
                     activeOpacity={0.92}
                     style={[

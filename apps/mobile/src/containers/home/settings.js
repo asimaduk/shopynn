@@ -62,7 +62,7 @@ const SETTINGS_ITEMS = [
     { section: 'Admin', title: 'Roles & Permissions', subtitle: 'Create and manage role permission sets', screen: 'Roles', icon: 'shield', iconColor: '#0ea5e9' },
     { section: 'Admin', title: 'Notifications', subtitle: 'Configure notification preferences', screen: 'NotificationsSetup', icon: 'bell', iconColor: '#f59e0b' },
     { section: 'Reports', title: 'Reports', subtitle: 'View business reports and analytics', screen: 'Reports', icon: 'activity', iconColor: config.THEME_COLOR },
-    { section: 'Platform', title: 'Merchants', subtitle: 'Partner merchants, onboarding & commissions', screen: 'MerchantPortal', icon: 'handshake', iconColor: '#6366f1' },
+    { section: 'Platform', title: 'Agents', subtitle: 'Field agents, managers, onboarding & commissions', screen: 'MerchantPortal', icon: 'handshake', iconColor: '#6366f1' },
     { section: 'Platform', title: 'Tenant directory', subtitle: 'All businesses, subscriptions, and payments (admin)', screen: 'TenantsDirectory', icon: 'building-2', iconColor: '#0ea5e9' },
     { section: 'Platform', title: 'Billing catalog', subtitle: 'Plans, onboarding fees, and add-on prices (admin)', screen: 'BillingCatalog', icon: 'circle-dollar-sign', iconColor: '#059669' },
     { section: 'App', title: 'About this app', subtitle: 'App version and information', screen: 'AboutApp', icon: 'info', iconColor: config.THEME_COLOR },
@@ -1229,9 +1229,9 @@ const Settings = ({ navigation, route }) => {
                                                 <Lucide name="handshake" color="#6366f1" size={20} />
                                             </View>
                                             <View style={styles.menuContent}>
-                                                <AppText label={'Merchants'} variant={2} color={colors.text} fontSize={15} />
+                                                <AppText label={'Agents'} variant={2} color={colors.text} fontSize={15} />
                                                 <AppText
-                                                    label={'Partner merchants, onboarding & commissions'}
+                                                    label={'Field agents, managers, onboarding & commissions'}
                                                     variant={2}
                                                     color={colors.textTertiary}
                                                     fontSize={12}

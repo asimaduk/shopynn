@@ -18,7 +18,7 @@ export function fmtDate(iso) {
 
 export function userDisplayName(row) {
     const name = [row?.first_name, row?.last_name].filter(Boolean).join(' ').trim();
-    return name || row?.email || row?.phone || 'User';
+    return name || row?.name || row?.email || row?.phone || 'User';
 }
 
 export function managerDisplayName(row) {

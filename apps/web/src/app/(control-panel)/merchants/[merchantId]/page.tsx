@@ -12,7 +12,7 @@ export default function MerchantDetailRoute() {
 		<PlanFeatureGate
 			requiredPermissions={['merchants.view']}
 			requiredFeatures={['merchants.view']}
-			featureTitle="Merchant admin"
+			featureTitle="Agent"
 			backHref="/merchants"
 		>
 			<MerchantDetailPage merchantId={merchantId} />

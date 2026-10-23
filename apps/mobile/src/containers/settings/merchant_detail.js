@@ -62,7 +62,7 @@ const MerchantDetail = ({ navigation, route }) => {
             setDetailData(data);
         } catch (e) {
             setDetailData(null);
-            AppAlert.alert('Error', apiErrorMessage(e, 'Could not load merchant.'));
+            AppAlert.alert('Error', apiErrorMessage(e, 'Could not load agent.'));
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -452,7 +452,7 @@ const MerchantDetail = ({ navigation, route }) => {
     if (loading && !detailData) {
         return (
             <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
-                <ScreenHeader hideBack={!canGoBack} onPress={() => navigation.goBack()} label="Merchant" />
+                <ScreenHeader hideBack={!canGoBack} onPress={() => navigation.goBack()} label="Agent" />
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     <ActivityIndicator color={config.THEME_COLOR} size="large" />
                 </View>
@@ -485,7 +485,7 @@ const MerchantDetail = ({ navigation, route }) => {
 
     return (
         <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
-            <ScreenHeader hideBack={!canGoBack} onPress={() => navigation.goBack()} label="Merchant" />
+            <ScreenHeader hideBack={!canGoBack} onPress={() => navigation.goBack()} label="Agent" />
 
             <ScrollView
                 style={{ flex: 1 }}
@@ -497,7 +497,7 @@ const MerchantDetail = ({ navigation, route }) => {
                     <View style={[cardStyle, { alignItems: 'center', paddingVertical: 28 }]}>
                         <Lucide name="alert-circle" size={36} color={colors.textTertiary} />
                         <AppText
-                            label="Could not load this merchant."
+                            label="Could not load this agent."
                             color={colors.textSecondary}
                             style={{ marginTop: 12, textAlign: 'center' }}
                             fontSize={14}

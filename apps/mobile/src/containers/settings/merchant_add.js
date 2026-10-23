@@ -147,24 +147,24 @@ const MerchantAdd = ({ navigation }) => {
         const pctRaw = promotePct.trim();
         const commission = pctRaw === '' ? null : Number(promotePct);
         if (pctRaw !== '' && (commission === null || Number.isNaN(commission) || commission < 0 || commission > 100)) {
-            AppAlert.alert('Merchant', 'Commission % must be between 0 and 100.');
+            AppAlert.alert('Agent', 'Commission % must be between 0 and 100.');
             return;
         }
         if (mode === 'new') {
             if (!firstName.trim() || !lastName.trim()) {
-                AppAlert.alert('Merchant', 'First and last name are required.');
+                AppAlert.alert('Agent', 'First and last name are required.');
                 return;
             }
             if (!email.trim()) {
-                AppAlert.alert('Merchant', 'Email is required.');
+                AppAlert.alert('Agent', 'Email is required.');
                 return;
             }
             if (!phone.trim()) {
-                AppAlert.alert('Merchant', 'Phone is required.');
+                AppAlert.alert('Agent', 'Phone is required.');
                 return;
             }
         } else if (!selectedUser?.id) {
-            AppAlert.alert('Merchant', 'Select a user from the list.');
+            AppAlert.alert('Agent', 'Select a user from the list.');
             return;
         }
 
@@ -176,10 +176,10 @@ const MerchantAdd = ({ navigation }) => {
         const roleFields = { agent_type: agentType, manager_id: agentType === 'manager' ? null : managerId || null };
         const confirmMessage =
             mode === 'new'
-                ? `Create a merchant partner for ${email.trim()} (${firstName.trim()} ${lastName.trim()}).\n\nRole: ${roleLabel}\nDefault commission: ${commissionLabel}`
-                : `Promote ${eligibleUserLabel(selectedUser)} to merchant partner.\n\nRole: ${roleLabel}\nDefault commission: ${commissionLabel}`;
+                ? `Create an agent account for ${email.trim()} (${firstName.trim()} ${lastName.trim()}).\n\nRole: ${roleLabel}\nDefault commission: ${commissionLabel}`
+                : `Promote ${eligibleUserLabel(selectedUser)} to agent.\n\nRole: ${roleLabel}\nDefault commission: ${commissionLabel}`;
 
-        AppAlert.alert('Add merchant partner?', confirmMessage, [
+        AppAlert.alert('Add agent?', confirmMessage, [
             { text: 'Cancel', style: 'cancel' },
             {
                 text: 'Confirm',
@@ -197,7 +197,7 @@ const MerchantAdd = ({ navigation }) => {
                                 default_commission_percent: commission,
                                 ...roleFields,
                             });
-                            AppAlert.alert('Done', 'Merchant created. A temporary password was emailed to the new user.', [
+                            AppAlert.alert('Done', `${roleLabel} created. A temporary password was emailed to them.`, [
                                 { text: 'OK', onPress: () => navigation.goBack() },
                             ]);
                         } else {
@@ -206,7 +206,7 @@ const MerchantAdd = ({ navigation }) => {
                                 default_commission_percent: commission,
                                 ...roleFields,
                             });
-                            AppAlert.alert('Done', 'Merchant record created.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
+                            AppAlert.alert('Done', `${eligibleUserLabel(selectedUser)} is now ${agentType === 'manager' ? 'an agent manager' : 'a field agent'}.`, [{ text: 'OK', onPress: () => navigation.goBack() }]);
                         }
                     } catch (e) {
                         AppAlert.alert('Error', e?.response?.data?.message || e?.message || 'Failed');
@@ -221,9 +221,9 @@ const MerchantAdd = ({ navigation }) => {
     if (!canManage) {
         return (
             <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
-                <ScreenHeader hideBack={!canGoBack} onPress={() => navigation.goBack()} label="Add merchant" />
+                <ScreenHeader hideBack={!canGoBack} onPress={() => navigation.goBack()} label="Add agent" />
                 <View style={{ padding: 20 }}>
-                    <AppText label="You do not have permission to add merchant partners." color={colors.textSecondary} fontSize={14} />
+                    <AppText label="You do not have permission to add agents." color={colors.textSecondary} fontSize={14} />
                 </View>
             </SafeAreaView>
         );
@@ -231,7 +231,7 @@ const MerchantAdd = ({ navigation }) => {
 
     return (
         <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
-            <ScreenHeader hideBack={!canGoBack} onPress={() => navigation.goBack()} label="Add merchant partner" />
+            <ScreenHeader hideBack={!canGoBack} onPress={() => navigation.goBack()} label="Add agent" />
 
             <KeyboardAvoidingView
                 style={{ flex: 1 }}
@@ -421,7 +421,7 @@ const MerchantAdd = ({ navigation }) => {
                         }}
                     >
                         <AppText
-                            label="Creates a user with the Merchant role. A temporary password is generated and emailed automatically."
+                            label="Creates their account. A temporary password is generated and emailed to them automatically."
                             fontSize={12}
                             color={colors.textSecondary}
                             style={{ marginBottom: 8 }}
@@ -528,7 +528,7 @@ const MerchantAdd = ({ navigation }) => {
                         {submitting ? (
                             <ActivityIndicator color="#fff" />
                         ) : (
-                            <AppText label="Add merchant partner" color="#fff" variant={1} />
+                            <AppText label="Add agent" color="#fff" variant={1} />
                         )}
                     </TouchableOpacity>
                 </View>

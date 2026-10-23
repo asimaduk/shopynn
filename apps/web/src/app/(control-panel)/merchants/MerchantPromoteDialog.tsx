@@ -124,7 +124,7 @@ export default function MerchantPromoteDialog({ open, onClose }: MerchantPromote
 					default_commission_percent: commission,
 					...teamFields
 				}).unwrap();
-				toast.success('Merchant record created.');
+				toast.success('Agent added.');
 				onClose();
 			} catch (e: unknown) {
 				const err = e as { data?: { message?: string }; error?: string };
@@ -173,7 +173,7 @@ export default function MerchantPromoteDialog({ open, onClose }: MerchantPromote
 
 	return (
 		<Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-			<DialogTitle>Add field agent</DialogTitle>
+			<DialogTitle>Add agent</DialogTitle>
 			<DialogContent className="flex flex-col gap-3 pt-1">
 				<Tabs value={tab} onChange={(_, v) => setTab(v)} className="mb-1 min-h-[48px]">
 					<Tab label="Existing user" />
@@ -194,7 +194,7 @@ export default function MerchantPromoteDialog({ open, onClose }: MerchantPromote
 								? 'Could not load users.'
 								: loadingUsers
 									? 'Loading…'
-									: 'No users left — everyone may already be a merchant.'
+									: 'No users left — everyone may already be an agent.'
 						}
 						renderOption={(props, option) => (
 							<li {...props} key={option.id}>

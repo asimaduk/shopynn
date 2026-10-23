@@ -101,7 +101,7 @@ export default function MerchantDetailPage({ merchantId }: MerchantDetailPagePro
 		return (
 			<Container maxWidth="lg" className="py-8">
 				<PageBreadcrumb className="mb-4" />
-				<Typography color="text.secondary">Missing merchant id.</Typography>
+				<Typography color="text.secondary">Missing agent id.</Typography>
 				<Button className="mt-4" component={Link} to="/merchants" variant="outlined" startIcon={<FuseSvgIcon>heroicons-outline:arrow-left</FuseSvgIcon>}>
 					Back to merchants
 				</Button>
