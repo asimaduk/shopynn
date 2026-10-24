@@ -89,7 +89,7 @@ Never commit real `.env` files or the Firebase JSON under `secrets/`.
 
 ### Vercel — `@shopynn/site`
 
-- `VITE_API_BASE_URL` — Railway API origin (no trailing slash), e.g. `https://shopynn-production.up.railway.app`
+- `VITE_API_BASE_URL` — Railway API origin (no trailing slash), e.g. `https://api.shopynn.app`
 - `VITE_WEB_APP_URL` — dashboard origin for sign-in links (`https://dashboard.shopynn.app`), then redeploy site
 - Any analytics keys
 

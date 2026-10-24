@@ -72,7 +72,7 @@ function resolveImageApiBase(): string {
 		process.env.API_BASE_URL ||
 		(process.env.NODE_ENV === 'development'
 			? `http://127.0.0.1:${process.env.NEXT_PUBLIC_PORT || 4001}`
-			: 'https://shopynn-production.up.railway.app');
+			: 'https://api.shopynn.app');
 	const origin = String(raw).replace(/\/$/, '');
 	return origin.endsWith('/api') ? origin : `${origin}/api`;
 }

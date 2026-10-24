@@ -1,5 +1,5 @@
-// Railway production API (paths are relative to /api).
-const RAILWAY_API = 'https://shopynn-production.up.railway.app/api';
+// Production API on Railway via its custom domain (paths are relative to /api).
+const RAILWAY_API = 'https://api.shopynn.app/api';
 // Emulator/simulator local API (adb reverse / iOS localhost → host).
 // Physical device: use machine LAN IP, e.g. http://192.168.x.x:4001/api
 const LOCAL_DEV_API = 'http://127.0.0.1:4001/api';
