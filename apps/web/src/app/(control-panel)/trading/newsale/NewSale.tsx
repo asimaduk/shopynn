@@ -13,7 +13,7 @@ import {
 	Typography
 } from '@mui/material';
 import GlobalStyles from '@mui/material/GlobalStyles';
-import Autocomplete from '@mui/material/Autocomplete';
+import Autocomplete, { createFilterOptions } from '@mui/material/Autocomplete';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { useThemeMediaQuery } from '@fuse/hooks';
@@ -53,6 +53,17 @@ import {
 } from '@/utils/bulkDiscount';
 import { useGetCompanyProfileQuery } from '../../company-profile/CompanyProfileApi';
 import { formatQty } from '@/utils/formatQty';
+import { formatPhoneLocal } from '@/utils/formatContact';
+
+const customerLabel = (c: any): string => {
+	const name = String(c?.name || '').trim();
+	const phone = c?.phone ? formatPhoneLocal(c.phone) : '';
+	return phone ? `${phone} - ${name}` : name;
+};
+
+const filterCustomerOptions = createFilterOptions<string>({
+	stringify: (option) => `${option} ${option.replace(/\s/g, '')}`
+});
 
 const _PRODUCTS_ = "_PRODUCTS_.";
 function safeString(v: any): string {
@@ -178,6 +189,7 @@ function NewSale() {
 		if (!customer || !Array.isArray(customers_data)) return null;
 		const label = String(customer);
 		return (
+			customers_data.find((c: any) => customerLabel(c) === label) ||
 			customers_data.find((c: any) => `${c.phone} - ${c.name}` === label) ||
 			customers_data.find((c: any) => c.name === label) ||
 			null
@@ -276,7 +288,7 @@ function NewSale() {
     
 	useEffect(() => {
 		if (Array.isArray(customers_data)) {
-			setBuyers(customers_data.map((d) => `${d.phone} - ${d.name}`));
+			setBuyers(customers_data.map(customerLabel));
 		}
 	}, [customers_data]);
 
@@ -292,7 +304,7 @@ function NewSale() {
 				const { data } = await promise;
 				if (Array.isArray(data)) {
 					dispatch(setCustomers(data));
-					setBuyers(data.map((d) => `${d.phone} - ${d.name}`));
+					setBuyers(data.map(customerLabel));
 					if (notify) toast.success('Customers data refreshed.');
 				}
 			} finally {
@@ -662,6 +674,7 @@ function NewSale() {
                             fullWidth
                             freeSolo
                             options={buyers}
+                            filterOptions={filterCustomerOptions}
                             value={customer as string}
                             onChange={(event, newValue) => {
                                 setCustomer(newValue)
