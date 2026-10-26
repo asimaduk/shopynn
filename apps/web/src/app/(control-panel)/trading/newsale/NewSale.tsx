@@ -13,7 +13,7 @@ import {
 	Typography
 } from '@mui/material';
 import GlobalStyles from '@mui/material/GlobalStyles';
-import Autocomplete, { createFilterOptions } from '@mui/material/Autocomplete';
+import Autocomplete from '@mui/material/Autocomplete';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { useThemeMediaQuery } from '@fuse/hooks';
@@ -57,13 +57,9 @@ import { formatPhoneLocal } from '@/utils/formatContact';
 
 const customerLabel = (c: any): string => {
 	const name = String(c?.name || '').trim();
-	const phone = c?.phone ? formatPhoneLocal(c.phone) : '';
+	const phone = c?.phone ? formatPhoneLocal(c.phone).replace(/\s/g, '') : '';
 	return phone ? `${phone} - ${name}` : name;
 };
-
-const filterCustomerOptions = createFilterOptions<string>({
-	stringify: (option) => `${option} ${option.replace(/\s/g, '')}`
-});
 
 const _PRODUCTS_ = "_PRODUCTS_.";
 function safeString(v: any): string {
@@ -674,7 +670,6 @@ function NewSale() {
                             fullWidth
                             freeSolo
                             options={buyers}
-                            filterOptions={filterCustomerOptions}
                             value={customer as string}
                             onChange={(event, newValue) => {
                                 setCustomer(newValue)
