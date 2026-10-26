@@ -12,7 +12,7 @@ import {
     syncOrderPaymentAfterSuccess,
     syncOrderPaymentAfterFailure,
 } from "./payment.js";
-import { initiateCheckout, submitChargeOtp, verifyTransaction } from "../services/paymentGateway.js";
+import { initiateCheckout, isPaystackSafeEmail, submitChargeOtp, verifyTransaction } from "../services/paymentGateway.js";
 import { computeChargeForFaceAmountService } from "./platformSettings.js";
 import { sendToTokens } from "../services/firebaseMessaging.js";
 import {
@@ -320,9 +320,6 @@ const getCustomerProfileForUser = async (user) => {
 
 // JWTs carry no email; Paystack groups charges by email, so send one per payer.
 // Paystack rejects `.local` addresses, so phone-OTP placeholders map to a per-customer address on a public domain.
-const isPaystackSafeEmail = (email) =>
-    /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email) && !/\.local$/i.test(email);
-
 const resolvePayerEmail = async (user, override) => {
     const given = String(override || "").trim();
     if (isPaystackSafeEmail(given)) return given;

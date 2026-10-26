@@ -11,6 +11,18 @@ const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
 const DEFAULT_CALLBACK_URL = process.env.PAYMENT_CALLBACK_URL || process.env.FRONTEND_URL || "http://localhost:3000/payment/callback";
 const MOBILE_MONEY_CURRENCY = process.env.PAYSTACK_MOBILE_MONEY_CURRENCY || "GHS"; // GHS Ghana, KES Kenya
 
+/** Paystack rejects malformed and `.local` addresses (phone-OTP signups use `@otp.shopynn.local`). */
+export const isPaystackSafeEmail = (email) =>
+    /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(String(email || "").trim()) && !/\.local$/i.test(String(email || "").trim());
+
+/** Paystack groups customers by email, so payers without one get a stable per-phone address. */
+export const phonePayerEmail = (phone) => {
+    let digits = String(phone || "").replace(/\D/g, "");
+    if (digits.length === 10 && digits.startsWith("0")) digits = `233${digits.slice(1)}`;
+    else if (digits.length === 9) digits = `233${digits}`;
+    return digits ? `customer-${digits}@shopynn.app` : "customer@shopynn.app";
+};
+
 /**
  * Initialize a transaction and get redirect URL for card web checkout.
  * @param {object} opts - { amount (number, in major unit e.g. 10.50), email, reference, callback_url?, metadata? }
@@ -32,7 +44,7 @@ export async function getCheckoutRedirectUrl(opts) {
             Authorization: `Bearer ${PAYSTACK_SECRET}`,
         },
         body: JSON.stringify({
-            email: email || "customer@example.com",
+            email: isPaystackSafeEmail(email) ? String(email).trim() : "customer@shopynn.app",
             amount: amountInMinor,
             reference,
             callback_url,
@@ -88,7 +100,7 @@ export async function chargeMobileMoney(opts) {
             Authorization: `Bearer ${PAYSTACK_SECRET}`,
         },
         body: JSON.stringify({
-            email: email || "customer@example.com",
+            email: isPaystackSafeEmail(email) ? String(email).trim() : phonePayerEmail(phoneDigits),
             amount: amountInMinor,
             currency: MOBILE_MONEY_CURRENCY,
             reference,

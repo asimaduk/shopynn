@@ -17,7 +17,8 @@ import {
     parkPosMomoPaymentService,
     listUnlinkedPosMomoPaymentsService,
 } from "../models/payment.js";
-import { initiateCheckout, submitChargeOtp, verifyTransaction } from "../services/paymentGateway.js";
+import { initiateCheckout, isPaystackSafeEmail, submitChargeOtp, verifyTransaction } from "../services/paymentGateway.js";
+import { getUserByIdService } from "../models/user.js";
 import { computeChargeForFaceAmountService } from "../models/platformSettings.js";
 
 export const getPaymentsHistory = async (req, res, next) => {
@@ -245,9 +246,16 @@ export const initiatePayment = async (req, res, next) => {
             payment_number: payment_number || (payment_method_type === "mobile_money" ? phone : null),
         });
 
+        // MoMo payers are the phone owner (not the cashier); card checkout is the signed-in account.
+        let payerEmail = isPaystackSafeEmail(email) ? String(email).trim() : null;
+        if (!payerEmail && payment_method_type === "card" && creator_id) {
+            const account = await getUserByIdService(creator_id).catch(() => null);
+            if (isPaystackSafeEmail(account?.email)) payerEmail = String(account.email).trim();
+        }
+
         const payload = {
             amount: charge,
-            email: email || req.user?.email || "customer@example.com",
+            email: payerEmail,
             reference: transaction_ref,
             callback_url: callback_url || undefined,
             payment_method: payment_method_type,
