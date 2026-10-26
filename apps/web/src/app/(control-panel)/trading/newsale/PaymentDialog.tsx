@@ -923,16 +923,6 @@ export default function PaymentDialog({
 					<Button variant="contained" color="secondary" size="large" fullWidth onClick={handleSave}>
 						{completeLabel}
 					</Button>
-					<Button
-						variant="text"
-						color="inherit"
-						size="small"
-						disabled={sending || parking}
-						onClick={handleParkAndServeNext}
-						sx={{ ml: '0 !important' }}
-					>
-						{parking ? <CircularProgress size={16} color="inherit" /> : 'Park & complete later'}
-					</Button>
 				</DialogActions>
 			) : !momoChargeOpen ? (
 				<DialogActions>
