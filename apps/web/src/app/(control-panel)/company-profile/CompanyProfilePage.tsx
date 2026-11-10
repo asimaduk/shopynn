@@ -15,7 +15,7 @@ import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
 import Switch from '@mui/material/Switch';
 import MenuItem from '@mui/material/MenuItem';
-import Alert from '@mui/material/Alert';
+import Divider from '@mui/material/Divider';
 import { useRouter } from 'next/navigation';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import FuseLoading from '@fuse/core/FuseLoading';
@@ -41,6 +41,41 @@ function logoSrc(logoKey?: string | null) {
 	return `${URLS.serverUrl}/images?id=${encodeURIComponent(key)}`;
 }
 
+function DetailRow({ icon, label, value }: { icon: string; label: string; value?: React.ReactNode }) {
+	return (
+		<Box className="flex items-start gap-3 py-3">
+			<FuseSvgIcon
+				size={20}
+				color="action"
+				className="mt-0.5 shrink-0"
+			>
+				{icon}
+			</FuseSvgIcon>
+			<Box className="min-w-0 flex-1">
+				<Typography
+					variant="caption"
+					color="text.secondary"
+				>
+					{label}
+				</Typography>
+				<Typography
+					variant="body1"
+					sx={{ wordBreak: 'break-word', whiteSpace: 'pre-line' }}
+				>
+					{value || (
+						<Box
+							component="span"
+							sx={{ color: 'text.disabled' }}
+						>
+							Not set
+						</Box>
+					)}
+				</Typography>
+			</Box>
+		</Box>
+	);
+}
+
 export default function CompanyProfilePage() {
 	const router = useRouter();
 	const fileInputRef = useRef<HTMLInputElement>(null);
@@ -50,6 +85,8 @@ export default function CompanyProfilePage() {
 	const [uploadLogo, { isLoading: uploading }] = useUploadCompanyLogoMutation();
 
 	const profileAlreadySet = isCompanyProfileSet(profile);
+	const [editing, setEditing] = useState(false);
+	const showForm = !profileAlreadySet || editing;
 
 	const [companyName, setCompanyName] = useState('');
 	const [organization, setOrganization] = useState('');
@@ -59,7 +96,7 @@ export default function CompanyProfilePage() {
 	const [website, setWebsite] = useState('');
 	const [industryId, setIndustryId] = useState('');
 	const [industryOther, setIndustryOther] = useState('');
-	const [bulkEnabled, setBulkEnabled] = useState(DEFAULT_BULK_DISCOUNT.enabled);
+	const [bulkEnabled, setBulkEnabled] = useState<boolean>(DEFAULT_BULK_DISCOUNT.enabled);
 	const [bulkThreshold, setBulkThreshold] = useState(String(DEFAULT_BULK_DISCOUNT.quantity_threshold));
 	const [momoFeePayer, setMomoFeePayer] = useState<MomoFeePayer>('customer');
 	const [logoKey, setLogoKey] = useState<string | null>(null);
@@ -68,19 +105,21 @@ export default function CompanyProfilePage() {
 	const [removeLogo, setRemoveLogo] = useState(false);
 	const previewUrlRef = useRef('');
 
+	const applyProfileFields = (p: CompanyProfile) => {
+		setCompanyName(p.companyName || '');
+		setOrganization(p.organization || p.companyName || '');
+		setAddress(p.address || '');
+		setPhone(p.phone || '');
+		setEmail(p.email || '');
+		setWebsite(p.website || '');
+		setBulkEnabled(Boolean(p.bulkDiscount?.enabled));
+		setBulkThreshold(String(p.bulkDiscount?.quantity_threshold || DEFAULT_BULK_DISCOUNT.quantity_threshold));
+		setMomoFeePayer(normalizeFeePayer(p.momoFeePayer));
+	};
+
 	useEffect(() => {
 		if (!profile) return;
-		setCompanyName(profile.companyName || '');
-		setOrganization(profile.organization || profile.companyName || '');
-		setAddress(profile.address || '');
-		setPhone(profile.phone || '');
-		setEmail(profile.email || '');
-		setWebsite(profile.website || '');
-		setBulkEnabled(Boolean(profile.bulkDiscount?.enabled));
-		setBulkThreshold(
-			String(profile.bulkDiscount?.quantity_threshold || DEFAULT_BULK_DISCOUNT.quantity_threshold)
-		);
-		setMomoFeePayer(normalizeFeePayer(profile.momoFeePayer));
+		applyProfileFields(profile);
 
 		// Don't wipe a just-selected file preview when profile/industries re-sync.
 		if (!pendingFile && !previewUrlRef.current) {
@@ -160,6 +199,18 @@ export default function CompanyProfilePage() {
 		setRemoveLogo(true);
 	};
 
+	const handleCancelEdit = () => {
+		if (profile) {
+			applyProfileFields(profile);
+			setLogoKey(profile.logo ?? null);
+		}
+		revokePreview();
+		setPendingFile(null);
+		setPreviewUrl('');
+		setRemoveLogo(false);
+		setEditing(false);
+	};
+
 	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		const name = companyName.trim();
@@ -219,6 +270,7 @@ export default function CompanyProfilePage() {
 				setLogoKey(payload.logo);
 			}
 			toast.success('Company profile saved');
+			setEditing(false);
 			if (!profileAlreadySet) {
 				router.push('/');
 			}
@@ -255,23 +307,115 @@ export default function CompanyProfilePage() {
 								Company profile
 							</Typography>
 							<Typography variant="body2" color="text.secondary">
-								{profileAlreadySet
-									? 'Update your company details anytime — all fields stay editable'
-									: 'Set up your company information and logo'}
+								{!profileAlreadySet
+									? 'Set up your company information and logo'
+									: editing
+										? 'Edit your company details'
+										: 'Your company details as shown on receipts and the customer app'}
 							</Typography>
 						</div>
 					</Box>
+					{!showForm ? (
+						<Button
+							variant="contained"
+							color="primary"
+							onClick={() => setEditing(true)}
+							startIcon={<FuseSvgIcon size={18}>heroicons-outline:pencil-square</FuseSvgIcon>}
+						>
+							Edit
+						</Button>
+					) : null}
 				</Box>
 
 				<Box className="w-full flex justify-center">
 					<Box className="max-w-2xl w-full">
-						{profileAlreadySet ? (
-							<Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
-								Your account is set up. You can change any company field below whenever you need —
-								including logo, contact details and bulk discount.
-							</Alert>
-						) : null}
-
+						{!showForm && profile ? (
+							<Paper
+								variant="outlined"
+								className="p-6 rounded-xl"
+								sx={{ borderColor: 'divider' }}
+							>
+								<Box className="flex items-center gap-4 mb-2">
+									<Avatar
+										src={logoSrc(profile.logo) || undefined}
+										alt="Company logo"
+										imgProps={{ style: { objectFit: 'cover' } }}
+										sx={{
+											width: 72,
+											height: 72,
+											bgcolor: 'background.paper',
+											border: '1px solid',
+											borderColor: 'divider',
+											fontSize: 26,
+											fontWeight: 700,
+											color: 'text.secondary'
+										}}
+									>
+										{(profile.companyName || 'C').trim().charAt(0).toUpperCase()}
+									</Avatar>
+									<Box className="min-w-0">
+										<Typography
+											variant="h6"
+											fontWeight={700}
+											sx={{ wordBreak: 'break-word' }}
+										>
+											{profile.companyName}
+										</Typography>
+										{profile.organization && profile.organization !== profile.companyName ? (
+											<Typography
+												variant="body2"
+												color="text.secondary"
+											>
+												{profile.organization}
+											</Typography>
+										) : null}
+									</Box>
+								</Box>
+								<Divider sx={{ my: 1 }} />
+								<DetailRow
+									icon="heroicons-outline:map-pin"
+									label="Address"
+									value={profile.address}
+								/>
+								<DetailRow
+									icon="heroicons-outline:phone"
+									label="Phone"
+									value={profile.phone}
+								/>
+								<DetailRow
+									icon="heroicons-outline:envelope"
+									label="Email"
+									value={profile.email}
+								/>
+								<DetailRow
+									icon="heroicons-outline:globe-alt"
+									label="Website"
+									value={profile.website}
+								/>
+								<Divider sx={{ my: 1 }} />
+								<DetailRow
+									icon="heroicons-outline:tag"
+									label="Bulk / wholesale discount"
+									value={
+										profile.bulkDiscount?.enabled
+											? `On — wholesale price from quantity ${
+													profile.bulkDiscount.quantity_threshold ||
+													DEFAULT_BULK_DISCOUNT.quantity_threshold
+												}`
+											: 'Off'
+									}
+								/>
+								<DetailRow
+									icon="heroicons-outline:banknotes"
+									label="MoMo collection fee"
+									value={
+										normalizeFeePayer(profile.momoFeePayer) === 'shop'
+											? 'Shop pays (taken from withdrawals)'
+											: 'Customer pays (added on the MoMo prompt)'
+									}
+								/>
+							</Paper>
+						) : (
 						<Paper variant="outlined" className="p-6 rounded-xl" sx={{ borderColor: 'divider' }}>
 							<Box className="flex items-center gap-2 mb-4">
 								<FuseSvgIcon size={22} color="action">
@@ -585,14 +729,31 @@ export default function CompanyProfilePage() {
 												? 'Save changes'
 												: 'Save and continue'}
 									</Button>
+									{profileAlreadySet ? (
+										<Button
+											type="button"
+											variant="outlined"
+											disabled={saving}
+											onClick={handleCancelEdit}
+										>
+											Cancel
+										</Button>
+									) : null}
 								</Box>
 							</form>
 						</Paper>
-						<Typography variant="body2" color="text.secondary" sx={{ mt: 2, textAlign: 'center' }}>
-							{profileAlreadySet
-								? 'Changes apply immediately across web, receipts, and the customer app.'
-								: 'Complete this form to finish setting up your account. You can update every field later.'}
-						</Typography>
+						)}
+						{showForm ? (
+							<Typography
+								variant="body2"
+								color="text.secondary"
+								sx={{ mt: 2, textAlign: 'center' }}
+							>
+								{profileAlreadySet
+									? 'Changes apply immediately across web, receipts, and the customer app.'
+									: 'Complete this form to finish setting up your account. You can update every field later.'}
+							</Typography>
+						) : null}
 					</Box>
 				</Box>
 			</div>
