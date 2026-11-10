@@ -12,7 +12,7 @@ import config from '../../config';
 import ScreenHeader from '../../components/screen_header';
 import AppModal from '../../components/app_modal';
 import { FlashList } from '@shopify/flash-list';
-import { launchCamera } from 'react-native-image-picker';
+import { launchCamera } from '../../utils/camera';
 import useTheme from '../../hooks/useTheme';
 import { purchases as purchasesApi, warehouses as warehousesApi, suppliers as suppliersApi, normalizeList } from '../../services/api';
 import AppAlert from '../../utils/appAlert';
