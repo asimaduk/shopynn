@@ -9,7 +9,7 @@ import AppModal from '../../components/app_modal';
 import { FlashList } from '@shopify/flash-list';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import useTheme from '../../hooks/useTheme';
-import { products as productsApi, warehouses as warehousesApi, categories as categoriesApi, normalizeList } from '../../services/api';
+import { products as productsApi, warehouses as warehousesApi, categories as categoriesApi, images as imagesApi, normalizeList } from '../../services/api';
 import AppAlert from '../../utils/appAlert';
 
 // const images = [];
@@ -445,7 +445,6 @@ const ProductForm = ({ navigation, route }) => {
                 min_order_qty: formData.minOrderQty.trim() ? Number(formData.minOrderQty) : 1,
                 qty_step: formData.qtyStep.trim() ? Number(formData.qtyStep) : 1,
                 categories: Object.values(selectedCategories).map(cat => cat.id || cat.name),
-                images: images
             };
 
             if (!editMode) {
@@ -465,13 +464,30 @@ const ProductForm = ({ navigation, route }) => {
                 productData.warehouse_quantities = warehouseQuantitiesPayload;
             }
 
-            const isEdit = !!route.params?.product?.id;
-            console.log('productData', productData);
+            const hasNewImages = images.some((img) => img.isLocal);
+            const imageRefs = [];
+            for (const img of images) {
+                if (!img.isLocal) {
+                    if (img.serverRef) imageRefs.push(String(img.serverRef));
+                    continue;
+                }
+                const uploaded = await imagesApi.upload(img);
+                const key = Array.isArray(uploaded?.ids) ? uploaded.ids[0] : null;
+                if (!key) throw new Error('Could not upload a product photo. Please try again.');
+                imageRefs.push(key);
+            }
 
+            const isEdit = !!route.params?.product?.id;
+            let productId = route.params?.product?.id;
             if (isEdit) {
-                await productsApi.update(route.params.product.id, productData);
+                await productsApi.update(productId, productData);
             } else {
-                await productsApi.create(productData);
+                const created = await productsApi.create(productData);
+                productId = created?.id;
+            }
+
+            if (hasNewImages && productId) {
+                await productsApi.updateImages({ id: productId, ...buildImageSlotsPayload(imageRefs) });
             }
             
             AppAlert.alert('Success', 'Product saved successfully', [
