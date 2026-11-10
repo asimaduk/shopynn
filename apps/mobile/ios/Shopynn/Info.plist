@@ -20,35 +20,10 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleURLName</key>
-			<string>Facebook Auth</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>fbYOUR_FACEBOOK_APP_ID</string>
-			</array>
-		</dict>
-		<dict>
-			<key>CFBundleURLName</key>
-			<string>Google Sign-In</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>com.googleusercontent.apps.YOUR_GOOGLE_WEB_CLIENT_ID</string>
-			</array>
-		</dict>
-	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
-	<key>FacebookAppID</key>
-	<string>YOUR_FACEBOOK_APP_ID</string>
-	<key>FacebookClientToken</key>
-	<string>YOUR_FACEBOOK_CLIENT_TOKEN</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
-		<string>fbapi</string>
-		<string>fb-messenger-share-api</string>
 		<string>whatsapp</string>
 		<string>mailto</string>
 		<string>googlegmail</string>
@@ -108,8 +83,6 @@
 	<string></string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>We use your photo library to allow you to upload images within the app.</string>
-	<key>NSUserTrackingUsageDescription</key>
-	<string>This allows you to sign in with Facebook and improves your experience.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UIAppFonts</key>

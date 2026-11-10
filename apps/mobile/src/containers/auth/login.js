@@ -19,12 +19,6 @@ import {
     getCredentialsWithBiometric,
     enableBiometricLogin,
 } from '../../utils/biometricAuth';
-import {
-    signInWithGoogle,
-    signInWithApple,
-    signInWithFacebook,
-    isAppleSignInAvailable,
-} from '../../utils/socialAuth';
 import { setTokens, clearTokens } from '../../utils/secureStorage';
 import { users as usersApi, subscriptions as subscriptionsApi } from '../../services/api';
 import { normalizePermissionCodes } from '../../utils/permissions';
@@ -520,38 +514,6 @@ const Login = ({ navigation, route }) => {
         }
     };
 
-    const handleSocialLogin = async (provider) => {
-        if (loading) return;
-        setLoading(true);
-        try {
-            let userInfo;
-            if (provider === 'Google') {
-                userInfo = await signInWithGoogle();
-            } else if (provider === 'Apple') {
-                userInfo = await signInWithApple();
-            } else if (provider === 'Facebook') {
-                userInfo = await signInWithFacebook();
-            } else {
-                setLoading(false);
-                return;
-            }
-            const payload = {
-                name: userInfo.name,
-                email: userInfo.email,
-                role: 'Staff',
-            };
-            dispatch({ type: SET_USER, payload });
-            dispatch({ type: SET_LOGGED_IN, payload: true });
-        } catch (err) {
-            const message = err?.message || `Sign in with ${provider} failed.`;
-            if (!message.toLowerCase().includes('cancelled')) {
-                AppAlert.alert('Sign-in failed', message);
-            }
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const handleBiometricLogin = async () => {
         if (!biometricAvailable || !biometricEnabled) return;
         setLoading(true);
@@ -972,40 +934,6 @@ const Login = ({ navigation, route }) => {
                                 </TouchableOpacity>
                             </>
                         )}
-
-                        {/* <View style={styles.dividerRow}>
-                            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-                            <AppText label="or continue with" fontSize={12} color={colors.textTertiary} style={styles.dividerText} />
-                            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-                        </View> */}
-
-                        {/* <View style={styles.socialRow}>
-                            <TouchableOpacity
-                                activeOpacity={0.8}
-                                onPress={() => handleSocialLogin('Google')}
-                                disabled={loading}
-                                style={[styles.socialBtn, { borderColor: colors.border }]}>
-                                <View style={styles.googleBtnWrap}>
-                                    <Text style={styles.googleG}>G</Text>
-                                </View>
-                            </TouchableOpacity>
-                            {isAppleSignInAvailable() && (
-                                <TouchableOpacity
-                                    activeOpacity={0.8}
-                                    onPress={() => handleSocialLogin('Apple')}
-                                    disabled={loading}
-                                    style={[styles.socialBtn, { borderColor: colors.border }]}>
-                                    <Lucide name="apple" size={22} color={colors.text} />
-                                </TouchableOpacity>
-                            )}
-                            <TouchableOpacity
-                                activeOpacity={0.8}
-                                onPress={() => handleSocialLogin('Facebook')}
-                                disabled={loading}
-                                style={[styles.socialBtn, { borderColor: colors.border }]}>
-                                <Lucide name="facebook" size={22} color="#1877F2" />
-                            </TouchableOpacity>
-                        </View> */}
                     </View>
 
                     <View style={[styles.footerHint, { borderTopColor: colors.border }]}>
@@ -1172,34 +1100,6 @@ const styles = StyleSheet.create({
     },
     dividerLine: { flex: 1, height: 1 },
     dividerText: { marginHorizontal: 12 },
-    socialRow: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        gap: 16,
-    },
-    socialBtn: {
-        width: 52,
-        height: 52,
-        borderRadius: 26,
-        borderWidth: 1.5,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    googleBtnWrap: {
-        width: 30,
-        height: 30,
-        borderRadius: 30,
-        backgroundColor: '#EA4335',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    googleG: {
-        fontFamily: 'FiraSans-Regular',
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#fff'
-    },
     footerHint: {
         flexDirection: 'row',
         alignItems: 'center',

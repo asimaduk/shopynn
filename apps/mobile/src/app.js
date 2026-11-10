@@ -10,7 +10,6 @@ import { setSessionExpiredHandler } from './interceptors';
 import { clearTokens } from './utils/secureStorage';
 import { clearSensitiveOfflineData } from './utils/secureOfflineStorage';
 import { SET_USER, SET_LOGGED_IN } from './store/actions/user';
-import { configureSocialAuth } from './utils/socialAuth';
 import messaging from '@react-native-firebase/messaging';
 import PushNotification from 'react-native-push-notification';
 import { useEffect } from 'react';
@@ -126,9 +125,6 @@ function PushLifecycle() {
 }
 
 const App = () => {
-	useEffect(() => {
-		configureSocialAuth();
-	}, []);
 	useEffect(() => {
 		if (getDeviceBlockReason()) return;
 		const securityState = getDeviceSecurityState();

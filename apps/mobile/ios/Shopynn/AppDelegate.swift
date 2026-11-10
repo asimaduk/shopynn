@@ -2,8 +2,6 @@ import UIKit
 import React
 import React_RCTAppDelegate
 import ReactAppDependencyProvider
-import FBSDKCoreKit
-import AppTrackingTransparency
 import FirebaseCore
 
 @main
@@ -23,18 +21,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
       FirebaseApp.configure()
     }
 
-    ApplicationDelegate.shared.application(
-      application,
-      didFinishLaunchingWithOptions: launchOptions
-    )
-    if #available(iOS 14, *) {
-      ATTrackingManager.requestTrackingAuthorization { _ in
-        AppEvents.shared.activateApp()
-      }
-    } else {
-      AppEvents.shared.activateApp()
-    }
-
     let delegate = ReactNativeDelegate()
     let factory = RCTReactNativeFactory(delegate: delegate)
     delegate.dependencyProvider = RCTAppDependencyProvider()
@@ -51,18 +37,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     )
 
     return true
-  }
-
-  func application(
-    _ app: UIApplication,
-    open url: URL,
-    options: [UIApplication.OpenURLOptionsKey: Any] = [:]
-  ) -> Bool {
-    let handledByFB = ApplicationDelegate.shared.application(
-      app, open: url, options: options
-    )
-    if handledByFB { return true }
-    return false
   }
 
   // The app-switcher snapshot is taken after resigning active; cover the UI so sales, balances
