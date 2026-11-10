@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'motion/react';
+import toast from 'react-hot-toast';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
@@ -203,9 +204,11 @@ export default function OrderSettlementsPage() {
 															onClick={async () => {
 																try {
 																	await retryWithdrawal(row.id).unwrap();
+																	toast.success('Payout retry started.');
 																	refreshSettlements();
-																} catch (_) {
-																	/* shown via api error toast if configured */
+																} catch (err) {
+																	const e = err as { data?: { message?: string }; error?: string };
+																	toast.error(e?.data?.message || e?.error || 'Could not retry the payout.');
 																}
 															}}
 														>

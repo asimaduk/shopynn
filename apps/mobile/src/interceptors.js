@@ -1,12 +1,11 @@
 import axios from 'axios';
 import { Platform } from 'react-native';
 import DeviceInfo from 'react-native-device-info';
-import { getAccessToken, getRefreshToken, setTokens, clearTokens } from './utils/secureStorage';
+import { getAccessToken, clearTokens } from './utils/secureStorage';
 import appconfig from './config';
 import { rootNavigationRef } from './navigators/main';
 
 const API_TIMEOUT = 30000;
-const AUTH_REFRESH_PATH = '/auth/refresh';
 const MAX_GET_RETRIES = 2;
 const RETRY_DELAY_MS = 1000;
 import { SUBSCRIPTION_RENEWAL_CODES as SUBSCRIPTION_ERROR_CODES } from './utils/subscriptionAccess';
@@ -33,8 +32,6 @@ const getResponseCode = (error) => {
 };
 
 let isAlertVisible = false;
-let isRefreshing = false;
-let failedQueue = [];
 
 const extractServerErrorMessage = (error) => {
     const responseData = error?.response?.data;
@@ -79,11 +76,6 @@ const extractServerErrorMessage = (error) => {
     }
 
     return error?.message || 'An unexpected error occurred.';
-};
-
-const processQueue = (err, token = null) => {
-    failedQueue.forEach((prom) => (token ? prom.resolve(token) : prom.reject(err)));
-    failedQueue = [];
 };
 
 let sessionExpiredHandler = null;
@@ -196,7 +188,7 @@ axios.interceptors.response.use(
             status === 403 &&
             (url.indexOf('/users/me') !== -1 || url.indexOf('/me') !== -1) &&
             SUBSCRIPTION_ERROR_CODES.has(responseCode);
-        const isAuthEndpoint = url.indexOf('/auth/login') !== -1 || url.indexOf('/users/login') !== -1 || url.indexOf(AUTH_REFRESH_PATH) !== -1 || url.indexOf('/users/me') !== -1;
+        const isAuthEndpoint = url.indexOf('/auth/login') !== -1 || url.indexOf('/users/login') !== -1 || url.indexOf('/users/me') !== -1;
 
         // Let login flow handle subscription-gated /users/me without generic alerts.
         if (isSubscriptionGateOnMe) {
@@ -217,36 +209,8 @@ axios.interceptors.response.use(
             return Promise.reject(error);
         }
 
-        if (status === 401 && !isAuthEndpoint && !originalRequest._retry) {
-            const refreshToken = await getRefreshToken();
-            if (refreshToken && !isRefreshing) {
-                originalRequest._retry = true;
-                isRefreshing = true;
-                try {
-                    const baseUrl = appconfig.BASE_API;
-                    const res = await axios.post(baseUrl + AUTH_REFRESH_PATH, { refresh_token: refreshToken }, { timeout: 10000 });
-                    const newAccess = res?.data?.access_token ?? res?.data?.accessToken;
-                    if (newAccess) {
-                        const newRefresh = res?.data?.refresh_token ?? res?.data?.refreshToken;
-                        await setTokens(newAccess, newRefresh ?? undefined);
-                        originalRequest.headers['Authorization'] = `Bearer ${newAccess}`;
-                        processQueue(null, newAccess);
-                        return axios(originalRequest);
-                    }
-                } catch (refreshErr) {
-                    processQueue(refreshErr, null);
-                    await clearTokens();
-                    showSessionExpired();
-                    return Promise.reject(refreshErr);
-                } finally {
-                    isRefreshing = false;
-                }
-            }
-            if (refreshToken && isRefreshing) {
-                return new Promise((resolve, reject) => {
-                    failedQueue.push({ resolve: (token) => { originalRequest.headers['Authorization'] = `Bearer ${token}`; resolve(axios(originalRequest)); }, reject });
-                });
-            }
+        if (status === 401 && !isAuthEndpoint) {
+            await clearTokens();
             showSessionExpired();
         } else if (status === 403 && !isAuthEndpoint && FEATURE_GATE_CODES.has(responseCode)) {
             if (!originalRequest?.skipErrorAlert) {

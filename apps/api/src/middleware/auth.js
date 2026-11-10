@@ -45,12 +45,9 @@ const auth = async (req, res, next) => {
     if(req.body) {
         req.body.creator_id = decode.id;
         req.body.tenant_id = decode.tenant_id;
-
-        if(decode.user_type != 1) {
-            // requirePermission restores this for users with multi-store access.
-            req.requestedWarehouseId = req.body.warehouse_id;
-            req.body.warehouse_id = decode.warehouse_id;
-        }
+        // requirePermission restores this for users with multi-store access.
+        req.requestedWarehouseId = req.body.warehouse_id;
+        req.body.warehouse_id = decode.warehouse_id;
     }
     next();
 };
