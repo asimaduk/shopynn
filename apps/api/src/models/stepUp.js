@@ -1,6 +1,6 @@
 /**
- * Step-up verification: a fresh one-time code (SMS to the account phone, or email when there is no
- * phone) before money-moving actions such as withdrawals and payout account changes. A verified code
+ * Step-up verification: a fresh one-time code (SMS to the account phone, or email when SMS is not set
+ * up, fails, or there is no phone) before money-moving actions such as withdrawals and payout account changes. A verified code
  * returns a short-lived step-up token that requireStepUp accepts.
  */
 
@@ -11,7 +11,7 @@ import pool from "../config/db.js";
 import { generateOtp } from "../util/secureRandom.js";
 import { assertOtpQuota } from "../util/otpQuota.js";
 import { maskEmail, maskPhone, otpForLog } from "../util/devOtp.js";
-import { sendSmsService } from "../services/sms.js";
+import { isSmsConfigured, sendSmsService } from "../services/sms.js";
 import { sendEmailService } from "./mail.js";
 import { normalizeStorefrontPhone } from "./storefront.js";
 
@@ -30,35 +30,75 @@ const hashOtp = (target, code) =>
         .update(`${process.env.OTP_SECRET || "ims-email-otp"}:${PURPOSE}:${target}:${code}`)
         .digest("hex");
 
-async function getDestination(userId) {
-    const r = await pool.query(
-        `SELECT phone, email FROM users WHERE id = $1 AND deleted IS NOT TRUE LIMIT 1`,
-        [userId]
-    );
-    if (!r.rowCount) throw new Error("Not authenticated.");
-    const phone = normalizeStorefrontPhone(r.rows[0].phone);
-    if (phone && phone.length >= 10) return { channel: "sms", target: phone };
-    const email = String(r.rows[0].email || "").trim().toLowerCase();
-    if (email.includes("@")) return { channel: "email", target: email };
-    const err = new Error("Add a phone number or email to your profile to confirm this action.");
-    err.isStepUpValidation = true;
-    throw err;
-}
-
 const validationError = (message) => {
     const err = new Error(message);
     err.isStepUpValidation = true;
     return err;
 };
 
+/** Codes are stored under whichever contact they were sent to, so both are checked on verify. */
+async function getContacts(userId) {
+    const r = await pool.query(
+        `SELECT phone, email FROM users WHERE id = $1 AND deleted IS NOT TRUE LIMIT 1`,
+        [userId]
+    );
+    if (!r.rowCount) throw new Error("Not authenticated.");
+    const normalized = normalizeStorefrontPhone(r.rows[0].phone);
+    const phone = normalized && normalized.length >= 10 ? normalized : null;
+    const rawEmail = String(r.rows[0].email || "").trim().toLowerCase();
+    const email = rawEmail.includes("@") ? rawEmail : null;
+    if (!phone && !email) {
+        throw validationError("Add a phone number or email to your profile to confirm this action.");
+    }
+    return { phone, email, targets: [phone, email].filter(Boolean) };
+}
+
+async function issueCode(target) {
+    await assertOtpQuota(target);
+    const code = generateOtp();
+    await pool.query(
+        `INSERT INTO email_verification_codes (id, email, purpose, code_hash, attempts, expires_at, created_at)
+         VALUES ($1, $2, $3, $4, 0, $5, now())`,
+        [uuidv4(), target, PURPOSE, hashOtp(target, code), new Date(Date.now() + OTP_TTL_MS)]
+    );
+    return code;
+}
+
+const codeMessage = (code) =>
+    `Your Shopynn confirmation code is ${code}. Only enter it if you are making a withdrawal or changing payout details. It expires in 10 minutes.`;
+
+function emailCode(target, code) {
+    const message = codeMessage(code);
+    // Not awaited: SMTP can hang for longer than the app's request timeout.
+    sendEmailService({
+        sender_name: "Shopynn",
+        receipient: target,
+        from: "noreply",
+        subject: "Confirm it's you — Shopynn",
+        title: "Your confirmation code",
+        message: `${message}\n\nIf you did not request this, change your password.`,
+        text: message,
+        html: `<p>Use this code to confirm a withdrawal or payout change:</p><p style="font-size:28px;font-weight:bold;letter-spacing:4px">${code}</p><p>This code expires in 10 minutes. If you did not request it, change your password.</p>`,
+    }).catch((err) => {
+        console.info(`[step-up OTP] email=${maskEmail(target)} code=${otpForLog(code)} mail=${err?.message || "n/a"}`);
+    });
+}
+
+const sentVia = (channel, target) => ({
+    channel,
+    destination: channel === "sms" ? maskPhone(target) : maskEmail(target),
+    expires_in_seconds: Math.floor(OTP_TTL_MS / 1000),
+    resend_cooldown_seconds: Math.floor(RESEND_COOLDOWN_MS / 1000),
+});
+
 export async function sendStepUpCodeService(userId) {
-    const { channel, target } = await getDestination(userId);
+    const { phone, email, targets } = await getContacts(userId);
 
     const recent = await pool.query(
         `SELECT created_at FROM email_verification_codes
-         WHERE lower(email) = $1 AND purpose = $2
+         WHERE lower(email) = ANY($1) AND purpose = $2
          ORDER BY created_at DESC LIMIT 1`,
-        [target, PURPOSE]
+        [targets, PURPOSE]
     );
     if (recent.rowCount > 0) {
         const elapsed = Date.now() - new Date(recent.rows[0].created_at).getTime();
@@ -68,56 +108,33 @@ export async function sendStepUpCodeService(userId) {
         }
     }
 
-    await assertOtpQuota(target);
-    const code = generateOtp();
-    await pool.query(
-        `INSERT INTO email_verification_codes (id, email, purpose, code_hash, attempts, expires_at, created_at)
-         VALUES ($1, $2, $3, $4, 0, $5, now())`,
-        [uuidv4(), target, PURPOSE, hashOtp(target, code), new Date(Date.now() + OTP_TTL_MS)]
-    );
-
-    const message = `Your Shopynn confirmation code is ${code}. Only enter it if you are making a withdrawal or changing payout details. It expires in 10 minutes.`;
-    if (channel === "sms") {
-        const sms = await sendSmsService({ to: target, message });
-        if (!sms.ok) {
-            console.info(`[step-up OTP] phone=${maskPhone(target)} code=${otpForLog(code)} sms=${sms.error || "n/a"}`);
-        }
-    } else {
-        // Not awaited: SMTP can hang for longer than the app's request timeout.
-        sendEmailService({
-            sender_name: "Shopynn",
-            receipient: target,
-            from: "noreply",
-            subject: "Confirm it's you — Shopynn",
-            title: "Your confirmation code",
-            message: `${message}\n\nIf you did not request this, change your password.`,
-            text: message,
-            html: `<p>Use this code to confirm a withdrawal or payout change:</p><p style="font-size:28px;font-weight:bold;letter-spacing:4px">${code}</p><p>This code expires in 10 minutes. If you did not request it, change your password.</p>`,
-        }).catch((err) => {
-            console.info(`[step-up OTP] email=${maskEmail(target)} code=${otpForLog(code)} mail=${err?.message || "n/a"}`);
-        });
+    // SMS first when it is set up; email whenever SMS is unavailable or fails.
+    if (phone && isSmsConfigured()) {
+        const code = await issueCode(phone);
+        const sms = await sendSmsService({ to: phone, message: codeMessage(code) });
+        if (sms.ok) return sentVia("sms", phone);
+        console.info(`[step-up OTP] phone=${maskPhone(phone)} code=${otpForLog(code)} sms=${sms.error || "n/a"}`);
+        if (!email) throw validationError("We couldn't send the SMS. Try again in a moment.");
     }
-
-    return {
-        channel,
-        destination: channel === "sms" ? maskPhone(target) : maskEmail(target),
-        expires_in_seconds: Math.floor(OTP_TTL_MS / 1000),
-        resend_cooldown_seconds: Math.floor(RESEND_COOLDOWN_MS / 1000),
-    };
+    if (!email) {
+        throw validationError("We can't send codes by SMS right now. Add an email to your profile to continue.");
+    }
+    emailCode(email, await issueCode(email));
+    return sentVia("email", email);
 }
 
 export async function verifyStepUpCodeService(user, otp) {
     const code = String(otp || "").trim();
     if (!/^\d{6}$/.test(code)) throw validationError("Enter the 6-digit code.");
-    const { target } = await getDestination(user.id);
+    const { targets } = await getContacts(user.id);
 
     const rowRes = await pool.query(
-        `SELECT id, code_hash, attempts, expires_at
+        `SELECT id, email, code_hash, attempts, expires_at
          FROM email_verification_codes
-         WHERE lower(email) = $1 AND purpose = $2 AND verified_at IS NULL
+         WHERE lower(email) = ANY($1) AND purpose = $2 AND verified_at IS NULL
          ORDER BY created_at DESC
          LIMIT 1`,
-        [target, PURPOSE]
+        [targets, PURPOSE]
     );
     if (!rowRes.rowCount) throw validationError("No active code. Request a new code.");
     const row = rowRes.rows[0];
@@ -125,7 +142,7 @@ export async function verifyStepUpCodeService(user, otp) {
     if (Number(row.attempts) >= MAX_ATTEMPTS) throw validationError("Too many attempts. Request a new code.");
 
     await pool.query(`UPDATE email_verification_codes SET attempts = attempts + 1 WHERE id = $1`, [row.id]);
-    if (hashOtp(target, code) !== row.code_hash) throw validationError("Incorrect code. Try again.");
+    if (hashOtp(String(row.email).toLowerCase(), code) !== row.code_hash) throw validationError("Incorrect code. Try again.");
     await pool.query(`UPDATE email_verification_codes SET verified_at = now() WHERE id = $1`, [row.id]);
 
     const token = jwt.sign(
