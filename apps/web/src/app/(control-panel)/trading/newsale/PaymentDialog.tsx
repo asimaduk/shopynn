@@ -44,6 +44,22 @@ function formatGhs(n: number) {
 	return `GHS ${toMoney(n).toFixed(2)}`;
 }
 
+function paymentGatewayStatus(res: any): string {
+	const nested = res?.data?.status;
+	const top = res?.status;
+	if (typeof nested === 'string' && nested.trim()) return nested.trim().toLowerCase();
+	if (typeof top === 'string' && top.trim() && Number.isNaN(Number(top))) return top.trim().toLowerCase();
+	return '';
+}
+
+function isPaidStatus(status: string) {
+	return ['success', 'paid', 'completed'].includes(status);
+}
+
+function isFailedStatus(status: string) {
+	return ['failed', 'abandoned', 'reversed', 'cancelled', 'canceled'].includes(status);
+}
+
 export type PosCartSnapshot = {
 	warehouse_id?: string | null;
 	warehouse_name?: string | null;
@@ -100,6 +116,7 @@ export default function PaymentDialog({
 	const [otpStep, setOtpStep] = React.useState(false);
 	const [transactionRef, setTransactionRef] = React.useState<string | null>(null);
 	const [chargePaid, setChargePaid] = React.useState(false);
+	const [chargeFailed, setChargeFailed] = React.useState(false);
 	const [statusText, setStatusText] = React.useState('');
 	const [sending, setSending] = React.useState(false);
 	const [parking, setParking] = React.useState(false);
@@ -134,6 +151,7 @@ export default function PaymentDialog({
 	const isTelecel = network === 'vod';
 	const momoChargeOpen = paymentType === 'Momo' && Boolean(transactionRef);
 	const momoPaid = momoChargeOpen && chargePaid;
+	const momoFailed = momoChargeOpen && chargeFailed && !chargePaid;
 	const networkLabel = MOMO_NETWORK_OPTIONS.find((n) => n.provider === network)?.label || '';
 	const numberDisplay =
 		transNumber.length === 10
@@ -190,6 +208,7 @@ export default function PaymentDialog({
 			setOtpStep(false);
 			setTransactionRef(null);
 			setChargePaid(false);
+			setChargeFailed(false);
 			setStatusText('');
 			setSending(false);
 			setParking(false);
@@ -227,10 +246,24 @@ export default function PaymentDialog({
 	const markPaid = React.useCallback(
 		(ref: string, message = 'Payment confirmed.') => {
 			stopPolling();
+			setChargeFailed(false);
 			setChargePaid(true);
 			setTransactionRef(ref);
 			setStatusText(message);
 			dispatch(showMessage({ message: 'MoMo payment confirmed' }));
+		},
+		[dispatch, stopPolling]
+	);
+
+	const markFailed = React.useCallback(
+		(ref: string, message?: string) => {
+			stopPolling();
+			setChargePaid(false);
+			setChargeFailed(true);
+			setOtpStep(false);
+			setTransactionRef(ref);
+			setStatusText(message || 'MoMo payment failed. Send again or take cash.');
+			dispatch(showMessage({ message: 'MoMo payment failed', variant: 'error' }));
 		},
 		[dispatch, stopPolling]
 	);
@@ -243,9 +276,13 @@ export default function PaymentDialog({
 			const tick = async () => {
 				try {
 					const res: any = await verifyPayment(ref).unwrap();
-					const status = String(res?.status || res?.data?.status || '').toLowerCase();
-					if (status === 'success' || status === 'paid' || status === 'completed') {
+					const status = paymentGatewayStatus(res);
+					if (isPaidStatus(status)) {
 						markPaid(ref);
+						return;
+					}
+					if (isFailedStatus(status)) {
+						markFailed(ref, res?.display_text);
 						return;
 					}
 				} catch {
@@ -261,7 +298,7 @@ export default function PaymentDialog({
 			};
 			pollRef.current = setTimeout(tick, delaysMs[step++]);
 		},
-		[markPaid, stopPolling, verifyPayment]
+		[markFailed, markPaid, stopPolling, verifyPayment]
 	);
 
 	const applyInitiateResult = async (res: any) => {
@@ -272,7 +309,7 @@ export default function PaymentDialog({
 		}
 		setTransactionRef(ref);
 
-		if (res?.reused || String(res?.status || '').toLowerCase() === 'success') {
+		if (res?.reused || isPaidStatus(paymentGatewayStatus(res))) {
 			markPaid(
 				ref,
 				res?.display_text || 'Previous MoMo payment already confirmed. Complete the sale.'
@@ -297,9 +334,13 @@ export default function PaymentDialog({
 					reference: ref,
 					otp: voucher.trim()
 				}).unwrap();
-				const otpStatus = String(otpRes?.status || otpRes?.data?.status || '').toLowerCase();
-				if (otpStatus === 'success') {
+				const otpStatus = paymentGatewayStatus(otpRes);
+				if (isPaidStatus(otpStatus)) {
 					markPaid(ref);
+					return;
+				}
+				if (isFailedStatus(otpStatus)) {
+					markFailed(ref, otpRes?.display_text);
 					return;
 				}
 				setStatusText(otpRes?.display_text || 'Voucher submitted — waiting for confirmation…');
@@ -319,9 +360,11 @@ export default function PaymentDialog({
 		}
 
 		setStatusText(res?.display_text || 'Approve the MoMo prompt on the phone.');
-		const status = String(res?.status || '').toLowerCase();
-		if (status === 'success') {
+		const status = paymentGatewayStatus(res);
+		if (isPaidStatus(status)) {
 			markPaid(ref);
+		} else if (isFailedStatus(status)) {
+			markFailed(ref, res?.display_text);
 		} else {
 			setOtpStep(true);
 			startPolling(ref);
@@ -357,6 +400,7 @@ export default function PaymentDialog({
 			return;
 		}
 		setSending(true);
+		setChargeFailed(false);
 		setStatusText(opts?.forceNew ? 'Starting a new MoMo prompt…' : 'Sending MoMo prompt…');
 		try {
 			const res: any = await initiatePayment({
@@ -430,9 +474,11 @@ export default function PaymentDialog({
 		setSending(true);
 		try {
 			const res: any = await submitOtp({ reference: transactionRef, otp }).unwrap();
-			const status = String(res?.status || res?.data?.status || '').toLowerCase();
-			if (status === 'success') {
+			const status = paymentGatewayStatus(res);
+			if (isPaidStatus(status)) {
 				markPaid(transactionRef);
+			} else if (isFailedStatus(status)) {
+				markFailed(transactionRef, res?.display_text);
 			} else {
 				setStatusText(res?.display_text || 'OTP submitted — waiting for confirmation…');
 				startPolling(transactionRef);
@@ -449,11 +495,13 @@ export default function PaymentDialog({
 		setSending(true);
 		try {
 			const res: any = await verifyPayment(transactionRef).unwrap();
-			const status = String(res?.status || res?.data?.status || '').toLowerCase();
-			if (status === 'success' || status === 'paid' || status === 'completed') {
+			const status = paymentGatewayStatus(res);
+			if (isPaidStatus(status)) {
 				markPaid(transactionRef);
+			} else if (isFailedStatus(status)) {
+				markFailed(transactionRef, res?.display_text);
 			} else {
-				setStatusText(`Status: ${status || 'pending'}`);
+				setStatusText(res?.display_text || `Still waiting (${status || 'pending'}).`);
 			}
 		} catch (err: any) {
 			dispatch(showMessage({ message: err?.data?.message || 'Could not verify payment' }));
@@ -742,8 +790,16 @@ export default function PaymentDialog({
 							<Box
 								className="mb-3 mt-2 rounded-lg border p-4"
 								sx={{
-									borderColor: momoPaid ? 'success.main' : 'divider',
-									bgcolor: momoPaid ? 'rgba(16,185,129,0.08)' : 'action.hover'
+									borderColor: momoPaid
+										? 'success.main'
+										: momoFailed
+											? 'error.main'
+											: 'divider',
+									bgcolor: momoPaid
+										? 'rgba(16,185,129,0.08)'
+										: momoFailed
+											? 'rgba(239,68,68,0.08)'
+											: 'action.hover'
 								}}
 							>
 								<Box className="flex items-center gap-2">
@@ -751,14 +807,28 @@ export default function PaymentDialog({
 										<FuseSvgIcon size={22} sx={{ color: 'success.main' }}>
 											heroicons-outline:check-circle
 										</FuseSvgIcon>
+									) : momoFailed ? (
+										<FuseSvgIcon size={22} sx={{ color: 'error.main' }}>
+											heroicons-outline:x-circle
+										</FuseSvgIcon>
 									) : (
 										<CircularProgress size={18} />
 									)}
 									<Typography
 										className="font-semibold"
-										sx={{ color: momoPaid ? 'success.main' : 'text.primary' }}
+										sx={{
+											color: momoPaid
+												? 'success.main'
+												: momoFailed
+													? 'error.main'
+													: 'text.primary'
+										}}
 									>
-										{momoPaid ? 'Payment received' : 'Waiting for the customer to approve'}
+										{momoPaid
+											? 'Payment received'
+											: momoFailed
+												? 'Payment failed'
+												: 'Waiting for the customer to approve'}
 									</Typography>
 								</Box>
 								<Typography className="mt-3 text-3xl font-bold">{formatGhs(chargeAmount)}</Typography>
@@ -888,7 +958,7 @@ export default function PaymentDialog({
 							</Button>
 						)}
 
-						{otpStep && !chargePaid && (
+						{otpStep && !chargePaid && !chargeFailed && (
 							<Box className="mb-2 mt-3">
 								<TextField
 									fullWidth
@@ -918,6 +988,7 @@ export default function PaymentDialog({
 								<Button fullWidth variant="text" disabled={sending} onClick={handleCheckStatus}>
 									Check status
 								</Button>
+								{!chargeFailed ? (
 								<Button
 									fullWidth
 									variant="outlined"
@@ -927,6 +998,7 @@ export default function PaymentDialog({
 								>
 									{parking ? <CircularProgress size={18} color="inherit" /> : 'Park & serve next'}
 								</Button>
+								) : null}
 								<Button
 									fullWidth
 									variant="text"

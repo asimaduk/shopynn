@@ -213,6 +213,7 @@ const NewSale = ({ navigation, route }) => {
     const [momoStatusText, setMomoStatusText] = useState('');
     const [momoOtp, setMomoOtp] = useState('');
     const [momoNeedsOtp, setMomoNeedsOtp] = useState(false);
+    const [momoFailed, setMomoFailed] = useState(false);
     const momoPollGenRef = useRef(0);
 
     const filteredStores = stores.filter((s) =>
@@ -837,10 +838,13 @@ const NewSale = ({ navigation, route }) => {
                         p.transactionRef === momoOpenRef ? { ...p, paid: true } : p,
                     );
                     setMomoNeedsOtp(false);
+                    setMomoFailed(false);
                     setMomoStatusText('Payment confirmed.');
                     return;
                 }
                 if (['failed', 'abandoned', 'reversed', 'cancelled'].includes(st)) {
+                    setMomoFailed(true);
+                    setMomoNeedsOtp(false);
                     setMomoStatusText(v?.display_text || 'MoMo payment failed. Tap Send again or use Cash.');
                     return;
                 }
@@ -871,6 +875,7 @@ const NewSale = ({ navigation, route }) => {
             if (['success', 'paid', 'completed'].includes(st)) {
                 setSelectedPaymentOption((p) => ({ ...p, paid: true, transactionRef: currentRef }));
                 setMomoNeedsOtp(false);
+                setMomoFailed(false);
                 setMomoStatusText('Payment confirmed.');
                 Toast.show({
                     type: 'success',
@@ -880,6 +885,8 @@ const NewSale = ({ navigation, route }) => {
                 return;
             }
             if (['failed', 'abandoned', 'reversed', 'cancelled'].includes(st)) {
+                setMomoFailed(true);
+                setMomoNeedsOtp(false);
                 setMomoStatusText(
                     payload?.body || 'MoMo payment failed. Tap Send again or use Cash.',
                 );
@@ -993,6 +1000,7 @@ const NewSale = ({ navigation, route }) => {
         setMomoSending(true);
         setMomoNeedsOtp(false);
         setMomoOtp('');
+        setMomoFailed(false);
         setMomoStatusText(forceNew ? 'Starting a new MoMo prompt…' : 'Sending MoMo prompt…');
         try {
             const res = await paymentsApi.initiate({
@@ -1161,12 +1169,17 @@ const NewSale = ({ navigation, route }) => {
             if (st === 'success' || st === 'paid' || st === 'completed') {
                 setSelectedPaymentOption((p) => ({ ...p, paid: true }));
                 setMomoNeedsOtp(false);
+                setMomoFailed(false);
                 setMomoStatusText('Payment confirmed.');
+            } else if (['failed', 'abandoned', 'reversed', 'cancelled'].includes(st)) {
+                setMomoFailed(true);
+                setMomoNeedsOtp(false);
+                setMomoStatusText(v?.display_text || 'MoMo payment failed. Tap Send again or use Cash.');
             } else if (momoStatusNeedsOtp(st, v?.display_text)) {
                 setMomoNeedsOtp(true);
                 setMomoStatusText(v?.display_text || 'Enter the OTP / voucher from the network.');
             } else {
-                setMomoStatusText(v?.display_text || `Status: ${st || 'pending'}`);
+                setMomoStatusText(v?.display_text || `Still waiting (${st || 'pending'}).`);
             }
         } catch (e) {
             AppAlert.alert('MoMo', e?.response?.data?.message || e?.message || 'Could not verify');
@@ -2221,22 +2234,24 @@ const NewSale = ({ navigation, route }) => {
                                 style={[
                                     styles.momoChargeCard,
                                     {
-                                        borderColor: momoPaidConfirmed ? '#10b981' : colors.border,
-                                        backgroundColor: momoPaidConfirmed ? '#10b98114' : colors.surfaceSecondary,
+                                        borderColor: momoPaidConfirmed ? '#10b981' : momoFailed ? '#ef4444' : colors.border,
+                                        backgroundColor: momoPaidConfirmed ? '#10b98114' : momoFailed ? '#ef444414' : colors.surfaceSecondary,
                                     },
                                 ]}
                             >
                                 <View style={styles.momoChargeHeader}>
                                     {momoPaidConfirmed ? (
                                         <Lucide name="circle-check" size={22} color="#10b981" />
+                                    ) : momoFailed ? (
+                                        <Lucide name="circle-x" size={22} color="#ef4444" />
                                     ) : (
                                         <ActivityIndicator size="small" color={colors.primary} />
                                     )}
                                     <AppText
-                                        label={momoPaidConfirmed ? 'Payment received' : 'Waiting for the customer to approve'}
+                                        label={momoPaidConfirmed ? 'Payment received' : momoFailed ? 'Payment failed' : 'Waiting for the customer to approve'}
                                         variant={1}
                                         fontSize={15}
-                                        color={momoPaidConfirmed ? '#10b981' : colors.text}
+                                        color={momoPaidConfirmed ? '#10b981' : momoFailed ? '#ef4444' : colors.text}
                                         style={{ marginLeft: 8, flex: 1 }}
                                     />
                                 </View>
