@@ -6,12 +6,14 @@ import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
 import config from '../../config';
 import useTheme from '../../hooks/useTheme';
+import useSecureScreen from '../../hooks/useSecureScreen';
 import { users as usersApi } from '../../services/api';
 import AppAlert from '../../utils/appAlert';
 
 const { width } = Dimensions.get('window');
 
 const ForgotPassword = ({ navigation }) => {
+    useSecureScreen();
     const { colors, isDark } = useTheme();
     const insets = useSafeAreaInsets();
     const isFocused = useIsFocused();

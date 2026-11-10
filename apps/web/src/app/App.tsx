@@ -20,6 +20,7 @@ import FuseMessage from '@fuse/core/FuseMessage/FuseMessage';
 import AuthTransitionOverlay from '../components/AuthTransitionOverlay';
 import InactivityLogout from '../components/InactivityLogout';
 import AppConfirmHost from '../components/AppConfirmHost';
+import StepUpHost from '../components/StepUpHost';
 
 type AppProps = {
 	children?: React.ReactNode;
@@ -65,6 +66,7 @@ function App(props: AppProps) {
 											<AuthTransitionOverlay />
 											<FuseMessage />
 											<AppConfirmHost />
+											<StepUpHost />
 											<Toaster
 												position="top-center"
 												reverseOrder={false}

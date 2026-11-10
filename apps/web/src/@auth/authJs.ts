@@ -70,15 +70,18 @@ const storage = createStorage({
 
 export const providers: Provider[] = [
 	Credentials({
-		async authorize(formInput) {
+		async authorize(formInput, request) {
 			const emailNormalized = String(formInput.email ?? '')
 				.trim()
 				.toLowerCase();
 
-			const res = await authLoginUser({
-				email: emailNormalized,
-				password: String(formInput.password ?? '').trim()
-			});
+			const res = await authLoginUser(
+				{
+					email: emailNormalized,
+					password: String(formInput.password ?? '').trim()
+				},
+				request?.headers?.get?.('user-agent') || undefined
+			);
 
 			const resJson = await res.json();
 			if (resJson.data?.passwordExpired || resJson.data?.code === 'PASSWORD_EXPIRED') {

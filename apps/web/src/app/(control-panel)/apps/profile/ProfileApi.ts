@@ -28,7 +28,19 @@ export type MtdSales = {
 	transactionsCount?: number;
 };
 
-const ProfileApi = api.injectEndpoints({
+export type UserSession = {
+	id: string;
+	device_name?: string | null;
+	platform?: string | null;
+	app_version?: string | null;
+	ip?: string | null;
+	user_agent?: string | null;
+	created_at: string;
+	last_seen_at: string;
+	current: boolean;
+};
+
+const ProfileApi = api.enhanceEndpoints({ addTagTypes: ['user_sessions'] }).injectEndpoints({
 	endpoints: (build) => ({
 		getMe: build.query<MeResponse | null, void>({
 			query: () => ({ url: '/api/users/me' })
@@ -80,6 +92,18 @@ const ProfileApi = api.injectEndpoints({
 		}),
 		getMyMtdSales: build.query<MtdSales | null, void>({
 			query: () => ({ url: '/api/sales/me/mtd-total' })
+		}),
+		getMySessions: build.query<UserSession[], void>({
+			query: () => ({ url: '/api/users/me/sessions' }),
+			providesTags: ['user_sessions']
+		}),
+		revokeMySession: build.mutation<unknown, string>({
+			query: (id) => ({ url: `/api/users/me/sessions/${encodeURIComponent(id)}`, method: 'DELETE' }),
+			invalidatesTags: ['user_sessions']
+		}),
+		revokeMyOtherSessions: build.mutation<unknown, void>({
+			query: () => ({ url: '/api/users/me/sessions/revoke-others', method: 'POST' }),
+			invalidatesTags: ['user_sessions']
 		})
 	}),
 	overrideExisting: false
@@ -92,7 +116,10 @@ export const {
 	useUpdateProfileUserMutation,
 	useUploadMyProfileImageMutation,
 	useRemoveMyProfileImageMutation,
-	useGetMyMtdSalesQuery
+	useGetMyMtdSalesQuery,
+	useGetMySessionsQuery,
+	useRevokeMySessionMutation,
+	useRevokeMyOtherSessionsMutation
 } = ProfileApi;
 
 export default ProfileApi;

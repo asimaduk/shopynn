@@ -11,6 +11,7 @@ import { SET_USER, SET_LOGGED_IN } from '../../store/actions/user';
 import { registerPushAfterLogin } from '../../utils/pushNotifications';
 import { setCompanyDetails, setSubscriptionActive, setSubscriptionPlan, setSubscriptionFeatures, setInvoiceCounterTenant } from '../../store/actions/appSettings';
 import useTheme from '../../hooks/useTheme';
+import useSecureScreen from '../../hooks/useSecureScreen';
 import {
     isBiometricSupported,
     isBiometricLoginEnabled,
@@ -70,6 +71,7 @@ const getResponseCode = (error) => {
 };
 
 const Login = ({ navigation, route }) => {
+    useSecureScreen();
     const { colors, isDark } = useTheme();
     const insets = useSafeAreaInsets();
     const isFocused = useIsFocused();

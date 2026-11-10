@@ -16,6 +16,7 @@ import AppText from '../../components/text';
 import ScreenHeader from '../../components/screen_header';
 import config from '../../config';
 import useTheme from '../../hooks/useTheme';
+import useSecureScreen from '../../hooks/useSecureScreen';
 import { users as usersApi } from '../../services/api';
 import { SET_USER } from '../../store/actions/user';
 import { formatPhone } from '../../utils/format';
@@ -58,6 +59,7 @@ const StatusBanner = ({ type, message, colors, onDismiss }) => {
 };
 
 const ChangePhone = ({ navigation, route }) => {
+    useSecureScreen();
     const { colors } = useTheme();
     const dispatch = useDispatch();
     const reduxUser = useSelector((state) => state.user) || {};

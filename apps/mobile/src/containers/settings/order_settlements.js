@@ -6,6 +6,7 @@ import { Lucide } from '@react-native-vector-icons/lucide';
 import ScreenHeader from '../../components/screen_header';
 import AppText from '../../components/text';
 import useTheme from '../../hooks/useTheme';
+import useSecureScreen from '../../hooks/useSecureScreen';
 import config from '../../config';
 import styles from './styles';
 import { tenants } from '../../services/api';
@@ -75,6 +76,7 @@ function MethodChip({ label, active, onPress, colors, iconSource }) {
 }
 
 const OrderSettlements = ({ navigation }) => {
+    useSecureScreen();
     const { colors } = useTheme();
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);

@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { Platform } from 'react-native';
+import DeviceInfo from 'react-native-device-info';
 import { getAccessToken, getRefreshToken, setTokens, clearTokens } from './utils/secureStorage';
 import appconfig from './config';
 import { rootNavigationRef } from './navigators/main';
@@ -9,6 +11,7 @@ const MAX_GET_RETRIES = 2;
 const RETRY_DELAY_MS = 1000;
 import { SUBSCRIPTION_RENEWAL_CODES as SUBSCRIPTION_ERROR_CODES } from './utils/subscriptionAccess';
 import AppAlert from './utils/appAlert';
+import { clearStepUpToken, getStepUpToken, requestStepUpToken } from './utils/stepUp';
 const FEATURE_GATE_CODES = new Set([
     'FEATURE_NOT_AVAILABLE',
     'SUBSCRIPTION_FEATURES_UNKNOWN',
@@ -99,6 +102,19 @@ const showSessionExpired = () => {
 
 axios.defaults.timeout = API_TIMEOUT;
 
+/** Shown in the signed-in devices list. */
+const DEVICE_HEADERS = (() => {
+    try {
+        return {
+            'X-Device-Name': `${DeviceInfo.getBrand()} ${DeviceInfo.getModel()}`.trim(),
+            'X-Platform': Platform.OS,
+            'X-App-Version': DeviceInfo.getVersion(),
+        };
+    } catch {
+        return { 'X-Platform': Platform.OS };
+    }
+})();
+
 axios.interceptors.request.use(
     async (config) => {
         const url = String(config.url || '');
@@ -129,6 +145,12 @@ axios.interceptors.request.use(
 
         if (!url.includes(appconfig.BASE_API)) {
             config.url = `${appconfig.BASE_API}${url.startsWith('/') ? url : `/${url}`}`;
+        }
+
+        if (String(config.url).startsWith(appconfig.BASE_API)) {
+            Object.assign(config.headers, DEVICE_HEADERS);
+            const stepUpToken = getStepUpToken();
+            if (stepUpToken && !config.headers['X-Step-Up-Token']) config.headers['X-Step-Up-Token'] = stepUpToken;
         }
 
         if (__DEV__) {
@@ -179,6 +201,19 @@ axios.interceptors.response.use(
         // Let login flow handle subscription-gated /users/me without generic alerts.
         if (isSubscriptionGateOnMe) {
             // console.log('subscription gate on me', error);
+            return Promise.reject(error);
+        }
+
+        if (status === 403 && responseCode === 'STEP_UP_REQUIRED' && !originalRequest._stepUp) {
+            originalRequest._stepUp = true;
+            clearStepUpToken();
+            const token = await requestStepUpToken();
+            if (token) {
+                originalRequest.headers['X-Step-Up-Token'] = token;
+                return axios(originalRequest);
+            }
+            error.message = 'Cancelled. Confirm the code to continue.';
+            if (error.response?.data) error.response.data.message = error.message;
             return Promise.reject(error);
         }
 

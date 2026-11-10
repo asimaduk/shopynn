@@ -1,12 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
 // import Toast from 'react-native-toast-message';
-import { AppState, View, StatusBar, Linking, NativeModules, Platform, BackHandler } from 'react-native';
+import { AppState, View, StatusBar, Linking, Platform } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import SplashScreen from 'react-native-splash-screen';
 import axios from 'axios';
 // import messaging from '@react-native-firebase/messaging';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import JailMonkey from 'jail-monkey';
 import NetInfo from "@react-native-community/netinfo";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import config from '../config';
@@ -15,7 +14,7 @@ import AuthNavigator from './auth';
 import MainNavigator from './main';
 import SubscriptionNavigator from './subscription';
 import { SET_USER, SET_LOGGED_IN } from '../store/actions/user';
-import { products as productsApi, subscriptions as subscriptionsApi } from '../services/api';
+import { products as productsApi, subscriptions as subscriptionsApi, users as usersApi } from '../services/api';
 import { isTenantSubscriptionActive, subscriptionStateFromResponse } from '../utils/subscriptionAccess';
 import { setSubscriptionPlan, setSubscriptionFeatures } from '../store/actions/appSettings';
 import { syncPendingSales } from '../utils/syncPendingSales';
@@ -23,15 +22,19 @@ import useInactivityTimer from '../hooks/useInactivityTimer';
 import ConfirmDialog from '../components/ConfirmDialog';
 import AppUpdateModal from '../components/AppUpdateModal';
 import AppAlert from '../utils/appAlert';
+import DeviceBlockedScreen from '../components/DeviceBlockedScreen';
+import AppLockGate from '../components/AppLockGate';
+import { getDeviceBlockReason } from '../utils/deviceSecurity';
+import { clearTokens } from '../utils/secureStorage';
+import { clearSensitiveOfflineData } from '../utils/secureOfflineStorage';
 
 const ApplicationNavigator = () => {
-    const [isBlocked, setIsBlocked] = useState(false);
+    const [deviceBlockReason] = useState(getDeviceBlockReason);
     const [forceUpdate, setForceUpdate] = useState(false);
     const [softUpdateVisible, setSoftUpdateVisible] = useState(false);
     const [updateReleaseNotes, setUpdateReleaseNotes] = useState('');
     const [latestVersion, setLatestVersion] = useState('');
     const [storeUrlOverride, setStoreUrlOverride] = useState('');
-    const { ContactsModule, ExitManagerModule } = NativeModules || {};
     const user = useSelector(({ user }) => user);
     const subscriptionActive = useSelector(({ appSettings }) => appSettings?.subscriptionActive !== false);
     const dispatch = useDispatch();
@@ -95,29 +98,7 @@ const ApplicationNavigator = () => {
             .catch(() => {});
     }, []);
 
-    const checkJailBroken = async () => {
-        let disAllow = JailMonkey.isJailBroken()
-        
-        //comment this during development, for it will always return true
-        //disAllow = await JailMonkey.isDebuggedMode()
-
-        setIsBlocked(disAllow)
-
-        // getSimState
-        if (ContactsModule?.getSimState) {
-            ContactsModule.getSimState((res)=> {
-                // console.log('getSimState val',res);
-                if(res === 'not-available') {
-                    setIsBlocked(true)
-                }
-            })
-        }
-            
-    }
-    
     useEffect(()=> {
-        checkJailBroken()
-
         NetInfo.fetch()
             .then(netState=> {
                 if(netState.isConnected){
@@ -228,17 +209,6 @@ const ApplicationNavigator = () => {
         // }
     }
 
-    const quitApp = () => {
-        if(Platform.OS==='android') {
-            BackHandler.exitApp()
-        }
-        else {
-            if(ExitManagerModule) {
-                ExitManagerModule.exitApp()
-            }
-        }
-    }
-
     const {
         onNavigationStateChange,
         warningVisible,
@@ -247,6 +217,18 @@ const ApplicationNavigator = () => {
         dismissWarning,
         dismissExpired,
     } = useInactivityTimer(!!isLoggedIn);
+
+    const signOutFromLock = useCallback(async () => {
+        await usersApi.signOutCurrentSession();
+        await clearTokens();
+        await clearSensitiveOfflineData();
+        dispatch({ type: SET_USER, payload: {} });
+        dispatch({ type: SET_LOGGED_IN, payload: false });
+    }, [dispatch]);
+
+    if (deviceBlockReason) {
+        return <DeviceBlockedScreen reason={deviceBlockReason} />;
+    }
 
     const statusBarBackgroundColor =
         Platform.OS === 'android' && !isLoggedIn ? config.THEME_COLOR : colors.background;
@@ -288,6 +270,8 @@ const ApplicationNavigator = () => {
                 :
                 <AuthNavigator />
             }
+
+            <AppLockGate isLoggedIn={isLoggedIn} onSignOut={signOutFromLock} />
 
             <AppUpdateModal
                 visible={forceUpdate}

@@ -12,6 +12,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
   var reactNativeDelegate: ReactNativeDelegate?
   var reactNativeFactory: RCTReactNativeFactory?
+  private var privacyCover: UIView?
 
   func application(
     _ application: UIApplication,
@@ -62,6 +63,24 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     )
     if handledByFB { return true }
     return false
+  }
+
+  // The app-switcher snapshot is taken after resigning active; cover the UI so sales, balances
+  // and payout details never appear in it.
+  func applicationWillResignActive(_ application: UIApplication) {
+    guard privacyCover == nil, let window = window else { return }
+    let cover = UIStoryboard(name: "LaunchScreen", bundle: nil).instantiateInitialViewController()?.view
+      ?? UIView()
+    cover.backgroundColor = cover.backgroundColor ?? .systemBackground
+    cover.frame = window.bounds
+    cover.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    window.addSubview(cover)
+    privacyCover = cover
+  }
+
+  func applicationDidBecomeActive(_ application: UIApplication) {
+    privacyCover?.removeFromSuperview()
+    privacyCover = nil
   }
 }
 

@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { AppState } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { SET_USER, SET_LOGGED_IN } from '../store/actions/user';
+import { clearTokens } from '../utils/secureStorage';
 
 const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 const WARNING_TIME = 25 * 60 * 1000; // warn 5 minutes before logout
@@ -49,6 +50,7 @@ const useInactivityTimer = (isLoggedIn) => {
     const performLogout = useCallback(() => {
         clearTimers();
         setWarningVisible(false);
+        clearTokens().catch(() => {});
         dispatch({ type: SET_USER, payload: {} });
         dispatch({ type: SET_LOGGED_IN, payload: false });
     }, [clearTimers, dispatch]);
@@ -106,8 +108,16 @@ const useInactivityTimer = (isLoggedIn) => {
 
         const subscription = AppState.addEventListener('change', (nextAppState) => {
             if (appStateRef.current.match(/inactive|background/) && nextAppState === 'active') {
+                // Timers don't run while backgrounded, so time away counts as inactivity here.
+                if (Date.now() - lastActivityRef.current >= INACTIVITY_TIMEOUT) {
+                    appStateRef.current = nextAppState;
+                    setExpiredVisible(true);
+                    performLogout();
+                    return;
+                }
                 resetTimerRef.current();
             } else if (appStateRef.current === 'active' && nextAppState.match(/inactive|background/)) {
+                lastActivityRef.current = Date.now();
                 if (timerRef.current) {
                     clearTimeout(timerRef.current);
                     timerRef.current = null;
@@ -134,7 +144,7 @@ const useInactivityTimer = (isLoggedIn) => {
             clearTimers();
             setWarningVisible(false);
         };
-    }, [isLoggedIn, resetTimer, clearTimers]);
+    }, [isLoggedIn, resetTimer, clearTimers, performLogout]);
 
     return {
         resetTimer,

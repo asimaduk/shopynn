@@ -328,6 +328,15 @@ function ProfileApp() {
 								>
 									Change password
 								</Button>
+								<Button
+									component={NavLinkAdapter}
+									to="/apps/profile/devices"
+									variant="outlined"
+									size="small"
+									startIcon={<FuseSvgIcon size={18}>heroicons-outline:device-phone-mobile</FuseSvgIcon>}
+								>
+									Signed-in devices
+								</Button>
 							</Box>
 						</div>
 						<Box className="grid grid-cols-1 sm:grid-cols-2 gap-4">

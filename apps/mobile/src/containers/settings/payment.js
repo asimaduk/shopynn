@@ -5,6 +5,7 @@ import { Lucide } from '@react-native-vector-icons/lucide';
 import AppText from '../../components/text';
 import config from '../../config';
 import useTheme from '../../hooks/useTheme';
+import useSecureScreen from '../../hooks/useSecureScreen';
 import ScreenHeader from '../../components/screen_header';
 import { useSelector } from 'react-redux';
 import { orders, payments, platformSettings } from '../../services/api';
@@ -24,6 +25,7 @@ const normalizeMomoNumber = (value = '') => {
 };
 
 const Payment = ({ navigation, route }) => {
+    useSecureScreen();
     const { colors } = useTheme();
     const insets = useSafeAreaInsets();
     const user = useSelector((state) => state.user);

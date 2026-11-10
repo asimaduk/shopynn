@@ -8,6 +8,8 @@ import {
     verifyCustomerChangeEmailOtp,
 } from "../controllers/emailVerification.js";
 import { sendChangePhoneOtp, verifyChangePhoneOtp } from "../controllers/changePhone.js";
+import { listMySessions, revokeMyOtherSessions, revokeMySession } from "../controllers/userSession.js";
+import { sendStepUpCode, verifyStepUpCode } from "../controllers/stepUp.js";
 import { removeMyProfileImage, setMyProfileImage, uploadProfileImage } from "../controllers/userProfileImage.js";
 import auth from "../middleware/auth.js";
 import requireActiveSubscription from "../middleware/requireActiveSubscription.js";
@@ -40,6 +42,12 @@ router.put('/me/preferences', auth, requireActiveSubscription, updateMyPreferenc
 /** Device push token — no subscription gate so renewal alerts can still target the device. */
 router.put('/me/fcm-token', auth, updateMyFcmToken);
 router.post('/me/sign-out-everywhere', auth, signOutEverywhere);
+router.get('/me/sessions', auth, listMySessions);
+router.post('/me/sessions/revoke-others', auth, revokeMyOtherSessions);
+router.delete('/me/sessions/:id', auth, revokeMySession);
+/** Fresh code before withdrawals and payout changes (see requireStepUp). */
+router.post('/me/step-up/send-otp', auth, otpSendLimit, sendStepUpCode);
+router.post('/me/step-up/verify', auth, credentialCheckLimit, verifyStepUpCode);
 /** Profile contact change — OTP to the new email/phone; no subscription gate. */
 router.post('/me/change-email/send-otp', auth, otpSendLimit, sendCustomerChangeEmailOtp);
 router.post('/me/change-email/verify', auth, credentialCheckLimit, verifyCustomerChangeEmailOtp);

@@ -12,6 +12,7 @@ import {
     createPurchaseReturnService,
 } from "../models/purchaseReturn.js";
 import { hasPermission } from "../middleware/requirePermission.js";
+import { notifyOwnersOfRefundService } from "../models/refundAlert.js";
 
 export const getReturnsHistory = async (req, res, next) => {
     try {
@@ -88,6 +89,9 @@ export const createReturn = async (req, res, next) => {
         };
         const created = await createReturnService(payload);
         handleResponse(res, 201, "Return created.", created);
+        notifyOwnersOfRefundService(req.user, created).catch((err) => {
+            console.error("refund alert failed:", err?.message || err);
+        });
     } catch (error) {
         sendReturnError(res, next, error);
     }

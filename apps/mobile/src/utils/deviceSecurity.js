@@ -2,6 +2,23 @@ import { Platform } from 'react-native';
 import JailMonkey from 'jail-monkey';
 import DeviceInfo from 'react-native-device-info';
 
+/**
+ * Release builds refuse to run on rooted/jailbroken devices and Android emulators.
+ * Debug builds are never blocked so simulators and dev phones keep working.
+ * @returns {'emulator'|'rooted'|null}
+ */
+export function getDeviceBlockReason() {
+    if (__DEV__) return null;
+    try {
+        // Checked first: emulator images also trip the root heuristics.
+        if (Platform.OS === 'android' && typeof DeviceInfo.isEmulatorSync === 'function' && DeviceInfo.isEmulatorSync()) {
+            return 'emulator';
+        }
+        if (JailMonkey.isJailBroken()) return 'rooted';
+    } catch (_) {}
+    return null;
+}
+
 export function getDeviceSecurityState() {
     try {
         // Simulators/emulators trip jailbreak heuristics; only warn on real devices.

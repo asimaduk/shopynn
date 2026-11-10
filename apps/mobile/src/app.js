@@ -15,7 +15,7 @@ import messaging from '@react-native-firebase/messaging';
 import PushNotification from 'react-native-push-notification';
 import { useEffect } from 'react';
 import { LogBox, Platform } from 'react-native';
-import { getDeviceSecurityState } from './utils/deviceSecurity';
+import { getDeviceBlockReason, getDeviceSecurityState } from './utils/deviceSecurity';
 import SplashScreen from 'react-native-splash-screen';
 import {
 	registerPushAfterLogin,
@@ -25,6 +25,7 @@ import {
 import { handleIncomingRemoteMessageData } from './utils/notificationNavigation';
 import NotificationPermissionHost from './components/NotificationPermissionHost';
 import AppAlertHost from './components/AppAlertHost';
+import StepUpHost from './components/StepUpHost';
 import AppAlert from './utils/appAlert';
 // LogBox.ignoreLogs(['Reanimated 2']);
 LogBox.ignoreAllLogs();
@@ -129,6 +130,7 @@ const App = () => {
 		configureSocialAuth();
 	}, []);
 	useEffect(() => {
+		if (getDeviceBlockReason()) return;
 		const securityState = getDeviceSecurityState();
 		if (securityState?.isCompromised) {
 			AppAlert.alert(
@@ -157,6 +159,7 @@ const App = () => {
 						<PushLifecycle />
 						<ApplicationNavigator />
 						<NotificationPermissionHost />
+						<StepUpHost />
 						<AppAlertHost />
 						<Toast />
 					</>

@@ -8,6 +8,7 @@ import ScreenHeader from '../../components/screen_header';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import { users as usersApi } from '../../services/api';
 import useTheme from '../../hooks/useTheme';
+import useSecureScreen from '../../hooks/useSecureScreen';
 import { SET_USER, SET_LOGGED_IN } from '../../store/actions/user';
 import { clearTokens } from '../../utils/secureStorage';
 import AppAlert from '../../utils/appAlert';
@@ -33,6 +34,7 @@ const PasswordInput = memo(({ label, placeholder, value, onChangeText, visible, 
 ));
 
 const ResetPassword = ({ navigation, route: { params: { changePassword = false } } }) => {
+    useSecureScreen();
     const { colors } = useTheme();
     const dispatch = useDispatch();
     const user = useSelector(({ user }) => user);

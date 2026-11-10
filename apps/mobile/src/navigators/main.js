@@ -35,6 +35,7 @@ import ProfileForm from '../containers/settings/profile_form';
 import ResetPassword from '../containers/settings/reset_password';
 import ChangeEmail from '../containers/settings/change_email';
 import ChangePhone from '../containers/settings/change_phone';
+import SignedInDevices from '../containers/settings/signed_in_devices';
 import CompanyProfile from '../containers/settings/company_profile';
 import Warehouses from '../containers/settings/warehouses';
 import Customers from '../containers/settings/customers';
@@ -456,6 +457,7 @@ function MainNavigator({ user, onNavigationStateChange }) {
                 <Stack.Screen name="ResetPassword" component={ResetPassword} options={{ headerShown: false }} />
                 <Stack.Screen name="ChangeEmail" component={ChangeEmail} options={{ headerShown: false }} />
                 <Stack.Screen name="ChangePhone" component={ChangePhone} options={{ headerShown: false }} />
+                <Stack.Screen name="SignedInDevices" component={SignedInDevices} options={{ headerShown: false }} />
                 <Stack.Screen name="CompanyProfile" component={CompanyProfile} options={{ headerShown: false }} />
                 <Stack.Screen name="Warehouses" component={Warehouses} options={{ headerShown: false }} />
                 <Stack.Screen name="Customers" component={Customers} options={{ headerShown: false }} />

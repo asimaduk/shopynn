@@ -1,12 +1,16 @@
 import apiFetch from '@/utils/apiFetch';
 
 /**
- * Login user
+ * Login user. Runs on the server, so the browser's user agent is forwarded for the signed-in devices list.
  */
-export async function authLoginUser(user) {
+export async function authLoginUser(user, browserUserAgent?: string) {
 	return apiFetch('/api/users/login', {
 		method: 'POST',
-		body: JSON.stringify(user)
+		body: JSON.stringify(user),
+		headers: {
+			'X-Platform': 'web',
+			...(browserUserAgent ? { 'User-Agent': browserUserAgent } : {})
+		}
 	});
 }
 

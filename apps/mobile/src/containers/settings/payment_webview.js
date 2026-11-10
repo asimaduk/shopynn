@@ -5,6 +5,7 @@ import { useDispatch } from 'react-redux';
 import AppText from '../../components/text';
 import config from '../../config';
 import useTheme from '../../hooks/useTheme';
+import useSecureScreen from '../../hooks/useSecureScreen';
 import ScreenHeader from '../../components/screen_header';
 import { payments } from '../../services/api';
 import { setSubscriptionActive } from '../../store/actions/appSettings';
@@ -43,6 +44,7 @@ const isGatewayUrl = (url) => {
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const PaymentWebView = ({ navigation, route }) => {
+    useSecureScreen();
     const { colors } = useTheme();
     const dispatch = useDispatch();
     const {

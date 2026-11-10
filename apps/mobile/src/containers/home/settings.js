@@ -9,6 +9,7 @@ import AppText from '../../components/text';
 import config from '../../config';
 import useTheme from '../../hooks/useTheme';
 import { isBiometricSupported, isBiometricLoginEnabled, getBiometricType, disableBiometricLogin } from '../../utils/biometricAuth';
+import { isAppLockEnabled, promptAppUnlock, setAppLockEnabled } from '../../utils/appLock';
 import { useFocusEffect } from '@react-navigation/native';
 import {
     canAccessScreen,
@@ -26,7 +27,7 @@ import {
 import { clearTokens } from '../../utils/secureStorage';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { displayEmail, formatPhone } from '../../utils/format';
-import { tenants as tenantsApi } from '../../services/api';
+import { tenants as tenantsApi, users as usersApi } from '../../services/api';
 import AppAlert from '../../utils/appAlert';
 
 const TAB_BAR_HEIGHT = 60;
@@ -82,6 +83,7 @@ const Settings = ({ navigation, route }) => {
     const [biometricSupported, setBiometricSupported] = useState(false);
     const [biometricEnabled, setBiometricEnabled] = useState(false);
     const [biometricLabel, setBiometricLabel] = useState('Biometrics');
+    const [appLockEnabled, setAppLockEnabledState] = useState(false);
     const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
     const [signingOut, setSigningOut] = useState(false);
     const [pendingSalesCount, setPendingSalesCount] = useState(0);
@@ -264,10 +266,12 @@ const Settings = ({ navigation, route }) => {
             const supported = await isBiometricSupported();            
             const enabled = await isBiometricLoginEnabled();
             const label = await getBiometricType();
+            const lockEnabled = await isAppLockEnabled();
             if (mounted) {
                 setBiometricSupported(supported);
                 setBiometricEnabled(enabled);
                 setBiometricLabel(label);
+                setAppLockEnabledState(lockEnabled);
             }
         })();
         return () => { mounted = false; };
@@ -285,6 +289,13 @@ const Settings = ({ navigation, route }) => {
         }
     };
 
+    const handleAppLockToggle = async (value) => {
+        const verified = await promptAppUnlock(value ? 'Confirm to turn on app lock' : 'Confirm to turn off app lock');
+        if (!verified) return;
+        await setAppLockEnabled(value);
+        setAppLockEnabledState(value);
+    };
+
     const handleSignOut = () => {
         setShowSignOutConfirm(true);
     };
@@ -293,6 +304,7 @@ const Settings = ({ navigation, route }) => {
         if (signingOut) return;
         setSigningOut(true);
         try {
+            await usersApi.signOutCurrentSession();
             await clearTokens();
             await clearSensitiveOfflineData();
             dispatch({ type: SET_USER, payload: {} });
@@ -469,10 +481,10 @@ const Settings = ({ navigation, route }) => {
                 </View>
 
                 {/* Security Section */}
-                {biometricSupported && (
-                    <View style={styles.section}>
-                        <AppText label={'Security'} variant={1} fontSize={14} color={colors.textTertiary} style={styles.sectionTitle} />
-                        <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <View style={styles.section}>
+                    <AppText label={'Security'} variant={1} fontSize={14} color={colors.textTertiary} style={styles.sectionTitle} />
+                    <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                        {biometricSupported && (
                             <View style={styles.menuItem}>
                                 <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
                                     <Lucide name="scan-face" color={config.THEME_COLOR} size={20} />
@@ -488,9 +500,39 @@ const Settings = ({ navigation, route }) => {
                                     thumbColor={biometricEnabled ? config.THEME_COLOR : colors.textTertiary}
                                 />
                             </View>
-                        </View>
+                        )}
+                        {biometricSupported && (
+                            <View style={styles.menuItem}>
+                                <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                    <Lucide name="lock" color={config.THEME_COLOR} size={20} />
+                                </View>
+                                <View style={styles.menuContent}>
+                                    <AppText label={'Lock app with ' + biometricLabel} variant={2} color={colors.text} fontSize={15} />
+                                    <AppText label={'Ask for ' + biometricLabel + ' when you open the app or return after a minute away'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
+                                </View>
+                                <Switch
+                                    value={appLockEnabled}
+                                    onValueChange={handleAppLockToggle}
+                                    trackColor={{ false: colors.border, true: colors.primaryShade }}
+                                    thumbColor={appLockEnabled ? config.THEME_COLOR : colors.textTertiary}
+                                />
+                            </View>
+                        )}
+                        <TouchableOpacity
+                            activeOpacity={.6}
+                            onPress={() => navigation.navigate('SignedInDevices')}
+                            style={styles.menuItem}>
+                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                <Lucide name="monitor-smartphone" color={config.THEME_COLOR} size={20} />
+                            </View>
+                            <View style={styles.menuContent}>
+                                <AppText label={'Signed-in devices'} variant={2} color={colors.text} fontSize={15} />
+                                <AppText label={'See where your account is signed in and sign out other devices'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
+                            </View>
+                            <Lucide name="chevron-right" color={colors.border} size={18} />
+                        </TouchableOpacity>
                     </View>
-                )}
+                </View>
 
                 {/* Appearance Section */}
                 <View style={styles.section}>

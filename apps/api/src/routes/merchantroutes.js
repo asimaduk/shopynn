@@ -1,5 +1,6 @@
 import express from "express";
 import auth from "../middleware/auth.js";
+import requireStepUp from "../middleware/requireStepUp.js";
 import requireMerchant, { requireMerchantRecord, requireAgentManager } from "../middleware/requireMerchant.js";
 import requireActiveSubscription from "../middleware/requireActiveSubscription.js";
 import requireFeature from "../middleware/requireFeature.js";
@@ -67,11 +68,11 @@ const anyAgent = [
 
 router.get("/earnings", ...anyAgent, getMyEarnings);
 router.get("/payout-profile", ...anyAgent, getMyPayoutProfile);
-router.put("/payout-profile", ...anyAgent, saveMyPayoutProfile);
+router.put("/payout-profile", ...anyAgent, requireStepUp, saveMyPayoutProfile);
 
 router.get("/admin/payouts", ...payoutApprover, listAgentPayouts);
 router.post("/admin/payouts/prepare", ...payoutApprover, prepareAgentPayouts);
-router.post("/admin/payouts/:id/approve", ...payoutApprover, approveAgentPayout);
+router.post("/admin/payouts/:id/approve", ...payoutApprover, requireStepUp, approveAgentPayout);
 router.post("/admin/payouts/:id/reject", ...payoutApprover, rejectAgentPayout);
 router.post("/admin/payouts/:id/mark-failed", ...payoutApprover, markAgentPayoutFailed);
 router.post("/admin/commissions/:id/cancel", ...platformAdmin, cancelCommission);

@@ -20,4 +20,27 @@
             <certificates src="system" />
         </trust-anchors>
     </domain-config>
+    <!-- API: pinned to CA keys (Let's Encrypt roots, plus Google Trust Services in case the host
+         switches CA), never the leaf, so routine certificate renewals keep working. Pinning turns
+         itself off after the expiration date so an outdated app can't be locked out for good. -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="false">api.shopynn.app</domain>
+        <pin-set expiration="2028-12-31">
+            <!-- ISRG Root X1 -->
+            <pin digest="SHA-256">C5+lpZ7tcVwmwQIMcRtPbsQtWLABXhQzejna0wHFr8M=</pin>
+            <!-- ISRG Root X2 -->
+            <pin digest="SHA-256">diGVwiVYbubAI3RW4hB9xU8e/CH2GnkuvVFZE8zmgzI=</pin>
+            <!-- ISRG Root YE -->
+            <pin digest="SHA-256">sCkq5UWXjg+7mKu9lMhhYF5bGLsy7VI/UNW3tccdR7w=</pin>
+            <!-- ISRG Root YR -->
+            <pin digest="SHA-256">fk6IOKit1ild5647BH06ujSIq5XbCgqlbYl6ANhhi88=</pin>
+            <!-- GTS Root R1 -->
+            <pin digest="SHA-256">hxqRlPTu1bMS/0DITB1SSu0vd4u/8l8TjPgfaAp63Gc=</pin>
+            <!-- GTS Root R4 -->
+            <pin digest="SHA-256">mEflZT5enoR1FuXLgYYGqnVEoZvmf9c2bVBpiOjYQ0c=</pin>
+        </pin-set>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
 </network-security-config>

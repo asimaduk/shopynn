@@ -7,6 +7,7 @@ import AppText from '../../components/text';
 import config from '../../config';
 import ScreenHeader from '../../components/screen_header';
 import useTheme from '../../hooks/useTheme';
+import useSecureScreen from '../../hooks/useSecureScreen';
 import { merchants as merchantsApi } from '../../services/api';
 import AppAlert from '../../utils/appAlert';
 import {
@@ -30,6 +31,7 @@ function momoLine(p) {
 
 /** Platform admin: weekly agent payout queue — approving sends MoMo via Paystack. */
 const AgentPayouts = ({ navigation }) => {
+    useSecureScreen();
     const { colors } = useTheme();
     const insets = useSafeAreaInsets();
     const canGoBack = typeof navigation.canGoBack === 'function' && navigation.canGoBack();

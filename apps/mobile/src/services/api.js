@@ -258,6 +258,15 @@ export const users = {
         axios
             .post('/users/me/change-phone/verify', { phone, otp }, { skipErrorAlert: true })
             .then((res) => getData(res)),
+    listSessions: () =>
+        axios.get('/users/me/sessions', { skipErrorAlert: true }).then((res) => normalizeList(getData(res))),
+    revokeSession: (id) =>
+        axios.delete(`/users/me/sessions/${encodeURIComponent(id)}`, { skipErrorAlert: true }).then((res) => getData(res)),
+    revokeOtherSessions: () =>
+        axios.post('/users/me/sessions/revoke-others', {}, { skipErrorAlert: true }).then((res) => getData(res)),
+    /** Ends this device's session on the server; local sign-out continues even if this fails. */
+    signOutCurrentSession: () =>
+        axios.delete('/users/me/sessions/current', { skipErrorAlert: true, timeout: 5000 }).catch(() => {}),
 };
 
 // —— Dashboard & Reports ——

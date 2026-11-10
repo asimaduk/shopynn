@@ -6,6 +6,7 @@ dotenv.config();
 
 import errorhandling from "./middleware/errorhandler.js";
 import indexroute from "./routes/index.js";
+import { requestContextMiddleware } from "./util/requestContext.js";
 import { startSubscriptionStatusJob } from "./jobs/subscriptionStatusJob.js";
 import { startDailySalesSummaryNotificationJob } from "./jobs/dailySalesSummaryNotificationJob.js";
 import { startAgentPayoutJob } from "./jobs/agentPayoutJob.js";
@@ -62,6 +63,8 @@ app.use(
 app.get('/health', (_req, res) => {
     res.status(200).json({ ok: true });
 });
+
+app.use(requestContextMiddleware);
 
 //route
 app.use('/api',indexroute)

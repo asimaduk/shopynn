@@ -3,6 +3,7 @@ import { BaseQueryFn, FetchArgs, FetchBaseQueryError, FetchBaseQueryMeta } from 
 import { API_BASE_URL } from '@/utils/apiFetch';
 import { getSession, signOut } from 'next-auth/react';
 import { signInCallbackUrl } from '@/@auth/signOutUrl';
+import { clearStepUpToken, getStepUpToken, requestStepUpToken } from '@/utils/stepUp';
 
 export const globalHeaders: Record<string, string> = {}
 let signingOutAfter401 = false;
@@ -42,7 +43,31 @@ const baseQuery: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError, o
 		};
 	}
 
-	const result = await rawBaseQuery(args, api, extraOptions);
+	const withStepUp = (token: string | null): string | FetchArgs => {
+		if (!token) return args;
+		const fetchArgs = typeof args === 'string' ? { url: args } : args;
+		return {
+			...fetchArgs,
+			headers: { ...((fetchArgs.headers as Record<string, string>) || {}), 'X-Step-Up-Token': token }
+		};
+	};
+
+	let result = await rawBaseQuery(withStepUp(getStepUpToken()), api, extraOptions);
+
+	const stepUpCode = String((result.error as FetchBaseQueryError & { data?: any })?.data?.code || '');
+	if (result.error?.status === 403 && stepUpCode === 'STEP_UP_REQUIRED' && typeof window !== 'undefined') {
+		clearStepUpToken();
+		const token = await requestStepUpToken();
+		if (!token) {
+			return {
+				error: {
+					status: 403,
+					data: { code: 'STEP_UP_CANCELLED', message: 'Cancelled. Confirm the code to continue.' }
+				} as FetchBaseQueryError
+			};
+		}
+		result = await rawBaseQuery(withStepUp(token), api, extraOptions);
+	}
 
 	// Centralized handling for auth/subscription/feature denials.
 	if (result.error && result.error.status === 401 && typeof window !== 'undefined' && !signingOutAfter401) {

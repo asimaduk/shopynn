@@ -3,6 +3,7 @@ import auth from "../middleware/auth.js";
 import requireActiveSubscription from "../middleware/requireActiveSubscription.js";
 import requireFeature from "../middleware/requireFeature.js";
 import { requirePermission } from "../middleware/requirePermission.js";
+import requireStepUp from "../middleware/requireStepUp.js";
 import {
     setupTenant,
     updateMyCompanyInfo,
@@ -92,6 +93,7 @@ router.put(
     requireActiveSubscription,
     requireFeature("payments.view"),
     requirePermission("payouts.manage"),
+    requireStepUp,
     updateMyPayoutProfile
 );
 router.post(
@@ -100,6 +102,7 @@ router.post(
     requireActiveSubscription,
     requireFeature("payments.view"),
     requirePermission("payouts.manage"),
+    requireStepUp,
     requestMyWithdrawal
 );
 router.post(
@@ -108,6 +111,7 @@ router.post(
     requireActiveSubscription,
     requireFeature("payments.view"),
     requirePermission("payouts.manage"),
+    requireStepUp,
     retryMyWithdrawal
 );
 router.get(
@@ -172,6 +176,7 @@ router.patch(
     requireActiveSubscription,
     requireFeature("tenants.directory.view"),
     requirePermission("tenants.directory.view"),
+    requireStepUp,
     approveAdminSettlement
 );
 router.patch(
