@@ -15,7 +15,7 @@ export function collectionCharge(faceAmount, percent, enabled, feePayer) {
         face,
         fee,
         charge: shopPays ? face : Math.round((face + fee) * 100) / 100,
-        settlement: shopPays ? Math.round(Math.max(0, face - fee) * 100) / 100,
+        settlement: shopPays ? Math.round(Math.max(0, face - fee) * 100) / 100 : face,
         feePayer: payer,
     };
 }
