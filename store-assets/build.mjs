@@ -32,6 +32,7 @@ const SLIDES = [
 	{ file: '03_momo', title: 'Take <em>MoMo</em><br>at the counter', sub: 'MTN, Telecel and AirtelTigo. You choose who pays the fee' },
 	{ file: '04_inventory', title: 'Always know<br><em>what’s in stock</em>', sub: 'Low-stock alerts before you run out' },
 	{ file: '05_reports', title: 'Watch your<br><em>business grow</em>', sub: 'Daily sales, best sellers and staff reports' },
+	{ file: '06_stores', title: 'Run every branch<br><em>from one app</em>', sub: 'Separate stock per store, with transfers between them' },
 	{ file: '07_roles', title: 'Give staff the<br><em>right access</em>', sub: 'Cashier, manager or your own custom roles' },
 ];
 
