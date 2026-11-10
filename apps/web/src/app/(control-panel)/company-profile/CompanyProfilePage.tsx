@@ -10,6 +10,9 @@ import Box from '@mui/material/Box';
 import Avatar from '@mui/material/Avatar';
 import InputAdornment from '@mui/material/InputAdornment';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import FormControl from '@mui/material/FormControl';
+import Radio from '@mui/material/Radio';
+import RadioGroup from '@mui/material/RadioGroup';
 import Switch from '@mui/material/Switch';
 import MenuItem from '@mui/material/MenuItem';
 import Alert from '@mui/material/Alert';
@@ -25,6 +28,7 @@ import {
 	isCompanyProfileSet
 } from './CompanyProfileApi';
 import { DEFAULT_BULK_DISCOUNT } from '@/utils/bulkDiscount';
+import { normalizeFeePayer, type MomoFeePayer } from '@/utils/momoFeePayer';
 import { URLS } from '@/configs/settingsConfig';
 import toast from 'react-hot-toast';
 
@@ -57,6 +61,7 @@ export default function CompanyProfilePage() {
 	const [industryOther, setIndustryOther] = useState('');
 	const [bulkEnabled, setBulkEnabled] = useState(DEFAULT_BULK_DISCOUNT.enabled);
 	const [bulkThreshold, setBulkThreshold] = useState(String(DEFAULT_BULK_DISCOUNT.quantity_threshold));
+	const [momoFeePayer, setMomoFeePayer] = useState<MomoFeePayer>('customer');
 	const [logoKey, setLogoKey] = useState<string | null>(null);
 	const [previewUrl, setPreviewUrl] = useState('');
 	const [pendingFile, setPendingFile] = useState<File | null>(null);
@@ -75,6 +80,7 @@ export default function CompanyProfilePage() {
 		setBulkThreshold(
 			String(profile.bulkDiscount?.quantity_threshold || DEFAULT_BULK_DISCOUNT.quantity_threshold)
 		);
+		setMomoFeePayer(normalizeFeePayer(profile.momoFeePayer));
 
 		// Don't wipe a just-selected file preview when profile/industries re-sync.
 		if (!pendingFile && !previewUrlRef.current) {
@@ -185,7 +191,8 @@ export default function CompanyProfilePage() {
 			bulkDiscount: {
 				enabled: bulkEnabled,
 				quantity_threshold: thresholdNum
-			}
+			},
+			momoFeePayer
 		};
 
 		try {
@@ -525,6 +532,43 @@ export default function CompanyProfilePage() {
 										inputProps={{ inputMode: 'numeric', min: 1 }}
 										helperText="Example: 10 means qty 10+ uses wholesale price"
 									/>
+								</Box>
+
+								<Box
+									className="rounded-xl p-4 flex flex-col gap-3"
+									sx={{ bgcolor: 'action.hover', border: '1px solid', borderColor: 'divider' }}
+								>
+									<Box className="flex items-center gap-2">
+										<FuseSvgIcon size={20} color="action">
+											heroicons-outline:banknotes
+										</FuseSvgIcon>
+										<Typography variant="subtitle2" fontWeight={600}>
+											Who pays the MoMo collection fee
+										</Typography>
+									</Box>
+									<Typography variant="body2" color="text.secondary">
+										Digital collections include a platform fee (currently 2%). The customer can pay
+										it on the prompt, or your shop can absorb it from withdrawals. You still receive
+										the sale amount if the customer pays; you receive sale minus the fee if the shop
+										pays.
+									</Typography>
+									<FormControl>
+										<RadioGroup
+											value={momoFeePayer}
+											onChange={(e) => setMomoFeePayer(normalizeFeePayer(e.target.value))}
+										>
+											<FormControlLabel
+												value="customer"
+												control={<Radio />}
+												label="Customer pays (sale + 2% on the MoMo prompt)"
+											/>
+											<FormControlLabel
+												value="shop"
+												control={<Radio />}
+												label="Shop pays (customer pays the sale amount)"
+											/>
+										</RadioGroup>
+									</FormControl>
 								</Box>
 
 								<Box className="flex gap-2 pt-2">

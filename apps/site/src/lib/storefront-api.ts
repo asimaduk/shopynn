@@ -153,29 +153,42 @@ export async function getMomoPaymentCharge(token: string) {
     enabled?: boolean;
     percent?: number;
     min_percent?: number;
+    fee_payer?: string;
   };
+  const fee_payer = String(data?.fee_payer || "").toLowerCase() === "shop" ? "shop" : "customer";
   return {
     enabled: data?.enabled !== false,
     percent: Number(data?.percent) || 2,
     min_percent: Number(data?.min_percent) || 2,
+    fee_payer,
   };
 }
 
 export function computeStorefrontCollectionCharge(
   faceAmount: number,
-  settings: { enabled: boolean; percent: number },
+  settings: { enabled: boolean; percent: number; fee_payer?: string },
 ) {
   const face = Math.round(Number(faceAmount || 0) * 100) / 100;
+  const feePayer = String(settings.fee_payer || "").toLowerCase() === "shop" ? "shop" : "customer";
   if (!settings.enabled || face <= 0) {
-    return { face_amount: face, fee_amount: 0, charge_amount: face, percent: settings.percent, enabled: false };
+    return {
+      face_amount: face,
+      fee_amount: 0,
+      charge_amount: face,
+      percent: settings.percent,
+      enabled: false,
+      fee_payer: feePayer,
+    };
   }
   const fee = Math.round(((face * settings.percent) / 100) * 100) / 100;
+  const shopPays = feePayer === "shop";
   return {
     face_amount: face,
     fee_amount: fee,
-    charge_amount: Math.round((face + fee) * 100) / 100,
+    charge_amount: shopPays ? face : Math.round((face + fee) * 100) / 100,
     percent: settings.percent,
     enabled: true,
+    fee_payer: feePayer,
   };
 }
 

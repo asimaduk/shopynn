@@ -52,6 +52,7 @@ export type User = {
 				enabled?: boolean;
 				quantity_threshold?: number;
 			};
+			momo_fee_payer?: 'customer' | 'shop';
 		} | null;
 		plan_usage?: TenantPlanUsage;
 		subscription?: {

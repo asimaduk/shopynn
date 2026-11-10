@@ -78,11 +78,12 @@ const Payment = ({ navigation, route }) => {
 
     const faceAmount = Number(amount) || 0;
     const feePercent = isOrderFlow && momoCharge?.enabled ? Number(momoCharge.percent) || 0 : 0;
+    const shopPaysFee = String(momoCharge?.fee_payer || '').toLowerCase() === 'shop';
     const feeAmount =
         isOrderFlow && feePercent > 0
             ? Math.round(((faceAmount * feePercent) / 100) * 100) / 100
             : 0;
-    const chargeAmount = Math.round((faceAmount + feeAmount) * 100) / 100;
+    const chargeAmount = Math.round((faceAmount + (shopPaysFee ? 0 : feeAmount)) * 100) / 100;
 
     const validateMomoForm = () => {
         const phone = normalizeMomoNumber(momoNumber);
@@ -329,7 +330,7 @@ const Payment = ({ navigation, route }) => {
                         <AppText label="Amount" fontSize={14} color={colors.textSecondary} />
                         <AppText label={formatCurrency(faceAmount)} variant={1} fontSize={18} color={config.THEME_COLOR} />
                     </View>
-                    {isOrderFlow && feeAmount > 0 ? (
+                    {isOrderFlow && feeAmount > 0 && !shopPaysFee ? (
                         <>
                             <View style={styles.summaryRow}>
                                 <AppText

@@ -145,6 +145,7 @@ export const initiatePayment = async (req, res, next) => {
             apply_platform_fee,
             payment_number,
             force_new,
+            fee_payer,
         } = req.body;
 
         const rawFace = face_amount != null ? Number(face_amount) : Number(amount);
@@ -172,7 +173,10 @@ export const initiatePayment = async (req, res, next) => {
         let charge = face;
         let chargeMeta = null;
         if (shouldApplyPlatformFee) {
-            chargeMeta = await computeChargeForFaceAmountService(face);
+            chargeMeta = await computeChargeForFaceAmountService(face, {
+                tenantId: tenant_id,
+                feePayer: payment_source === "pos_sale" ? fee_payer : undefined,
+            });
             face = chargeMeta.face_amount;
             fee = chargeMeta.fee_amount;
             charge = chargeMeta.charge_amount;
@@ -183,6 +187,7 @@ export const initiatePayment = async (req, res, next) => {
             fee_amount: fee,
             charge_amount: charge,
             percent: chargeMeta?.percent ?? 0,
+            fee_payer: chargeMeta?.fee_payer || "customer",
         };
 
         // POS MoMo: reuse confirmed orphan payments / resume open pending instead of double-charging.
@@ -244,6 +249,7 @@ export const initiatePayment = async (req, res, next) => {
             payment_method_type,
             payment_source: payment_source || (shouldApplyPlatformFee ? "pos_sale" : null),
             payment_number: payment_number || (payment_method_type === "mobile_money" ? phone : null),
+            fee_payer: chargeMeta?.fee_payer,
         });
 
         // MoMo payers are the phone owner (not the cashier); card checkout is the signed-in account.
@@ -265,6 +271,7 @@ export const initiatePayment = async (req, res, next) => {
                 face_amount: face,
                 fee_amount: fee,
                 payment_source: payment_source || null,
+                fee_payer: chargeMeta?.fee_payer || null,
             },
             phone,
             provider,

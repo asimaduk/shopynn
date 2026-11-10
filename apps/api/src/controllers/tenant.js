@@ -40,18 +40,22 @@ async function loadCompanyAuditSnapshot(tenantId) {
     const row = result.rows[0];
     if (!row) return null;
     let bulk = null;
+    let feePayer = null;
     try {
         const settings =
             typeof row.settings === "string" ? JSON.parse(row.settings) : row.settings;
         bulk = settings?.bulk_discount ?? null;
+        feePayer = settings?.momo_fee_payer ?? null;
     } catch (_) {
         bulk = null;
+        feePayer = null;
     }
     const snap = {};
     for (const field of COMPANY_AUDIT_FIELDS) {
         snap[field] = row[field] ?? null;
     }
     snap.bulk_discount = bulk;
+    snap.momo_fee_payer = feePayer;
     return snap;
 }
 
@@ -62,6 +66,7 @@ function snapshotCompanyForAudit(tenant) {
         snap[field] = tenant[field] ?? null;
     }
     snap.bulk_discount = tenant.settings?.bulk_discount ?? null;
+    snap.momo_fee_payer = tenant.settings?.momo_fee_payer ?? null;
     return snap;
 }
 

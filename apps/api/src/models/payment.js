@@ -327,6 +327,7 @@ export const createPendingPaymentForCheckoutService = async (payload) => {
         fee_amount,
         payment_source,
         payment_number,
+        fee_payer,
     } = payload;
     if (!subscription_id && !order_id && !sale_id && tenant_id && payment_source !== "pos_sale") {
         const tenantRow = await pool.query(
@@ -343,13 +344,14 @@ export const createPendingPaymentForCheckoutService = async (payload) => {
             : Number(amount) || 0;
     const fee =
         fee_amount != null && Number.isFinite(Number(fee_amount)) ? Number(fee_amount) : 0;
+    const payer = String(fee_payer || "").trim().toLowerCase() === "shop" ? "shop" : "customer";
     await pool.query(
         `INSERT INTO payments (
             id, amount, subscription_id, customer_id, order_id, sale_id, tenant_id, creator_id,
             payment_method_type, payment_number, transaction_ref, status, quote_id,
-            face_amount, fee_amount, payment_source, created_at, updated_at
+            face_amount, fee_amount, payment_source, fee_payer, created_at, updated_at
          )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $17)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $18)`,
         [
             id,
             amount ?? 0,
@@ -367,6 +369,7 @@ export const createPendingPaymentForCheckoutService = async (payload) => {
             face,
             fee,
             payment_source || null,
+            payer,
             new Date(),
         ]
     );
@@ -385,9 +388,10 @@ export const createPendingPaymentForCheckoutService = async (payload) => {
             payment_method_type: payment_method_type || null,
             payment_source: payment_source || null,
             quote_id: quote_id || null,
+            fee_payer: payer,
         },
     });
-    return { id, transaction_ref, face_amount: face, fee_amount: fee, amount: Number(amount) || 0 };
+    return { id, transaction_ref, face_amount: face, fee_amount: fee, amount: Number(amount) || 0, fee_payer: payer };
 };
 
 /** Get payment by gateway transaction reference and tenant (for verify/submit-otp and webhook). */

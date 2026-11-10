@@ -1238,11 +1238,12 @@ export const initiateOrderPaymentService = async (user, orderId, body = {}) => {
         actorUserId: user.id,
     });
 
-    const chargeMeta = await computeChargeForFaceAmountService(amount);
+    const chargeMeta = await computeChargeForFaceAmountService(amount, { tenantId: user.tenant_id });
     const { id: payment_id, transaction_ref } = await createPendingPaymentForCheckoutService({
         amount: chargeMeta.charge_amount,
         face_amount: chargeMeta.face_amount,
         fee_amount: chargeMeta.fee_amount,
+        fee_payer: chargeMeta.fee_payer,
         subscription_id: null,
         customer_id: null,
         order_id: orderId,
@@ -1604,11 +1605,12 @@ export const initiatePartialOrderPaymentService = async (user, orderId, body = {
     try {
         await client.query("BEGIN");
 
-        const chargeMeta = await computeChargeForFaceAmountService(payAmount);
+        const chargeMeta = await computeChargeForFaceAmountService(payAmount, { tenantId: user.tenant_id });
         const { id: payment_id, transaction_ref } = await createPendingPaymentForCheckoutService({
             amount: chargeMeta.charge_amount,
             face_amount: chargeMeta.face_amount,
             fee_amount: chargeMeta.fee_amount,
+            fee_payer: chargeMeta.fee_payer,
             subscription_id: null,
             customer_id: null,
             order_id: orderId,

@@ -29,6 +29,9 @@ import {
 	useGetMomoPaymentChargeQuery
 } from '../../billing/SubscriptionApi';
 import { MOMO_NETWORK_OPTIONS } from '@/utils/momoNetworks';
+import { collectionCharge, normalizeFeePayer, type MomoFeePayer } from '@/utils/momoFeePayer';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import { normalizeWarehousePrinterType } from '../../setups/warehouses/models/WarehouseModel';
 import { appConfirm } from '@/utils/appConfirm';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
@@ -100,6 +103,7 @@ export default function PaymentDialog({
 	const [statusText, setStatusText] = React.useState('');
 	const [sending, setSending] = React.useState(false);
 	const [parking, setParking] = React.useState(false);
+	const [feePayer, setFeePayer] = React.useState<MomoFeePayer>('customer');
 	const pollRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 	const resumeAppliedRef = React.useRef(false);
 
@@ -124,8 +128,9 @@ export default function PaymentDialog({
 	})();
 	const face = toMoney(Math.max(0, saleFace - storeCreditApplied));
 	const percent = chargeSettings?.enabled ? Number(chargeSettings.percent) || 0 : 0;
-	const fee = chargeSettings?.enabled ? toMoney((face * percent) / 100) : 0;
-	const chargeAmount = toMoney(face + fee);
+	const priced = collectionCharge(face, percent, Boolean(chargeSettings?.enabled), feePayer);
+	const fee = priced.fee;
+	const chargeAmount = priced.charge;
 	const isTelecel = network === 'vod';
 	const momoChargeOpen = paymentType === 'Momo' && Boolean(transactionRef);
 	const momoPaid = momoChargeOpen && chargePaid;
@@ -188,10 +193,11 @@ export default function PaymentDialog({
 			setStatusText('');
 			setSending(false);
 			setParking(false);
+			setFeePayer(normalizeFeePayer(chargeSettings?.fee_payer));
 			resumeAppliedRef.current = false;
 			stopPolling();
 		}
-	}, [open, stopPolling]);
+	}, [open, stopPolling, chargeSettings?.fee_payer]);
 
 	React.useEffect(() => {
 		return () => stopPolling();
@@ -360,7 +366,8 @@ export default function PaymentDialog({
 				provider: network,
 				source: 'pos_sale',
 				payment_number: transNumber,
-				force_new: Boolean(opts?.forceNew)
+				force_new: Boolean(opts?.forceNew),
+				fee_payer: feePayer
 			}).unwrap();
 			await applyInitiateResult(res);
 		} catch (err: any) {
@@ -756,9 +763,11 @@ export default function PaymentDialog({
 								</Box>
 								<Typography className="mt-3 text-3xl font-bold">{formatGhs(chargeAmount)}</Typography>
 								<Typography variant="caption" color="text.secondary">
-									{fee > 0
+									{fee > 0 && feePayer === 'customer'
 										? `Sale ${formatGhs(face)} + platform charge ${formatGhs(fee)}`
-										: `Sale ${formatGhs(face)}`}
+										: fee > 0
+											? `Sale ${formatGhs(face)} · ${formatGhs(fee)} from shop withdrawal`
+											: `Sale ${formatGhs(face)}`}
 								</Typography>
 								<Box className="my-3 border-t" sx={{ borderColor: 'divider' }} />
 								<Typography variant="body2">
@@ -776,18 +785,38 @@ export default function PaymentDialog({
 						) : (
 						<>
 						<Box className="mb-3 rounded border border-gray-200 p-3 dark:border-gray-700">
-							<Box className="flex justify-between text-sm">
+							<Typography variant="caption" color="text.secondary" display="block" className="mb-1">
+								Who pays the {percent || 2}% collection fee
+							</Typography>
+							<ToggleButtonGroup
+								exclusive
+								fullWidth
+								size="small"
+								value={feePayer}
+								onChange={(_e, value) => {
+									if (value) setFeePayer(normalizeFeePayer(value));
+								}}
+								disabled={chargePaid || Boolean(transactionRef)}
+							>
+								<ToggleButton value="customer">Customer</ToggleButton>
+								<ToggleButton value="shop">Shop</ToggleButton>
+							</ToggleButtonGroup>
+							<Box className="mt-3 flex justify-between text-sm">
 								<span>Sale total</span>
 								<strong>{formatGhs(face)}</strong>
 							</Box>
 							{fee > 0 && (
 								<Box className="mt-1 flex justify-between text-sm text-gray-600">
-									<span>Platform charge ({percent}%)</span>
+									<span>
+										{feePayer === 'shop'
+											? `Shop pays ${percent}% (from withdrawal)`
+											: `Platform charge (${percent}%)`}
+									</span>
 									<strong>{formatGhs(fee)}</strong>
 								</Box>
 							)}
 							<Box className="mt-2 flex justify-between border-t border-gray-100 pt-2 text-base">
-								<span>Amount to pay</span>
+								<span>Customer pays</span>
 								<strong>{formatGhs(chargeAmount)}</strong>
 							</Box>
 						</Box>

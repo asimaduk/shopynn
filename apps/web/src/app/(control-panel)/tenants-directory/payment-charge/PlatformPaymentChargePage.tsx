@@ -59,8 +59,8 @@ function PlatformPaymentChargePageContent() {
 					Platform MoMo charge
 				</Typography>
 				<Typography variant="body2" color="text.secondary" className="mb-4 mt-1 max-w-2xl">
-					Customers pay sale/order total plus this percent on digital MoMo/card collections. Merchants withdraw
-					face value only. Default and minimum 2%. Super admin only.
+					This percent is the collection surcharge on digital MoMo/card. Each shop chooses in Company profile
+					whether the customer or the shop pays it. Default and minimum 2%. Super admin only.
 				</Typography>
 
 				{isLoading ? (
@@ -83,8 +83,10 @@ function PlatformPaymentChargePageContent() {
 							disabled={!enabled}
 						/>
 						<Alert severity="info" className="mt-3">
-							At 2%, collection fees are roughly covered; transfer costs are funded by subscriptions. Extra
-							above face value stays with the platform.
+							At 2%, collection fees are roughly covered; transfer costs are funded by subscriptions. If
+							the customer pays, they are charged sale + this percent and the shop still withdraws the
+							sale. If the shop pays, the customer is charged the sale and the fee comes out of the shop’s
+							withdrawal.
 						</Alert>
 						<Button className="mt-4" variant="contained" disabled={saving} onClick={handleSave}>
 							{saving ? 'Saving…' : 'Save'}

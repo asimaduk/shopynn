@@ -1,6 +1,7 @@
 import { handleResponse } from "../util/handleresponse.js";
 import {
     getMomoPaymentChargeSettingsService,
+    getTenantMomoFeePayerService,
     updateMomoPaymentChargeSettingsService,
 } from "../models/platformSettings.js";
 
@@ -8,7 +9,8 @@ import {
 export const getMomoPaymentCharge = async (req, res, next) => {
     try {
         const settings = await getMomoPaymentChargeSettingsService();
-        handleResponse(res, 200, "MoMo payment charge settings.", settings);
+        const fee_payer = await getTenantMomoFeePayerService(req.user?.tenant_id);
+        handleResponse(res, 200, "MoMo payment charge settings.", { ...settings, fee_payer });
     } catch (error) {
         next(error);
     }

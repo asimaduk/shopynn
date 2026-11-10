@@ -1,6 +1,7 @@
 import { apiService as api } from 'src/store/apiService';
 import { PartialDeep } from 'type-fest';
 import { normalizeBulkDiscount, DEFAULT_BULK_DISCOUNT } from '@/utils/bulkDiscount';
+import { normalizeFeePayer, type MomoFeePayer } from '@/utils/momoFeePayer';
 
 export const addTagTypes = ['company_profile', 'industries'] as const;
 
@@ -22,6 +23,7 @@ export type CompanyProfile = {
 	/** Image key stored on tenants.logo (served via /api/images?id=…). */
 	logo?: string | null;
 	bulkDiscount?: BulkDiscountSettings;
+	momoFeePayer?: MomoFeePayer;
 };
 
 export type IndustryOption = {
@@ -42,6 +44,7 @@ type MeCompany = {
 	logo?: string | null;
 	settings?: {
 		bulk_discount?: Partial<BulkDiscountSettings> | null;
+		momo_fee_payer?: string | null;
 	} | null;
 };
 
@@ -51,6 +54,7 @@ type MeResponse = {
 
 function mapMeToCompanyProfile(me: MeResponse | null | undefined): CompanyProfile | null {
 	const bulkDiscount = normalizeBulkDiscount(me?.company?.settings?.bulk_discount);
+	const momoFeePayer = normalizeFeePayer(me?.company?.settings?.momo_fee_payer);
 	const logo = me?.company?.logo ?? null;
 	const base: CompanyProfile = {
 		id: 'tenant',
@@ -63,7 +67,8 @@ function mapMeToCompanyProfile(me: MeResponse | null | undefined): CompanyProfil
 		industryId: me?.company?.industry_id ?? null,
 		industryLabel: me?.company?.industry && me.company.industry !== 'Not set' ? me.company.industry : null,
 		logo,
-		bulkDiscount
+		bulkDiscount,
+		momoFeePayer
 	};
 	return base;
 }
@@ -126,11 +131,12 @@ const CompanyProfileApi = api
 							website: body.website,
 							...(industryId !== undefined ? { industry_id: industryId } : {}),
 							...(body.logo !== undefined ? { logo: body.logo } : {}),
-							settings: body.bulkDiscount
-								? {
-										bulk_discount: normalizeBulkDiscount(body.bulkDiscount)
-									}
-								: undefined
+							settings: {
+								...(body.bulkDiscount
+									? { bulk_discount: normalizeBulkDiscount(body.bulkDiscount) }
+									: {}),
+								...(body.momoFeePayer ? { momo_fee_payer: normalizeFeePayer(body.momoFeePayer) } : {})
+							}
 						}
 					};
 				},

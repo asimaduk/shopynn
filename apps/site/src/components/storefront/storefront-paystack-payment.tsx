@@ -115,6 +115,7 @@ export function StorefrontPaystackPayment({
         charge_amount: Number(res.charge_amount ?? res.face_amount),
         percent: Number(res.percent || charge.percent),
         enabled: Number(res.fee_amount || 0) > 0,
+        fee_payer: charge.fee_payer,
       });
     }
   };
@@ -313,7 +314,7 @@ export function StorefrontPaystackPayment({
           <span className="text-muted-foreground">Order total</span>
           <span>{formatGhs(charge.face_amount)}</span>
         </div>
-        {charge.enabled && charge.fee_amount > 0 ? (
+        {charge.enabled && charge.fee_amount > 0 && charge.fee_payer !== "shop" ? (
           <div className="flex justify-between gap-3">
             <span className="text-muted-foreground">Service fee ({charge.percent}%)</span>
             <span>{formatGhs(charge.fee_amount)}</span>
@@ -321,14 +322,14 @@ export function StorefrontPaystackPayment({
         ) : (
           <div className="flex justify-between gap-3 text-muted-foreground">
             <span>Service fee</span>
-            <span>None</span>
+            <span>{charge.fee_payer === "shop" ? "Covered by shop" : "None"}</span>
           </div>
         )}
         <div className="flex justify-between gap-3 border-t border-border/60 pt-2 font-semibold">
           <span>You pay</span>
           <span>{formatGhs(charge.charge_amount)}</span>
         </div>
-        {charge.enabled && charge.fee_amount > 0 ? (
+        {charge.enabled && charge.fee_amount > 0 && charge.fee_payer !== "shop" ? (
           <p className="pt-1 text-xs text-muted-foreground">
             Incl. {charge.percent}% collection fee. The shop receives {formatGhs(charge.face_amount)}.
           </p>

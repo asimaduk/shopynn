@@ -44,6 +44,7 @@ import {
     getSaleApiErrorMessage,
 } from '../../utils/bulkDiscount';
 import AppAlert from '../../utils/appAlert';
+import { collectionCharge, normalizeFeePayer } from '../../utils/momoFeePayer';
 
 const { height } = Dimensions.get('screen');
 
@@ -205,7 +206,8 @@ const NewSale = ({ navigation, route }) => {
         chargedFaceAmount: null,
     });
     const [storeCreditInput, setStoreCreditInput] = useState('');
-    const [momoCharge, setMomoCharge] = useState({ enabled: true, percent: 2 });
+    const [momoCharge, setMomoCharge] = useState({ enabled: true, percent: 2, fee_payer: 'customer' });
+    const [momoFeePayer, setMomoFeePayer] = useState('customer');
     const [momoSending, setMomoSending] = useState(false);
     const [momoChecking, setMomoChecking] = useState(false);
     const [momoStatusText, setMomoStatusText] = useState('');
@@ -803,7 +805,10 @@ const NewSale = ({ navigation, route }) => {
         platformSettings
             .getMomoPaymentCharge()
             .then((data) => {
-                if (active && data) setMomoCharge(data);
+                if (active && data) {
+                    setMomoCharge(data);
+                    setMomoFeePayer(normalizeFeePayer(data.fee_payer));
+                }
             })
             .catch(() => {});
         return () => {
@@ -895,10 +900,14 @@ const NewSale = ({ navigation, route }) => {
     })();
     const momoFace = Math.round(Math.max(0, momoFaceBase - storeCreditApplied) * 100) / 100;
     const momoPercent = momoCharge?.enabled ? Number(momoCharge.percent) || 0 : 0;
-    const momoFee = momoCharge?.enabled
-        ? Math.round(((momoFace * momoPercent) / 100) * 100) / 100
-        : 0;
-    const momoChargeTotal = Math.round((momoFace + momoFee) * 100) / 100;
+    const momoPriced = collectionCharge(
+        momoFace,
+        momoPercent,
+        Boolean(momoCharge?.enabled),
+        momoFeePayer,
+    );
+    const momoFee = momoPriced.fee;
+    const momoChargeTotal = momoPriced.charge;
     const warehouseForPaymentLabel =
         (resolvedWarehouseId != null && Array.isArray(stores)
             ? stores.find((s) => String(s?.id) === String(resolvedWarehouseId))
@@ -994,6 +1003,7 @@ const NewSale = ({ navigation, route }) => {
                 source: 'pos_sale',
                 payment_number: digits,
                 force_new: forceNew,
+                fee_payer: momoFeePayer,
             });
             const ref = res?.transaction_ref;
             if (!ref) {
@@ -2239,9 +2249,11 @@ const NewSale = ({ navigation, route }) => {
                                 />
                                 <AppText
                                     label={
-                                        momoFee > 0
+                                        momoFee > 0 && momoFeePayer === 'customer'
                                             ? `Sale ${momoFace.toFixed(2)} + MoMo fee ${momoFee.toFixed(2)}`
-                                            : `Sale ${momoFace.toFixed(2)}`
+                                            : momoFee > 0
+                                              ? `Sale ${momoFace.toFixed(2)} · ${momoFee.toFixed(2)} from shop withdrawal`
+                                              : `Sale ${momoFace.toFixed(2)}`
                                     }
                                     fontSize={12}
                                     color={colors.textSecondary}
@@ -2273,14 +2285,48 @@ const NewSale = ({ navigation, route }) => {
                                 ) : null}
                             </View>
                         ) : (
+                        <View>
+                        {selectedPaymentOption.method === 'momo' ? (
+                            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
+                                {[
+                                    { id: 'customer', label: 'Customer pays fee' },
+                                    { id: 'shop', label: 'Shop pays fee' },
+                                ].map((opt) => (
+                                    <TouchableOpacity
+                                        key={opt.id}
+                                        activeOpacity={0.7}
+                                        onPress={() => setMomoFeePayer(opt.id)}
+                                        style={{
+                                            flex: 1,
+                                            borderWidth: 1,
+                                            borderColor: momoFeePayer === opt.id ? colors.primary : colors.border,
+                                            backgroundColor: momoFeePayer === opt.id ? (colors.primaryMuted || colors.surface) : colors.surface,
+                                            borderRadius: 10,
+                                            paddingVertical: 8,
+                                            paddingHorizontal: 8,
+                                            alignItems: 'center',
+                                        }}
+                                    >
+                                        <AppText
+                                            label={opt.label}
+                                            fontSize={12}
+                                            variant={momoFeePayer === opt.id ? 1 : 0}
+                                            color={momoFeePayer === opt.id ? colors.primary : colors.text}
+                                        />
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        ) : null}
                         <View style={styles.paymentSummaryRow}>
                             <AppText label={`Sale ${momoFaceBase.toFixed(2)}`} color={colors.text} />
                             {selectedPaymentOption.method === 'momo' ? (
                                 <AppText
                                     label={
-                                        momoFee > 0
-                                            ? `Pay ${momoChargeTotal.toFixed(2)} (+${momoFee.toFixed(2)})`
-                                            : `Pay ${momoChargeTotal.toFixed(2)}`
+                                        momoFee > 0 && momoFeePayer === 'shop'
+                                            ? `Customer pays ${momoChargeTotal.toFixed(2)}`
+                                            : momoFee > 0
+                                              ? `Pay ${momoChargeTotal.toFixed(2)} (+${momoFee.toFixed(2)})`
+                                              : `Pay ${momoChargeTotal.toFixed(2)}`
                                     }
                                     variant={1}
                                     color={colors.text}
@@ -2292,6 +2338,7 @@ const NewSale = ({ navigation, route }) => {
                                     color={colors.textTertiary}
                                 />
                             )}
+                        </View>
                         </View>
                         )}
 

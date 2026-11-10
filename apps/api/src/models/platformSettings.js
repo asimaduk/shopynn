@@ -3,6 +3,8 @@ import {
     PLATFORM_MOMO_CHARGE_KEY,
     normalizeMomoPaymentCharge,
     computePlatformCollectionCharge,
+    getMomoFeePayerFromSettings,
+    normalizeFeePayer,
 } from "../utils/platformMomoCharge.js";
 
 export async function getPlatformSettingService(key) {
@@ -45,7 +47,16 @@ export async function updateMomoPaymentChargeSettingsService(patch, updatedBy = 
     return next;
 }
 
-export async function computeChargeForFaceAmountService(faceAmount) {
+export async function getTenantMomoFeePayerService(tenantId) {
+    if (!tenantId) return getMomoFeePayerFromSettings(null);
+    const row = await pool.query(`SELECT settings FROM tenants WHERE id = $1 LIMIT 1`, [tenantId]);
+    return getMomoFeePayerFromSettings(row.rows[0]?.settings);
+}
+
+export async function computeChargeForFaceAmountService(faceAmount, opts = {}) {
     const settings = await getMomoPaymentChargeSettingsService();
-    return computePlatformCollectionCharge(faceAmount, settings);
+    const feePayer = opts.feePayer
+        ? normalizeFeePayer(opts.feePayer)
+        : await getTenantMomoFeePayerService(opts.tenantId);
+    return computePlatformCollectionCharge(faceAmount, settings, feePayer);
 }

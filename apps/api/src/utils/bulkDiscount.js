@@ -1,3 +1,5 @@
+import { getMomoFeePayerFromSettings, normalizeFeePayer } from "./platformMomoCharge.js";
+
 /**
  * Per-tenant bulk / wholesale discount preferences.
  * Default: disabled (opt-in). When enabled, qty >= threshold uses alt_price.
@@ -48,11 +50,21 @@ export function mergeTenantSettings(existing, patch) {
             ...patch.bulk_discount,
         });
     }
+    if (patch.momo_fee_payer !== undefined) {
+        next.momo_fee_payer = normalizeFeePayer(patch.momo_fee_payer);
+    }
     return next;
 }
 
 export function getBulkDiscountFromSettings(settings) {
     return normalizeBulkDiscount(settings?.bulk_discount);
+}
+
+export function projectTenantSettings(settings) {
+    return {
+        bulk_discount: getBulkDiscountFromSettings(settings),
+        momo_fee_payer: getMomoFeePayerFromSettings(settings),
+    };
 }
 
 /**

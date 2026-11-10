@@ -67,6 +67,8 @@ async function sumDigitalCollections(tenantId, db = pool) {
     const res = await db.query(
         `SELECT COALESCE(SUM(
             CASE
+              WHEN lower(coalesce(p.fee_payer, 'customer')) = 'shop'
+                THEN GREATEST(0, coalesce(p.face_amount, p.amount) - coalesce(p.fee_amount, 0))
               WHEN p.face_amount IS NOT NULL THEN p.face_amount
               ELSE p.amount
             END

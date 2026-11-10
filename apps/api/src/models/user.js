@@ -12,7 +12,7 @@ import {
 } from "./subscription.js";
 import { SUPER_ADMIN_EXCLUDED_PERMISSION_CODES } from "../constants/permissionCodes.js";
 import { getUserPermissionsService } from "./userRole.js";
-import { getBulkDiscountFromSettings } from "../utils/bulkDiscount.js";
+import { projectTenantSettings } from "../utils/bulkDiscount.js";
 import { maskEmail } from "../util/devOtp.js";
 import { generatePassword } from "../util/secureRandom.js";
 
@@ -251,9 +251,7 @@ export const getUserByIdService = async (id) => {
                     has_first_sale,
                     subscription,
                     plan_usage: planUsage,
-                    settings: {
-                        bulk_discount: getBulkDiscountFromSettings(tenantRes.rows[0].settings),
-                    },
+                    settings: projectTenantSettings(tenantRes.rows[0].settings),
                 };
             }
 

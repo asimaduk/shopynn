@@ -123,7 +123,7 @@ const SubscriptionApi = api.enhanceEndpoints({ addTagTypes: subscriptionTagTypes
 			query: (reference) => ({ url: `/api/payments/verify/${reference}` })
 		}),
 		getMomoPaymentCharge: build.query<
-			{ enabled: boolean; percent: number; min_percent: number },
+			{ enabled: boolean; percent: number; min_percent: number; fee_payer?: 'customer' | 'shop' },
 			void
 		>({
 			query: () => ({ url: '/api/platform-settings/momo-payment-charge' })

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { Image, TouchableOpacity, ScrollView, View, Dimensions, ActivityIndicator, TextInput, KeyboardAvoidingView, Platform, Switch } from 'react-native';
+import { Image, TouchableOpacity, ScrollView, View, Dimensions, ActivityIndicator, TextInput, KeyboardAvoidingView, Platform, Switch, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
@@ -14,6 +14,7 @@ import { users as usersApi, tenants as tenantsApi, industries as industriesApi, 
 import { setCompanyDetails } from '../../store/actions/appSettings';
 import { SET_USER } from '../../store/actions/user';
 import { normalizeBulkDiscount, DEFAULT_BULK_DISCOUNT } from '../../utils/bulkDiscount';
+import { normalizeFeePayer } from '../../utils/momoFeePayer';
 import AppAlert from '../../utils/appAlert';
 
 const { width } = Dimensions.get('screen');
@@ -52,6 +53,7 @@ const CompanyProfile = ({ navigation }) => {
     const [industrySearch, setIndustrySearch] = useState('');
     const [bulkEnabled, setBulkEnabled] = useState(DEFAULT_BULK_DISCOUNT.enabled);
     const [bulkThreshold, setBulkThreshold] = useState(String(DEFAULT_BULK_DISCOUNT.quantity_threshold));
+    const [momoFeePayer, setMomoFeePayer] = useState('customer');
     const currentUser = useSelector(({ user }) => user);
 
     const industryOptions = useMemo(
@@ -149,6 +151,7 @@ const CompanyProfile = ({ navigation }) => {
             const bulk = normalizeBulkDiscount(c?.settings?.bulk_discount);
             setBulkEnabled(bulk.enabled);
             setBulkThreshold(String(bulk.quantity_threshold));
+            setMomoFeePayer(normalizeFeePayer(c?.settings?.momo_fee_payer));
         },
         [appSettings, syncIndustryFromCompany],
     );
@@ -288,6 +291,7 @@ const CompanyProfile = ({ navigation }) => {
                 industry_id: industryForApi || undefined,
                 settings: {
                     bulk_discount: bulk,
+                    momo_fee_payer: momoFeePayer,
                 },
             };
 
@@ -321,7 +325,7 @@ const CompanyProfile = ({ navigation }) => {
                     companyIndustry: industryLabel || appSettings.companyIndustry || '',
                 }),
             );
-            const nextSettings = updated?.settings || { bulk_discount: bulk };
+            const nextSettings = updated?.settings || { bulk_discount: bulk, momo_fee_payer: momoFeePayer };
             dispatch({
                 type: SET_USER,
                 payload: {
@@ -601,6 +605,55 @@ const CompanyProfile = ({ navigation }) => {
                                     style={{ flex: 1, color: colors.text, paddingVertical: 10, fontFamily: 'FiraSans-Regular' }}
                                 />
                             </View>
+                        </View>
+                        <View
+                            style={{
+                                marginTop: 20,
+                                padding: 14,
+                                borderRadius: 10,
+                                borderWidth: 1,
+                                borderColor: colors.border,
+                                backgroundColor: colors.surfaceSecondary || colors.background,
+                            }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                                <Lucide name="wallet" size={18} color={config.THEME_COLOR} style={{ marginRight: 8 }} />
+                                <AppText label="Who pays the MoMo collection fee" variant={1} fontSize={14} color={colors.text} />
+                            </View>
+                            <AppText
+                                label="Customer pays sale + 2% on the prompt. Shop pays means the customer pays the sale amount and 2% comes from your withdrawal."
+                                fontSize={12}
+                                color={colors.textSecondary}
+                                style={{ marginBottom: 12 }}
+                            />
+                            {[
+                                { id: 'customer', label: 'Customer pays (sale + 2%)' },
+                                { id: 'shop', label: 'Shop pays (customer pays sale amount)' },
+                            ].map((opt) => (
+                                <TouchableOpacity
+                                    key={opt.id}
+                                    activeOpacity={0.7}
+                                    onPress={() => setMomoFeePayer(opt.id)}
+                                    style={{
+                                        flexDirection: 'row',
+                                        alignItems: 'center',
+                                        paddingVertical: 10,
+                                        borderTopWidth: opt.id === 'shop' ? StyleSheet.hairlineWidth : 0,
+                                        borderTopColor: colors.border,
+                                    }}
+                                >
+                                    <Lucide
+                                        name={momoFeePayer === opt.id ? 'circle-check' : 'circle'}
+                                        size={18}
+                                        color={momoFeePayer === opt.id ? config.THEME_COLOR : colors.textSecondary}
+                                    />
+                                    <AppText
+                                        label={opt.label}
+                                        fontSize={14}
+                                        color={colors.text}
+                                        style={{ marginLeft: 10, flex: 1 }}
+                                    />
+                                </TouchableOpacity>
+                            ))}
                         </View>
                     </View>
                     <View

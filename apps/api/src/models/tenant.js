@@ -5,7 +5,7 @@ import { createUserService } from "./user.js";
 import { ensureWalkInCustomerService } from "./customer.js";
 import { seedDefaultStaffRolesService } from "./role.js";
 import { assertShopOwnerEmailVerified } from "./emailVerification.js";
-import { mergeTenantSettings, getBulkDiscountFromSettings } from "../utils/bulkDiscount.js";
+import { mergeTenantSettings, projectTenantSettings } from "../utils/bulkDiscount.js";
 import { sendEmailService } from "./mail.js";
 
 const escapeHtml = (value) =>
@@ -371,9 +371,7 @@ export const updateTenantService = async (tenant_id, payload, options = {}) => {
     );
     const tenant = row.rows[0] || null;
     if (tenant) {
-        tenant.settings = {
-            bulk_discount: getBulkDiscountFromSettings(tenant.settings),
-        };
+        tenant.settings = projectTenantSettings(tenant.settings);
     }
     return tenant;
 };
