@@ -33,8 +33,14 @@ const SLIDES = [
 	{ file: '04_inventory', title: 'Always know<br><em>what’s in stock</em>', sub: 'Low-stock alerts before you run out' },
 	{ file: '05_reports', title: 'Watch your<br><em>business grow</em>', sub: 'Daily sales, best sellers and staff reports' },
 	{ file: '06_stores', title: 'Run every branch<br><em>from one app</em>', sub: 'Separate stock per store, with transfers between them' },
-	{ file: '07_roles', title: 'Give staff the<br><em>right access</em>', sub: 'Cashier, manager or your own custom roles' },
+	{ file: '07_roles', title: 'Give staff the<br><em>right access</em>', sub: 'Cashier, manager or your own custom roles', play: false },
+	{ file: '08_shop_home', title: 'Your customers<br><em>shop from you</em>', sub: 'They link your store with a code and browse what’s in stock' },
+	{ file: '09_shop_product', title: 'Every product<br><em>in full view</em>', sub: 'Photos, prices and stock for each of your branches', play: false },
+	{ file: '10_shop_cart', title: 'Orders straight<br><em>to your shop</em>', sub: 'Customers check out and track every order in the app' },
 ];
+
+/** Play accepts at most 8 phone screenshots. */
+const slidesFor = (dir) => SLIDES.filter((s) => dir !== 'play' || s.play !== false);
 
 const SIZES = [
 	{ dir: 'play', w: 1080, h: 1920 },
@@ -150,7 +156,7 @@ async function main() {
 	}
 
 	for (const size of SIZES) {
-		SLIDES.forEach((s, i) => {
+		slidesFor(size.dir).forEach((s, i) => {
 			const out = join(OUT, size.dir, `${String(i + 1).padStart(2, '0')}_${s.file.replace(/^\d+_/, '')}.png`);
 			render(slideHtml(size, s, cropped[s.file], icon), size.w, size.h, out);
 			console.log(out);
@@ -167,7 +173,7 @@ async function main() {
 
 	// Stores reject alpha in screenshots; flatten everything to opaque RGB.
 	for (const size of [...SIZES.map((s) => s.dir)]) {
-		for (const [i, s] of SLIDES.entries()) {
+		for (const [i, s] of slidesFor(size).entries()) {
 			const p = join(OUT, size, `${String(i + 1).padStart(2, '0')}_${s.file.replace(/^\d+_/, '')}.png`);
 			const buf = await sharp(p).flatten({ background: '#0A1F3D' }).removeAlpha().png().toBuffer();
 			writeFileSync(p, buf);
