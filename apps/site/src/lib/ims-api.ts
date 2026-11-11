@@ -130,6 +130,16 @@ export function planPriceFromCatalog(catalog: BillingCatalogGrouped | null, tier
   return fallback[tier] || "—";
 }
 
+export function planLabelFromCatalog(
+  catalog: BillingCatalogGrouped | null,
+  plan: (typeof SUBSCRIPTION_PLANS)[number],
+): string {
+  if (plan.slug === "free" || !catalog?.plans?.[plan.slug]?.subscription_monthly) return plan.label;
+  const name = plan.label.split(" — ")[0];
+  const pilot = catalog.pilot ? " (pilot)" : "";
+  return `${name} — ${planPriceFromCatalog(catalog, plan.slug)}/mo${pilot}`;
+}
+
 export async function fetchPublicBillingCatalog(): Promise<BillingCatalogGrouped | null> {
   const base = (import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:4001").replace(/\/$/, "");
   try {

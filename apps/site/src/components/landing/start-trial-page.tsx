@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
@@ -18,7 +18,10 @@ import { SIGN_IN_URL } from "@/lib/config";
 import {
   SUBSCRIPTION_PLANS,
   createTenantTrial,
+  fetchPublicBillingCatalog,
   getSubscriptionPlan,
+  planLabelFromCatalog,
+  type BillingCatalogGrouped,
   sendShopOwnerSignupEmailOtp,
   verifyShopOwnerSignupEmailOtp,
 } from "@/lib/ims-api";
@@ -74,6 +77,12 @@ export function StartTrialPage({ initialSubscriptionType, planSlug }: Props) {
     businessName: string;
     subscriptionType: number;
   } | null>(null);
+
+  const [catalog, setCatalog] = useState<BillingCatalogGrouped | null>(null);
+
+  useEffect(() => {
+    fetchPublicBillingCatalog().then(setCatalog);
+  }, []);
 
   const selectedPlan = getSubscriptionPlan(Number(form.subscription_type));
 
@@ -198,7 +207,7 @@ export function StartTrialPage({ initialSubscriptionType, planSlug }: Props) {
         <h1 className="font-display text-3xl font-semibold tracking-tight">You&apos;re all set!</h1>
         <p className="mt-3 text-muted-foreground">
           <strong>{success.businessName}</strong> is registered on Shopynn with the{" "}
-          <strong className="text-foreground">{successPlan.label}</strong> plan.
+          <strong className="text-foreground">{planLabelFromCatalog(catalog, successPlan)}</strong> plan.
         </p>
         {successPlan.activatesImmediately ? (
           <p className="mt-2 text-sm text-muted-foreground">
@@ -260,7 +269,7 @@ export function StartTrialPage({ initialSubscriptionType, planSlug }: Props) {
               <SelectContent>
                 {SUBSCRIPTION_PLANS.map((p) => (
                   <SelectItem key={p.value} value={String(p.value)}>
-                    {p.label}
+                    {planLabelFromCatalog(catalog, p)}
                   </SelectItem>
                 ))}
               </SelectContent>
