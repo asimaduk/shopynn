@@ -73,9 +73,9 @@ Marketing names: **Starter** (Basic), **Business** (Standard), **Scale** (Premiu
 
 ### Reporting
 
-- **Starter**: Reports not included
-- **Business**: Reports view
-- **Scale**: Reports export + full reporting access
+- **Starter**: Reports view + CSV/Excel export
+- **Business**: Reports view + CSV/Excel export
+- **Scale**: Full reporting access, plus full data export / backup
 
 ### Admin (users, roles, permissions, locations)
 

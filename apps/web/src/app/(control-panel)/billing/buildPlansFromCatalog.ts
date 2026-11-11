@@ -18,7 +18,7 @@ const PAID_FEATURES: Record<ChooseableSubscriptionType, ChooseablePlan['features
 		'Inventory, products & categories (create, import, export)',
 		'Sales & purchases with returns',
 		'Share or print sales receipts',
-		'Daily sales trends & sales-by-date history',
+		'Daily sales trends · reports with CSV/Excel export',
 		'Customers, suppliers & expenditures',
 		'Dashboard, company profile & receipt settings'
 	],
@@ -30,7 +30,7 @@ const PAID_FEATURES: Record<ChooseableSubscriptionType, ChooseablePlan['features
 		'Stock counts',
 		'Reorder list, expiring stock & low-stock alerts',
 		'Purchase orders (create & receive stock)',
-		'Reports (view) · users, roles & permissions',
+		'Roles & permissions',
 		'Staff notifications · locations within branches'
 	],
 	4: [
@@ -38,7 +38,7 @@ const PAID_FEATURES: Record<ChooseableSubscriptionType, ChooseablePlan['features
 		'Everything in Business',
 		'Customer online orders (store queue, fulfilment & delivery)',
 		'Audit logs',
-		'Order payment history · order & report export',
+		'Order payment history · order export',
 		'Order analytics & automation',
 		'Multi-store order routing'
 	]
