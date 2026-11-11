@@ -195,6 +195,14 @@ function envNumber(name, fallback) {
 export const MANAGER_OVERRIDE_RATE = envNumber("AGENT_MANAGER_OVERRIDE_RATE", 0.2);
 /** Payable commission must reach this before a weekly payout is prepared. */
 export const AGENT_PAYOUT_MIN_GHS = envNumber("AGENT_PAYOUT_MIN_GHS", 50);
+/**
+ * Pilot pricing: until PILOT_ENDS_AT every paid plan's onboarding fee and monthly price is
+ * PILOT_PRICE_GHS. Add-ons keep their catalog price. Set PILOT_ENDS_AT in the past to end early.
+ */
+export const PILOT_PRICE_GHS = envNumber("PILOT_PRICE_GHS", 1);
+export const PILOT_ENDS_AT = new Date(process.env.PILOT_ENDS_AT || "2027-01-01T00:00:00Z");
+export const isPilotPricingActive = (now = new Date()) => now < PILOT_ENDS_AT;
+
 /** Paystack's Ghana MoMo transfer fee, absorbed by Shopynn (recorded for reporting only). */
 export const AGENT_PAYOUT_MOMO_FEE_GHS = 1;
 

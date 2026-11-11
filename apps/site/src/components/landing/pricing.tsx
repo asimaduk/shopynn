@@ -5,7 +5,7 @@ import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SectionHeading } from "./section-heading";
 import { cn } from "@/lib/utils";
-import { fetchPublicBillingCatalog, planPriceFromCatalog, type BillingCatalogGrouped } from "@/lib/ims-api";
+import { fetchPublicBillingCatalog, pilotNoteFromCatalog, planPriceFromCatalog, type BillingCatalogGrouped } from "@/lib/ims-api";
 
 const STATIC_PLANS = [
   {
@@ -76,6 +76,7 @@ export function Pricing() {
   const plans = STATIC_PLANS.map((p) => ({
     ...p,
     price: p.plan ? planPriceFromCatalog(catalog, p.plan) : p.price,
+    pilotNote: p.plan ? pilotNoteFromCatalog(catalog, p.plan) : null,
   }));
 
   return (
@@ -113,6 +114,7 @@ export function Pricing() {
                 <span className="font-display text-4xl font-semibold">{p.price}</span>
                 {p.price !== "Custom" && <span className="text-sm pb-1.5 text-muted-foreground">/month</span>}
               </div>
+              {p.pilotNote && <p className="mt-1 text-xs text-muted-foreground">{p.pilotNote}</p>}
               <ul className="mt-6 space-y-3 text-sm flex-1">
                 {p.features.map((f) => (
                   <li key={f} className="flex items-start gap-2">

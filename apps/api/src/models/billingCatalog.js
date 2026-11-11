@@ -5,6 +5,9 @@ import {
     FALLBACK_CATALOG_AMOUNTS,
     DEFAULT_BILLING_CATALOG_SEED,
     PRINTER_SETUP_ADDON_CODE,
+    PILOT_PRICE_GHS,
+    PILOT_ENDS_AT,
+    isPilotPricingActive,
 } from "../constants/billingCatalog.js";
 
 const SUBSCRIPTION_META = {
@@ -218,6 +221,7 @@ export const resolveSubscriptionTypeConfigService = async (subscription_type) =>
     } else {
         amount = 0;
     }
+    if (amount > 0 && isPilotPricingActive()) amount = PILOT_PRICE_GHS;
 
     return {
         name: meta.name,
@@ -234,8 +238,8 @@ export const getOnboardingFeeForTypeService = async (subscription_type) => {
     if (!tier || tier === "free") return 0;
     const code = onboardingCodeForTier(tier);
     const row = await getBillingCatalogItemByCodeService(code);
-    if (row?.is_active) return row.amount_ghs;
-    return FALLBACK_CATALOG_AMOUNTS.onboarding[tier] ?? 0;
+    const fee = row?.is_active ? row.amount_ghs : FALLBACK_CATALOG_AMOUNTS.onboarding[tier] ?? 0;
+    return fee > 0 && isPilotPricingActive() ? PILOT_PRICE_GHS : fee;
 };
 
 export const getPrinterSetupFeeService = async () => {
@@ -267,10 +271,14 @@ export const resolveAddonItemsByCodesService = async (addonCodes = []) => {
     return found;
 };
 
-/** Grouped catalog for clients: plans + addons */
-export const getBillingCatalogGroupedService = async () => {
+/**
+ * Grouped catalog for clients: plans + addons. With applyPilot, paid plan and onboarding
+ * prices in `plans` show the pilot price (regular price in regular_amount_ghs); `items` stays raw.
+ */
+export const getBillingCatalogGroupedService = async ({ applyPilot = false } = {}) => {
     await ensureBillingCatalogSeededService();
     const items = await listBillingCatalogItemsService({ activeOnly: true });
+    const pilotActive = applyPilot && isPilotPricingActive();
     const plans = {};
     const addons = [];
     for (const item of items) {
@@ -280,9 +288,16 @@ export const getBillingCatalogGroupedService = async () => {
         }
         const tier = item.plan_tier || "other";
         if (!plans[tier]) plans[tier] = {};
-        plans[tier][item.item_type] = item;
+        const pilotPriced =
+            pilotActive &&
+            item.amount_ghs > 0 &&
+            (item.item_type === "subscription_monthly" || item.item_type === "onboarding");
+        plans[tier][item.item_type] = pilotPriced
+            ? { ...item, amount_ghs: PILOT_PRICE_GHS, regular_amount_ghs: item.amount_ghs }
+            : item;
     }
-    return { items, plans, addons };
+    const pilot = pilotActive ? { price_ghs: PILOT_PRICE_GHS, ends_at: PILOT_ENDS_AT.toISOString() } : null;
+    return { items, plans, addons, pilot };
 };
 
 export const createBillingCatalogItemService = async (payload, updatedBy = null) => {

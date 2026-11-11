@@ -13,7 +13,7 @@ export const getBillingCatalog = async (req, res, next) => {
         const activeOnly = req.query.active_only !== "false";
         const grouped = req.query.grouped === "true";
         if (grouped) {
-            const data = await getBillingCatalogGroupedService();
+            const data = await getBillingCatalogGroupedService({ applyPilot: true });
             return handleResponse(res, 200, "Billing catalog.", data);
         }
         const items = await listBillingCatalogItemsService({ activeOnly });
@@ -25,7 +25,7 @@ export const getBillingCatalog = async (req, res, next) => {
 
 export const getBillingCatalogPublic = async (req, res, next) => {
     try {
-        const data = await getBillingCatalogGroupedService();
+        const data = await getBillingCatalogGroupedService({ applyPilot: true });
         handleResponse(res, 200, "Public billing catalog.", data);
     } catch (error) {
         next(error);

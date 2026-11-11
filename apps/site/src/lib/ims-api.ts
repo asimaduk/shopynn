@@ -110,9 +110,18 @@ export function getSubscriptionPlan(value: number) {
 
 export type BillingCatalogGrouped = {
   items: { code: string; item_type: string; plan_tier: string | null; label: string; amount_ghs: number }[];
-  plans: Record<string, Record<string, { amount_ghs: number; label: string }>>;
+  plans: Record<string, Record<string, { amount_ghs: number; regular_amount_ghs?: number; label: string }>>;
   addons: { code: string; label: string; amount_ghs: number }[];
+  pilot?: { price_ghs: number; ends_at: string } | null;
 };
+
+/** "Then GHS 149/month from 1 Jan 2027" while pilot pricing is on, else null. */
+export function pilotNoteFromCatalog(catalog: BillingCatalogGrouped | null, tier: string): string | null {
+  const regular = catalog?.plans?.[tier]?.subscription_monthly?.regular_amount_ghs;
+  if (!catalog?.pilot || !regular) return null;
+  const ends = new Date(catalog.pilot.ends_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  return `Pilot price. Then GHS ${Number(regular).toFixed(0)}/month from ${ends}`;
+}
 
 export function planPriceFromCatalog(catalog: BillingCatalogGrouped | null, tier: string): string {
   const monthly = catalog?.plans?.[tier]?.subscription_monthly;
