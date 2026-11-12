@@ -1,6 +1,9 @@
 import { Link } from "@tanstack/react-router";
-import { Twitter, Github, Linkedin, Apple, Play } from "lucide-react";
+import { Facebook, Instagram, Apple, Play } from "lucide-react";
+import { APP_STORE_URL, PLAY_STORE_URL, SOCIAL_LINKS } from "@/lib/config";
 import { LANDING_SECTIONS, type LandingSectionHash } from "@/lib/landing-nav";
+
+const SOCIAL_ICONS = { Facebook, Instagram } as const;
 
 type FooterRoute = "/start-trial" | "/privacy" | "/terms" | "/security";
 
@@ -79,13 +82,25 @@ export function Footer() {
               Inventory and customer ordering for modern retailers — built to scale from one store to a hundred.
             </p>
             <div className="mt-5 flex gap-2">
-              <a href="#" className="h-9 w-9 grid place-items-center rounded-lg glass hover:bg-muted"><Twitter className="h-4 w-4" /></a>
-              <a href="#" className="h-9 w-9 grid place-items-center rounded-lg glass hover:bg-muted"><Github className="h-4 w-4" /></a>
-              <a href="#" className="h-9 w-9 grid place-items-center rounded-lg glass hover:bg-muted"><Linkedin className="h-4 w-4" /></a>
+              {SOCIAL_LINKS.map(({ name, href }) => {
+                const Icon = SOCIAL_ICONS[name];
+                return (
+                  <a
+                    key={name}
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Shopynn on ${name}`}
+                    className="h-9 w-9 grid place-items-center rounded-lg glass hover:bg-muted"
+                  >
+                    <Icon className="h-4 w-4" />
+                  </a>
+                );
+              })}
             </div>
             <div className="mt-5 flex gap-2">
-              <a href="#" className="inline-flex items-center gap-2 rounded-lg glass px-3 py-2 text-xs hover:bg-muted"><Apple className="h-4 w-4" /> App Store</a>
-              <a href="#" className="inline-flex items-center gap-2 rounded-lg glass px-3 py-2 text-xs hover:bg-muted"><Play className="h-4 w-4" /> Google Play</a>
+              <a href={APP_STORE_URL} className="inline-flex items-center gap-2 rounded-lg glass px-3 py-2 text-xs hover:bg-muted"><Apple className="h-4 w-4" /> App Store</a>
+              <a href={PLAY_STORE_URL} className="inline-flex items-center gap-2 rounded-lg glass px-3 py-2 text-xs hover:bg-muted"><Play className="h-4 w-4" /> Google Play</a>
             </div>
           </div>
 

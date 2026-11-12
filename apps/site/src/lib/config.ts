@@ -9,3 +9,8 @@ export const SIGN_IN_URL = `${WEB_APP_URL}/sign-in`;
 /** Public app-store URLs; fall back to site mobile section until listings go live. */
 export const APP_STORE_URL = (import.meta.env.VITE_APP_STORE_URL || "/#mobile").trim();
 export const PLAY_STORE_URL = (import.meta.env.VITE_PLAY_STORE_URL || "/#mobile").trim();
+
+export const SOCIAL_LINKS = [
+  { name: "Facebook", href: "https://www.facebook.com/shopynn" },
+  { name: "Instagram", href: "https://www.instagram.com/shopynn" },
+] as const;
