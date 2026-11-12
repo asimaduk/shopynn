@@ -82,15 +82,28 @@ export function MobileApp() {
             {platform === "android" ? <>{playStore}{appStore}</> : <>{appStore}{playStore}</>}
           </div>
 
-          <div className="mt-8 inline-flex items-center gap-4 rounded-xl border border-border bg-card p-4 shadow-card">
-            <div className="h-20 w-20 rounded-lg bg-primary/10 text-primary grid place-items-center">
-              <QrCode className="h-12 w-12" />
-            </div>
-            <div className="text-sm">
-              <div className="font-semibold">Scan to download</div>
-              <div className="text-muted-foreground text-xs">App Store & Google Play coming soon</div>
-            </div>
-          </div>
+          {(PLAY_STORE_LIVE || APP_STORE_LIVE) && (
+            <a
+              href="/download"
+              className="mt-8 inline-flex items-center gap-4 rounded-xl border border-border bg-card p-4 shadow-card hover:bg-muted/40"
+            >
+              <img
+                src="/qr-download.svg"
+                alt="QR code linking to shopynn.app/download"
+                width={88}
+                height={88}
+                className="h-[88px] w-[88px] rounded-md bg-white"
+              />
+              <div className="text-sm">
+                <div className="font-semibold">Scan to download</div>
+                <div className="text-muted-foreground text-xs">
+                  Point your phone camera here to get the app
+                  <br />
+                  {[PLAY_STORE_LIVE && "Google Play", APP_STORE_LIVE && "App Store"].filter(Boolean).join(" · ")}
+                </div>
+              </div>
+            </a>
+          )}
         </motion.div>
 
         <motion.div
