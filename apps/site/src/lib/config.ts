@@ -11,6 +11,5 @@ export const APP_STORE_URL = (import.meta.env.VITE_APP_STORE_URL || "/#mobile").
 export const PLAY_STORE_URL = (import.meta.env.VITE_PLAY_STORE_URL || "/#mobile").trim();
 
 export const SOCIAL_LINKS = [
-  { name: "Facebook", href: "https://www.facebook.com/shopynn" },
-  { name: "Instagram", href: "https://www.instagram.com/shopynn" },
+  { name: "Instagram", href: "https://www.instagram.com/shopynn.app" },
 ] as const;
