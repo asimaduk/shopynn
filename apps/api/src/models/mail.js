@@ -69,7 +69,7 @@ const toResendAttachment = async (att) => {
 };
 
 export const buildResendPayload = async (data) => {
-    const { receipient, subject, title, message, bcc, text, html, attachments } = data;
+    const { receipient, subject, title, message, bcc, text, html, attachments, headers } = data;
     const { from, replyTo } = resolveSender(data);
     const payload = {
         from,
@@ -81,6 +81,7 @@ export const buildResendPayload = async (data) => {
     const bccList = toList(bcc);
     if (bccList.length) payload.bcc = bccList;
     if (replyTo.length) payload.reply_to = replyTo;
+    if (headers && Object.keys(headers).length) payload.headers = headers;
     if (Array.isArray(attachments) && attachments.length > 0) {
         payload.attachments = (await Promise.all(attachments.map(toResendAttachment))).filter(Boolean);
     }

@@ -1,7 +1,9 @@
 import pool from "../config/db.js";
 import { v4 as uuidv4 } from "uuid";
 import { sendEmailService } from "./mail.js";
+import { escapeHtml } from "../util/escapeHtml.js";
 import { renderEmail, textBlock } from "../services/emailLayout.js";
+import { isValidUnsubscribeToken, unsubscribeHeaders, unsubscribePageUrl } from "../services/newsletterUnsubscribe.js";
 import { isValidEmail, normalizeEmail } from "../utils/emailNormalize.js";
 
 const BRAND_NAME = "Shopynn";
@@ -43,10 +45,13 @@ export const subscribeNewsletterService = async ({ email, source = "website" }) 
     return { subscriber: inserted.rows[0], alreadySubscribed: false };
 };
 
-export const unsubscribeNewsletterService = async ({ email }) => {
+export const unsubscribeNewsletterService = async ({ email, token }) => {
     const normalized = normalizeEmail(email);
     if (!isValidEmail(normalized)) {
         throw new Error("A valid email address is required.");
+    }
+    if (!isValidUnsubscribeToken(normalized, token)) {
+        throw new Error("This unsubscribe link is invalid.");
     }
 
     const now = new Date();
@@ -209,13 +214,16 @@ export const sendNewsletterCampaignService = async (id, userId) => {
         throw new Error("No active subscribers to send to.");
     }
 
-    const htmlBody = renderEmail({
-        heading: campaign.subject,
-        preheader: String(campaign.body_text || "").slice(0, 120),
-        body: campaign.body_html || textBlock(campaign.body_text || ""),
-        footerNote: `You're receiving this because you subscribed to Shopynn updates. To unsubscribe, reply with "Unsubscribe".`,
-    });
+    const body = campaign.body_html || textBlock(campaign.body_text || "");
     const textBody = campaign.body_text || String(campaign.body_html || "").replace(/<[^>]+>/g, " ");
+    const htmlFor = (email) =>
+        renderEmail({
+            heading: campaign.subject,
+            preheader: String(campaign.body_text || "").slice(0, 120),
+            body,
+            footerNote: `You're receiving this because you subscribed to Shopynn updates. <a href="${escapeHtml(unsubscribePageUrl(email))}" style="color:#64748b;">Unsubscribe</a>`,
+        });
+    const textFor = (email) => `${textBody}\n\n---\nUnsubscribe: ${unsubscribePageUrl(email)}`;
 
     let sentCount = 0;
     const now = new Date();
@@ -234,8 +242,9 @@ export const sendNewsletterCampaignService = async (id, userId) => {
                 receipient: sub.email,
                 from: "hello",
                 subject: campaign.subject,
-                html: htmlBody,
-                text: textBody,
+                html: htmlFor(sub.email),
+                text: textFor(sub.email),
+                headers: unsubscribeHeaders(sub.email),
             });
             await pool.query(
                 `UPDATE newsletter_campaign_recipients SET status = 'sent', sent_at = $2 WHERE id = $1`,

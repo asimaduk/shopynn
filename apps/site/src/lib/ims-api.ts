@@ -61,6 +61,10 @@ export function subscribeNewsletter(email: string, source = "shopynn-landing") {
   return apiPost<SubscribeNewsletterResult>("/api/public/newsletter/subscribe", { email, source });
 }
 
+export function unsubscribeNewsletter(email: string, token: string) {
+  return apiPost<null>("/api/public/newsletter/unsubscribe", { email, token });
+}
+
 export function submitContactRequest(payload: { name: string; email: string; message: string }) {
   return apiPost<ContactRequestResult>("/api/public/contact", payload);
 }

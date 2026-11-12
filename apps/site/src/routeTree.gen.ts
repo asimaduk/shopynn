@@ -16,6 +16,7 @@ import { Route as SecurityRouteImport } from './routes/security'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as StartTrialRouteImport } from './routes/start-trial'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
 import { Route as SStoreCodeRouteImport } from './routes/s.$storeCode'
 import { Route as SStoreCodeIndexRouteImport } from './routes/s.$storeCode.index'
 import { Route as SStoreCodeCheckoutRouteImport } from './routes/s.$storeCode.checkout'
@@ -57,6 +58,11 @@ const TermsRoute = TermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
+const UnsubscribeRoute = UnsubscribeRouteImport.update({
+  id: '/unsubscribe',
+  path: '/unsubscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SStoreCodeRoute = SStoreCodeRouteImport.update({
   id: '/s/$storeCode',
   path: '/s/$storeCode',
@@ -91,6 +97,7 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/start-trial': typeof StartTrialRoute
   '/terms': typeof TermsRoute
+  '/unsubscribe': typeof UnsubscribeRoute
   '/s/$storeCode': typeof SStoreCodeRouteWithChildren
   '/s/$storeCode/checkout': typeof SStoreCodeCheckoutRoute
   '/s/$storeCode/': typeof SStoreCodeIndexRoute
@@ -105,6 +112,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/start-trial': typeof StartTrialRoute
   '/terms': typeof TermsRoute
+  '/unsubscribe': typeof UnsubscribeRoute
   '/s/$storeCode/checkout': typeof SStoreCodeCheckoutRoute
   '/s/$storeCode': typeof SStoreCodeIndexRoute
   '/s/$storeCode/order/$orderId': typeof SStoreCodeOrderOrderIdRoute
@@ -119,6 +127,7 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/start-trial': typeof StartTrialRoute
   '/terms': typeof TermsRoute
+  '/unsubscribe': typeof UnsubscribeRoute
   '/s/$storeCode': typeof SStoreCodeRouteWithChildren
   '/s/$storeCode/checkout': typeof SStoreCodeCheckoutRoute
   '/s/$storeCode/': typeof SStoreCodeIndexRoute
@@ -135,6 +144,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/start-trial'
     | '/terms'
+    | '/unsubscribe'
     | '/s/$storeCode'
     | '/s/$storeCode/checkout'
     | '/s/$storeCode/'
@@ -149,6 +159,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/start-trial'
     | '/terms'
+    | '/unsubscribe'
     | '/s/$storeCode/checkout'
     | '/s/$storeCode'
     | '/s/$storeCode/order/$orderId'
@@ -162,6 +173,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/start-trial'
     | '/terms'
+    | '/unsubscribe'
     | '/s/$storeCode'
     | '/s/$storeCode/checkout'
     | '/s/$storeCode/'
@@ -177,6 +189,7 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   StartTrialRoute: typeof StartTrialRoute
   TermsRoute: typeof TermsRoute
+  UnsubscribeRoute: typeof UnsubscribeRoute
   SStoreCodeRoute: typeof SStoreCodeRouteWithChildren
 }
 
@@ -229,6 +242,13 @@ declare module '@tanstack/react-router' {
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/unsubscribe': {
+      id: '/unsubscribe'
+      path: '/unsubscribe'
+      fullPath: '/unsubscribe'
+      preLoaderRoute: typeof UnsubscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/s/$storeCode': {
@@ -295,6 +315,7 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   StartTrialRoute: StartTrialRoute,
   TermsRoute: TermsRoute,
+  UnsubscribeRoute: UnsubscribeRoute,
   SStoreCodeRoute: SStoreCodeRouteWithChildren,
 }
 export const routeTree = rootRouteImport

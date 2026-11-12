@@ -1,5 +1,9 @@
 import express from "express";
-import { publicSubscribeNewsletter, publicUnsubscribeNewsletter } from "../controllers/newsletter.js";
+import {
+    publicSubscribeNewsletter,
+    publicUnsubscribeNewsletter,
+    publicOneClickUnsubscribeNewsletter,
+} from "../controllers/newsletter.js";
 import { publicCreateContactRequest } from "../controllers/contactRequest.js";
 import {
     publicStartSiteChat,
@@ -23,6 +27,7 @@ const router = express.Router();
 
 router.post("/newsletter/subscribe", publicFormLimit, publicSubscribeNewsletter);
 router.post("/newsletter/unsubscribe", publicFormLimit, publicUnsubscribeNewsletter);
+router.post("/newsletter/unsubscribe/one-click", publicOneClickUnsubscribeNewsletter);
 router.post("/contact", publicFormLimit, publicCreateContactRequest);
 
 router.post("/chat/session", publicFormLimit, publicStartSiteChat);

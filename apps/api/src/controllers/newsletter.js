@@ -28,13 +28,29 @@ export const publicSubscribeNewsletter = async (req, res, next) => {
     }
 };
 
+const isUnsubscribeInputError = (error) =>
+    error.message?.includes("valid email") || error.message?.includes("link is invalid");
+
 export const publicUnsubscribeNewsletter = async (req, res, next) => {
     try {
-        await unsubscribeNewsletterService(req.body);
-        handleResponse(res, 200, "If that email was subscribed, it has been unsubscribed.", null);
+        await unsubscribeNewsletterService({ email: req.body?.email, token: req.body?.token });
+        handleResponse(res, 200, "You've been unsubscribed from Shopynn updates.", null);
     } catch (error) {
-        if (error.message?.includes("valid email")) {
+        if (isUnsubscribeInputError(error)) {
             return handleResponse(res, 400, error.message, null);
+        }
+        next(error);
+    }
+};
+
+/** RFC 8058 one-click: mail apps POST to the List-Unsubscribe URL with the email and token in the query. */
+export const publicOneClickUnsubscribeNewsletter = async (req, res, next) => {
+    try {
+        await unsubscribeNewsletterService({ email: req.query.e, token: req.query.t });
+        res.status(200).type("text/plain").send("Unsubscribed.");
+    } catch (error) {
+        if (isUnsubscribeInputError(error)) {
+            return res.status(400).type("text/plain").send(error.message);
         }
         next(error);
     }
