@@ -37,6 +37,8 @@ export default defineConfig({
 				define: {
 					"import.meta.env.VITE_WEB_APP_URL": JSON.stringify(viteWebAppUrl),
 					"import.meta.env.VITE_API_BASE_URL": JSON.stringify(viteApiBaseUrl),
+					"import.meta.env.VITE_APP_STORE_URL": JSON.stringify(process.env.VITE_APP_STORE_URL ?? ""),
+					"import.meta.env.VITE_PLAY_STORE_URL": JSON.stringify(process.env.VITE_PLAY_STORE_URL ?? ""),
 				},
 			}
 		: {},

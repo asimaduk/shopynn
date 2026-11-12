@@ -8,6 +8,8 @@
         "VERCEL",
         "VITE_API_BASE_URL",
         "VITE_WEB_APP_URL",
+        "VITE_APP_STORE_URL",
+        "VITE_PLAY_STORE_URL",
         "NEXT_PUBLIC_API_BASE_URL",
         "NEXT_PUBLIC_BASE_URL",
         "NEXT_PUBLIC_MARKETING_SITE_URL",
