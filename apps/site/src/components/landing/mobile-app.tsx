@@ -2,7 +2,8 @@ import { motion } from "framer-motion";
 import { Apple, Play, BellRing, MapPin, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import mobile from "@/assets/mobile-mockup.jpg";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { APP_STORE_LIVE, APP_STORE_URL, PLAY_STORE_LIVE, PLAY_STORE_URL } from "@/lib/config";
 
 function detectPlatform(): "ios" | "android" | "other" {
   if (typeof navigator === "undefined") return "other";
@@ -16,27 +17,43 @@ export function MobileApp() {
   const [platform, setPlatform] = useState<"ios" | "android" | "other">("other");
   useEffect(() => setPlatform(detectPlatform()), []);
 
-  const appStore = (
-    <Button size="lg" className="h-14 px-5 gap-3 bg-foreground text-background hover:opacity-90" asChild>
-      <a href="#" aria-label="Download on the App Store">
-        <Apple className="h-6 w-6" />
+  const storeButton = (
+    live: boolean,
+    href: string,
+    label: string,
+    kicker: string,
+    name: string,
+    icon: ReactNode,
+    className: string,
+    variant?: "outline",
+  ) => {
+    const content = (
+      <>
+        {icon}
         <span className="text-left leading-tight">
-          <span className="block text-[10px] opacity-70">Download on the</span>
-          <span className="block text-sm font-semibold">App Store</span>
+          <span className="block text-[10px] opacity-70">{live ? kicker : "Coming soon to"}</span>
+          <span className="block text-sm font-semibold">{name}</span>
         </span>
-      </a>
-    </Button>
+      </>
+    );
+    return live ? (
+      <Button size="lg" variant={variant} className={className} asChild>
+        <a href={href} target="_blank" rel="noopener noreferrer" aria-label={label}>{content}</a>
+      </Button>
+    ) : (
+      <Button size="lg" variant={variant} className={`${className} opacity-60`} disabled aria-label={`${name} coming soon`}>
+        {content}
+      </Button>
+    );
+  };
+
+  const appStore = storeButton(
+    APP_STORE_LIVE, APP_STORE_URL, "Download on the App Store", "Download on the", "App Store",
+    <Apple className="h-6 w-6" />, "h-14 px-5 gap-3 bg-foreground text-background hover:opacity-90",
   );
-  const playStore = (
-    <Button size="lg" variant="outline" className="h-14 px-5 gap-3" asChild>
-      <a href="#" aria-label="Get it on Google Play">
-        <Play className="h-6 w-6" />
-        <span className="text-left leading-tight">
-          <span className="block text-[10px] opacity-70">GET IT ON</span>
-          <span className="block text-sm font-semibold">Google Play</span>
-        </span>
-      </a>
-    </Button>
+  const playStore = storeButton(
+    PLAY_STORE_LIVE, PLAY_STORE_URL, "Get it on Google Play", "GET IT ON", "Google Play",
+    <Play className="h-6 w-6" />, "h-14 px-5 gap-3", "outline",
   );
 
   return (
