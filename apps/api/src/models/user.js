@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { signUserToken } from "../util/authToken.js";
 import bcrypt from "bcrypt";
 import { sendEmailService } from "./mail.js";
+import { buildAccountCredentialsEmail, buildPasswordResetEmail } from "../services/accountEmails.js";
 import { createWarehouseService } from "./warehouse.js";
 import {
     resolveSubscriptionFeatureCodesService,
@@ -649,15 +650,12 @@ export const createUserService = async (payload) => {
             isManual &&
             (isOnboarding || email_credentials);
         if (sendCreds) {
-            const data = {
+            sendCredentials({
                 from: "noreply",
                 sender_name: "Shopynn",
                 receipient: normalizedEmail,
-                subject: "Welcome to Shopynn - Your account is ready",
-                title: "Your temporary login credentials",
-                message: `Hello ${first_name},<br/><br/>Your Shopynn account has been created successfully.<br/><br/>You can sign in with the credentials below:<br/>- Email: <strong>${normalizedEmail}</strong><br/>- Temporary password: <strong>${plainPassword}</strong><br/><br/>For your security, this temporary password expires in 30 minutes and must be changed at first login.<br/><br/>If you did not expect this account setup, please contact Shopynn Support immediately.<br/><br/>Regards,<br/>Shopynn Support Team`,
-            };
-            sendCredentials(data);
+                ...buildAccountCredentialsEmail({ firstName: first_name, email: normalizedEmail, temporaryPassword: plainPassword }),
+            });
         }
         return { id: newUser.id };
     }
@@ -846,9 +844,13 @@ export const activateUserWithCredentialsService = async (userId) => {
         from: "noreply",
         sender_name: "Shopynn",
         receipient: user.email,
-        subject: "Welcome to Shopynn - Your agent account is ready",
-        title: "Your temporary login credentials",
-        message: `Hello ${user.first_name},<br/><br/>Your Shopynn field agent account has been approved.<br/><br/>You can sign in with the credentials below:<br/>- Email: <strong>${user.email}</strong><br/>- Temporary password: <strong>${plainPassword}</strong><br/><br/>This temporary password expires in 24 hours and must be changed at first login. If it expires, use "Forgot password" on the sign-in screen.<br/><br/>Regards,<br/>Shopynn Support Team`,
+        ...buildAccountCredentialsEmail({
+            firstName: user.first_name,
+            email: user.email,
+            temporaryPassword: plainPassword,
+            expiresIn: "24 hours",
+            accountKind: "agent",
+        }),
     });
     return { status: 200 };
 };
@@ -878,15 +880,12 @@ export const forgotPasswordService = async (email) => {
             [temporaryHash, passwordExpiresAt, new Date(), user.id]
         );
 
-        const data = {
+        sendNewPassword({
             from: "noreply",
             sender_name: "Shopynn",
             receipient: user.email,
-            subject: "Reset your password",
-            title: "Your password has been reset",
-            message: `Hello ${user.first_name},\n\nA temporary password has been generated for your account. Please log in with this password and then set a new one.\n\nTemporary password: ${plainPassword}\n\nThis password will expire in 30 minutes. Your current password keeps working until you sign in with this one. If you did not ask for this, you can ignore this email.\n\nRegards,\nShopynn Support Team`,
-        };
-        sendNewPassword(data);
+            ...buildPasswordResetEmail({ firstName: user.first_name, email: user.email, temporaryPassword: plainPassword }),
+        });
     }
     // Same response whether or not the email has an account, so it can't be used to probe for users.
 

@@ -8,7 +8,7 @@ const MUTED = '#64748B';
 const LINE = '#E2E8F0';
 const SOFT = '#F8FAFC';
 
-function formatMoney(amount, currency = 'GHS') {
+export function formatMoney(amount, currency = 'GHS') {
     const n = Number(amount);
     if (!Number.isFinite(n)) return `${currency} 0.00`;
     return `${currency} ${n.toFixed(2)}`;
@@ -22,7 +22,7 @@ function invoiceBalance(invoice) {
     return { paid: Number.isFinite(paid) ? paid : Math.max(0, invoice.total_amount - balance), balance };
 }
 
-function formatDate(value) {
+export function formatDate(value) {
     if (!value) {
         return new Date().toLocaleString(undefined, {
             day: 'numeric',

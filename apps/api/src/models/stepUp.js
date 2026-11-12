@@ -13,6 +13,7 @@ import { assertOtpQuota } from "../util/otpQuota.js";
 import { maskEmail, maskPhone, otpForLog } from "../util/devOtp.js";
 import { isSmsConfigured, sendSmsService } from "../services/sms.js";
 import { sendEmailService } from "./mail.js";
+import { buildVerificationCodeEmail } from "../services/accountEmails.js";
 import { normalizeStorefrontPhone } from "./storefront.js";
 
 const PURPOSE = "step_up";
@@ -68,17 +69,12 @@ const codeMessage = (code) =>
     `Your Shopynn confirmation code is ${code}. Only enter it if you are making a withdrawal or changing payout details. It expires in 10 minutes.`;
 
 function emailCode(target, code) {
-    const message = codeMessage(code);
     // Not awaited: SMTP can hang for longer than the app's request timeout.
     sendEmailService({
         sender_name: "Shopynn",
         receipient: target,
         from: "noreply",
-        subject: "Confirm it's you — Shopynn",
-        title: "Your confirmation code",
-        message: `${message}\n\nIf you did not request this, change your password.`,
-        text: message,
-        html: `<p>Use this code to confirm a withdrawal or payout change:</p><p style="font-size:28px;font-weight:bold;letter-spacing:4px">${code}</p><p>This code expires in 10 minutes. If you did not request it, change your password.</p>`,
+        ...buildVerificationCodeEmail({ purpose: "step_up", code }),
     }).catch((err) => {
         console.info(`[step-up OTP] email=${maskEmail(target)} code=${otpForLog(code)} mail=${err?.message || "n/a"}`);
     });

@@ -1,18 +1,11 @@
 import pool from "../config/db.js";
 import { sendToTokens } from "../services/firebaseMessaging.js";
 import { sendEmailService } from "../models/mail.js";
+import { renderEmail, signoff, textBlock } from "../services/emailLayout.js";
 import { sendSmsService, isSmsConfigured } from "../services/sms.js";
 import { createNotificationService } from "../models/notification.js";
 
 const FCM_CHUNK = 450;
-
-function escapeHtml(s) {
-    return String(s || "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
-}
 
 /**
  * @param {{ audience: 'myself' | 'all', user: { id: string } }} opts
@@ -129,10 +122,11 @@ export async function sendBroadcastService({
                     from: "noreply",
                     subject: titleTrim,
                     text: bodyTrim,
-                    html: `<div style="font-family:system-ui,sans-serif;line-height:1.5">
-                        <h2 style="margin:0 0 12px">${escapeHtml(titleTrim)}</h2>
-                        <p style="white-space:pre-wrap;margin:0">${escapeHtml(bodyTrim)}</p>
-                    </div>`,
+                    html: renderEmail({
+                        heading: titleTrim,
+                        preheader: bodyTrim.slice(0, 120),
+                        body: [textBlock(bodyTrim), signoff()],
+                    }),
                 });
                 summary.email.success += 1;
             } catch (err) {

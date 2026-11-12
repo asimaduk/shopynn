@@ -1,4 +1,5 @@
 import { escapeHtml } from "../util/escapeHtml.js";
+import { paragraph, renderEmail, signoff } from "./emailLayout.js";
 
 const NETWORK_LABEL = { mtn: "MTN", vodafone: "Telecel", airteltigo: "AirtelTigo" };
 
@@ -12,12 +13,7 @@ function maskedMomo(snapshot) {
 }
 
 function layout(heading, paragraphs) {
-    return `
-        <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#0f172a">
-            <h2 style="color:#0A74DA;margin-bottom:12px">${heading}</h2>
-            ${paragraphs.map((p) => `<p style="line-height:1.6">${p}</p>`).join("\n")}
-            <p style="color:#64748b">— The Shopynn team</p>
-        </div>`;
+    return renderEmail({ heading, preheader: heading, body: [...paragraphs.map((p) => paragraph(p)), signoff()] });
 }
 
 /**

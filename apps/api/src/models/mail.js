@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { paragraph, renderEmail } from "../services/emailLayout.js";
 
 const RESEND_URL = "https://api.resend.com/emails";
 
@@ -74,7 +75,7 @@ export const buildResendPayload = async (data) => {
         from,
         to: toList(receipient),
         subject,
-        html: html ?? `<b>${title ?? ""}</b>\n<p>${message ?? ""}</p>`,
+        html: html ?? renderEmail({ heading: title || subject || "Shopynn", body: paragraph(message ?? "") }),
     };
     if (text) payload.text = text;
     const bccList = toList(bcc);

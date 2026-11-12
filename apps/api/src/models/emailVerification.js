@@ -4,6 +4,7 @@ import { generateOtp } from "../util/secureRandom.js";
 import { assertOtpQuota } from "../util/otpQuota.js";
 import { v4 as uuidv4 } from "uuid";
 import { sendEmailService } from "./mail.js";
+import { buildVerificationCodeEmail } from "../services/accountEmails.js";
 import { maskEmail, otpForLog } from "../util/devOtp.js";
 
 const PURPOSE_SHOP_OWNER = "shop_owner_signup";
@@ -91,11 +92,7 @@ export async function sendShopOwnerEmailOtpService(email) {
         sender_name: "Shopynn",
         receipient: normalized,
         from: "noreply",
-        subject: "Verify your email — Shopynn shop signup",
-        title: "Your verification code",
-        message: `Use this code to verify your owner login email:\n\n${code}\n\nThis code expires in 10 minutes. If you did not request this, you can ignore this email.`,
-        text: `Your Shopynn verification code is ${code}. It expires in 10 minutes.`,
-        html: `<p>Use this code to verify your owner login email:</p><p style="font-size:28px;font-weight:bold;letter-spacing:4px">${code}</p><p>This code expires in 10 minutes.</p>`,
+        ...buildVerificationCodeEmail({ purpose: "signup", code }),
     }).catch((err) => {
         console.info(`[shop owner signup OTP] email=${maskEmail(normalized)} code=${otpForLog(code)} mail=${err?.message || "n/a"}`);
     });
@@ -231,11 +228,7 @@ export async function sendCustomerChangeEmailOtpService({ userId, email }) {
         sender_name: "Shopynn",
         receipient: normalized,
         from: "noreply",
-        subject: "Confirm your new email — Shopynn",
-        title: "Your verification code",
-        message: `Use this code to confirm your new Shopynn email:\n\n${code}\n\nThis code expires in 10 minutes. If you did not request this, you can ignore this email.`,
-        text: `Your Shopynn email change code is ${code}. It expires in 10 minutes.`,
-        html: `<p>Use this code to confirm your new Shopynn email:</p><p style="font-size:28px;font-weight:bold;letter-spacing:4px">${code}</p><p>This code expires in 10 minutes.</p>`,
+        ...buildVerificationCodeEmail({ purpose: "change_email", code }),
     });
 
     return { email: normalized, expires_in_seconds: Math.floor(OTP_TTL_MS / 1000) };

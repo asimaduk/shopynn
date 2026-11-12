@@ -1,6 +1,8 @@
 import pool from "../config/db.js";
 import { v4 as uuidv4 } from 'uuid';
 import { sendEmailService } from "./mail.js";
+import { escapeHtml } from "../util/escapeHtml.js";
+import { button, detailsTable, greeting, notice, paragraph, renderEmail, signInUrl, signoff } from "../services/emailLayout.js";
 import { getUserPermissionsService, getUsersWithPermissionCodesForTenant } from "./userRole.js";
 import {
     getBulkDiscountFromSettings,
@@ -1348,16 +1350,39 @@ export const sendSaleInvoiceEmailService = async (saleId, tenant_id, { email } =
     }
     const tenant = await loadTenantForInvoice(tenant_id);
     const companyName = tenant.name || tenant.organization || 'Shopynn';
+    const { invoice } = pkg;
+    const { formatMoney: formatInvoiceMoney, formatDate: formatInvoiceDate } = await import('../utils/saleInvoice.js');
+    const balance = Number(invoice.balance_due);
+    const rows = [
+        ['Invoice number', escapeHtml(invoice.invoice_number)],
+        ['Date', escapeHtml(formatInvoiceDate(invoice.sale_date))],
+        ['Total', escapeHtml(formatInvoiceMoney(invoice.total_amount, invoice.currency))],
+    ];
+    if (Number.isFinite(balance) && balance > 0.02) {
+        rows.push(['Balance due', escapeHtml(formatInvoiceMoney(balance, invoice.currency))]);
+    }
     await sendEmailService({
         from: "noreply",
         sender_name: companyName,
         reply_to: tenant.email || undefined,
         receipient: to,
-        subject: `Invoice ${pkg.invoice.invoice_number}`,
-        title: `Invoice from ${companyName}`,
-        message: `Please find your invoice ${pkg.invoice.invoice_number} attached.`,
+        subject: `Invoice ${invoice.invoice_number} from ${companyName}`,
         text: pkg.plainText,
-        html: `<p>Hello ${pkg.invoice.customer_name},</p><p>Please find invoice <strong>${pkg.invoice.invoice_number}</strong> attached.</p><pre style="white-space:pre-wrap;font-family:monospace;font-size:12px">${pkg.plainText.replace(/</g, '&lt;')}</pre>`,
+        html: renderEmail({
+            heading: `Invoice ${invoice.invoice_number}`,
+            preheader: `Your invoice from ${companyName} is attached.`,
+            brandName: companyName,
+            showLogo: false,
+            helpHtml: tenant.email
+                ? `Questions about this invoice? Reply to this email to reach ${escapeHtml(companyName)}.`
+                : `Questions about this invoice? Contact ${escapeHtml(companyName)} directly.`,
+            body: [
+                greeting(invoice.customer_name && invoice.customer_name !== 'Walk-in' ? invoice.customer_name : 'there'),
+                paragraph(`Thank you for shopping with <strong>${escapeHtml(companyName)}</strong>. Your invoice is attached as a PDF.`),
+                detailsTable(rows),
+                signoff(companyName),
+            ],
+        }),
         attachments: [
             {
                 filename: pkg.filename,
@@ -1425,23 +1450,14 @@ const sendStockLevelAlert = async (tenant_id, prod) => {
         return;
     }
 
-    const subject = `Shopynn alert - Low stock for ${productName}${storeName ? ` at ${storeName}` : ""}`;
-    const title = "Low stock notification";
-    const parts = [
-        "This is an automated inventory alert from Shopynn.",
-        `<strong>Product:</strong> ${productName}`,
-    ];
-    if (storeName) parts.push(`<strong>Store:</strong> ${storeName}`);
-    parts.push(`<strong>Quantity on hand after this sale:</strong> ${Number.isFinite(qty) ? qty : newQuantity}`);
-    if (minLevel != null && Number.isFinite(minLevel)) {
-        parts.push(`<strong>Configured minimum stock level:</strong> ${minLevel}`);
-    }
-    parts.push(
-        "",
-        "Current stock is at or below the configured threshold.",
-        "Please review this item and raise a replenishment order if required."
-    );
-    const message = parts.join("<br/>");
+    const subject = `Low stock: ${productName}${storeName ? ` at ${storeName}` : ""}`;
+    const onHand = Number.isFinite(qty) ? qty : newQuantity;
+    const hasMin = minLevel != null && Number.isFinite(minLevel);
+    const rows = [["Product", escapeHtml(productName)]];
+    if (storeName) rows.push(["Store", escapeHtml(storeName)]);
+    rows.push(["In stock after this sale", escapeHtml(onHand)]);
+    if (hasMin) rows.push(["Minimum stock level", escapeHtml(minLevel)]);
+    const advice = "Stock is at or below the minimum you set. Review this item and restock it if needed.";
 
     const [primary, ...bccList] = recipients;
     const data = {
@@ -1450,8 +1466,26 @@ const sendStockLevelAlert = async (tenant_id, prod) => {
         receipient: primary,
         bcc: bccList.length > 0 ? bccList.join(", ") : undefined,
         subject,
-        title,
-        message,
+        text: [
+            `Low stock alert`,
+            "",
+            `Product: ${productName}`,
+            ...(storeName ? [`Store: ${storeName}`] : []),
+            `In stock after this sale: ${onHand}`,
+            ...(hasMin ? [`Minimum stock level: ${minLevel}`] : []),
+            "",
+            advice,
+        ].join("\n"),
+        html: renderEmail({
+            heading: "Low stock alert",
+            preheader: `${productName} is running low${storeName ? ` at ${storeName}` : ""}.`,
+            footerNote: "You're receiving this because low-stock alerts are turned on in your Shopynn notification settings.",
+            body: [
+                notice(advice, "warning"),
+                detailsTable(rows),
+                button(signInUrl(), "Open Shopynn"),
+            ],
+        }),
     };
 
     const resp = await sendEmailService(data);

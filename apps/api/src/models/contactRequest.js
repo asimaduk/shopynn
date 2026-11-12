@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { sendEmailService } from "./mail.js";
 import { isValidEmail, normalizeEmail } from "../utils/emailNormalize.js";
 import { escapeHtml } from "../util/escapeHtml.js";
+import { greeting, notice, paragraph, renderEmail, signoff, textBlock } from "../services/emailLayout.js";
 
 const BRAND_NAME = "Shopynn";
 export const createContactRequestService = async ({ name, email, message }) => {
@@ -31,7 +32,17 @@ export const createContactRequestService = async ({ name, email, message }) => {
             from: "support",
             subject: `We received your message — ${BRAND_NAME}`,
             text: `Hi ${trimmedName},\n\nThanks for reaching out. We received your message and will get back to you soon.\n\n— ${BRAND_NAME}`,
-            html: `<p>Hi ${escapeHtml(trimmedName)},</p><p>Thanks for reaching out. We received your message and will get back to you soon.</p><p>— ${BRAND_NAME}</p>`,
+            html: renderEmail({
+                heading: "We received your message",
+                preheader: "Thanks for reaching out. We'll get back to you soon.",
+                body: [
+                    greeting(trimmedName),
+                    paragraph("Thanks for reaching out to Shopynn. We received your message and a member of our team will get back to you, usually within one business day."),
+                    paragraph("Your message:", { muted: true, small: true }),
+                    notice(escapeHtml(trimmedMessage).replace(/\r?\n/g, "<br/>")),
+                    signoff(),
+                ],
+            }),
         });
     } catch (_) {
         // Non-blocking acknowledgment email
@@ -139,7 +150,11 @@ export const replyToContactRequestService = async (id, { message }, userId) => {
         from: "support",
         subject: `Re: Your message to ${BRAND_NAME}`,
         text: `Hi ${request.name},\n\n${trimmed}\n\n— ${staffName}`,
-        html: `<p>Hi ${escapeHtml(request.name)},</p><p>${escapeHtml(trimmed).replace(/\n/g, "<br/>")}</p><p>— ${escapeHtml(staffName)}</p>`,
+        html: renderEmail({
+            heading: "A reply to your message",
+            preheader: trimmed.slice(0, 120),
+            body: [greeting(request.name), textBlock(trimmed), signoff(`The ${staffName} team`)],
+        }),
     });
 
     const updated = await pool.query(

@@ -2,7 +2,7 @@ import pool from "../config/db.js";
 import { v4 as uuidv4 } from "uuid";
 import { sendEmailService } from "./mail.js";
 import { isValidEmail, normalizeEmail } from "../utils/emailNormalize.js";
-import { escapeHtml } from "../util/escapeHtml.js";
+import { greeting, paragraph, renderEmail, signoff, textBlock } from "../services/emailLayout.js";
 
 const BRAND_NAME = "Shopynn";
 
@@ -87,7 +87,15 @@ export const startOrContinueSiteChatService = async ({
             from: "support",
             subject: `We received your chat — ${BRAND_NAME}`,
             text: `Hi ${trimmedName},\n\nThanks for messaging us. Our team will reply here and by email when we're back online.\n\n— ${BRAND_NAME}`,
-            html: `<p>Hi ${escapeHtml(trimmedName)},</p><p>Thanks for messaging us. Our team will reply as soon as we can.</p><p>— ${BRAND_NAME}</p>`,
+            html: renderEmail({
+                heading: "Thanks for your message",
+                preheader: "Our team will reply as soon as we can.",
+                body: [
+                    greeting(trimmedName),
+                    paragraph("Thanks for messaging Shopynn. Our team will reply in the chat and by email as soon as we can."),
+                    signoff(),
+                ],
+            }),
         });
     } catch (_) {
         // non-blocking
@@ -234,7 +242,11 @@ export const replyToSiteChatSessionService = async (id, { message }, userId) => 
         from: "support",
         subject: `New reply from ${BRAND_NAME}`,
         text: `Hi ${session.name},\n\n${trimmed}\n\n— ${BRAND_NAME} Support`,
-        html: `<p>Hi ${escapeHtml(session.name)},</p><p>${escapeHtml(trimmed).replace(/\n/g, "<br/>")}</p><p>— ${BRAND_NAME} Support</p>`,
+        html: renderEmail({
+            heading: `New reply from ${BRAND_NAME}`,
+            preheader: trimmed.slice(0, 120),
+            body: [greeting(session.name), textBlock(trimmed), signoff(`${BRAND_NAME} Support`)],
+        }),
     });
 
     const updated = await pool.query(

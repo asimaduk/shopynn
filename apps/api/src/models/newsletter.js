@@ -1,6 +1,7 @@
 import pool from "../config/db.js";
 import { v4 as uuidv4 } from "uuid";
 import { sendEmailService } from "./mail.js";
+import { renderEmail, textBlock } from "../services/emailLayout.js";
 import { isValidEmail, normalizeEmail } from "../utils/emailNormalize.js";
 
 const BRAND_NAME = "Shopynn";
@@ -208,9 +209,12 @@ export const sendNewsletterCampaignService = async (id, userId) => {
         throw new Error("No active subscribers to send to.");
     }
 
-    const htmlBody =
-        campaign.body_html ||
-        `<div style="font-family:sans-serif;line-height:1.5">${(campaign.body_text || "").replace(/\n/g, "<br/>")}</div>`;
+    const htmlBody = renderEmail({
+        heading: campaign.subject,
+        preheader: String(campaign.body_text || "").slice(0, 120),
+        body: campaign.body_html || textBlock(campaign.body_text || ""),
+        footerNote: `You're receiving this because you subscribed to Shopynn updates. To unsubscribe, reply with "Unsubscribe".`,
+    });
     const textBody = campaign.body_text || String(campaign.body_html || "").replace(/<[^>]+>/g, " ");
 
     let sentCount = 0;
