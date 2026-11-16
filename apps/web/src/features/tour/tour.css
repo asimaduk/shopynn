@@ -1,11 +1,11 @@
-/* Shopynn product tour — accents on driver.js popovers */
+/* Shopynn product tour — above MUI Modal/Popover (9999) and Fuse overlays */
 .shopynn-tour-popover.driver-popover {
 	background: #ffffff;
 	color: #0f172a;
 	border-radius: 12px;
 	box-shadow: 0 12px 40px rgba(15, 23, 42, 0.18);
 	max-width: 340px;
-	z-index: 1400;
+	z-index: 100050 !important;
 }
 
 .shopynn-tour-popover .driver-popover-title {
@@ -52,8 +52,19 @@
 	color: #64748b;
 }
 
-.driver-overlay,
-.driver-active-element,
+.driver-overlay {
+	z-index: 100040 !important;
+}
+
+.driver-active-element {
+	z-index: 100045 !important;
+}
+
 .driver-popover-tip {
-	z-index: 1300;
+	z-index: 100050 !important;
+}
+
+/* Keep the step visible while waiting for a nav/page anchor to mount. */
+.shopynn-tour-popover.driver-popover.driver-waiting {
+	opacity: 1;
 }

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+	hasTakenAnyTour,
 	isOverviewPending,
 	overviewDonePayload,
 	readTourPreferences,
@@ -13,6 +14,14 @@ describe('tourPreferences', () => {
 		assert.equal(isOverviewPending({ overviewStatus: 'pending' }), true);
 		assert.equal(isOverviewPending({ overviewStatus: 'completed' }), false);
 		assert.equal(isOverviewPending({ overviewStatus: 'skipped' }), false);
+	});
+
+	it('detects whether any tour has been taken or dismissed', () => {
+		assert.equal(hasTakenAnyTour({}), false);
+		assert.equal(hasTakenAnyTour({ overviewStatus: 'pending' }), false);
+		assert.equal(hasTakenAnyTour({ overviewStatus: 'skipped' }), true);
+		assert.equal(hasTakenAnyTour({ overviewStatus: 'completed' }), true);
+		assert.equal(hasTakenAnyTour({ completed: { sales: '2026-01-02T00:00:00.000Z' } }), true);
 	});
 
 	it('reads nested tour prefs from preferences payload', () => {

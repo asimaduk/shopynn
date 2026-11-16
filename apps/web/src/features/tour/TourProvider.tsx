@@ -12,15 +12,15 @@ import {
 } from 'react';
 import { useRouter } from 'next/navigation';
 import useUser from '@auth/useUser';
-import { isBillingAdminUser } from '@auth/permissions';
 import {
 	useGetMePreferencesQuery,
 	useUpdateMePreferencesMutation
 } from 'src/app/(control-panel)/apps/profile/ProfileApi';
 import TourCatalogDialog from './TourCatalogDialog';
+import TourWelcomeDialog from './TourWelcomeDialog';
 import type { TourId } from './tourIds';
 import {
-	isOverviewPending,
+	hasTakenAnyTour,
 	overviewDonePayload,
 	readTourPreferences,
 	tourCompletedPayload,
@@ -54,13 +54,20 @@ type Props = { children: ReactNode };
 export default function TourProvider({ children }: Props) {
 	const router = useRouter();
 	const { data: user, isGuest } = useUser();
-	const { data: preferences, isSuccess } = useGetMePreferencesQuery(undefined, {
-		skip: !user?.id || isGuest
+	// Session `db` omits `id` (stored as session.user_id). Auth is via bearer token, so skip on user presence only.
+	const {
+		data: preferences,
+		isSuccess,
+		isError
+	} = useGetMePreferencesQuery(undefined, {
+		skip: !user || isGuest
 	});
 	const [updateMePreferences] = useUpdateMePreferencesMutation();
 	const [catalogOpen, setCatalogOpen] = useState(false);
+	const [welcomeOpen, setWelcomeOpen] = useState(false);
 	const [localTour, setLocalTour] = useState<TourPreferences | null>(null);
-	const autoStartedRef = useRef(false);
+	const welcomeOfferedRef = useRef(false);
+	const pendingTourRef = useRef<TourId | null>(null);
 
 	const tourPrefs = useMemo(() => {
 		const fromServer = readTourPreferences((preferences ?? null) as Record<string, unknown> | null);
@@ -70,6 +77,9 @@ export default function TourProvider({ children }: Props) {
 			completed: { ...fromServer.completed, ...localTour.completed }
 		};
 	}, [preferences, localTour]);
+
+	/** Prefs loaded (or failed) enough to decide whether to auto-offer the tour. */
+	const prefsReady = isSuccess || isError;
 
 	const persist = useCallback(
 		async (body: Record<string, unknown>) => {
@@ -116,17 +126,47 @@ export default function TourProvider({ children }: Props) {
 
 	const openCatalog = useCallback(() => setCatalogOpen(true), []);
 
-	useEffect(() => {
-		if (!isSuccess || autoStartedRef.current || isGuest || !user) return;
-		if (!isBillingAdminUser(user)) return;
-		if (!isOverviewPending(tourPrefs)) return;
+	const queuePendingTour = useCallback(() => {
+		const tourId = pendingTourRef.current;
+		pendingTourRef.current = null;
+		if (tourId) {
+			// Let the dialog/modal unmount before driver mounts above the page.
+			window.setTimeout(() => startTourById(tourId), 50);
+		}
+	}, [startTourById]);
 
-		autoStartedRef.current = true;
-		const timer = window.setTimeout(() => startTourById('overview'), 900);
+	const queueTourAfterDialog = useCallback((tourId: TourId) => {
+		pendingTourRef.current = tourId;
+		setCatalogOpen(false);
+		setWelcomeOpen(false);
+	}, []);
+
+	useEffect(() => {
+		if (!prefsReady || welcomeOfferedRef.current || isGuest || !user) return;
+		if (hasTakenAnyTour(tourPrefs)) return;
+
+		// Set the ref only when opening — Strict Mode remount clears the timer first.
+		const timer = window.setTimeout(() => {
+			welcomeOfferedRef.current = true;
+			setWelcomeOpen(true);
+		}, 700);
 		return () => window.clearTimeout(timer);
-	}, [isSuccess, isGuest, user, tourPrefs, startTourById]);
+	}, [prefsReady, isGuest, user, tourPrefs]);
 
 	useEffect(() => () => stopTour(), []);
+
+	const handleWelcomeStart = useCallback(() => {
+		queueTourAfterDialog('overview');
+	}, [queueTourAfterDialog]);
+
+	const handleWelcomeDontShowAgain = useCallback(() => {
+		setWelcomeOpen(false);
+		void persist(overviewDonePayload('skipped'));
+	}, [persist]);
+
+	const handleWelcomeDismiss = useCallback(() => {
+		setWelcomeOpen(false);
+	}, []);
 
 	const value = useMemo(
 		() => ({ openCatalog, startTourById, tourPrefs }),
@@ -136,11 +176,19 @@ export default function TourProvider({ children }: Props) {
 	return (
 		<TourContext.Provider value={value}>
 			{children}
+			<TourWelcomeDialog
+				open={welcomeOpen}
+				onStart={handleWelcomeStart}
+				onDontShowAgain={handleWelcomeDontShowAgain}
+				onDismiss={handleWelcomeDismiss}
+				onExited={queuePendingTour}
+			/>
 			<TourCatalogDialog
 				open={catalogOpen}
 				onClose={() => setCatalogOpen(false)}
 				tourPrefs={tourPrefs}
-				onStart={startTourById}
+				onStart={queueTourAfterDialog}
+				onExited={queuePendingTour}
 			/>
 		</TourContext.Provider>
 	);

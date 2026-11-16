@@ -25,7 +25,7 @@ export const TOUR_CATALOG: TourDefinition[] = [
 		steps: [
 			{
 				title: 'Welcome to Shopynn',
-				description: 'This short tour shows where to sell, stock, buy, and check how the shop is doing. You can replay it anytime from your profile menu.'
+				description: 'This short tour shows where to sell, stock, buy, manage customers and staff, and check how the shop is doing. You can replay it anytime from Take a tour in the side menu.'
 			},
 			{
 				element: '[data-tour="nav-dashboards.project"]',
@@ -49,6 +49,18 @@ export const TOUR_CATALOG: TourDefinition[] = [
 				element: '[data-tour="nav-trading.new-purchase"]',
 				title: 'New Purchase',
 				description: 'When stock arrives from a supplier, record it here so inventory stays accurate.',
+				side: 'right'
+			},
+			{
+				element: '[data-tour="nav-people.customers"]',
+				title: 'Customers',
+				description: 'Your customer list lives under People. Add walk-in and credit customers, then look them up when selling.',
+				side: 'right'
+			},
+			{
+				element: '[data-tour="nav-people.users"]',
+				title: 'Staff',
+				description: 'Invite cashiers and managers under Users. Each person gets a role so they only see what they need.',
 				side: 'right'
 			},
 			{
@@ -155,6 +167,62 @@ export const TOUR_CATALOG: TourDefinition[] = [
 		]
 	},
 	{
+		id: 'customers',
+		title: 'Customers',
+		description: 'Keep your customer list and look people up at the till.',
+		steps: [
+			{
+				element: '[data-tour="nav-people.customers"]',
+				title: 'Customers menu',
+				description: 'Open People → Customers to manage everyone who buys from your shop.',
+				route: '/users/customers',
+				side: 'right'
+			},
+			{
+				element: '[data-tour="customers-page"]',
+				title: 'Customer list',
+				description: 'Search existing customers or browse the list. Opening a customer shows contact details and history.',
+				route: '/users/customers',
+				side: 'bottom'
+			},
+			{
+				element: '[data-tour="customers-add"]',
+				title: 'Add a customer',
+				description: 'Use Add when someone new walks in — name and phone are enough to start. You can attach sales and credit later.',
+				route: '/users/customers',
+				side: 'left'
+			}
+		]
+	},
+	{
+		id: 'staff',
+		title: 'Staff',
+		description: 'Add cashiers and managers, and control what they can do.',
+		steps: [
+			{
+				element: '[data-tour="nav-people.users"]',
+				title: 'Users / staff',
+				description: 'Team accounts live under People → Users (staff).',
+				route: '/users/staff',
+				side: 'right'
+			},
+			{
+				element: '[data-tour="staff-page"]',
+				title: 'Your team',
+				description: 'See who is active, who is disabled, and open a person to change their role or details.',
+				route: '/users/staff',
+				side: 'bottom'
+			},
+			{
+				element: '[data-tour="staff-add"]',
+				title: 'Add staff',
+				description: 'Invite a new user with Add. Assign a role so they can sell, stock, or manage — without seeing more than they should.',
+				route: '/users/staff',
+				side: 'left'
+			}
+		]
+	},
+	{
 		id: 'reports',
 		title: 'Reports',
 		description: 'See how the shop is doing.',
@@ -197,7 +265,7 @@ export const TOUR_CATALOG: TourDefinition[] = [
 			{
 				element: '[data-tour="nav-setups.invoiceReceipt"]',
 				title: 'Receipt layout',
-				description: 'Customize what prints on receipts. Team members are managed under Users when you are ready to add staff.',
+				description: 'Customize what prints on receipts. For team access, use the Staff tour under People → Users.',
 				side: 'right'
 			}
 		]

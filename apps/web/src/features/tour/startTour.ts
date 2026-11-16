@@ -3,6 +3,12 @@
 import { driver, type DriveStep, type Driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
 import './tour.css';
+import store from '@/store/store';
+import {
+	navbarOpen,
+	navbarOpenFolded,
+	navbarOpenMobile
+} from 'src/components/theme-layouts/components/navbar/navbarSlice';
 import { getTourDefinition, type TourStepDef } from './tourDefinitions';
 import type { TourId } from './tourIds';
 
@@ -15,18 +21,69 @@ export type StartTourOptions = {
 
 let activeDriver: Driver | null = null;
 
+function needsNavbar(selector?: string): boolean {
+	return Boolean(selector && selector.includes('data-tour="nav-'));
+}
+
+/** Keep the side nav open so tour anchors stay in the DOM. */
+function ensureNavbarOpen() {
+	store.store.dispatch(navbarOpen());
+	store.store.dispatch(navbarOpenFolded());
+	// Temporary drawer uses a MUI Modal — only open it on small screens.
+	if (typeof window !== 'undefined' && window.matchMedia('(max-width: 1199.95px)').matches) {
+		store.store.dispatch(navbarOpenMobile());
+	}
+}
+
+async function waitForSelector(selector: string, timeoutMs: number): Promise<Element | null> {
+	const existing = document.querySelector(selector);
+	if (existing) return existing;
+
+	return new Promise((resolve) => {
+		const started = Date.now();
+		const tick = () => {
+			const el = document.querySelector(selector);
+			if (el) {
+				resolve(el);
+				return;
+			}
+			if (Date.now() - started >= timeoutMs) {
+				resolve(null);
+				return;
+			}
+			window.setTimeout(tick, 50);
+		};
+		tick();
+	});
+}
+
 async function ensureRoute(navigate: StartTourOptions['navigate'], route?: string) {
 	if (!route) return;
 	if (window.location.pathname === route) return;
 	await navigate(route);
-	await new Promise((r) => window.setTimeout(r, 150));
+	await new Promise((r) => window.setTimeout(r, 280));
+}
+
+async function prepareStep(step: TourStepDef, navigate: StartTourOptions['navigate']) {
+	if (needsNavbar(step.element)) {
+		ensureNavbarOpen();
+	}
+	await ensureRoute(navigate, step.route);
+	if (step.element) {
+		if (needsNavbar(step.element)) {
+			ensureNavbarOpen();
+		}
+		await waitForSelector(step.element, 2500);
+	}
 }
 
 function buildSteps(raw: TourStepDef[], navigate: StartTourOptions['navigate']): DriveStep[] {
 	return raw.map((step) => ({
 		element: step.element,
-		skipMissingElement: true,
-		waitForElement: step.element ? 8000 : undefined,
+		// Wait for late-rendered anchors instead of skipping the whole remainder of the tour.
+		waitForElement: step.element ? 6000 : undefined,
+		skipMissingElement: false,
+		onElementMissing: 'stay',
 		popover: {
 			title: step.title,
 			description: step.description,
@@ -35,7 +92,7 @@ function buildSteps(raw: TourStepDef[], navigate: StartTourOptions['navigate']):
 			popoverClass: 'shopynn-tour-popover'
 		},
 		onHighlightStarted: async () => {
-			await ensureRoute(navigate, step.route);
+			await prepareStep(step, navigate);
 		}
 	}));
 }
@@ -49,8 +106,14 @@ export async function startTour(options: StartTourOptions): Promise<void> {
 		activeDriver = null;
 	}
 
-	const firstRoute = def.steps.find((s) => s.route)?.route;
-	await ensureRoute(options.navigate, firstRoute);
+	ensureNavbarOpen();
+	const firstWithRoute = def.steps.find((s) => s.route);
+	const firstWithElement = def.steps.find((s) => s.element);
+	await ensureRoute(options.navigate, firstWithRoute?.route);
+	if (firstWithElement?.element && needsNavbar(firstWithElement.element)) {
+		ensureNavbarOpen();
+		await waitForSelector(firstWithElement.element, 2500);
+	}
 
 	const steps = buildSteps(def.steps, options.navigate);
 	if (!steps.length) {
@@ -73,7 +136,8 @@ export async function startTour(options: StartTourOptions): Promise<void> {
 		overlayOpacity: 0.55,
 		stagePadding: 8,
 		stageRadius: 10,
-		skipMissingElement: true,
+		skipMissingElement: false,
+		onElementMissing: 'stay',
 		popoverClass: 'shopynn-tour-popover',
 		nextBtnText: 'Next',
 		prevBtnText: 'Back',
@@ -83,13 +147,19 @@ export async function startTour(options: StartTourOptions): Promise<void> {
 		onNextClick: async (_el, _step, { driver: d }) => {
 			const nextIndex = (d.getActiveIndex() ?? 0) + 1;
 			const nextDef = def.steps[nextIndex];
-			if (nextDef?.route) await ensureRoute(options.navigate, nextDef.route);
+			if (nextDef) {
+				await prepareStep(nextDef, options.navigate);
+			}
+			if (!d.isActive()) return;
 			d.moveNext();
 		},
 		onPrevClick: async (_el, _step, { driver: d }) => {
 			const prevIndex = (d.getActiveIndex() ?? 0) - 1;
 			const prevDef = def.steps[prevIndex];
-			if (prevDef?.route) await ensureRoute(options.navigate, prevDef.route);
+			if (prevDef) {
+				await prepareStep(prevDef, options.navigate);
+			}
+			if (!d.isActive()) return;
 			d.movePrevious();
 		},
 		onDestroyStarted: (_el, _step, { driver: d }) => {

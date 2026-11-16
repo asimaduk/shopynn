@@ -1,4 +1,13 @@
-export const TOUR_IDS = ['overview', 'inventory', 'sales', 'purchases', 'reports', 'settings'] as const;
+export const TOUR_IDS = [
+	'overview',
+	'inventory',
+	'sales',
+	'purchases',
+	'customers',
+	'staff',
+	'reports',
+	'settings'
+] as const;
 
 export type TourId = (typeof TOUR_IDS)[number];
 

@@ -13,21 +13,21 @@ import Tooltip from '@mui/material/Tooltip';
 import clsx from 'clsx';
 import Popover, { PopoverProps } from '@mui/material/Popover/Popover';
 import useUser from '@auth/useUser';
-import { useTourOptional } from 'src/features/tour';
 
 type UserMenuProps = {
 	className?: string;
 	popoverProps?: Partial<PopoverProps>;
 	arrowIcon?: string;
+	/** Icon-only trigger for the folded sidebar rail. */
+	compact?: boolean;
 };
 
 /**
  * The user menu.
  */
 function UserMenu(props: UserMenuProps) {
-	const { className, popoverProps, arrowIcon = 'heroicons-outline:chevron-up' } = props;
+	const { className, popoverProps, arrowIcon = 'heroicons-outline:chevron-up', compact = false } = props;
 	const { data: user, signOut, isGuest } = useUser();
-	const tour = useTourOptional();
 	const [userMenu, setUserMenu] = useState<HTMLElement | null>(null);
 	const userMenuClick = (event: React.MouseEvent<HTMLElement>) => {
 		setUserMenu(event.currentTarget);
@@ -41,85 +41,100 @@ function UserMenu(props: UserMenuProps) {
 		return null;
 	}
 
+	const avatar = user?.photoURL ? (
+		<Avatar
+			sx={(theme) => ({
+				background: theme.palette.background.default,
+				color: theme.palette.text.secondary
+			})}
+			className="avatar h-9 w-9 shrink-0"
+			alt="user photo"
+			src={user?.photoURL}
+		/>
+	) : (
+		<Avatar
+			sx={(theme) => ({
+				background: (theme) => darken(theme.palette.background.default, 0.05),
+				color: theme.palette.text.secondary
+			})}
+			className="avatar h-9 w-9 shrink-0"
+		>
+			{user?.displayName?.[0]}
+		</Avatar>
+	);
+
+	const trigger = (
+		<Button
+			className={clsx(
+				'user-menu flex shrink-0 rounded-lg',
+				compact
+					? 'h-12 min-h-12 w-12 items-center justify-center p-0'
+					: 'h-14 min-h-14 justify-start space-x-3 p-2',
+				className
+			)}
+			sx={(theme) => ({
+				borderColor: theme.palette.divider,
+				minWidth: compact ? 48 : undefined,
+				'&:hover, &:focus': {
+					backgroundColor: alpha(theme.palette.divider, 0.6),
+					...theme.applyStyles('dark', {
+						backgroundColor: alpha(theme.palette.divider, 0.1)
+					})
+				}
+			})}
+			onClick={userMenuClick}
+			color="inherit"
+			aria-label={user?.displayName || 'User menu'}
+		>
+			{avatar}
+			{!compact ? (
+				<>
+					<div className="flex flex-auto flex-col space-y-2">
+						<Typography
+							component="span"
+							className="title flex truncate text-base font-semibold capitalize leading-none tracking-tight"
+						>
+							{user?.displayName}
+						</Typography>
+						<Typography
+							className="subtitle flex text-md font-medium leading-none tracking-tighter"
+							color="text.secondary"
+						>
+							{user?.email}
+						</Typography>
+					</div>
+					<div className="flex shrink-0 items-center space-x-2">
+						<Tooltip
+							title={
+								<>
+									{user?.role?.toString()}
+									{(!user?.role || (Array.isArray(user?.role) && user?.role.length === 0)) &&
+										'Guest'}
+								</>
+							}
+						>
+							<FuseSvgIcon className="info-icon" size={20}>
+								heroicons-outline:information-circle
+							</FuseSvgIcon>
+						</Tooltip>
+						<FuseSvgIcon className="arrow" size={13}>
+							{arrowIcon}
+						</FuseSvgIcon>
+					</div>
+				</>
+			) : null}
+		</Button>
+	);
+
 	return (
 		<>
-			<Button
-				className={clsx(
-					'user-menu flex justify-start shrink-0 min-h-14 h-14 rounded-lg p-2 space-x-3',
-					className
-				)}
-				sx={(theme) => ({
-					borderColor: theme.palette.divider,
-					'&:hover, &:focus': {
-						backgroundColor: alpha(theme.palette.divider, 0.6),
-						...theme.applyStyles('dark', {
-							backgroundColor: alpha(theme.palette.divider, 0.1)
-						})
-					}
-				})}
-				onClick={userMenuClick}
-				color="inherit"
-			>
-				{user?.photoURL ? (
-					<Avatar
-						sx={(theme) => ({
-							background: theme.palette.background.default,
-							color: theme.palette.text.secondary
-						})}
-						className="avatar w-10 h-10 rounded-lg"
-						alt="user photo"
-						src={user?.photoURL}
-						variant="rounded"
-					/>
-				) : (
-					<Avatar
-						sx={(theme) => ({
-							background: (theme) => darken(theme.palette.background.default, 0.05),
-							color: theme.palette.text.secondary
-						})}
-						className="avatar md:mx-1"
-					>
-						{user?.displayName?.[0]}
-					</Avatar>
-				)}
-				<div className="flex flex-col flex-auto space-y-2">
-					<Typography
-						component="span"
-						className="title flex font-semibold text-base capitalize truncate tracking-tight leading-none"
-					>
-						{user?.displayName}
-					</Typography>
-					<Typography
-						className="subtitle flex text-md font-medium tracking-tighter leading-none"
-						color="text.secondary"
-					>
-						{user?.email}
-					</Typography>
-				</div>
-				<div className="flex shrink-0 items-center space-x-2">
-					<Tooltip
-						title={
-							<>
-								{user?.role?.toString()}
-								{(!user?.role || (Array.isArray(user?.role) && user?.role.length === 0)) && 'Guest'}
-							</>
-						}
-					>
-						<FuseSvgIcon
-							className="info-icon"
-							size={20}
-						>
-							heroicons-outline:information-circle
-						</FuseSvgIcon>
-					</Tooltip>
-					<FuseSvgIcon
-						className="arrow"
-						size={13}
-					>
-						{arrowIcon}
-					</FuseSvgIcon>
-				</div>
-			</Button>
+			{compact ? (
+				<Tooltip title={user?.displayName || 'Account'} placement="right">
+					{trigger}
+				</Tooltip>
+			) : (
+				trigger
+			)}
 			<Popover
 				open={Boolean(userMenu)}
 				anchorEl={userMenu}
@@ -173,19 +188,6 @@ function UserMenu(props: UserMenuProps) {
 							</ListItemIcon>
 							<ListItemText primary="My Profile" />
 						</MenuItem>
-						{tour ? (
-							<MenuItem
-								onClick={() => {
-									userMenuClose();
-									tour.openCatalog();
-								}}
-							>
-								<ListItemIcon className="min-w-9">
-									<FuseSvgIcon>heroicons-outline:academic-cap</FuseSvgIcon>
-								</ListItemIcon>
-								<ListItemText primary="Take a tour" />
-							</MenuItem>
-						) : null}
 						<MenuItem
 							onClick={() => {
 								signOut();

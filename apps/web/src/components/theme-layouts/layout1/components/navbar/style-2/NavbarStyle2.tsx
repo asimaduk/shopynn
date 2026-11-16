@@ -104,14 +104,6 @@ const StyledNavbar = styled('div')<StyledNavBarProps>(({ theme }) => ({
 			props: ({ foldedandclosed }) => foldedandclosed,
 			style: {
 				'& .NavbarStyle2-content': {
-					'& .logo-icon': {
-						width: 44,
-						height: 44,
-						borderRadius: '50%'
-					},
-					'& .logo-text': {
-						opacity: 0
-					},
 					'& .react-badge': {
 						opacity: 0
 					},
@@ -136,19 +128,7 @@ const StyledNavbar = styled('div')<StyledNavBarProps>(({ theme }) => ({
 						display: 'none'
 					},
 					'& .user-menu': {
-						minWidth: 52,
-						'& .title': {
-							opacity: 0
-						},
-						'& .subtitle': {
-							opacity: 0
-						},
-						'& .info-icon': {
-							opacity: 0
-						},
-						'& .arrow': {
-							opacity: 0
-						}
+						minWidth: 48
 					}
 				}
 			}

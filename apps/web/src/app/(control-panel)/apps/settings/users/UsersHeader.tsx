@@ -33,7 +33,10 @@ function UsersHeader({
 		`Your plan allows a limited number of users. Remove a user or upgrade to add another.`;
 
 	return (
-		<div className="flex grow-0 flex-1 w-full items-center justify-between space-y-2 sm:space-y-0 py-6 sm:py-8">
+		<div
+			className="flex grow-0 flex-1 w-full items-center justify-between space-y-2 sm:space-y-0 py-6 sm:py-8"
+			data-tour="staff-page"
+		>
 			<motion.span
 				initial={{ x: -20 }}
 				animate={{ x: 0, transition: { delay: 0.2 } }}
@@ -76,6 +79,7 @@ function UsersHeader({
 									color="secondary"
 									disabled
 									size={isMobile ? 'small' : 'medium'}
+									data-tour="staff-add"
 								>
 									<FuseSvgIcon size={20}>heroicons-outline:plus</FuseSvgIcon>
 									<span className="mx-1 sm:mx-2">Add</span>
@@ -90,6 +94,7 @@ function UsersHeader({
 							component={NavLinkAdapter}
 							to="/users/staff/new"
 							size={isMobile ? 'small' : 'medium'}
+							data-tour="staff-add"
 						>
 							<FuseSvgIcon size={20}>heroicons-outline:plus</FuseSvgIcon>
 							<span className="mx-1 sm:mx-2">Add</span>

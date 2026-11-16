@@ -24,6 +24,14 @@ export function isOverviewPending(tour: TourPreferences): boolean {
 	return !tour.overviewStatus || tour.overviewStatus === 'pending';
 }
 
+/** True once the user finished/skipped overview or completed any deep tour. */
+export function hasTakenAnyTour(tour: TourPreferences): boolean {
+	if (tour.overviewStatus === 'completed' || tour.overviewStatus === 'skipped') return true;
+	const completed = tour.completed;
+	if (!completed) return false;
+	return Object.keys(completed).some((key) => Boolean(completed[key as keyof typeof completed]));
+}
+
 export function overviewDonePayload(status: 'completed' | 'skipped') {
 	if (status === 'completed') {
 		return {

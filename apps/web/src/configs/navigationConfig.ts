@@ -27,6 +27,12 @@ const navigationConfig: FuseNavItemType[] = [
 				requiredFeatures: ['dashboard.view']
 			},
 			{
+				id: 'dashboards.tour',
+				title: 'Take a tour',
+				type: 'item',
+				icon: 'heroicons-outline:academic-cap'
+			},
+			{
 				id: 'dashboards.reports',
 				title: 'Reports',
 				type: 'item',

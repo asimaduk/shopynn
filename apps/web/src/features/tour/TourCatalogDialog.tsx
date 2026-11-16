@@ -10,6 +10,7 @@ import ListItem from '@mui/material/ListItem';
 import ListItemText from '@mui/material/ListItemText';
 import Typography from '@mui/material/Typography';
 import { TOUR_CATALOG } from './tourDefinitions';
+import TourMapGraphic from './TourMapGraphic';
 import type { TourId } from './tourIds';
 import type { TourPreferences } from './tourPreferences';
 
@@ -18,13 +19,21 @@ type Props = {
 	onClose: () => void;
 	tourPrefs: TourPreferences;
 	onStart: (tourId: TourId) => void;
+	onExited?: () => void;
 };
 
-export default function TourCatalogDialog({ open, onClose, tourPrefs, onStart }: Props) {
+export default function TourCatalogDialog({ open, onClose, tourPrefs, onStart, onExited }: Props) {
 	return (
-		<Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-			<DialogTitle>Take a tour</DialogTitle>
+		<Dialog
+			open={open}
+			onClose={onClose}
+			fullWidth
+			maxWidth="sm"
+			TransitionProps={{ onExited }}
+		>
+			<DialogTitle sx={{ pb: 1 }}>Take a tour</DialogTitle>
 			<DialogContent dividers>
+				<TourMapGraphic className="mb-4" compact pinLabel="Pick a guide" />
 				<Typography variant="body2" color="text.secondary" className="mb-4">
 					Short walkthroughs of the main areas. Start with the overview if you are new.
 				</Typography>
@@ -43,10 +52,7 @@ export default function TourCatalogDialog({ open, onClose, tourPrefs, onStart }:
 									<Button
 										variant="contained"
 										size="small"
-										onClick={() => {
-											onClose();
-											onStart(tour.id);
-										}}
+										onClick={() => onStart(tour.id)}
 									>
 										{done ? 'Replay' : 'Start'}
 									</Button>
@@ -55,11 +61,7 @@ export default function TourCatalogDialog({ open, onClose, tourPrefs, onStart }:
 							>
 								<ListItemText
 									primary={tour.title}
-									secondary={
-										done
-											? `${tour.description} · Done`
-											: tour.description
-									}
+									secondary={done ? `${tour.description} · Done` : tour.description}
 								/>
 							</ListItem>
 						);

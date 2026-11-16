@@ -37,10 +37,10 @@ function Logo() {
 		: `${planName} | ${companyName}`;
 
 	return (
-		<Root className="flex min-w-0 flex-1 items-center">
+		<Root className="navbar-logo flex min-w-0 flex-1 items-center">
 			<div className="flex min-w-0 flex-1 items-center gap-2.5 px-1">
 				<img
-					className="logo-icon h-10 w-10 shrink-0 rounded-full shadow-sm"
+					className="logo-icon h-10 w-10 shrink-0 rounded-full object-cover shadow-sm"
 					src="/assets/images/logo/shopynn-mark-nav.png"
 					alt={title}
 					width={40}

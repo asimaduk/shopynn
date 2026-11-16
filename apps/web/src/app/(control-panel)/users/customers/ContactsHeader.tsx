@@ -32,7 +32,7 @@ function ContactsHeader() {
 	}
 
 	return (
-		<div className="p-6 sm:p-8 w-full">
+		<div className="p-6 sm:p-8 w-full" data-tour="customers-page">
 			<PageBreadcrumb className="mb-2" />
 
 			<div className="flex flex-col space-y-1">
@@ -82,6 +82,7 @@ function ContactsHeader() {
 					color="secondary"
 					component={NavLinkAdapter}
 					to="/users/customers/new"
+					data-tour="customers-add"
 				>
 					<FuseSvgIcon size={20}>heroicons-outline:plus</FuseSvgIcon>
 					<span className="hidden sm:flex mx-2">Add</span>
