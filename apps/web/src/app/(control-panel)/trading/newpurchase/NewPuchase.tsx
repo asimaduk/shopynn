@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, Button, Chip, IconButton, Input, MenuItem, Paper, TextField, Tooltip } from '@mui/material';
+import { Badge, Box, Button, Chip, IconButton, Input, MenuItem, Paper, Tab, Tabs, TextField, Tooltip } from '@mui/material';
 import GlobalStyles from '@mui/material/GlobalStyles';
 import Autocomplete from '@mui/material/Autocomplete';
 import { useMemo, useState } from 'react';
@@ -51,6 +51,8 @@ function paymentTypeLabel(type: number | null | undefined) {
 function NewSale() {
     const [createPurchase] = useCreatePurchaseMutation();
     const isMobile = useThemeMediaQuery((theme) => theme.breakpoints.down('lg'));
+    const isNarrow = useThemeMediaQuery((theme) => theme.breakpoints.down('md'));
+    const [mobilePane, setMobilePane] = useState<'products' | 'cart'>('products');
     const [value] = useState('');
     const [openConfirm, setOpenConfirm] = useState(false);
     const { data: categories } = useGetProductCategoriesQuery(null, {refetchOnMountOrArgChange:true});
@@ -210,14 +212,47 @@ function NewSale() {
 					}
 				})}
 			/>
-			<div className="w-full h-full flex flex-1 p-4 space-x-4">
+			<div
+				className="w-full h-full min-h-0 flex flex-1 flex-col md:flex-row p-2 md:p-4 gap-2 md:gap-4"
+				data-tour="purchases-shell"
+			>
                 {processing && (
                     <div style={{position:'absolute',top:0,left:0,right:0,bottom:0,backgroundColor:'rgba(0,0,0,.5)',zIndex:99}}>
                         <FuseLoading />
                     </div>
                 )}
-                <Paper className="w-5/7 h-full flex flex-col flex-1 p-4 overflow-x-auto" style={{backgroundColor:'#fefefe'}}>
-                    <div className='flex w-full pb-2 items-center gap-3'>
+				{isNarrow ? (
+					<Paper className="shrink-0 px-1" elevation={0} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+						<Tabs
+							value={mobilePane}
+							onChange={(_e, next: 'products' | 'cart') => setMobilePane(next)}
+							variant="fullWidth"
+							aria-label="Purchase products and receive order"
+						>
+							<Tab value="products" label="Products" />
+							<Tab
+								value="cart"
+								label={
+									<Badge
+										color="primary"
+										badgeContent={currentOrder.length}
+										invisible={currentOrder.length === 0}
+										sx={{ '& .MuiBadge-badge': { right: -10, top: 2 } }}
+									>
+										<span className="pr-2">Order</span>
+									</Badge>
+								}
+							/>
+						</Tabs>
+					</Paper>
+				) : null}
+                <Paper
+					className={`w-full md:w-5/7 min-h-0 flex-col flex-1 p-3 md:p-4 overflow-hidden ${
+						isNarrow && mobilePane !== 'products' ? 'hidden' : 'flex'
+					}`}
+					style={{ backgroundColor: '#fefefe' }}
+				>
+                    <div className='flex w-full pb-2 flex-col sm:flex-row items-stretch sm:items-center gap-3'>
                         <Autocomplete
                             className="min-w-0 flex-1"
                             fullWidth
@@ -455,8 +490,7 @@ function NewSale() {
                     </Typography>
 
                     <Paper
-                        className="w-full p-2 overflow-y-auto"
-                        style={{ height: '53vh' }}
+                        className="w-full p-2 overflow-y-auto flex-1 min-h-0"
                         sx={{
                             display: 'grid',
                             gridTemplateColumns: {
@@ -590,7 +624,12 @@ function NewSale() {
                         )}
                     </Paper>
                 </Paper>
-                <Paper className="w-2/7 h-full p-3 flex flex-col" style={{backgroundColor:'#fff'}}>
+                <Paper
+					className={`w-full md:w-2/7 min-h-0 h-full p-3 flex-col flex-1 md:flex-none ${
+						isNarrow && mobilePane !== 'cart' ? 'hidden' : 'flex'
+					}`}
+					style={{ backgroundColor: '#fff' }}
+				>
                     <div className='flex justify-between'>
                         <h1 className='text-xl'><b>Receive Order</b></h1>
                         {/* <FuseSvgIcon
@@ -637,8 +676,8 @@ function NewSale() {
                         ) : null}
                     </Paper>
 
-                    <div className='grow-1 flex flex-col'>
-                        <div className='grow-1 overflow-y-auto' style={{height:'200px'}}>
+                    <div className='grow-1 flex flex-col min-h-0 flex-1'>
+                        <div className='grow-1 overflow-y-auto flex-1 min-h-[180px]'>
                             {filteredCurrentOrder.map((product,i)=> (
                                 <div className='flex mb-3 items-center py-2 pr-2' key={product.id ?? i}>
                                     <span

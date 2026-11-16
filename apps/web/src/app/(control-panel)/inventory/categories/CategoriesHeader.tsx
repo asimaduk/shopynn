@@ -19,7 +19,7 @@ function CategoriesHeader({ categoryCount, activeCount, isLoading }: CategoriesH
 	const isMobile = useThemeMediaQuery((theme) => theme.breakpoints.down('lg'));
 
 	return (
-		<div className="flex grow-0 flex-1 w-full items-center justify-between space-y-2 sm:space-y-0 py-6 sm:py-8">
+		<div className="flex grow-0 flex-1 w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-6 sm:py-8">
 			<motion.span
 				initial={{ x: -20 }}
 				animate={{ x: 0, transition: { delay: 0.2 } }}
@@ -45,7 +45,7 @@ function CategoriesHeader({ categoryCount, activeCount, isLoading }: CategoriesH
 				</div>
 			</motion.span>
 
-			<div className="flex flex-1 items-center justify-end space-x-2">
+			<div className="flex w-full sm:flex-1 flex-wrap items-center justify-start sm:justify-end gap-2">
 				<motion.div
 					className="flex grow-0"
 					initial={{ opacity: 0, x: 20 }}

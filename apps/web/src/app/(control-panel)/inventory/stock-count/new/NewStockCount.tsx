@@ -141,7 +141,7 @@ export default function NewStockCount() {
 							size="small"
 							required
 							disabled={warehousesLoading}
-							sx={{ minWidth: 200 }}
+							sx={{ minWidth: { xs: '100%', sm: 200 }, width: { xs: '100%', sm: 'auto' } }}
 						>
 							{warehouses.map((w) => (
 								<MenuItem key={w.id} value={w.id}>
@@ -155,7 +155,7 @@ export default function NewStockCount() {
 							onChange={(e) => setReference(e.target.value)}
 							variant="outlined"
 							size="small"
-							sx={{ minWidth: 180 }}
+							sx={{ minWidth: { xs: '100%', sm: 180 }, width: { xs: '100%', sm: 'auto' } }}
 						/>
 						<TextField
 							label="Notes (optional)"
@@ -166,7 +166,7 @@ export default function NewStockCount() {
 							fullWidth
 							multiline
 							minRows={1}
-							sx={{ flex: 1, minWidth: 200 }}
+							sx={{ flex: 1, minWidth: { xs: '100%', sm: 200 }, width: { xs: '100%', sm: 'auto' } }}
 						/>
 					</div>
 					<div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
@@ -185,7 +185,7 @@ export default function NewStockCount() {
 									</InputAdornment>
 								)
 							}}
-							sx={{ maxWidth: 360 }}
+							sx={{ maxWidth: { xs: '100%', sm: 360 } }}
 						/>
 						<Typography variant="body2" color="text.secondary" className="sm:ml-auto flex items-center gap-2 flex-wrap">
 							{productsBusy && warehouseId ? (
@@ -214,7 +214,8 @@ export default function NewStockCount() {
 						</Typography>
 					)}
 				</div>
-				<Table size="medium">
+				<div className="w-full overflow-x-auto">
+				<Table size="medium" sx={{ minWidth: 520 }}>
 					<TableHead>
 						<TableRow>
 							<TableCell>Product</TableCell>
@@ -276,6 +277,7 @@ export default function NewStockCount() {
 						})}
 					</TableBody>
 				</Table>
+				</div>
 				{!warehouseId && (
 					<div className="p-8 text-center">
 						<Typography color="text.secondary">

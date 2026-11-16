@@ -169,7 +169,7 @@ export default function NewReturn() {
 				<div className="w-full flex justify-center pb-10">
 					<Paper className="p-6 shadow-sm rounded-xl max-w-2xl w-full">
 						<form onSubmit={handleSubmit} className="flex flex-col gap-4">
-							<div className="flex gap-2">
+							<div className="flex flex-col sm:flex-row gap-2">
 								<TextField
 									select
 									label="Source"
@@ -178,7 +178,7 @@ export default function NewReturn() {
 										setSourceType(e.target.value as 'sale' | 'order');
 										setPayload(null);
 									}}
-									sx={{ minWidth: 120 }}
+									sx={{ minWidth: { xs: '100%', sm: 120 } }}
 								>
 									<MenuItem value="sale">Sale</MenuItem>
 									<MenuItem value="order">Order</MenuItem>
@@ -199,7 +199,7 @@ export default function NewReturn() {
 									}}
 									fullWidth
 								/>
-								<Button type="button" variant="outlined" onClick={() => void loadSource()} disabled={loading}>
+								<Button type="button" variant="outlined" onClick={() => void loadSource()} disabled={loading} sx={{ flexShrink: 0 }}>
 									Load
 								</Button>
 							</div>
@@ -208,7 +208,7 @@ export default function NewReturn() {
 								const key = line.sale_detail_id || line.order_item_id;
 								const disabled = Number(line.returnable_qty) <= 0;
 								return (
-									<div key={key} className="flex items-center gap-3 border rounded-md p-3">
+									<div key={key} className="flex flex-col sm:flex-row sm:items-center gap-3 border rounded-md p-3">
 										<div className="flex-1 min-w-0">
 											<Typography className="font-medium truncate">{line.product_name}</Typography>
 											<Typography variant="caption" color="text.secondary">

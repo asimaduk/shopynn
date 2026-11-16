@@ -177,7 +177,7 @@ export default function NewReturn() {
 								const max = Number(line.returnable_qty) || 0;
 								const q = Number(qtys[key] || 0);
 								return (
-									<div key={key} className="flex items-center gap-3 border rounded-md p-3">
+									<div key={key} className="flex flex-col sm:flex-row sm:items-center gap-3 border rounded-md p-3">
 										<div className="flex-1 min-w-0">
 											<Typography className="font-medium truncate">{line.product_name}</Typography>
 											<Typography variant="caption" color="text.secondary">

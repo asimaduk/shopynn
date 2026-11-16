@@ -17,6 +17,8 @@ export type NavLinkAdapterPropsType = {
 	/** Alias for exact (React Router NavLink `end`). */
 	end?: boolean;
 	ref?: React.RefObject<HTMLAnchorElement>;
+	/** Forwarded to the underlying link (e.g. data-tour for product tours). */
+	[key: string]: unknown;
 };
 
 /**
@@ -35,7 +37,9 @@ function NavLinkAdapter(props: NavLinkAdapterPropsType) {
 		exact,
 		end,
 		ref,
-		..._props
+		className,
+		style,
+		...rest
 	} = props;
 
 	const navigate = useNavigate();
@@ -75,12 +79,9 @@ function NavLinkAdapter(props: NavLinkAdapterPropsType) {
 			role={role}
 			onClick={handleClick}
 			onKeyDown={handleKeyDown}
-			className={clsx(
-				_props.className,
-				isActive ? activeClassName : '',
-				pathname === targetUrl && 'pointer-events-none'
-			)}
-			style={isActive ? { ..._props.style, ...activeStyle } : _props.style}
+			className={clsx(className, isActive ? activeClassName : '', pathname === targetUrl && 'pointer-events-none')}
+			style={isActive ? { ...style, ...activeStyle } : style}
+			{...rest}
 		>
 			{children}
 		</Link>

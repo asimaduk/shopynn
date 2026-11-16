@@ -288,7 +288,7 @@ export default function CompanyProfilePage() {
 	return (
 		<>
 			<GlobalStyles styles={() => ({ '#root': { maxHeight: '100vh' } })} />
-			<div className="w-full min-h-full flex flex-col px-4 py-6">
+			<div className="w-full min-h-full flex flex-col px-4 py-6" data-tour="settings-company">
 				<Box className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
 					<Box className="flex items-center gap-3">
 						<Box

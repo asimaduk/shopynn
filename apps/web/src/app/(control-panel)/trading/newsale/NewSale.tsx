@@ -2,12 +2,15 @@
 import toast from 'react-hot-toast';
 
 import {
+	Badge,
 	Box,
 	Button,
 	Chip,
 	IconButton,
 	Input,
 	Paper,
+	Tab,
+	Tabs,
 	TextField,
 	Tooltip,
 	Typography
@@ -121,6 +124,8 @@ function NewSale() {
     const customers_data = useAppSelector(selectCustomers);
 
     const isMobile = useThemeMediaQuery((theme) => theme.breakpoints.down('lg'));
+    const isNarrow = useThemeMediaQuery((theme) => theme.breakpoints.down('md'));
+    const [mobilePane, setMobilePane] = useState<'products' | 'cart'>('products');
     const canMultiStores = hasPermissionCodes(user, 'stores.multi_access');
     const [openHeld, setOpenHeld] = useState(false);
     const [selectedValue, setSelectedValue] = useState(null);
@@ -661,10 +666,43 @@ function NewSale() {
                     <FuseLoading />
                 </div>
             )}
-			<div className="w-full h-full flex flex-1 p-4 space-x-4">
-            {/* <div className="flex flex-1 w-full h-full justify-between space-y-2 sm:space-y-0 py-6 sm:py-8 md:p-8"> */}
-                <Paper className="w-5/7 h-full flex flex-col flex-1 p-4 overflow-x-auto" style={{backgroundColor:'#fefefe'}}>
-                    <div className='flex w-full pb-2 items-center gap-3 justify-between'>
+			<div
+				className="w-full h-full min-h-0 flex flex-1 flex-col md:flex-row p-2 md:p-4 gap-2 md:gap-4"
+				data-tour="sales-shell"
+			>
+				{isNarrow ? (
+					<Paper className="shrink-0 px-1" elevation={0} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+						<Tabs
+							value={mobilePane}
+							onChange={(_e, value: 'products' | 'cart') => setMobilePane(value)}
+							variant="fullWidth"
+							aria-label="Sale products and cart"
+						>
+							<Tab value="products" label="Products" />
+							<Tab
+								value="cart"
+								label={
+									<Badge
+										color="primary"
+										badgeContent={currentOrder.length}
+										invisible={currentOrder.length === 0}
+										sx={{ '& .MuiBadge-badge': { right: -10, top: 2 } }}
+									>
+										<span className="pr-2">Cart</span>
+									</Badge>
+								}
+							/>
+						</Tabs>
+					</Paper>
+				) : null}
+                <Paper
+					className={`w-full md:w-5/7 min-h-0 flex-col flex-1 p-3 md:p-4 overflow-hidden ${
+						isNarrow && mobilePane !== 'products' ? 'hidden' : 'flex'
+					}`}
+					style={{ backgroundColor: '#fefefe' }}
+					data-tour="sales-product-search"
+				>
+                    <div className='flex w-full pb-2 flex-col sm:flex-row items-stretch sm:items-center gap-3 justify-between'>
                         <Autocomplete
                             className="min-w-0 flex-1"
                             fullWidth
@@ -932,8 +970,7 @@ function NewSale() {
                     </Typography>
 
                     <Paper
-                        className="w-full p-2 mt-1 overflow-y-auto"
-                        style={{ height: '62vh' }}
+                        className="w-full p-2 mt-1 overflow-y-auto flex-1 min-h-0"
                         sx={{
                             display: 'grid',
                             gridTemplateColumns: {
@@ -1067,7 +1104,13 @@ function NewSale() {
                         )}
                     </Paper>
                 </Paper>
-                <Paper className="w-2/7 h-full p-3 flex flex-col" style={{backgroundColor:'#fff'}}>
+                <Paper
+					className={`w-full md:w-2/7 min-h-0 h-full p-3 flex-col flex-1 md:flex-none ${
+						isNarrow && mobilePane !== 'cart' ? 'hidden' : 'flex'
+					}`}
+					style={{ backgroundColor: '#fff' }}
+					data-tour="sales-cart"
+				>
                     <div className='flex justify-between items-center gap-2'>
                         <h1 className='text-xl shrink-0'><b>Current Order</b></h1>
                         <FuseSvgIcon
@@ -1111,8 +1154,8 @@ function NewSale() {
                         ) : null}
                     </Paper>
 
-                    <div ref={contentRef} className='grow-1 flex flex-col'>
-                        <div className='grow-1 overflow-y-auto' style={{height:'200px'}}>
+                    <div ref={contentRef} className='grow-1 flex flex-col min-h-0 flex-1'>
+                        <div className='grow-1 overflow-y-auto flex-1 min-h-[180px]'>
                             {filteredCurrentOrder?.map((product,i)=> (
                                 <div className='flex mb-3 items-center py-2 pr-2' key={product.id ?? i}>
                                     <span

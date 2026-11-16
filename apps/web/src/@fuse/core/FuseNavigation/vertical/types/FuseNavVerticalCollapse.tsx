@@ -82,6 +82,7 @@ function FuseNavVerticalCollapse(props: FuseNavItemComponentProps) {
 					onClick={() => {
 						setOpen(!open);
 					}}
+					data-tour={item.id ? `nav-${item.id}` : undefined}
 					{...itemProps}
 				>
 					{item.icon && (

@@ -1,0 +1,59 @@
+/* Shopynn product tour — accents on driver.js popovers */
+.shopynn-tour-popover.driver-popover {
+	background: #ffffff;
+	color: #0f172a;
+	border-radius: 12px;
+	box-shadow: 0 12px 40px rgba(15, 23, 42, 0.18);
+	max-width: 340px;
+	z-index: 1400;
+}
+
+.shopynn-tour-popover .driver-popover-title {
+	font-size: 16px;
+	font-weight: 700;
+	color: #0f172a;
+}
+
+.shopynn-tour-popover .driver-popover-description {
+	font-size: 14px;
+	line-height: 1.5;
+	color: #475569;
+}
+
+.shopynn-tour-popover .driver-popover-progress-text {
+	color: #64748b;
+	font-size: 12px;
+}
+
+.shopynn-tour-popover .driver-popover-prev-btn,
+.shopynn-tour-popover .driver-popover-next-btn {
+	border-radius: 8px;
+	font-weight: 600;
+	text-shadow: none;
+}
+
+.shopynn-tour-popover .driver-popover-next-btn {
+	background: #0a74da;
+	color: #ffffff;
+	border: 1px solid #0a74da;
+}
+
+.shopynn-tour-popover .driver-popover-next-btn:hover {
+	background: #0860b5;
+}
+
+.shopynn-tour-popover .driver-popover-prev-btn {
+	background: #f1f5f9;
+	color: #334155;
+	border: 1px solid #e2e8f0;
+}
+
+.shopynn-tour-popover .driver-popover-close-btn {
+	color: #64748b;
+}
+
+.driver-overlay,
+.driver-active-element,
+.driver-popover-tip {
+	z-index: 1300;
+}

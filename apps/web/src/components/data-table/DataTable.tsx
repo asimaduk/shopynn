@@ -1,5 +1,6 @@
 import { MaterialReactTable, useMaterialReactTable, MaterialReactTableProps, MRT_Icons } from 'material-react-table';
 import { useMemo } from 'react';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { Theme } from '@mui/material/styles/createTheme';
 import DataTableTopToolbar from './DataTableTopToolbar';
@@ -70,6 +71,7 @@ const tableIcons: Partial<MRT_Icons> = {
 
 function DataTable<TData>(props: MaterialReactTableProps<TData>) {
 	const { columns, data, initialState: initialStateFromProps, state: stateFromProps, ...rest } = props;
+	const isNarrow = useMediaQuery('(max-width:720px)', { noSsr: true });
 
 	// Stable base options — do not depend on `rest` (parents often pass new object literals each render).
 	const defaults = useMemo(
@@ -79,10 +81,12 @@ function DataTable<TData>(props: MaterialReactTableProps<TData>) {
 					density: 'spacious',
 					showColumnFilters: false,
 					showGlobalFilter: true,
-					columnPinning: {
-						left: ['mrt-row-expand', 'mrt-row-select'],
-						right: ['mrt-row-actions']
-					},
+					columnPinning: isNarrow
+						? { left: [], right: [] }
+						: {
+								left: ['mrt-row-expand', 'mrt-row-select'],
+								right: ['mrt-row-actions']
+							},
 					pagination: {
 						pageSize: 15
 					},
@@ -92,7 +96,7 @@ function DataTable<TData>(props: MaterialReactTableProps<TData>) {
 				enableColumnFilterModes: true,
 				enableColumnOrdering: true,
 				enableGrouping: true,
-				enableColumnPinning: true,
+				enableColumnPinning: !isNarrow,
 				enableFacetedValues: true,
 				enableRowActions: true,
 				enableRowSelection: true,
@@ -119,9 +123,20 @@ function DataTable<TData>(props: MaterialReactTableProps<TData>) {
 				},
 				muiSearchTextFieldProps: {
 					placeholder: 'Search',
-					sx: { minWidth: '300px' },
+					sx: {
+						minWidth: { xs: '100%', sm: 180, md: 260 },
+						width: { xs: '100%', sm: 'auto' },
+						maxWidth: '100%'
+					},
 					variant: 'outlined',
 					size: 'small'
+				},
+				muiTopToolbarProps: {
+					sx: {
+						flexWrap: 'wrap',
+						gap: 1,
+						'& .MuiBox-root': { flexWrap: 'wrap' }
+					}
 				},
 				muiFilterTextFieldProps: {
 					variant: 'outlined',
@@ -192,7 +207,7 @@ function DataTable<TData>(props: MaterialReactTableProps<TData>) {
 				renderTopToolbar: (_props) => <DataTableTopToolbar {..._props} />,
 				icons: tableIcons
 			}) as Partial<MaterialReactTableProps<TData>>,
-		[]
+		[isNarrow]
 	);
 
 	const initialState = useMemo(
@@ -209,7 +224,10 @@ function DataTable<TData>(props: MaterialReactTableProps<TData>) {
 		data: data ?? [],
 		...defaults,
 		...rest,
-		state: stateFromProps,
+		state: {
+			...(stateFromProps ?? {}),
+			...(isNarrow ? { columnPinning: { left: [], right: [] } } : {})
+		},
 		initialState
 	});
 

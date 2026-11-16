@@ -1,5 +1,6 @@
 import MainLayout from 'src/components/MainLayout';
 import PermissionGate from '@auth/PermissionGate';
+import { TourProvider } from 'src/features/tour';
 
 function Layout({ children }) {
 	return (
@@ -41,7 +42,9 @@ function Layout({ children }) {
 			]}
 			fallback={<></>}
 		>
-			<MainLayout>{children}</MainLayout>
+			<TourProvider>
+				<MainLayout>{children}</MainLayout>
+			</TourProvider>
 		</PermissionGate>
 	);
 }

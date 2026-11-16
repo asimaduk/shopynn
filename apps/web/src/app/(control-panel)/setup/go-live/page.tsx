@@ -13,6 +13,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import useUser from '@auth/useUser';
 import { useGetGoLiveNavQuery } from 'src/app/(control-panel)/billing/SubscriptionApi';
+import { useTourOptional } from 'src/features/tour';
 import {
 	GO_LIVE_STEPS,
 	readGoLiveDone,
@@ -24,6 +25,7 @@ export default function GoLiveWizardPage() {
 	const theme = useTheme();
 	const router = useRouter();
 	const { data: user } = useUser();
+	const tour = useTourOptional();
 	const { data: goLiveNav, isSuccess } = useGetGoLiveNavQuery(undefined, {
 		skip: !user?.id
 	});
@@ -95,6 +97,17 @@ export default function GoLiveWizardPage() {
 						{completedCount} of {GO_LIVE_STEPS.length} complete
 						{allDone ? ' — you are ready to sell.' : ''}
 					</Typography>
+					{tour ? (
+						<Button
+							variant="text"
+							color="primary"
+							className="mt-3 -ml-2"
+							onClick={() => tour.openCatalog()}
+							startIcon={<FuseSvgIcon size={18}>heroicons-outline:academic-cap</FuseSvgIcon>}
+						>
+							Take a tour of the app
+						</Button>
+					) : null}
 				</Box>
 			</Paper>
 

@@ -76,6 +76,7 @@ function FuseNavVerticalItem(props: FuseNavItemComponentProps) {
 				onClick={() => onItemClick && onItemClick(item)}
 				itempadding={itempadding}
 				sx={item.sx}
+				data-tour={item.id ? `nav-${item.id}` : undefined}
 				{...itemProps}
 			>
 				{item.icon && (

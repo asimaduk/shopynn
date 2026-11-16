@@ -58,7 +58,10 @@ function ProductsHeader({ productCount, categoryCount, isLoading }: ProductsHead
 	}
 	
 	return (
-		<div className="flex grow-0 flex-1 w-full items-center justify-between space-y-2 sm:space-y-0 py-6 sm:py-8">
+		<div
+			className="flex grow-0 flex-1 w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-6 sm:py-8"
+			data-tour="inventory-items-header"
+		>
 			{processing && (
 				<div style={{position:'absolute',top:0,left:0,right:0,bottom:0,backgroundColor:'rgba(0,0,0,.5)',zIndex:99}}>
 					<FuseLoading />
@@ -89,7 +92,7 @@ function ProductsHeader({ productCount, categoryCount, isLoading }: ProductsHead
 				</div>
 			</motion.span>
 
-			<div className="flex flex-1 items-center justify-end space-x-2">
+			<div className="flex w-full sm:flex-1 flex-wrap items-center justify-start sm:justify-end gap-2">
 				<motion.div
 					className="flex grow-0"
 					initial={{ opacity: 0, x: 20 }}
@@ -118,6 +121,7 @@ function ProductsHeader({ productCount, categoryCount, isLoading }: ProductsHead
 						component={NavLinkAdapter}
 						to="/inventory/products/new"
 						size={isMobile ? 'small' : 'medium'}
+						data-tour="inventory-add-item"
 					>
 						<FuseSvgIcon size={20}>heroicons-outline:plus</FuseSvgIcon>
 						<span className="mx-1 sm:mx-2">Add</span>

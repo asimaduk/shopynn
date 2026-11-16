@@ -85,7 +85,7 @@ function PurchasesHeader({
 	const canExport = hasFeatureAndPermission(user, 'reports.export', undefined, 'reports.export');
 
 	return (
-		<div className="flex grow-0 flex-1 w-full items-center justify-between space-y-2 sm:space-y-0 py-6 sm:py-8">
+		<div className="flex grow-0 flex-1 w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-6 sm:py-8">
 			<motion.span
 				initial={{ x: -20 }}
 				animate={{ x: 0, transition: { delay: 0.2 } }}
@@ -111,7 +111,7 @@ function PurchasesHeader({
 				</div>
 			</motion.span>
 
-			<div className="flex flex-1 items-center justify-end space-x-2">
+			<div className="flex w-full sm:flex-1 flex-wrap items-center justify-start sm:justify-end gap-2">
 				<Autocomplete
 					disablePortal
 					id="select-attendant"
@@ -124,7 +124,7 @@ function PurchasesHeader({
 					}}
 					getOptionKey={(option: any) => String(option?.id)}
 					isOptionEqualToValue={(option: any, value: any) => option?.id === value?.id}
-					sx={{minWidth:200, marginRight:10}}
+					sx={{ minWidth: { xs: '100%', sm: 180 }, maxWidth: { xs: '100%', sm: 240 }, flex: { xs: '1 1 100%', sm: '0 1 auto' } }}
 					renderInput={(params) => (
 						<TextField 
 							{...params} 
@@ -145,7 +145,7 @@ function PurchasesHeader({
 					getOptionLabel={(option: any) => option?.name ?? ''}
 					getOptionKey={(option: any) => String(option?.id ?? option?.name ?? '')}
 					isOptionEqualToValue={(option: any, value: any) => option?.id === value?.id}
-					sx={{minWidth:250, marginRight:10}}
+					sx={{ minWidth: { xs: '100%', sm: 200 }, maxWidth: { xs: '100%', sm: 280 }, flex: { xs: '1 1 100%', sm: '0 1 auto' } }}
 					renderInput={(params) => (
 						<TextField 
 							{...params} 

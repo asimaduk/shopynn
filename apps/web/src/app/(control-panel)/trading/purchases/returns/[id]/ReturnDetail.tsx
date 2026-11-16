@@ -55,7 +55,7 @@ export default function ReturnDetail() {
 			<div className="w-full h-full flex flex-col px-4">
 				<ReturnDetailHeader reference={record.reference} />
 				<Paper className="p-6 shadow-sm rounded-xl max-w-4xl">
-					<div className="grid grid-cols-2 gap-4 mb-6">
+					<div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
 						<div>
 							<Typography variant="caption" color="text.secondary">Date</Typography>
 							<Typography>
@@ -113,7 +113,8 @@ export default function ReturnDetail() {
 						)}
 					</div>
 					<Typography variant="subtitle2" className="mb-2">Returned items</Typography>
-					<Table size="small">
+					<div className="w-full overflow-x-auto">
+					<Table size="small" sx={{ minWidth: 560 }}>
 						<TableHead>
 							<TableRow>
 								<TableCell>Product</TableCell>
@@ -141,6 +142,7 @@ export default function ReturnDetail() {
 							))}
 						</TableBody>
 					</Table>
+					</div>
 				</Paper>
 			</div>
 		</>

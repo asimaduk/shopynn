@@ -11,7 +11,7 @@ function ShippingTab() {
 
 	return (
 		<div>
-			<div className="flex -mx-1">
+			<div className="flex flex-col sm:flex-row -mx-1">
 				<Controller
 					name="width"
 					control={control}

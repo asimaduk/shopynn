@@ -132,11 +132,11 @@ function Purchase() {
 							</Box>
 						</motion.div>
 
-						<div className='flex justify-between'>
+						<div className='flex flex-col gap-3 sm:flex-row sm:justify-between'>
 							<motion.div
 								initial={{ x: -20, opacity: 0 }}
 								animate={{ x: 0, opacity: 1, transition: { delay: 0.3 } }}
-								className='w-1/2'
+								className='w-full sm:w-1/2 min-w-0'
 							>
 								<Typography className="text-2xl truncate font-semibold">
 									Invoice no. {purchase.invoice_number}
@@ -151,7 +151,7 @@ function Purchase() {
 							<motion.div
 								initial={{ x: -20, opacity: 0 }}
 								animate={{ x: 0, opacity: 1, transition: { delay: 0.3 } }}
-								className='w-1/2 flex justify-end'
+								className='w-full sm:w-1/2 flex sm:justify-end'
 							>
 								<div>
 									<Typography className="text-2xl text-right truncate font-semibold">

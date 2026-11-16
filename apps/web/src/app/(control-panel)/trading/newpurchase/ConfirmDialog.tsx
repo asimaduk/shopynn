@@ -81,7 +81,7 @@ export default function ConfirmDialog({
 
 				{summary ? (
 					<>
-						<div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-md border border-divider p-3">
+						<div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 rounded-md border border-divider p-3">
 							<div>
 								<Typography
 									variant="caption"

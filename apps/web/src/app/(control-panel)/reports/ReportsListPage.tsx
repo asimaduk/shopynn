@@ -148,7 +148,7 @@ export default function ReportsListPage() {
 			featureTitle="Reports"
 			backHref="/dashboards/analytics"
 		>
-			<Box className="w-full h-full flex flex-col px-4 pb-12">
+			<Box className="w-full h-full flex flex-col px-4 pb-12" data-tour="reports-page">
 				{/* Header — same pattern as Sales / Purchases list pages */}
 				<div className="flex grow-0 flex-1 w-full flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-6 sm:py-8">
 					<motion.span

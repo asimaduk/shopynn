@@ -13,6 +13,7 @@ import Tooltip from '@mui/material/Tooltip';
 import clsx from 'clsx';
 import Popover, { PopoverProps } from '@mui/material/Popover/Popover';
 import useUser from '@auth/useUser';
+import { useTourOptional } from 'src/features/tour';
 
 type UserMenuProps = {
 	className?: string;
@@ -26,6 +27,7 @@ type UserMenuProps = {
 function UserMenu(props: UserMenuProps) {
 	const { className, popoverProps, arrowIcon = 'heroicons-outline:chevron-up' } = props;
 	const { data: user, signOut, isGuest } = useUser();
+	const tour = useTourOptional();
 	const [userMenu, setUserMenu] = useState<HTMLElement | null>(null);
 	const userMenuClick = (event: React.MouseEvent<HTMLElement>) => {
 		setUserMenu(event.currentTarget);
@@ -171,6 +173,19 @@ function UserMenu(props: UserMenuProps) {
 							</ListItemIcon>
 							<ListItemText primary="My Profile" />
 						</MenuItem>
+						{tour ? (
+							<MenuItem
+								onClick={() => {
+									userMenuClose();
+									tour.openCatalog();
+								}}
+							>
+								<ListItemIcon className="min-w-9">
+									<FuseSvgIcon>heroicons-outline:academic-cap</FuseSvgIcon>
+								</ListItemIcon>
+								<ListItemText primary="Take a tour" />
+							</MenuItem>
+						) : null}
 						<MenuItem
 							onClick={() => {
 								signOut();

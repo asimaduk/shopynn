@@ -19,7 +19,7 @@ function BasicInfoTab() {
 
 	return (
 		<div>
-			<div className="flex -mx-1">
+			<div className="grid grid-cols-1 sm:grid-cols-2 -mx-1">
 				<Controller
 					name="expense_date"
 					control={control}
@@ -101,7 +101,7 @@ function BasicInfoTab() {
 				/>
 			</div>
 
-			<div className="flex -mx-1">
+			<div className="grid grid-cols-1 sm:grid-cols-2 -mx-1">
 				<Controller
 					name="category"
 					control={control}

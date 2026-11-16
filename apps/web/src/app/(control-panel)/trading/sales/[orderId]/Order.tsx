@@ -102,7 +102,7 @@ function Purchase() {
 									{`To: ${order.customer || 'Walk-In Customer'}`}
 								</Typography>
 							</div>
-							<div className="flex items-center gap-1">
+							<div className="flex flex-wrap items-center gap-1">
 								<Button
 									variant="outlined"
 									color="inherit"

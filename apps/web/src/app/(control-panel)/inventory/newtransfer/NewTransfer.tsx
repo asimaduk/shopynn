@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, Button, Chip, Input, Paper, Stack, TextField } from '@mui/material';
+import { Badge, Box, Button, Chip, Input, Paper, Stack, Tab, Tabs, TextField } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import GlobalStyles from '@mui/material/GlobalStyles';
 import Autocomplete from '@mui/material/Autocomplete';
@@ -24,6 +24,8 @@ import { formatQty } from '@/utils/formatQty';
 function NewTransfer() {
     const [createTransfer] = useCreateTransferMutation();
     const isMobile = useThemeMediaQuery((theme) => theme.breakpoints.down('lg'));
+    const isNarrow = useThemeMediaQuery((theme) => theme.breakpoints.down('md'));
+    const [mobilePane, setMobilePane] = useState<'products' | 'cart'>('products');
     const [openConfirm, setOpenConfirm] = useState(false);
     const { data: categories } = useGetProductCategoriesQuery(null, {refetchOnMountOrArgChange:true});
     // const { data: suppliers } = useGetSuppliersQuery(null, {refetchOnMountOrArgChange:true});
@@ -186,16 +188,39 @@ function NewTransfer() {
 					}
 				})}
 			/>
-			<div className="w-full h-full flex flex-1 p-4 space-x-4">
+			<div className="w-full h-full min-h-0 flex flex-1 flex-col md:flex-row p-2 md:p-4 gap-2 md:gap-4">
                 {processing && (
                     <div style={{position:'absolute',top:0,left:0,right:0,bottom:0,backgroundColor:'rgba(0,0,0,.5)',zIndex:99}}>
                         <FuseLoading />
                     </div>
                 )}
-                <Paper className="w-5/7 h-full flex flex-col flex-1 p-4 overflow-x-auto" style={{backgroundColor:'#fefefe'}}>
-                    <div className='flex w-full pb-2 justify-between'>
+				{isNarrow ? (
+					<Paper className="shrink-0 px-1" elevation={0} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+						<Tabs
+							value={mobilePane}
+							onChange={(_e, next: 'products' | 'cart') => setMobilePane(next)}
+							variant="fullWidth"
+							aria-label="Transfer products and cart"
+						>
+							<Tab value="products" label="Products" />
+							<Tab
+								value="cart"
+								label={
+									<Badge color="primary" badgeContent={currentOrder.length} invisible={currentOrder.length === 0} sx={{ '& .MuiBadge-badge': { right: -10, top: 2 } }}>
+										<span className="pr-2">Cart</span>
+									</Badge>
+								}
+							/>
+						</Tabs>
+					</Paper>
+				) : null}
+                <Paper
+					className={`w-full md:w-5/7 min-h-0 flex-col flex-1 p-3 md:p-4 overflow-hidden ${isNarrow && mobilePane !== 'products' ? 'hidden' : 'flex'}`}
+					style={{backgroundColor:'#fefefe'}}
+				>
+                    <div className='flex w-full pb-2 flex-col sm:flex-row sm:justify-between gap-3'>
                         <Autocomplete
-                            className="w-1/3"
+                            className="w-full sm:w-1/3 min-w-0"
                             // fullWidth
                             // multiple
                             freeSolo
@@ -221,7 +246,7 @@ function NewTransfer() {
                         />
 
                         <Autocomplete
-                            className="w-1/3 ml-2"
+                            className="w-full sm:w-1/3 min-w-0 sm:ml-2"
                             // fullWidth
                             // multiple
                             freeSolo
@@ -285,8 +310,7 @@ function NewTransfer() {
                     </div>
 
                     <div className='flex w-full pb-2 justify-end mb-2' style={{borderBottom:'1px solid #ccc'}}>
-                        <div className='w-2/3 mr-4'/>
-                        <Paper className="flex h-11 w-1/3 items-center rounded-lg shadow-sm">
+                        <Paper className="flex h-11 w-full sm:w-1/2 md:w-1/3 items-center rounded-lg shadow-sm">
                             <Input
                                 placeholder="Search..."
                                 disableUnderline
@@ -370,9 +394,20 @@ function NewTransfer() {
                     </Typography>
 
                     <Paper
-                        className="w-full grid grid-cols-5 gap-4 p-3 overflow-x-auto"
-                        sx={{ minHeight: '53vh', alignContent: filteredProducts.length === 0 && !isLoading ? 'stretch' : undefined }}
-                        style={{ height: '53vh' }}
+                        className="w-full p-2 mt-1 overflow-y-auto flex-1 min-h-0"
+                        sx={{
+                            display: 'grid',
+                            gridTemplateColumns: {
+                                xs: 'repeat(2, minmax(0, 1fr))',
+                                sm: 'repeat(3, minmax(0, 1fr))',
+                                md: 'repeat(4, minmax(0, 1fr))',
+                                lg: 'repeat(5, minmax(0, 1fr))',
+                                xl: 'repeat(6, minmax(0, 1fr))',
+                            },
+                            gap: 1,
+                            alignContent: filteredProducts.length === 0 && !isLoading ? 'stretch' : 'start',
+                            bgcolor: 'background.paper',
+                        }}
                     >
                         {filteredProducts.map((product, i) => (
                             <div
@@ -494,7 +529,10 @@ function NewTransfer() {
                         })()}
                     </Paper>
                 </Paper>
-                <Paper className="w-2/7 h-full p-3 flex flex-col" style={{backgroundColor:'#fff'}}>
+                <Paper
+					className={`w-full md:w-2/7 min-h-0 h-full p-3 flex-col flex-1 md:flex-none ${isNarrow && mobilePane !== 'cart' ? 'hidden' : 'flex'}`}
+					style={{backgroundColor:'#fff'}}
+				>
                     <div className='flex justify-between'>
                         <h1 className='text-xl'><b>Selected Items</b></h1>
                         {/* <FuseSvgIcon
@@ -515,8 +553,8 @@ function NewTransfer() {
                             <p className='line-clamp-1'>{supplier || 'No supplier set'}</p>
                         </div>
                     </div> */}
-                    <div className='grow-1 flex flex-col'>
-                        <div className='grow-1 overflow-y-auto' style={{height:'200px'}}>
+                    <div className='grow-1 flex flex-col min-h-0 flex-1'>
+                        <div className='grow-1 overflow-y-auto flex-1 min-h-[180px]'>
                             {currentOrder.map((product,i)=> (
                                 <div className='flex mb-3 items-center py-2 pr-2' key={i}>
                                     <span

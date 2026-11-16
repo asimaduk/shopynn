@@ -57,6 +57,7 @@ function FuseNavVerticalGroup(props: FuseNavItemComponentProps) {
 					className={clsx('fuse-list-subheader flex items-center py-2.5', !item.url ? 'cursor-default' : '')}
 					onClick={() => onItemClick && onItemClick(item)}
 					sx={item.sx}
+					data-tour={item.id ? `nav-${item.id}` : undefined}
 					{...itemProps}
 				>
 					<ListItemText
