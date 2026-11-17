@@ -8,6 +8,7 @@ import AppText from '../../components/text';
 import config from '../../config';
 import useTheme from '../../hooks/useTheme';
 import { hasPermission, canAccessScreen } from '../../utils/permissions';
+import TourAnchor from '../../features/tour/TourAnchor';
 
 // Sample report types for an inventory management system
 const REPORT_SECTIONS = [
@@ -105,6 +106,7 @@ const Reports = ({ navigation }) => {
 
     return (
         <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.safeArea, { backgroundColor: colors.background }]}>
+            <TourAnchor id="tour-reports-page" style={{ flex: 1 }}>
             <ScreenHeader onPress={backPress} label="Reports" />
             <View style={[styles.searchContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <Lucide name="search" color={colors.textTertiary} size={18} style={{ marginLeft: 12 }} />
@@ -153,6 +155,7 @@ const Reports = ({ navigation }) => {
                     </View>
                 )}
             </ScrollView>
+            </TourAnchor>
         </SafeAreaView>
     );
 };

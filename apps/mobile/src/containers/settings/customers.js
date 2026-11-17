@@ -15,6 +15,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { customers as customersApi, normalizePagedList } from '../../services/api';
 import AppAlert from '../../utils/appAlert';
 import { escapeHtml } from '../../utils/html';
+import TourAnchor from '../../features/tour/TourAnchor';
 
 const PAGE_SIZE = 20;
 
@@ -483,8 +484,10 @@ const Customers = ({ navigation }) => {
 
     return (
         <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
+            <TourAnchor id="tour-customers-page" style={{ flex: 1 }}>
             <ScreenHeader onPress={backPress} label={'Customers'}>
                 <View style={localStyles.headerActions}>
+                    <TourAnchor id="tour-customers-add">
                     <TouchableOpacity
                         activeOpacity={0.7}
                         onPress={() => navigation.navigate('CustomerForm')}
@@ -492,6 +495,7 @@ const Customers = ({ navigation }) => {
                     >
                         <Lucide name="plus" color={config.THEME_COLOR} size={18} />
                     </TouchableOpacity>
+                    </TourAnchor>
                     <TouchableOpacity
                         activeOpacity={0.7}
                         onPress={handleExport}
@@ -953,6 +957,7 @@ const Customers = ({ navigation }) => {
                     </TouchableOpacity>
                 </View>
             </AppModal>
+            </TourAnchor>
         </SafeAreaView>
     );
 };

@@ -8,6 +8,8 @@ export type TourStepDef = {
 	route?: string;
 	side?: 'top' | 'right' | 'bottom' | 'left';
 	align?: 'start' | 'center' | 'end';
+	/** Any-of permission codes; omit for always-visible steps. */
+	requiredPermissions?: string[];
 };
 
 export type TourDefinition = {
@@ -15,6 +17,8 @@ export type TourDefinition = {
 	title: string;
 	description: string;
 	steps: TourStepDef[];
+	/** Any-of; omit tour from catalog when none match. */
+	requiredPermissions?: string[];
 };
 
 export const TOUR_CATALOG: TourDefinition[] = [
@@ -22,58 +26,88 @@ export const TOUR_CATALOG: TourDefinition[] = [
 		id: 'overview',
 		title: 'Shopynn overview',
 		description: 'A quick look at the main areas of the admin app.',
+		requiredPermissions: [
+			'dashboard.view',
+			'sales.view',
+			'sales.create',
+			'inventory.view',
+			'products.view',
+			'purchases.view',
+			'purchases.create',
+			'customers.view',
+			'users.view',
+			'reports.view',
+			'company_profile.view',
+			'settings.view'
+		],
 		steps: [
 			{
 				title: 'Welcome to Shopynn',
-				description: 'This short tour shows where to sell, stock, buy, manage customers and staff, and check how the shop is doing. You can replay it anytime from Take a tour in the side menu.'
+				description:
+					'This short tour shows where to sell, stock, buy, manage customers and staff, and check how the shop is doing. You can replay it anytime from Take a tour in the side menu.'
 			},
 			{
 				element: '[data-tour="nav-dashboards.project"]',
 				title: 'Dashboard',
-				description: 'Start here for today’s overview — sales, stock alerts, and how the shop is performing.',
-				side: 'right'
+				description:
+					'Start here for today’s overview — sales, stock alerts, and how the shop is performing.',
+				side: 'right',
+				requiredPermissions: ['dashboard.view']
 			},
 			{
 				element: '[data-tour="nav-trading.new-sale"]',
 				title: 'New Sale',
-				description: 'Record walk-in sales here. Add items to the cart, take payment, and print or share a receipt.',
-				side: 'right'
+				description:
+					'Record walk-in sales here. Add items to the cart, take payment, and print or share a receipt.',
+				side: 'right',
+				requiredPermissions: ['sales.create', 'sales.view']
 			},
 			{
 				element: '[data-tour="nav-inventory.products"]',
 				title: 'Items',
 				description: 'Your product catalogue lives here. Add items, set prices, and track stock levels.',
-				side: 'right'
+				side: 'right',
+				requiredPermissions: ['inventory.view', 'products.view']
 			},
 			{
 				element: '[data-tour="nav-trading.new-purchase"]',
 				title: 'New Purchase',
-				description: 'When stock arrives from a supplier, record it here so inventory stays accurate.',
-				side: 'right'
+				description:
+					'When stock arrives from a supplier, record it here so inventory stays accurate.',
+				side: 'right',
+				requiredPermissions: ['purchases.create', 'purchases.view']
 			},
 			{
 				element: '[data-tour="nav-people.customers"]',
 				title: 'Customers',
-				description: 'Your customer list lives under People. Add walk-in and credit customers, then look them up when selling.',
-				side: 'right'
+				description:
+					'Your customer list lives under People. Add walk-in and credit customers, then look them up when selling.',
+				side: 'right',
+				requiredPermissions: ['customers.view']
 			},
 			{
 				element: '[data-tour="nav-people.users"]',
 				title: 'Staff',
-				description: 'Invite cashiers and managers under Users. Each person gets a role so they only see what they need.',
-				side: 'right'
+				description:
+					'Invite cashiers and managers under Users. Each person gets a role so they only see what they need.',
+				side: 'right',
+				requiredPermissions: ['users.view']
 			},
 			{
 				element: '[data-tour="nav-dashboards.reports"]',
 				title: 'Reports',
-				description: 'Sales, stock, and performance reports for the shop — filter by date and export when you need them.',
-				side: 'right'
+				description:
+					'Sales, stock, and performance reports for the shop — filter by date and export when you need them.',
+				side: 'right',
+				requiredPermissions: ['reports.view']
 			},
 			{
 				element: '[data-tour="nav-setups.companyProfile"]',
 				title: 'Company profile',
-				description: 'Shop name, contact details, and branding used on receipts. Other setups (stores, suppliers, receipt layout) sit in this same menu.',
-				side: 'right'
+				description:
+					'Shop name, contact details, and branding used on receipts. Other setups (stores, suppliers, receipt layout) sit in this same menu.',
+				side: 'right',
+				requiredPermissions: ['company_profile.view', 'settings.view']
 			}
 		]
 	},
@@ -81,27 +115,33 @@ export const TOUR_CATALOG: TourDefinition[] = [
 		id: 'inventory',
 		title: 'Inventory',
 		description: 'Find Items, add products, and keep stock in view.',
+		requiredPermissions: ['inventory.view', 'products.view'],
 		steps: [
 			{
 				element: '[data-tour="nav-inventory.products"]',
 				title: 'Open Items',
 				description: 'Everything you sell is listed under Inventory → Items.',
 				route: '/inventory/products',
-				side: 'right'
+				side: 'right',
+				requiredPermissions: ['inventory.view', 'products.view']
 			},
 			{
 				element: '[data-tour="inventory-items-header"]',
 				title: 'Your catalogue',
-				description: 'This page lists every product with quantity, price, and category. Search and filters help you find items quickly.',
+				description:
+					'This page lists every product with quantity, price, and category. Search and filters help you find items quickly.',
 				route: '/inventory/products',
-				side: 'bottom'
+				side: 'bottom',
+				requiredPermissions: ['inventory.view', 'products.view']
 			},
 			{
 				element: '[data-tour="inventory-add-item"]',
 				title: 'Add an item',
-				description: 'Use Add to create a product — name, price, stock, and optional barcode. You can also import in bulk later.',
+				description:
+					'Use Add to create a product — name, price, stock, and optional barcode. You can also import in bulk later.',
 				route: '/inventory/products',
-				side: 'left'
+				side: 'left',
+				requiredPermissions: ['products.create']
 			}
 		]
 	},
@@ -109,33 +149,41 @@ export const TOUR_CATALOG: TourDefinition[] = [
 		id: 'sales',
 		title: 'Sales',
 		description: 'Make a sale and find past receipts.',
+		requiredPermissions: ['sales.view', 'sales.create'],
 		steps: [
 			{
 				element: '[data-tour="nav-trading.new-sale"]',
 				title: 'New Sale',
 				description: 'This is the point-of-sale screen for walk-in customers.',
 				route: '/trading/newsale',
-				side: 'right'
+				side: 'right',
+				requiredPermissions: ['sales.create']
 			},
 			{
 				element: '[data-tour="sales-product-search"]',
 				title: 'Find products',
-				description: 'Search or tap products to add them to the cart. Quantities and prices update as you go.',
+				description:
+					'Search or tap products to add them to the cart. Quantities and prices update as you go.',
 				route: '/trading/newsale',
-				side: 'bottom'
+				side: 'bottom',
+				requiredPermissions: ['sales.create']
 			},
 			{
 				element: '[data-tour="sales-cart"]',
 				title: 'Cart and pay',
-				description: 'The cart shows totals and discounts. Proceed opens payment — cash, MoMo, or other methods you use.',
+				description:
+					'The cart shows totals and discounts. Proceed opens payment — cash, MoMo, or other methods you use.',
 				route: '/trading/newsale',
-				side: 'left'
+				side: 'left',
+				requiredPermissions: ['sales.create']
 			},
 			{
 				element: '[data-tour="nav-trading.sales-list"]',
 				title: 'Sales List',
-				description: 'Past sales, receipts, and returns live under Sales List when you need to look something up.',
-				side: 'right'
+				description:
+					'Past sales, receipts, and returns live under Sales List when you need to look something up.',
+				side: 'right',
+				requiredPermissions: ['sales.view']
 			}
 		]
 	},
@@ -143,26 +191,31 @@ export const TOUR_CATALOG: TourDefinition[] = [
 		id: 'purchases',
 		title: 'Purchases',
 		description: 'Record stock coming in from suppliers.',
+		requiredPermissions: ['purchases.view', 'purchases.create'],
 		steps: [
 			{
 				element: '[data-tour="nav-trading.new-purchase"]',
 				title: 'New Purchase',
 				description: 'Use this whenever goods arrive so stock quantities stay correct.',
 				route: '/trading/newpurchase',
-				side: 'right'
+				side: 'right',
+				requiredPermissions: ['purchases.create']
 			},
 			{
 				element: '[data-tour="purchases-shell"]',
 				title: 'Record a purchase',
-				description: 'Pick a supplier, add the items received with costs and quantities, then save. Stock updates automatically.',
+				description:
+					'Pick a supplier, add the items received with costs and quantities, then save. Stock updates automatically.',
 				route: '/trading/newpurchase',
-				side: 'bottom'
+				side: 'bottom',
+				requiredPermissions: ['purchases.create']
 			},
 			{
 				element: '[data-tour="nav-trading.purchases-list"]',
 				title: 'Purchases List',
 				description: 'Open past purchase records here if you need to review or share them.',
-				side: 'right'
+				side: 'right',
+				requiredPermissions: ['purchases.view']
 			}
 		]
 	},
@@ -170,27 +223,33 @@ export const TOUR_CATALOG: TourDefinition[] = [
 		id: 'customers',
 		title: 'Customers',
 		description: 'Keep your customer list and look people up at the till.',
+		requiredPermissions: ['customers.view'],
 		steps: [
 			{
 				element: '[data-tour="nav-people.customers"]',
 				title: 'Customers menu',
 				description: 'Open People → Customers to manage everyone who buys from your shop.',
 				route: '/users/customers',
-				side: 'right'
+				side: 'right',
+				requiredPermissions: ['customers.view']
 			},
 			{
 				element: '[data-tour="customers-page"]',
 				title: 'Customer list',
-				description: 'Search existing customers or browse the list. Opening a customer shows contact details and history.',
+				description:
+					'Search existing customers or browse the list. Opening a customer shows contact details and history.',
 				route: '/users/customers',
-				side: 'bottom'
+				side: 'bottom',
+				requiredPermissions: ['customers.view']
 			},
 			{
 				element: '[data-tour="customers-add"]',
 				title: 'Add a customer',
-				description: 'Use Add when someone new walks in — name and phone are enough to start. You can attach sales and credit later.',
+				description:
+					'Use Add when someone new walks in — name and phone are enough to start. You can attach sales and credit later.',
 				route: '/users/customers',
-				side: 'left'
+				side: 'left',
+				requiredPermissions: ['customers.create']
 			}
 		]
 	},
@@ -198,27 +257,33 @@ export const TOUR_CATALOG: TourDefinition[] = [
 		id: 'staff',
 		title: 'Staff',
 		description: 'Add cashiers and managers, and control what they can do.',
+		requiredPermissions: ['users.view'],
 		steps: [
 			{
 				element: '[data-tour="nav-people.users"]',
 				title: 'Users / staff',
 				description: 'Team accounts live under People → Users (staff).',
 				route: '/users/staff',
-				side: 'right'
+				side: 'right',
+				requiredPermissions: ['users.view']
 			},
 			{
 				element: '[data-tour="staff-page"]',
 				title: 'Your team',
-				description: 'See who is active, who is disabled, and open a person to change their role or details.',
+				description:
+					'See who is active, who is disabled, and open a person to change their role or details.',
 				route: '/users/staff',
-				side: 'bottom'
+				side: 'bottom',
+				requiredPermissions: ['users.view']
 			},
 			{
 				element: '[data-tour="staff-add"]',
 				title: 'Add staff',
-				description: 'Invite a new user with Add. Assign a role so they can sell, stock, or manage — without seeing more than they should.',
+				description:
+					'Invite a new user with Add. Assign a role so they can sell, stock, or manage — without seeing more than they should.',
 				route: '/users/staff',
-				side: 'left'
+				side: 'left',
+				requiredPermissions: ['users.create']
 			}
 		]
 	},
@@ -226,20 +291,24 @@ export const TOUR_CATALOG: TourDefinition[] = [
 		id: 'reports',
 		title: 'Reports',
 		description: 'See how the shop is doing.',
+		requiredPermissions: ['reports.view'],
 		steps: [
 			{
 				element: '[data-tour="nav-dashboards.reports"]',
 				title: 'Reports menu',
 				description: 'Reports are grouped by sales, stock, and other areas.',
 				route: '/reports',
-				side: 'right'
+				side: 'right',
+				requiredPermissions: ['reports.view']
 			},
 			{
 				element: '[data-tour="reports-page"]',
 				title: 'Pick a report',
-				description: 'Choose a report, set the date range, and open it. Many reports can be exported for your accountant.',
+				description:
+					'Choose a report, set the date range, and open it. Many reports can be exported for your accountant.',
 				route: '/reports',
-				side: 'bottom'
+				side: 'bottom',
+				requiredPermissions: ['reports.view']
 			}
 		]
 	},
@@ -247,26 +316,33 @@ export const TOUR_CATALOG: TourDefinition[] = [
 		id: 'settings',
 		title: 'Settings',
 		description: 'Company profile, receipt layout, and team.',
+		requiredPermissions: ['company_profile.view', 'settings.view', 'receipt_settings.view'],
 		steps: [
 			{
 				element: '[data-tour="nav-setups.companyProfile"]',
 				title: 'Company profile',
-				description: 'Update the shop name, phone, and address shown on receipts and the storefront.',
+				description:
+					'Update the shop name, phone, and address shown on receipts and the storefront.',
 				route: '/company-profile',
-				side: 'right'
+				side: 'right',
+				requiredPermissions: ['company_profile.view', 'settings.view']
 			},
 			{
 				element: '[data-tour="settings-company"]',
 				title: 'Shop details',
-				description: 'Keep these details accurate — customers and staff see them on invoices and the app.',
+				description:
+					'Keep these details accurate — customers and staff see them on invoices and the app.',
 				route: '/company-profile',
-				side: 'bottom'
+				side: 'bottom',
+				requiredPermissions: ['company_profile.view', 'settings.view']
 			},
 			{
 				element: '[data-tour="nav-setups.invoiceReceipt"]',
 				title: 'Receipt layout',
-				description: 'Customize what prints on receipts. For team access, use the Staff tour under People → Users.',
-				side: 'right'
+				description:
+					'Customize what prints on receipts. For team access, use the Staff tour under People → Users.',
+				side: 'right',
+				requiredPermissions: ['receipt_settings.view', 'settings.view']
 			}
 		]
 	}

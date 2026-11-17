@@ -8,6 +8,7 @@ import ScreenHeader from '../../components/screen_header';
 import AppText from '../../components/text';
 import config from '../../config';
 import useTheme from '../../hooks/useTheme';
+import { useTourOptional } from '../../features/tour';
 
 const STORAGE_KEY = 'shopynn:go_live_checklist_v1';
 
@@ -46,6 +47,7 @@ const defaultDone = () => ({ store: false, products: false, receipt: false, firs
 
 const GoLiveWizard = ({ navigation }) => {
     const { colors } = useTheme();
+    const tour = useTourOptional();
     const [done, setDone] = useState(defaultDone());
 
     const load = useCallback(async () => {
@@ -152,6 +154,35 @@ const GoLiveWizard = ({ navigation }) => {
                         </View>
                     </View>
                 ))}
+                {tour?.hasShopTours ? (
+                    <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() => tour.openCatalog()}
+                        style={[
+                            styles.card,
+                            {
+                                backgroundColor: colors.surface,
+                                borderColor: colors.border || '#e2e8f0',
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                            },
+                        ]}
+                    >
+                        <View style={[styles.badge, { backgroundColor: `${config.THEME_COLOR}18` }]}>
+                            <Lucide name="map" size={18} color={config.THEME_COLOR} />
+                        </View>
+                        <View style={{ flex: 1, marginLeft: 12 }}>
+                            <AppText label="Take a tour" variant={2} fontSize={15} color={colors.text} />
+                            <AppText
+                                label="Optional walkthrough of the main areas of the app."
+                                fontSize={13}
+                                color={colors.textSecondary}
+                                style={{ marginTop: 4 }}
+                            />
+                        </View>
+                        <Lucide name="chevron-right" size={18} color={colors.textTertiary} />
+                    </TouchableOpacity>
+                ) : null}
             </ScrollView>
         </SafeAreaView>
     );

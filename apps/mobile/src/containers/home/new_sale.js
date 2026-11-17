@@ -35,6 +35,7 @@ import {
     nextInvoiceCounterAfterSale,
 } from '../../utils/invoiceNumbering';
 import { POS_MOMO_STATUS_EVENT } from '../../utils/notificationNavigation';
+import TourAnchor from '../../features/tour/TourAnchor';
 import {
     getBulkDiscountFromCompany,
     resolveSaleUnitPrice,
@@ -1632,6 +1633,7 @@ const NewSale = ({ navigation, route }) => {
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.keyboard}>
             <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.safeArea, { backgroundColor: colors.background }]}>
+                <TourAnchor id="tour-newsale-shell" style={{ flex: 1 }}>
                 <ScreenHeader onPress={backPress} label="New Sale">
                     <View style={styles.headerActions}>
                         {heldItems.length > 0 ? (
@@ -2834,6 +2836,7 @@ const NewSale = ({ navigation, route }) => {
                         goToSalesAfterSale();
                     }}
                 />
+                </TourAnchor>
             </SafeAreaView>
         </KeyboardAvoidingView>
     );

@@ -14,6 +14,7 @@ import AppModal from '../../components/app_modal';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import useTheme from '../../hooks/useTheme';
 import { canAccessScreen } from '../../utils/permissions';
+import TourAnchor from '../../features/tour/TourAnchor';
 
 const dateRanges = [
     { id: '1', label: 'Today', value: 'today' },
@@ -392,13 +393,18 @@ const Purchases = ({ navigation }) => {
 
                 {/* FAB - positioned above tab bar */}
                 {canNewPurchase && (
-                    <TouchableOpacity
-                        activeOpacity={0.8}
-                        onPress={() => navigation.navigate("NewPurchase")}
-                        style={[styles.fab, { bottom: TAB_BAR_HEIGHT + insets.bottom + 12 }]}
+                    <TourAnchor
+                        id="tour-purchases-fab"
+                        style={[styles.fab, { bottom: TAB_BAR_HEIGHT + insets.bottom + 12, padding: 0 }]}
                     >
-                        <Lucide name='bookmark-plus' color={colors.textInverse} size={24} />
-                    </TouchableOpacity>
+                        <TouchableOpacity
+                            activeOpacity={0.8}
+                            onPress={() => navigation.navigate("NewPurchase")}
+                            style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+                        >
+                            <Lucide name='bookmark-plus' color={colors.textInverse} size={24} />
+                        </TouchableOpacity>
+                    </TourAnchor>
                 )}
             </View>
 

@@ -27,6 +27,7 @@ import AppLockGate from '../components/AppLockGate';
 import { getDeviceBlockReason } from '../utils/deviceSecurity';
 import { clearTokens } from '../utils/secureStorage';
 import { clearSensitiveOfflineData } from '../utils/secureOfflineStorage';
+import { TourProvider } from '../features/tour';
 
 const ApplicationNavigator = () => {
     const [deviceBlockReason] = useState(getDeviceBlockReason);
@@ -266,7 +267,9 @@ const ApplicationNavigator = () => {
                             />
                         )
                         :
-                        <MainNavigator user={user} onNavigationStateChange={onNavigationStateChange} />
+                        <TourProvider>
+                            <MainNavigator user={user} onNavigationStateChange={onNavigationStateChange} />
+                        </TourProvider>
                 :
                 <AuthNavigator />
             }

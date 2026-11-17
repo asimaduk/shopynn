@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Image, ScrollView, StyleSheet, TouchableOpacity, View, Share, Linking, Switch, Platform, TextInput } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
@@ -29,6 +29,21 @@ import ConfirmDialog from '../../components/ConfirmDialog';
 import { displayEmail, formatPhone } from '../../utils/format';
 import { tenants as tenantsApi, users as usersApi } from '../../services/api';
 import AppAlert from '../../utils/appAlert';
+import TourAnchor from '../../features/tour/TourAnchor';
+import { useTourOptional } from '../../features/tour';
+import {
+    measureTourAnchor,
+    registerTourScrollIntoView,
+    unregisterTourScrollIntoView,
+} from '../../features/tour/tourAnchors';
+
+const MORE_TOUR_SCROLL_IDS = [
+    'tour-more-customers',
+    'tour-more-users',
+    'tour-more-reports',
+    'tour-more-company',
+    'tour-more-receipt',
+];
 
 const TAB_BAR_HEIGHT = 60;
 
@@ -78,6 +93,31 @@ const Settings = ({ navigation, route }) => {
     const subscriptionPlan = useSelector(({ appSettings }) => appSettings?.subscriptionPlan || null);
     const { colors, themeMode } = useTheme();
     const insets = useSafeAreaInsets();
+    const tour = useTourOptional();
+    const moreScrollRef = useRef(null);
+    const moreScrollYRef = useRef(0);
+
+    useEffect(() => {
+        const makeScrollHandler = (id) => () =>
+            new Promise((resolve) => {
+                measureTourAnchor(id).then((rect) => {
+                    if (!rect || !moreScrollRef.current) {
+                        resolve();
+                        return;
+                    }
+                    const delta = rect.y - 140;
+                    const nextY = Math.max(0, moreScrollYRef.current + delta);
+                    moreScrollRef.current.scrollTo({ y: nextY, animated: true });
+                    setTimeout(resolve, 320);
+                });
+            });
+        MORE_TOUR_SCROLL_IDS.forEach((id) => {
+            registerTourScrollIntoView(id, makeScrollHandler(id));
+        });
+        return () => {
+            MORE_TOUR_SCROLL_IDS.forEach((id) => unregisterTourScrollIntoView(id));
+        };
+    }, []);
     const [searchQuery, setSearchQuery] = useState('');
     const [showSearchInput, setShowSearchInput] = useState(false);
     const [biometricSupported, setBiometricSupported] = useState(false);
@@ -162,6 +202,9 @@ const Settings = ({ navigation, route }) => {
     const dataExportAccess = getScreenPlanAccess(user, 'DataExportBackup', subscriptionFeatures, subscriptionPlan);
     const canInvoiceReceipt = invoiceReceiptAccess.show;
     const canDataExport = dataExportAccess.show;
+    const companyProfileAccess = getScreenPlanAccess(user, 'CompanyProfile', subscriptionFeatures, subscriptionPlan);
+    const canCompanyProfile = companyProfileAccess.show;
+    const canTakeTour = Boolean(tour?.hasShopTours);
     const notificationsSetupAccess = getScreenPlanAccess(user, 'NotificationsSetup', subscriptionFeatures, subscriptionPlan);
     /** Customer ordering: list + control order-related push without staff notification settings. */
     const canCustomerOrderNotifications =
@@ -196,7 +239,7 @@ const Settings = ({ navigation, route }) => {
     const showPeopleSection = canCustomers || canUsers;
     const showExpensesSection = canExpenditures;
     const showSetupsSection =
-        canGoLive || canWarehouses || canSuppliers || canInvoiceReceipt || canDataExport;
+        canGoLive || canCompanyProfile || canWarehouses || canSuppliers || canInvoiceReceipt || canDataExport;
     const showAdminSection = canRoles || canNotificationsSetup;
     const showReportsSection = canReports;
     const showPlatformSection =
@@ -414,9 +457,14 @@ const Settings = ({ navigation, route }) => {
                 </ScrollView>
             ) : (
             <ScrollView
+                ref={moreScrollRef}
                 showsVerticalScrollIndicator={false}
                 style={{ flex: 1 }}
                 keyboardShouldPersistTaps="handled"
+                scrollEventThrottle={16}
+                onScroll={(e) => {
+                    moreScrollYRef.current = e.nativeEvent.contentOffset?.y || 0;
+                }}
                 contentContainerStyle={{
                     padding: 10,
                     paddingTop: isCustomer ? 16 : 10,
@@ -915,45 +963,49 @@ const Settings = ({ navigation, route }) => {
                                     key: 'customers',
                                     show: canCustomers,
                                     node: (
-                                        <TouchableOpacity activeOpacity={0.6} onPress={() => navigation.navigate('Customers')} style={styles.menuItem}>
-                                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                                <Lucide name="users" color={config.THEME_COLOR} size={20} />
-                                            </View>
-                                            <View style={styles.menuContent}>
-                                                <AppText label={'Customers'} variant={2} color={colors.text} fontSize={15} />
-                                                <AppText label={'Manage customer database'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
-                                            </View>
-                                            <Lucide name="chevron-right" color={colors.border} size={18} />
-                                        </TouchableOpacity>
+                                        <TourAnchor id="tour-more-customers">
+                                            <TouchableOpacity activeOpacity={0.6} onPress={() => navigation.navigate('Customers')} style={styles.menuItem}>
+                                                <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                                    <Lucide name="users" color={config.THEME_COLOR} size={20} />
+                                                </View>
+                                                <View style={styles.menuContent}>
+                                                    <AppText label={'Customers'} variant={2} color={colors.text} fontSize={15} />
+                                                    <AppText label={'Manage customer database'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
+                                                </View>
+                                                <Lucide name="chevron-right" color={colors.border} size={18} />
+                                            </TouchableOpacity>
+                                        </TourAnchor>
                                     ),
                                 },
                                 {
                                     key: 'users',
                                     show: canUsers,
                                     node: (
-                                        <TouchableOpacity
-                                            activeOpacity={0.6}
-                                            onPress={() =>
-                                                navigateToScreenOrUpgrade(
-                                                    navigation,
-                                                    user,
-                                                    'Users',
-                                                    subscriptionFeatures,
-                                                    undefined,
-                                                    subscriptionPlan,
-                                                )
-                                            }
-                                            style={styles.menuItem}
-                                        >
-                                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                                <Lucide name="user-cog" color="#6366f1" size={20} />
-                                            </View>
-                                            <View style={styles.menuContent}>
-                                                <AppText label={'Users'} variant={2} color={colors.text} fontSize={15} />
-                                                <AppText label={'Create, edit, disable users and assign roles'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
-                                            </View>
-                                            {renderPlanGateTrailing(usersAccess)}
-                                        </TouchableOpacity>
+                                        <TourAnchor id="tour-more-users">
+                                            <TouchableOpacity
+                                                activeOpacity={0.6}
+                                                onPress={() =>
+                                                    navigateToScreenOrUpgrade(
+                                                        navigation,
+                                                        user,
+                                                        'Users',
+                                                        subscriptionFeatures,
+                                                        undefined,
+                                                        subscriptionPlan,
+                                                    )
+                                                }
+                                                style={styles.menuItem}
+                                            >
+                                                <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                                    <Lucide name="user-cog" color="#6366f1" size={20} />
+                                                </View>
+                                                <View style={styles.menuContent}>
+                                                    <AppText label={'Users'} variant={2} color={colors.text} fontSize={15} />
+                                                    <AppText label={'Create, edit, disable users and assign roles'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
+                                                </View>
+                                                {renderPlanGateTrailing(usersAccess)}
+                                            </TouchableOpacity>
+                                        </TourAnchor>
                                     ),
                                 },
                             ])}
@@ -985,29 +1037,31 @@ const Settings = ({ navigation, route }) => {
                     <View style={styles.section}>
                         <AppText label={'Reports'} variant={1} fontSize={14} color={colors.textTertiary} style={styles.sectionTitle} />
                         <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                            <TouchableOpacity
-                                activeOpacity={0.6}
-                                onPress={() =>
-                                    navigateToScreenOrUpgrade(
-                                        navigation,
-                                        user,
-                                        'Reports',
-                                        subscriptionFeatures,
-                                        undefined,
-                                        subscriptionPlan,
-                                    )
-                                }
-                                style={styles.menuItem}
-                            >
-                                <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                    <Lucide name="activity" color={config.THEME_COLOR} size={20} />
-                                </View>
-                                <View style={styles.menuContent}>
-                                    <AppText label={'Reports'} variant={2} color={colors.text} fontSize={15} />
-                                    <AppText label={'View business reports and analytics'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
-                                </View>
-                                {renderPlanGateTrailing(reportsAccess)}
-                            </TouchableOpacity>
+                            <TourAnchor id="tour-more-reports">
+                                <TouchableOpacity
+                                    activeOpacity={0.6}
+                                    onPress={() =>
+                                        navigateToScreenOrUpgrade(
+                                            navigation,
+                                            user,
+                                            'Reports',
+                                            subscriptionFeatures,
+                                            undefined,
+                                            subscriptionPlan,
+                                        )
+                                    }
+                                    style={styles.menuItem}
+                                >
+                                    <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                        <Lucide name="activity" color={config.THEME_COLOR} size={20} />
+                                    </View>
+                                    <View style={styles.menuContent}>
+                                        <AppText label={'Reports'} variant={2} color={colors.text} fontSize={15} />
+                                        <AppText label={'View business reports and analytics'} variant={2} color={colors.textTertiary} fontSize={12} style={{ marginTop: 2 }} />
+                                    </View>
+                                    {renderPlanGateTrailing(reportsAccess)}
+                                </TouchableOpacity>
+                            </TourAnchor>
                         </View>
                     </View>
                 )}
@@ -1042,6 +1096,43 @@ const Settings = ({ navigation, route }) => {
                                             </View>
                                             <Lucide name="chevron-right" color={colors.textTertiary} size={18} />
                                         </TouchableOpacity>
+                                    ),
+                                },
+                                {
+                                    key: 'company-profile',
+                                    show: canCompanyProfile,
+                                    node: (
+                                        <TourAnchor id="tour-more-company">
+                                            <TouchableOpacity
+                                                activeOpacity={0.6}
+                                                onPress={() =>
+                                                    navigateToScreenOrUpgrade(
+                                                        navigation,
+                                                        user,
+                                                        'CompanyProfile',
+                                                        subscriptionFeatures,
+                                                        undefined,
+                                                        subscriptionPlan,
+                                                    )
+                                                }
+                                                style={styles.menuItem}
+                                            >
+                                                <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                                    <Lucide name="building-2" color={config.THEME_COLOR} size={20} />
+                                                </View>
+                                                <View style={styles.menuContent}>
+                                                    <AppText label={'Company profile'} variant={2} color={colors.text} fontSize={15} />
+                                                    <AppText
+                                                        label={'Shop name, contact details, and branding'}
+                                                        variant={2}
+                                                        color={colors.textTertiary}
+                                                        fontSize={12}
+                                                        style={{ marginTop: 2 }}
+                                                    />
+                                                </View>
+                                                {renderPlanGateTrailing(companyProfileAccess)}
+                                            </TouchableOpacity>
+                                        </TourAnchor>
                                     ),
                                 },
                                 {
@@ -1093,35 +1184,37 @@ const Settings = ({ navigation, route }) => {
                                     key: 'invoice-receipt',
                                     show: canInvoiceReceipt,
                                     node: (
-                                        <TouchableOpacity
-                                            activeOpacity={0.6}
-                                            onPress={() =>
-                                                navigateToScreenOrUpgrade(
-                                                    navigation,
-                                                    user,
-                                                    'InvoiceReceiptSettings',
-                                                    subscriptionFeatures,
-                                                    undefined,
-                                                    subscriptionPlan,
-                                                )
-                                            }
-                                            style={styles.menuItem}
-                                        >
-                                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                                                <Lucide name="file-text" color={config.THEME_COLOR} size={20} />
-                                            </View>
-                                            <View style={styles.menuContent}>
-                                                <AppText label={'Invoice & Receipt'} variant={2} color={colors.text} fontSize={15} />
-                                                <AppText
-                                                    label={'Invoice/receipt details and thermal print agent'}
-                                                    variant={2}
-                                                    color={colors.textTertiary}
-                                                    fontSize={12}
-                                                    style={{ marginTop: 2 }}
-                                                />
-                                            </View>
-                                            {renderPlanGateTrailing(invoiceReceiptAccess)}
-                                        </TouchableOpacity>
+                                        <TourAnchor id="tour-more-receipt">
+                                            <TouchableOpacity
+                                                activeOpacity={0.6}
+                                                onPress={() =>
+                                                    navigateToScreenOrUpgrade(
+                                                        navigation,
+                                                        user,
+                                                        'InvoiceReceiptSettings',
+                                                        subscriptionFeatures,
+                                                        undefined,
+                                                        subscriptionPlan,
+                                                    )
+                                                }
+                                                style={styles.menuItem}
+                                            >
+                                                <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                                    <Lucide name="file-text" color={config.THEME_COLOR} size={20} />
+                                                </View>
+                                                <View style={styles.menuContent}>
+                                                    <AppText label={'Invoice & Receipt'} variant={2} color={colors.text} fontSize={15} />
+                                                    <AppText
+                                                        label={'Invoice/receipt details and thermal print agent'}
+                                                        variant={2}
+                                                        color={colors.textTertiary}
+                                                        fontSize={12}
+                                                        style={{ marginTop: 2 }}
+                                                    />
+                                                </View>
+                                                {renderPlanGateTrailing(invoiceReceiptAccess)}
+                                            </TouchableOpacity>
+                                        </TourAnchor>
                                     ),
                                 },
                                 {
@@ -1368,6 +1461,32 @@ const Settings = ({ navigation, route }) => {
                         <AppText label={'App'} variant={1} fontSize={14} color={colors.textTertiary} style={styles.sectionTitle} />
                         <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                             {renderMenuRows([
+                                {
+                                    key: 'take-tour',
+                                    show: canTakeTour,
+                                    node: (
+                                        <TouchableOpacity
+                                            activeOpacity={0.6}
+                                            onPress={() => tour?.openCatalog?.()}
+                                            style={styles.menuItem}
+                                        >
+                                            <View style={[styles.menuIcon, { backgroundColor: colors.surfaceSecondary }]}>
+                                                <Lucide name="map" color={config.THEME_COLOR} size={20} />
+                                            </View>
+                                            <View style={styles.menuContent}>
+                                                <AppText label={'Take a tour'} variant={2} color={colors.text} fontSize={15} />
+                                                <AppText
+                                                    label={'Short walkthroughs of the main areas'}
+                                                    variant={2}
+                                                    color={colors.textTertiary}
+                                                    fontSize={12}
+                                                    style={{ marginTop: 2 }}
+                                                />
+                                            </View>
+                                            <Lucide name="chevron-right" color={colors.border} size={18} />
+                                        </TouchableOpacity>
+                                    ),
+                                },
                                 {
                                     key: 'about',
                                     show: canAbout,

@@ -18,6 +18,7 @@ import config from '../../config';
 import AppModal from '../../components/app_modal';
 import useTheme from '../../hooks/useTheme';
 import { users as usersApi, roles as rolesApi, normalizeList } from '../../services/api';
+import TourAnchor from '../../features/tour/TourAnchor';
 
 const STATUS_FILTERS = [
     { id: 'all', label: 'All statuses', icon: 'users' },
@@ -142,7 +143,9 @@ const Users = ({ navigation }) => {
 
     return (
         <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.safe, { backgroundColor: colors.background }]}>
+            <TourAnchor id="tour-staff-page" style={{ flex: 1 }}>
             <ScreenHeader onPress={backPress} label="System users">
+                <TourAnchor id="tour-staff-add">
                 <TouchableOpacity
                     activeOpacity={0.7}
                     onPress={() => navigation.navigate('UserForm')}
@@ -150,6 +153,7 @@ const Users = ({ navigation }) => {
                 >
                     <Lucide name="plus" color={config.THEME_COLOR} size={18} />
                 </TouchableOpacity>
+                </TourAnchor>
             </ScreenHeader>
 
             <View style={styles.summaryRow}>
@@ -360,6 +364,7 @@ const Users = ({ navigation }) => {
                     })}
                 </View>
             </AppModal>
+            </TourAnchor>
         </SafeAreaView>
     );
 };

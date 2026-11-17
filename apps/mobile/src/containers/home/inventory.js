@@ -13,6 +13,7 @@ import { products as productsApi, normalizeList } from '../../services/api';
 import { formatCurrency, formatQuantity } from '../../utils/format';
 import { useSelector } from 'react-redux';
 import { canAccessScreen } from '../../utils/permissions';
+import TourAnchor from '../../features/tour/TourAnchor';
 
 // Mock data - replace with actual API call
 const mockProducts = [
@@ -267,7 +268,9 @@ const Inventory = ({ navigation, route }) => {
 
     return (
         <SafeAreaView style={{flex:1,backgroundColor:colors.background,paddingBottom:0}} edges={['left', 'right']}>
-            <Header navigation={navigation} screen="inventory"/>
+            <TourAnchor id="tour-inventory-header">
+                <Header navigation={navigation} screen="inventory"/>
+            </TourAnchor>
             
             {/* Header Stats */}
             <View style={styles.headerStats}>
@@ -485,12 +488,17 @@ const Inventory = ({ navigation, route }) => {
 
             {/* Add Product Button - positioned above tab bar */}
             {canCreateProduct && (
-                <TouchableOpacity
-                    activeOpacity={.8}
-                    onPress={() => navigation.navigate("ProductForm")}
-                    style={[styles.addButton, { bottom: TAB_BAR_HEIGHT + insets.bottom + 12 }]}>
-                    <Lucide name='plus' color={'#fff'} size={24} />
-                </TouchableOpacity>
+                <TourAnchor
+                    id="tour-inventory-add"
+                    style={[styles.addButton, { bottom: TAB_BAR_HEIGHT + insets.bottom + 12, padding: 0 }]}
+                >
+                    <TouchableOpacity
+                        activeOpacity={.8}
+                        onPress={() => navigation.navigate("ProductForm")}
+                        style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                        <Lucide name='plus' color={'#fff'} size={24} />
+                    </TouchableOpacity>
+                </TourAnchor>
             )}
 
             {/* Product Menu Modal */}

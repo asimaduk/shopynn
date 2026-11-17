@@ -16,6 +16,7 @@ import useTheme from '../../hooks/useTheme';
 import { canAccessScreen, hasPermission } from '../../utils/permissions';
 import { SALES_LIST_REFRESH_EVENT } from '../../utils/salesEvents';
 import AppAlert from '../../utils/appAlert';
+import TourAnchor from '../../features/tour/TourAnchor';
 
 const PAGE_SIZE = 20;
 
@@ -509,13 +510,18 @@ const Sales = ({ navigation }) => {
 
                 {/* FAB - positioned above tab bar */}
                 {canNewSale && (
-                    <TouchableOpacity
-                        activeOpacity={0.8}
-                        onPress={() => navigation.navigate("NewSale")}
-                        style={[styles.fab, { bottom: TAB_BAR_HEIGHT + insets.bottom + 12 }]}
+                    <TourAnchor
+                        id="tour-sales-fab"
+                        style={[styles.fab, { bottom: TAB_BAR_HEIGHT + insets.bottom + 12, padding: 0 }]}
                     >
-                        <Lucide name='shopping-cart' color={'#fff'} size={24} />
-                    </TouchableOpacity>
+                        <TouchableOpacity
+                            activeOpacity={0.8}
+                            onPress={() => navigation.navigate("NewSale")}
+                            style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+                        >
+                            <Lucide name='shopping-cart' color={'#fff'} size={24} />
+                        </TouchableOpacity>
+                    </TourAnchor>
                 )}
             </View>
 

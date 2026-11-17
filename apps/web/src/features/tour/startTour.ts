@@ -9,11 +9,13 @@ import {
 	navbarOpenFolded,
 	navbarOpenMobile
 } from 'src/components/theme-layouts/components/navbar/navbarSlice';
-import { getTourDefinition, type TourStepDef } from './tourDefinitions';
+import type { TourDefinition, TourStepDef } from './tourDefinitions';
 import type { TourId } from './tourIds';
 
 export type StartTourOptions = {
 	tourId: TourId;
+	/** Permission-filtered definition; required so callers apply filterTours first. */
+	definition: TourDefinition;
 	navigate: (path: string) => void | Promise<void>;
 	onComplete: () => void;
 	onSkip: () => void;
@@ -80,10 +82,9 @@ async function prepareStep(step: TourStepDef, navigate: StartTourOptions['naviga
 function buildSteps(raw: TourStepDef[], navigate: StartTourOptions['navigate']): DriveStep[] {
 	return raw.map((step) => ({
 		element: step.element,
-		// Wait for late-rendered anchors instead of skipping the whole remainder of the tour.
 		waitForElement: step.element ? 6000 : undefined,
-		skipMissingElement: false,
-		onElementMissing: 'stay',
+		// Safety net for folded/hidden nav anchors that still disappear after permission filter.
+		skipMissingElement: true,
 		popover: {
 			title: step.title,
 			description: step.description,
@@ -98,8 +99,11 @@ function buildSteps(raw: TourStepDef[], navigate: StartTourOptions['navigate']):
 }
 
 export async function startTour(options: StartTourOptions): Promise<void> {
-	const def = getTourDefinition(options.tourId);
-	if (!def) return;
+	const def = options.definition;
+	if (!def?.steps?.length) {
+		options.onSkip();
+		return;
+	}
 
 	if (activeDriver) {
 		activeDriver.destroy();
@@ -136,8 +140,7 @@ export async function startTour(options: StartTourOptions): Promise<void> {
 		overlayOpacity: 0.55,
 		stagePadding: 8,
 		stageRadius: 10,
-		skipMissingElement: false,
-		onElementMissing: 'stay',
+		skipMissingElement: true,
 		popoverClass: 'shopynn-tour-popover',
 		nextBtnText: 'Next',
 		prevBtnText: 'Back',

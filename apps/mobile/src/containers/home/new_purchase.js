@@ -16,6 +16,7 @@ import { launchCamera } from '../../utils/camera';
 import useTheme from '../../hooks/useTheme';
 import { purchases as purchasesApi, warehouses as warehousesApi, suppliers as suppliersApi, normalizeList } from '../../services/api';
 import AppAlert from '../../utils/appAlert';
+import TourAnchor from '../../features/tour/TourAnchor';
 
 const { width, height } = Dimensions.get('screen');
 
@@ -385,6 +386,7 @@ const NewPurchase = ({ navigation, route }) => {
     return (
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboard}>
             <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.safeArea, { backgroundColor: colors.background }]}>
+                <TourAnchor id="tour-newpurchase-shell" style={{ flex: 1 }}>
                 <ScreenHeader onPress={backPress} label="New Purchase">
                     <TouchableOpacity
                         activeOpacity={0.7}
@@ -994,6 +996,7 @@ const NewPurchase = ({ navigation, route }) => {
                         </View>
                     </ScrollView>
                 </AppModal>
+                </TourAnchor>
             </SafeAreaView>
         </KeyboardAvoidingView>
     );

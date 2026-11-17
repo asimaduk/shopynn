@@ -17,6 +17,7 @@ import { SET_USER } from '../../store/actions/user';
 import { normalizeBulkDiscount, DEFAULT_BULK_DISCOUNT } from '../../utils/bulkDiscount';
 import { normalizeFeePayer } from '../../utils/momoFeePayer';
 import AppAlert from '../../utils/appAlert';
+import TourAnchor from '../../features/tour/TourAnchor';
 
 const { width } = Dimensions.get('screen');
 
@@ -376,6 +377,7 @@ const CompanyProfile = ({ navigation }) => {
 
     return (
         <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
+            <TourAnchor id="tour-company-page" style={{ flex: 1 }}>
             <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
                 <ScreenHeader onPress={backPress} label="Company Profile">
                     <TouchableOpacity
@@ -783,6 +785,7 @@ const CompanyProfile = ({ navigation }) => {
                     </View>
                 </AppModal>
             </KeyboardAvoidingView>
+            </TourAnchor>
         </SafeAreaView>
     );
 };

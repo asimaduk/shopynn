@@ -108,6 +108,7 @@ const SCREEN_PERMISSION_MAP = {
     ReturnDetails: ['returns.details.view', 'returns.view'],
     InvoiceReceiptSettings: ['receipt_settings.view', 'settings_manage'],
     DataExportBackup: ['data_export.view', 'settings_manage'],
+    CompanyProfile: ['company_profile.view', 'settings.view', 'settings_manage'],
 };
 
 const SCREEN_FEATURE_MAP = {
@@ -187,6 +188,7 @@ const SCREEN_FEATURE_MAP = {
     ReturnDetails: ['returns.details.view'],
     InvoiceReceiptSettings: ['receipt_settings.view'],
     DataExportBackup: ['data_export.view'],
+    CompanyProfile: ['company_profile.view', 'settings.view'],
 };
 
 export function normalizePermissionCodes(rawPermissions) {

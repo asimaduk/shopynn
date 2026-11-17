@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { DeviceEventEmitter, Text, Pressable, Platform, View } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -9,6 +9,7 @@ import Lucide from '@react-native-vector-icons/lucide';
 import { useSelector, useDispatch } from 'react-redux';
 import { SET_USER } from '../store/actions/user';
 import { canAccessScreen, hasPermission } from '../utils/permissions';
+import { registerTourAnchor, unregisterTourAnchor } from '../features/tour/tourAnchors';
 import {
     flushPendingNotificationNavigation,
     navigateForNotification,
@@ -167,6 +168,26 @@ function AnimatedTabButton(props) {
     );
 }
 
+function TourTabButton({ tourId, ...props }) {
+    const ref = useRef(null);
+    useEffect(() => {
+        if (!tourId) return undefined;
+        registerTourAnchor(tourId, ref);
+        return () => unregisterTourAnchor(tourId, ref);
+    }, [tourId]);
+    return (
+        <View ref={ref} collapsable={false} testID={tourId} nativeID={tourId} style={{ flex: 1 }}>
+            <AnimatedTabButton {...props} />
+        </View>
+    );
+}
+
+const DashboardTabButton = (props) => <TourTabButton tourId="tour-tab-dashboard" {...props} />;
+const InventoryTabButton = (props) => <TourTabButton tourId="tour-tab-inventory" {...props} />;
+const SalesTabButton = (props) => <TourTabButton tourId="tour-tab-sales" {...props} />;
+const PurchasesTabButton = (props) => <TourTabButton tourId="tour-tab-purchases" {...props} />;
+const MoreTabButton = (props) => <TourTabButton tourId="tour-tab-more" {...props} />;
+
 function HomeStackScreen() {
     const { colors } = useTheme();
     const insets = useSafeAreaInsets();
@@ -236,6 +257,7 @@ function HomeStackScreen() {
                 component={Dashboard}
                 options={{
                     headerShown: false,
+                    tabBarButton: DashboardTabButton,
                     tabBarIcon: ({ size, color, focused }) => (
                         <Lucide name='layout-dashboard' color={focused ? config.THEME_COLOR : colors.textTertiary} size={size} />
                     ),
@@ -249,6 +271,7 @@ function HomeStackScreen() {
                 component={Inventory}
                 options={{
                     headerShown: false,
+                    tabBarButton: InventoryTabButton,
                     tabBarIcon: ({ size, color }) => (
                         <Lucide name='boxes' color={color} size={size} />
                     ),
@@ -262,6 +285,7 @@ function HomeStackScreen() {
                 component={Sales}
                 options={{
                     headerShown: false,
+                    tabBarButton: SalesTabButton,
                     tabBarIcon: ({ size, color }) => (
                         <Lucide name='shopping-cart' color={color} size={size} />
                     ),
@@ -275,6 +299,7 @@ function HomeStackScreen() {
                 component={Purchases}
                 options={{
                     headerShown: false,
+                    tabBarButton: PurchasesTabButton,
                     tabBarIcon: ({ size, color }) => (
                         <Lucide name='bookmark-check' color={color} size={size} />
                     ),
@@ -378,6 +403,7 @@ function HomeStackScreen() {
                 component={Settings}
                 options={{
                     headerShown: false,
+                    tabBarButton: MoreTabButton,
                     tabBarIcon: ({ size, color }) => (
                         <Lucide name='user-cog' color={color} size={size} />
                     ),

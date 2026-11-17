@@ -16,6 +16,7 @@ import {
 	useGetMePreferencesQuery,
 	useUpdateMePreferencesMutation
 } from 'src/app/(control-panel)/apps/profile/ProfileApi';
+import { filterTourCatalog, getFilteredTourDefinition, userHasShopTourAccess } from './filterTours';
 import TourCatalogDialog from './TourCatalogDialog';
 import TourWelcomeDialog from './TourWelcomeDialog';
 import type { TourId } from './tourIds';
@@ -78,6 +79,9 @@ export default function TourProvider({ children }: Props) {
 		};
 	}, [preferences, localTour]);
 
+	const catalog = useMemo(() => filterTourCatalog(user), [user]);
+	const hasShopTours = useMemo(() => userHasShopTourAccess(user), [user]);
+
 	/** Prefs loaded (or failed) enough to decide whether to auto-offer the tour. */
 	const prefsReady = isSuccess || isError;
 
@@ -108,8 +112,11 @@ export default function TourProvider({ children }: Props) {
 
 	const startTourById = useCallback(
 		(tourId: TourId) => {
+			const definition = getFilteredTourDefinition(tourId, user);
+			if (!definition) return;
 			void startTour({
 				tourId,
+				definition,
 				navigate,
 				onComplete: () => {
 					void persist(tourCompletedPayload(tourId));
@@ -121,7 +128,7 @@ export default function TourProvider({ children }: Props) {
 				}
 			});
 		},
-		[navigate, persist]
+		[navigate, persist, user]
 	);
 
 	const openCatalog = useCallback(() => setCatalogOpen(true), []);
@@ -143,6 +150,7 @@ export default function TourProvider({ children }: Props) {
 
 	useEffect(() => {
 		if (!prefsReady || welcomeOfferedRef.current || isGuest || !user) return;
+		if (!hasShopTours) return;
 		if (hasTakenAnyTour(tourPrefs)) return;
 
 		// Set the ref only when opening — Strict Mode remount clears the timer first.
@@ -151,7 +159,7 @@ export default function TourProvider({ children }: Props) {
 			setWelcomeOpen(true);
 		}, 700);
 		return () => window.clearTimeout(timer);
-	}, [prefsReady, isGuest, user, tourPrefs]);
+	}, [prefsReady, isGuest, user, tourPrefs, hasShopTours]);
 
 	useEffect(() => () => stopTour(), []);
 
@@ -187,6 +195,7 @@ export default function TourProvider({ children }: Props) {
 				open={catalogOpen}
 				onClose={() => setCatalogOpen(false)}
 				tourPrefs={tourPrefs}
+				catalog={catalog}
 				onStart={queueTourAfterDialog}
 				onExited={queuePendingTour}
 			/>
