@@ -51,22 +51,22 @@ function Layout1(props: Layout1Props) {
 		<Root
 			id="fuse-layout"
 			config={config}
-			className="flex flex-auto w-full"
+			className="flex h-dvh max-h-dvh w-full overflow-hidden"
 		>
 			{config.leftSidePanel.display && <LeftSideLayout1 />}
 
-			<div className="flex min-w-0 flex-auto">
+			<div className="flex h-full min-h-0 min-w-0 flex-auto overflow-hidden">
 				{config.navbar.display && config.navbar.position === 'left' && <NavbarWrapperLayout1 />}
 
 				<main
 					id="fuse-main"
-					className="relative z-10 flex min-h-full min-w-0 flex-auto flex-col"
+					className="relative z-10 flex h-full min-h-0 min-w-0 flex-auto flex-col overflow-hidden"
 				>
 					{config.toolbar.display && (
 						<ToolbarLayout1 className={config.toolbar.style === 'fixed' ? 'sticky top-0' : ''} />
 					)}
 
-					<div className="relative z-10 flex min-h-0 flex-auto flex-col">
+					<div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
 						<FuseDialog />
 						{children}
 					</div>

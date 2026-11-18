@@ -89,16 +89,17 @@ function UserMenu(props: UserMenuProps) {
 			{avatar}
 			{!compact ? (
 				<>
-					<div className="flex flex-auto flex-col space-y-2">
+					<div className="flex min-w-0 flex-auto flex-col space-y-2">
 						<Typography
 							component="span"
-							className="title flex truncate text-base font-semibold capitalize leading-none tracking-tight"
+							className="title block truncate text-base font-semibold capitalize leading-none tracking-tight"
 						>
 							{user?.displayName}
 						</Typography>
 						<Typography
-							className="subtitle flex text-md font-medium leading-none tracking-tighter"
+							className="subtitle block truncate text-md font-medium leading-none tracking-tighter"
 							color="text.secondary"
+							title={user?.email}
 						>
 							{user?.email}
 						</Typography>

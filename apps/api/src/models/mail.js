@@ -88,7 +88,25 @@ export const buildResendPayload = async (data) => {
     return payload;
 };
 
+async function shouldSuppressDemoOutbound() {
+    try {
+        const { getRequestContext } = await import("../util/requestContext.js");
+        const { isDemoTenantId } = await import("../utils/demoTenant.js");
+        const tenantId = getRequestContext()?.tenantId;
+        if (!tenantId) return false;
+        const { default: pool } = await import("../config/db.js");
+        return isDemoTenantId(tenantId, pool);
+    } catch {
+        return false;
+    }
+}
+
 export const sendEmailService = async (data) => {
+    if (await shouldSuppressDemoOutbound()) {
+        console.info("[mail] suppressed outbound email for demo tenant");
+        return { messageId: "demo-suppressed", demo: true };
+    }
+
     const apiKey = process.env.RESEND_API_KEY?.trim();
     if (!apiKey) throw new Error("Email is not configured (RESEND_API_KEY is missing).");
 

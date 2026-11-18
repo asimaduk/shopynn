@@ -17,6 +17,11 @@ export default function DemoShopBanner() {
 		<Alert
 			severity="info"
 			className="rounded-none"
+			sx={{
+				py: 0.5,
+				'& .MuiAlert-message': { py: 0.75, fontSize: '0.8125rem' },
+				'& .MuiAlert-action': { pt: 0.25, alignItems: 'center' }
+			}}
 			action={
 				<>
 					<Button color="inherit" size="small" href={marketingSiteUrl('/start-trial')}>
@@ -28,7 +33,8 @@ export default function DemoShopBanner() {
 				</>
 			}
 		>
-			Demo shop — anyone can explore and edit; data resets nightly. MoMo and withdrawals are disabled here.
+			Live demo — explore sales and stock; data resets nightly. Uploads, staff admin, MoMo, and withdrawals are
+			disabled.
 		</Alert>
 	);
 }

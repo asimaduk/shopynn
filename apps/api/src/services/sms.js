@@ -139,6 +139,21 @@ export async function sendSmsService({ to, message }) {
     if (!phone) return { ok: false, error: "Missing phone number" };
     if (!body) return { ok: false, error: "Missing message" };
 
+    try {
+        const { getRequestContext } = await import("../util/requestContext.js");
+        const { isDemoTenantId } = await import("../utils/demoTenant.js");
+        const tenantId = getRequestContext()?.tenantId;
+        if (tenantId) {
+            const { default: pool } = await import("../config/db.js");
+            if (await isDemoTenantId(tenantId, pool)) {
+                console.info("[sms] suppressed outbound SMS for demo tenant");
+                return { ok: true, provider: "demo-suppressed", id: "demo-suppressed" };
+            }
+        }
+    } catch {
+        /* ignore — send normally */
+    }
+
     const provider = providerName();
     if (!provider) {
         return { ok: false, error: "SMS not configured" };

@@ -4,6 +4,7 @@ import requireActiveSubscription from "../middleware/requireActiveSubscription.j
 import requireFeature from "../middleware/requireFeature.js";
 import { requirePermission } from "../middleware/requirePermission.js";
 import { getBroadcastAudienceCounts, sendBroadcast } from "../controllers/broadcast.js";
+import { blockDemoSensitive } from "../middleware/blockDemoSensitive.js";
 
 const router = express.Router();
 
@@ -28,6 +29,7 @@ router.post(
     requireFeature(PLATFORM_DIR),
     requirePermission(PLATFORM_DIR),
     requirePermission(BROADCAST),
+    blockDemoSensitive,
     sendBroadcast
 );
 

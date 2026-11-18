@@ -10,6 +10,7 @@ Local-only accounts from the API seed scripts. Do not use these passwords in pro
 | Test shop owner | `test@shopynn.local` | `Test1234!` | `npm run seed:test -w @shopynn/api` |
 | **Demo store owner** | `demo@shopynn.app` | `DemoStore2026!` | `npm run seed:demo-store -w @shopynn/api` |
 | **Demo field agent** | `demo-agent@shopynn.app` | `DemoAgent2026!` | `npm run seed:demo-store -w @shopynn/api` |
+| **Demo visitor** | `demo-visitor@shopynn.app` | *(not for login — use `/demo`)* | `npm run seed:demo-store -w @shopynn/api` |
 
 ## Dedicated Demo Store (field agents + public live demo)
 
@@ -17,12 +18,20 @@ One shared **Shopynn Demo Store** (Premium) with Ghana retail catalog + ~6 month
 
 | Who | How |
 |-----|-----|
-| Public (marketing site) | One-click **Try live demo** → web `/demo` → `POST /api/demo/enter` (no password on the site) |
-| Field agents | Sign in as `demo-agent@shopynn.app` / `DemoAgent2026!` (or owner password) and walk shop owners through the app |
+| Public (marketing site) | One-click **Try live demo** → web `/demo` → `POST /api/demo/enter` as **Demo Visitor** (restricted role). **Never publish owner/agent passwords on the site.** |
+| Field agents | Private sign-in as `demo-agent@shopynn.app` (password only in this doc / ops vault — not marketing) |
+| Owner admin | Private `demo@shopynn.app` for ops/seed only |
 
-Visitors share one shop — concurrent edits are expected. MoMo initiate/OTP, withdrawals, and payouts are **blocked** on this tenant. A sticky banner in the web app explains the sandbox.
+### Hardening (live demo)
 
-**Nightly reset:** API cron at **03:00 Africa/Accra** reseeds catalog + activity (`DEMO_RESET_CRON` / `DEMO_RESET_TZ` / `DEMO_RESET_ENABLED`). Users and passwords are preserved. Disable with `DEMO_ENTER_ENABLED=false` (enter) or `DEMO_RESET_ENABLED=false` (reset).
+- Enter issues a JWT for **Demo Visitor** (manager-like *browse* + POS sell): sees seeded sales/reports/stock/purchases/expenses/online orders; no staff/roles admin, no catalog/purchase/expense writes, no MoMo/payouts.
+- API blocks password change, staff CRUD, role edits, company profile update, uploads, invoice email, step-up/contact OTPs on the demo tenant (`DEMO_ACTION_BLOCKED`).
+- Money paths still blocked (`DEMO_MONEY_BLOCKED`).
+- Outbound email/SMS from a demo session is suppressed in `sendEmailService` / `sendSmsService`.
+- `DEMO_ENTER_SECRET` — required in production; web sends `X-Demo-Enter-Secret` (server-side only). Set the **same** value on API and web.
+- Optional Cloudflare Turnstile: set `TURNSTILE_SECRET_KEY` (API) + `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (web).
+- Nightly reset at **03:00 Africa/Accra** reseeds catalog + activity; users/passwords preserved.
+- Do **not** put real merchant data, real Paystack keys tied to live chargeable demos, or agent passwords on public pages.
 
 ```bash
 # Local
@@ -36,7 +45,7 @@ DATABASE_URL='postgresql://USER:PASS@HOST:PORT/railway?sslmode=require' \
 npm run seed:demo-store -w @shopynn/api -- --skip-catalog
 ```
 
-Re-run anytime to reset passwords and refresh demo data (also sets `settings.demo`).
+Re-run anytime to reset passwords, refresh Demo Visitor role, and set `settings.demo`.
 
 **EC2 cutover:** the Railway truncate + EC2 restore wipes this tenant. After restore, re-run `seed:demo-store` (see [DB_IMPORT_EC2.md](./DB_IMPORT_EC2.md) §8).
 

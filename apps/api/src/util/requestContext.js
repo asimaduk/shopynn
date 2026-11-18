@@ -16,9 +16,16 @@ export const requestContextMiddleware = (req, _res, next) => {
             deviceName: header(req, "x-device-name", 120),
             platform: header(req, "x-platform", 20),
             appVersion: header(req, "x-app-version", 40),
+            tenantId: null,
         },
         next
     );
 };
 
 export const getRequestContext = () => storage.getStore() || {};
+
+/** Attach JWT tenant so mail/SMS can suppress demo outbound. */
+export const setRequestTenantId = (tenantId) => {
+    const store = storage.getStore();
+    if (store) store.tenantId = tenantId ? String(tenantId) : null;
+};

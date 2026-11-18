@@ -3,7 +3,74 @@
  */
 
 export const DEMO_OWNER_EMAIL = "demo@shopynn.app";
+export const DEMO_VISITOR_EMAIL = "demo-visitor@shopynn.app";
+export const DEMO_AGENT_EMAIL = "demo-agent@shopynn.app";
 export const DEMO_TENANT_NAME = "Shopynn Demo Store";
+
+/**
+ * Public one-click demo user — browse a lived-in shop + try POS.
+ * Prefer view/read codes so seeded activity shows; keep create only for sell/returns/customers.
+ * No staff admin, catalog edits, purchases/expenses writes, or money initiation.
+ */
+export const DEMO_VISITOR_PERMISSION_CODES = Object.freeze([
+    // Core + POS
+    "dashboard.view",
+    "dashboard.financials.view",
+    "profile.view",
+    "sales.view",
+    "sales.view_all",
+    "sales.create",
+    "sales.details.view",
+    "sales.by_date.view",
+    "sales.daily_summary.view",
+    "sales.pending.view",
+    "sales.pending.retry",
+    "returns.view",
+    "returns.create",
+    "returns.details.view",
+    "reports.view",
+    // Catalog / stock (browse)
+    "products.view",
+    "products.by_category.view",
+    "products.transactions.view",
+    "inventory.view",
+    "inventory.low_stock.view",
+    "inventory.reorder.view",
+    "inventory.expiring.view",
+    "categories.view",
+    "adjustments.view",
+    "adjustments.details.view",
+    "stock_counts.view",
+    "stock_counts.details.view",
+    "transfers.view",
+    "transfers.details.view",
+    // People
+    "customers.view",
+    "customers.create",
+    "customers.details.view",
+    "customers.sales.view",
+    "customers.payments.view",
+    // Purchases / suppliers / expenses (browse only)
+    "purchases.view",
+    "purchases.view_all",
+    "purchases.details.view",
+    "suppliers.view",
+    "suppliers.details.view",
+    "suppliers.purchases.view",
+    "expenses.view",
+    "expenses.details.view",
+    // Online storefront story
+    "orders.store.view",
+    "orders.delivery.view",
+    "payments.view",
+    // Setups (view-only; updates blocked by blockDemoSensitive)
+    "company_profile.view",
+    "warehouses.view",
+    "locations.view",
+    "receipt_settings.view",
+    "settings.view",
+    "notifications.view",
+]);
 
 export function settingsIndicateDemo(settings) {
     return Boolean(settings && typeof settings === "object" && !Array.isArray(settings) && settings.demo === true);

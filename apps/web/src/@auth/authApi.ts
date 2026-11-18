@@ -15,12 +15,19 @@ export async function authLoginUser(user, browserUserAgent?: string) {
 }
 
 /** One-click public demo: server-side only; never exposes the demo password. */
-export async function authEnterDemo(browserUserAgent?: string) {
+export async function authEnterDemo(
+	browserUserAgent?: string,
+	opts?: { captchaToken?: string }
+) {
+	const secret = (process.env.DEMO_ENTER_SECRET || '').trim();
 	return apiFetch('/api/demo/enter', {
 		method: 'POST',
-		body: JSON.stringify({}),
+		body: JSON.stringify({
+			...(opts?.captchaToken ? { captcha_token: opts.captchaToken } : {})
+		}),
 		headers: {
 			'X-Platform': 'web',
+			...(secret ? { 'X-Demo-Enter-Secret': secret } : {}),
 			...(browserUserAgent ? { 'User-Agent': browserUserAgent } : {})
 		}
 	});

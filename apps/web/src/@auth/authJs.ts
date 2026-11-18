@@ -77,7 +77,8 @@ export const providers: Provider[] = [
 				.toLowerCase();
 
 			if (mode === 'demo') {
-				const res = await authEnterDemo(ua);
+				const captchaToken = String(formInput.captcha_token ?? formInput.captchaToken ?? '').trim();
+				const res = await authEnterDemo(ua, captchaToken ? { captchaToken } : undefined);
 				const resJson = await res.json();
 				if (resJson.status === 200 && resJson.data?.token && resJson.data?.email) {
 					const email = String(resJson.data.email).trim().toLowerCase();

@@ -3,6 +3,7 @@ import { createProduct, getAllProducts, getProductsByCategory, updateProduct, up
 import { uploadImages } from "../controllers/image.js";
 import { requireAnyPermission, requirePermission } from "../middleware/requirePermission.js";
 import requireFeature from "../middleware/requireFeature.js";
+import { blockDemoSensitive } from "../middleware/blockDemoSensitive.js";
 
 const router = express.Router();
 
@@ -26,8 +27,8 @@ router.post(
 );
 router.get("/slug/:slug", requirePermission("products.view"), getProductBySlug);
 router.get("/:id", requirePermission("products.view"), getProductById);
-router.post("/update-images", requirePermission("products.update_images"), updateProductImages);
-router.post("/:id/images/upload", requirePermission("products.update_images"), uploadImages.any(), uploadProductImages);
+router.post("/update-images", requirePermission("products.update_images"), blockDemoSensitive, updateProductImages);
+router.post("/:id/images/upload", requirePermission("products.update_images"), blockDemoSensitive, uploadImages.any(), uploadProductImages);
 router.delete("/:id", requirePermission("products.delete"), deleteProduct);
 
 export default router;

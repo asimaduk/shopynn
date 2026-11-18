@@ -2,6 +2,7 @@ import express from "express";
 import { createSale, getAllSaleDetails, getAllSales, getSalesByDate, getCogsReport, getRevenueReport, getDailySalesSummary, getSalesByCustomersSummary, getSalesByCustomersReport, getSalesByUserSummary, getSalesSummary, getSaleAttendants, getSaleById, getTopSellingProducts, getMyMtdSalesTotal, getSaleInvoicePdf, sendSaleInvoice, recordSalePayment, getOutstandingAr, getNextInvoiceSeq } from "../controllers/sale.js";
 import auth from "../middleware/auth.js";
 import { requireAnyPermission, requirePermission } from "../middleware/requirePermission.js";
+import { blockDemoSensitive } from "../middleware/blockDemoSensitive.js";
 
 const router = express.Router();
 
@@ -22,7 +23,7 @@ router.get("/top-selling", auth, requirePermission("sales.view"), getTopSellingP
 router.get("/attendants", auth, requirePermission("sales.view"), getSaleAttendants);
 router.get("/outstanding", auth, requirePermission("sales.view"), getOutstandingAr);
 router.get("/:id/invoice.pdf", auth, requirePermission("sales.share_receipt"), getSaleInvoicePdf);
-router.post("/:id/send-invoice", auth, requirePermission("sales.share_receipt"), sendSaleInvoice);
+router.post("/:id/send-invoice", auth, requirePermission("sales.share_receipt"), blockDemoSensitive, sendSaleInvoice);
 router.post("/:id/payments", auth, requirePermission("sales.create"), recordSalePayment);
 router.get("/:id", auth, requireAnyPermission("sales.details.view", "sales.view"), getSaleById);
 router.get("/details-list", auth, requireAnyPermission("sales.details.view", "sales.view"), getAllSaleDetails);

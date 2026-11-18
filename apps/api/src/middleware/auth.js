@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import pool from '../config/db.js';
+import { setRequestTenantId } from '../util/requestContext.js';
 
 const LAST_SEEN_RESOLUTION_MS = 5 * 60 * 1000;
 
@@ -41,6 +42,7 @@ const auth = async (req, res, next) => {
     }
 
     req.user = decode;
+    setRequestTenantId(decode.tenant_id);
 
     if(req.body) {
         req.body.creator_id = decode.id;

@@ -9,6 +9,7 @@ import {
 	IconButton,
 	Input,
 	Paper,
+	Skeleton,
 	Tab,
 	Tabs,
 	TextField,
@@ -656,8 +657,12 @@ function NewSale() {
 		<>
 			<GlobalStyles
 				styles={() => ({
+					html: { height: '100%', overflow: 'hidden' },
+					body: { height: '100%', overflow: 'hidden' },
 					'#root': {
-						maxHeight: '100vh'
+						height: '100%',
+						maxHeight: '100dvh',
+						overflow: 'hidden'
 					}
 				})}
 			/>
@@ -970,7 +975,7 @@ function NewSale() {
                     </Typography>
 
                     <Paper
-                        className="w-full p-2 mt-1 overflow-y-auto flex-1 min-h-0"
+                        className="w-full p-2 mt-1 overflow-y-auto overflow-x-hidden flex-1 min-h-0"
                         sx={{
                             display: 'grid',
                             gridTemplateColumns: {
@@ -985,6 +990,30 @@ function NewSale() {
                             bgcolor: 'background.paper',
                         }}
                     >
+                        {isLoading && filteredProducts.length === 0
+                            ? Array.from({ length: 12 }).map((_, i) => (
+                                    <Box
+                                        key={`pos-skel-${i}`}
+                                        sx={(theme) => ({
+                                            p: 1,
+                                            borderRadius: 1.5,
+                                            border: `1px solid ${theme.palette.divider}`,
+                                            backgroundColor: theme.palette.background.default
+                                        })}
+                                    >
+                                        <Skeleton
+                                            variant="rounded"
+                                            sx={{ width: '100%', height: { xs: 72, sm: 82, md: 90 } }}
+                                        />
+                                        <Skeleton variant="text" sx={{ mt: 0.8, width: '90%' }} />
+                                        <Skeleton variant="text" sx={{ width: '55%' }} />
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                                            <Skeleton variant="text" width={48} />
+                                            <Skeleton variant="text" width={64} />
+                                        </Box>
+                                    </Box>
+                                ))
+                            : null}
                         {filteredProducts.map((product, i) => (
                             <Box
                                 key={product.id ?? i}
@@ -1105,7 +1134,7 @@ function NewSale() {
                     </Paper>
                 </Paper>
                 <Paper
-					className={`w-full md:w-2/7 min-h-0 h-full p-3 flex-col flex-1 md:flex-none ${
+					className={`w-full md:w-2/7 min-h-0 h-full overflow-hidden p-3 flex-col flex-1 md:flex-none ${
 						isNarrow && mobilePane !== 'cart' ? 'hidden' : 'flex'
 					}`}
 					style={{ backgroundColor: '#fff' }}

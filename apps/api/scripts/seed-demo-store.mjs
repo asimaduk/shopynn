@@ -33,6 +33,14 @@ const AGENT = {
 	first_name: 'Field',
 	last_name: 'Agent',
 };
+const VISITOR = {
+	email: 'demo-visitor@shopynn.app',
+	password: 'DemoVisitorLocalOnly!',
+	phone: '233200000102',
+	first_name: 'Demo',
+	last_name: 'Visitor',
+};
+const VISITOR_ROLE_NAME = 'Demo Visitor';
 
 const args = process.argv.slice(2);
 const noActivity = args.includes('--no-activity');
@@ -41,6 +49,7 @@ const skipCatalog = args.includes('--skip-catalog');
 const { default: pool } = await import('../src/config/db.js');
 const { createTenantService } = await import('../src/models/tenant.js');
 const { SUPER_ADMIN_EXCLUDED_PERMISSION_CODES } = await import('../src/constants/permissionCodes.js');
+const { DEMO_VISITOR_PERMISSION_CODES } = await import('../src/utils/demoTenant.js');
 
 async function ensurePermissionsSeeded() {
 	const { rows } = await pool.query(`SELECT COUNT(*)::int AS count FROM permissions`);
@@ -246,6 +255,92 @@ async function ensureOwner() {
 	return { userId, tenantId, warehouseId, roleId };
 }
 
+async function ensureDemoVisitorRole(tenantId) {
+	let role = await pool.query(
+		`SELECT id FROM roles WHERE tenant_id = $1 AND lower(name) = lower($2) LIMIT 1`,
+		[tenantId, VISITOR_ROLE_NAME]
+	);
+	let roleId = role.rows[0]?.id;
+	if (!roleId) {
+		roleId = uuidv4();
+		await pool.query(
+			`INSERT INTO roles (id, name, description, tenant_id, created_at, updated_at)
+			 VALUES ($1, $2, $3, $4, NOW(), NOW())`,
+			[
+				roleId,
+				VISITOR_ROLE_NAME,
+				'Public live-demo explorer: browse shop data + try POS; no staff admin, catalog edits, or money.',
+				tenantId,
+			]
+		);
+	}
+
+	await pool.query(`DELETE FROM role_permissions WHERE role_id = $1`, [roleId]);
+	for (const code of DEMO_VISITOR_PERMISSION_CODES) {
+		const perm = await pool.query(`SELECT id FROM permissions WHERE lower(code) = lower($1) LIMIT 1`, [code]);
+		if (!perm.rowCount) continue;
+		await pool.query(
+			`INSERT INTO role_permissions (id, role_id, permission_id)
+			 SELECT $1::varchar, $2::varchar, $3::varchar
+			 WHERE NOT EXISTS (
+			   SELECT 1 FROM role_permissions WHERE role_id = $2::varchar AND permission_id = $3::varchar
+			 )`,
+			[uuidv4(), roleId, perm.rows[0].id]
+		);
+	}
+	return roleId;
+}
+
+async function ensureDemoVisitor({ tenantId, warehouseId, ownerUserId }) {
+	const roleId = await ensureDemoVisitorRole(tenantId);
+	const passwordHash = await bcrypt.hash(VISITOR.password, 10);
+	const existing = await pool.query(
+		`SELECT id, tenant_id FROM users WHERE lower(email) = lower($1) LIMIT 1`,
+		[VISITOR.email]
+	);
+
+	let userId;
+	if (existing.rowCount > 0) {
+		userId = existing.rows[0].id;
+		if (existing.rows[0].tenant_id !== tenantId) {
+			throw new Error(
+				`${VISITOR.email} already exists on a different tenant. Remove or rename that user first.`
+			);
+		}
+		await clearPasswordGate(userId, passwordHash);
+		await pool.query(
+			`UPDATE users SET warehouse_id = COALESCE(warehouse_id, $1), first_name = $2, last_name = $3, updated_at = NOW() WHERE id = $4`,
+			[warehouseId, VISITOR.first_name, VISITOR.last_name, userId]
+		);
+	} else {
+		userId = uuidv4();
+		await pool.query(
+			`INSERT INTO users (
+				id, first_name, last_name, email, phone, password, tenant_id, warehouse_id,
+				is_active, registration_method, created_at, updated_at
+			 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, 'manual', NOW(), NOW())`,
+			[
+				userId,
+				VISITOR.first_name,
+				VISITOR.last_name,
+				VISITOR.email,
+				VISITOR.phone,
+				passwordHash,
+				tenantId,
+				warehouseId,
+			]
+		);
+	}
+
+	await pool.query(`DELETE FROM user_roles WHERE user_id = $1`, [userId]);
+	await pool.query(
+		`INSERT INTO user_roles (id, user_id, role_id, assigned_by, created_at)
+		 VALUES ($1, $2, $3, $4, NOW())`,
+		[uuidv4(), userId, roleId, ownerUserId]
+	);
+	return userId;
+}
+
 async function ensureAgentStaff({ tenantId, warehouseId, ownerRoleId, ownerUserId }) {
 	const existing = await pool.query(
 		`SELECT id, tenant_id FROM users WHERE lower(email) = lower($1) LIMIT 1`,
@@ -323,6 +418,13 @@ async function main() {
 	});
 	console.log(`  Agent:  ${AGENT.email} (${agentId})`);
 
+	const visitorId = await ensureDemoVisitor({
+		tenantId: owner.tenantId,
+		warehouseId: owner.warehouseId,
+		ownerUserId: owner.userId,
+	});
+	console.log(`  Visitor:${VISITOR.email} (${visitorId}) — public /demo enter only`);
+
 	if (!skipCatalog) {
 		console.log('');
 		await runDemoCatalogSeed({
@@ -336,10 +438,11 @@ async function main() {
 	}
 
 	console.log('');
-	console.log('Field agents can sign in with:');
+	console.log('Public live demo: one-click /demo (Demo Visitor) — do not publish passwords.');
+	console.log('Field agents (private):');
 	console.log(`  Email:    ${AGENT.email}`);
 	console.log(`  Password: ${AGENT.password}`);
-	console.log('Owner (admin) login:');
+	console.log('Owner admin (private):');
 	console.log(`  Email:    ${OWNER.email}`);
 	console.log(`  Password: ${OWNER.password}`);
 	console.log(`  Tenant:   ${DEMO_TENANT_NAME}`);

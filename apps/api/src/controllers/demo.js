@@ -3,7 +3,7 @@ import { enterDemoService } from "../models/demoEnter.js";
 
 export const enterDemo = async (req, res, next) => {
     try {
-        const data = await enterDemoService();
+        const data = await enterDemoService(req);
         handleResponse(res, 200, "Demo session ready.", data);
     } catch (error) {
         if (error?.status) {

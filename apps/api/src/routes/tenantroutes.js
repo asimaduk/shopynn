@@ -31,11 +31,12 @@ import {
     updateMyPayoutProfile,
 } from "../controllers/settlement.js";
 import { blockDemoMoney } from "../middleware/blockDemoMoney.js";
+import { blockDemoSensitive } from "../middleware/blockDemoSensitive.js";
 
 const router = express.Router();
 
 router.post("/setup", setupTenant);
-router.put("/update-my-company-info", auth, requireActiveSubscription, requirePermission("company_profile.update"), updateMyCompanyInfo);
+router.put("/update-my-company-info", auth, requireActiveSubscription, requirePermission("company_profile.update"), blockDemoSensitive, updateMyCompanyInfo);
 router.get(
     "/me/printer-setup-entitlement",
     auth,
