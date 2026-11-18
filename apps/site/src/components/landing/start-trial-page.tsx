@@ -48,6 +48,15 @@ type Props = {
   planSlug?: string;
 };
 
+function RequiredMark() {
+  return (
+    <span className="text-destructive" aria-hidden="true">
+      {" "}
+      *
+    </span>
+  );
+}
+
 export function StartTrialPage({ initialSubscriptionType, planSlug }: Props) {
   const [form, setForm] = useState({
     name: "",
@@ -261,7 +270,10 @@ export function StartTrialPage({ initialSubscriptionType, planSlug }: Props) {
         <section>
           <h2 className="font-display text-lg font-semibold mb-4">Plan</h2>
           <div className="grid gap-2">
-            <Label htmlFor="subscription_type">Subscription</Label>
+            <Label htmlFor="subscription_type">
+              Subscription
+              <RequiredMark />
+            </Label>
             <Select value={form.subscription_type} onValueChange={(v) => set("subscription_type", v)}>
               <SelectTrigger id="subscription_type" className="h-11">
                 <SelectValue placeholder="Choose a plan" />
@@ -288,19 +300,31 @@ export function StartTrialPage({ initialSubscriptionType, planSlug }: Props) {
           <h2 className="font-display text-lg font-semibold mb-4">Business</h2>
           <div className="grid sm:grid-cols-2 gap-3">
             <div className="sm:col-span-2">
-              <Label htmlFor="name">Business name</Label>
+              <Label htmlFor="name">
+                Business name
+                <RequiredMark />
+              </Label>
               <Input id="name" className="mt-1.5 h-11" value={form.name} onChange={(e) => set("name", e.target.value)} required />
             </div>
             <div>
-              <Label htmlFor="phone">Company phone</Label>
+              <Label htmlFor="phone">
+                Company phone
+                <RequiredMark />
+              </Label>
               <Input id="phone" className="mt-1.5 h-11" value={form.phone} onChange={(e) => set("phone", e.target.value)} required />
             </div>
             <div>
-              <Label htmlFor="email">Company email</Label>
+              <Label htmlFor="email">
+                Company email
+                <RequiredMark />
+              </Label>
               <Input id="email" type="email" className="mt-1.5 h-11" value={form.email} onChange={(e) => set("email", e.target.value)} required />
             </div>
             <div className="sm:col-span-2">
-              <Label htmlFor="address">Address</Label>
+              <Label htmlFor="address">
+                Address
+                <RequiredMark />
+              </Label>
               <Input id="address" className="mt-1.5 h-11" value={form.address} onChange={(e) => set("address", e.target.value)} required />
             </div>
             <div>
@@ -326,15 +350,24 @@ export function StartTrialPage({ initialSubscriptionType, planSlug }: Props) {
           <h2 className="font-display text-lg font-semibold mb-4">Account owner</h2>
           <div className="grid sm:grid-cols-2 gap-3">
             <div>
-              <Label htmlFor="first_name">First name</Label>
+              <Label htmlFor="first_name">
+                First name
+                <RequiredMark />
+              </Label>
               <Input id="first_name" className="mt-1.5 h-11" value={form.first_name} onChange={(e) => set("first_name", e.target.value)} required />
             </div>
             <div>
-              <Label htmlFor="last_name">Last name</Label>
+              <Label htmlFor="last_name">
+                Last name
+                <RequiredMark />
+              </Label>
               <Input id="last_name" className="mt-1.5 h-11" value={form.last_name} onChange={(e) => set("last_name", e.target.value)} required />
             </div>
             <div className="sm:col-span-2">
-              <Label htmlFor="owner_email">Login email</Label>
+              <Label htmlFor="owner_email">
+                Login email
+                <RequiredMark />
+              </Label>
               <Input
                 id="owner_email"
                 type="email"
@@ -378,6 +411,8 @@ export function StartTrialPage({ initialSubscriptionType, planSlug }: Props) {
                       className="h-11 sm:max-w-[200px]"
                       value={emailOtp}
                       onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      required
+                      aria-label="Email verification code"
                     />
                     <Button
                       type="button"
@@ -400,7 +435,10 @@ export function StartTrialPage({ initialSubscriptionType, planSlug }: Props) {
               </div>
             </div>
             <div>
-              <Label htmlFor="owner_phone">Mobile phone</Label>
+              <Label htmlFor="owner_phone">
+                Mobile phone
+                <RequiredMark />
+              </Label>
               <Input id="owner_phone" className="mt-1.5 h-11" value={form.owner_phone} onChange={(e) => set("owner_phone", e.target.value)} required />
             </div>
             <div className="sm:col-span-2">
