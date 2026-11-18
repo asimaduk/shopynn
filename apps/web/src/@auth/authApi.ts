@@ -14,6 +14,18 @@ export async function authLoginUser(user, browserUserAgent?: string) {
 	});
 }
 
+/** One-click public demo: server-side only; never exposes the demo password. */
+export async function authEnterDemo(browserUserAgent?: string) {
+	return apiFetch('/api/demo/enter', {
+		method: 'POST',
+		body: JSON.stringify({}),
+		headers: {
+			'X-Platform': 'web',
+			...(browserUserAgent ? { 'User-Agent': browserUserAgent } : {})
+		}
+	});
+}
+
 /**
  * Request password reset (forgot password). Sends email with reset link.
  */

@@ -53,6 +53,9 @@ export function mergeTenantSettings(existing, patch) {
     if (patch.momo_fee_payer !== undefined) {
         next.momo_fee_payer = normalizeFeePayer(patch.momo_fee_payer);
     }
+    if (patch.demo !== undefined) {
+        next.demo = Boolean(patch.demo);
+    }
     return next;
 }
 
@@ -64,6 +67,7 @@ export function projectTenantSettings(settings) {
     return {
         bulk_discount: getBulkDiscountFromSettings(settings),
         momo_fee_payer: getMomoFeePayerFromSettings(settings),
+        demo: Boolean(settings?.demo),
     };
 }
 

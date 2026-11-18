@@ -1,7 +1,7 @@
 import { useSession, signOut } from 'next-auth/react';
 import { useMemo } from 'react';
 import { User } from '@auth/user';
-import { signInCallbackUrl } from '@/@auth/signOutUrl';
+import { marketingSiteUrl, signInCallbackUrl } from '@/@auth/signOutUrl';
 import apiFetch from '@/utils/apiFetch';
 
 type useUser = {
@@ -11,6 +11,8 @@ type useUser = {
 	/** True when API reports user must change password (`reset_password`). */
 	requiresPasswordReset: boolean;
 	isGuest: boolean;
+	/** Shared Shopynn Demo Store session. */
+	isDemo: boolean;
 	// updateUser: (updates: Partial<User>) => Promise<User | undefined>;
 	// updateUserSettings: (newSettings: User['settings']) => Promise<User['settings'] | undefined>;
 	signOut: typeof signOut;
@@ -21,6 +23,7 @@ function useUser(): useUser {
 	const user = useMemo(() => data?.db, [data]);
 	const subscriptionExpired = Boolean(data?.subscriptionExpired);
 	const requiresPasswordReset = Boolean(data?.requiresPasswordReset);
+	const isDemo = Boolean(user?.company?.settings?.demo);
 	const isGuest = useMemo(() => {
 		if (subscriptionExpired || requiresPasswordReset) {
 			return false;
@@ -29,7 +32,7 @@ function useUser(): useUser {
 	}, [user, subscriptionExpired, requiresPasswordReset]);
 
 	/**
-	 * Sign out
+	 * Sign out — demo sessions return to the marketing site (cross-origin).
 	 */
 	async function handleSignOut() {
 		// Ends this browser's session on the API too; local sign-out continues if it fails.
@@ -39,6 +42,11 @@ function useUser(): useUser {
 				headers: { Authorization: `Bearer ${data.accessToken}` }
 			}).catch(() => undefined);
 		}
+		if (isDemo) {
+			await signOut({ redirect: false });
+			window.location.assign(marketingSiteUrl('/'));
+			return;
+		}
 		return signOut({ callbackUrl: signInCallbackUrl() });
 	}
 
@@ -47,6 +55,7 @@ function useUser(): useUser {
 		subscriptionExpired,
 		requiresPasswordReset,
 		isGuest,
+		isDemo,
 		signOut: handleSignOut
 	};
 }

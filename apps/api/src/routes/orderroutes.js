@@ -15,6 +15,7 @@ import {
 } from "../controllers/order.js";
 import { requireAnyPermission, requirePermission } from "../middleware/requirePermission.js";
 import requireFeature from "../middleware/requireFeature.js";
+import { blockDemoMoney } from "../middleware/blockDemoMoney.js";
 
 const router = express.Router();
 
@@ -35,18 +36,21 @@ router.post(
     "/:id/payments/initiate",
     requireFeature("orders.details.view"),
     requireAnyPermission("orders.details.view", "orders.view"),
+    blockDemoMoney,
     initiateOrderPayment
 );
 router.post(
     "/:id/payments/partial/initiate",
     requireFeature("orders.details.view"),
     requireAnyPermission("orders.details.view", "orders.view"),
+    blockDemoMoney,
     initiatePartialOrderPayment
 );
 router.post(
     "/:id/payments/submit-otp",
     requireFeature("orders.details.view"),
     requireAnyPermission("orders.details.view", "orders.view"),
+    blockDemoMoney,
     submitOrderPaymentOtp
 );
 router.get(

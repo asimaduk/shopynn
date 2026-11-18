@@ -43,8 +43,10 @@ import siteChatroutes from "./siteChatroutes.js";
 import billingroutes from "./billingroutes.js";
 import broadcastroutes from "./broadcastroutes.js";
 import platformSettingsRoutes from "./platformSettingsRoutes.js";
+import demoRoutes from "./demoRoutes.js";
 
 router.use('/users', userroutes);
+router.use("/demo", demoRoutes);
 router.use("/platform-settings", platformSettingsRoutes);
 router.use("/public", publicroutes);
 router.use("/app-versions", appVersionRoutes);

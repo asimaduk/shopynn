@@ -17,3 +17,13 @@ export function signInCallbackUrl(search = ''): string {
 	).replace(/\/$/, '');
 	return base ? `${base}${path}` : path;
 }
+
+/** Marketing site origin (Try live demo / Start free). */
+export function marketingSiteUrl(path = '/'): string {
+	const base = (
+		process.env.NEXT_PUBLIC_MARKETING_SITE_URL ||
+		(process.env.NODE_ENV === 'development' ? 'http://localhost:8080' : 'https://shopynn.app')
+	).replace(/\/$/, '');
+	const p = path.startsWith('/') ? path : `/${path}`;
+	return `${base}${p === '/' ? '' : p}` || base;
+}

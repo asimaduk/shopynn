@@ -9,7 +9,8 @@ import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import { alpha, useTheme } from '@mui/material/styles';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
-import { signInCallbackUrl } from '@/@auth/signOutUrl';
+import { marketingSiteUrl, signInCallbackUrl } from '@/@auth/signOutUrl';
+import useUser from '@auth/useUser';
 
 /** Total idle time before forced sign-out (includes warning window). */
 const IDLE_TIMEOUT_MS = Number(process.env.NEXT_PUBLIC_IDLE_TIMEOUT_MS) || 15 * 60 * 1000;
@@ -39,6 +40,7 @@ function formatCountdown(totalSeconds: number): string {
  */
 export default function InactivityLogout() {
 	const { status } = useSession();
+	const { isDemo } = useUser();
 	const theme = useTheme();
 	const [warningOpen, setWarningOpen] = useState(false);
 	const [secondsLeft, setSecondsLeft] = useState(Math.ceil(WARN_BEFORE_MS / 1000));
@@ -64,11 +66,16 @@ export default function InactivityLogout() {
 		setSigningOut(true);
 		clearTimers();
 		try {
+			if (isDemo) {
+				await signOut({ redirect: false });
+				window.location.assign(marketingSiteUrl('/'));
+				return;
+			}
 			await signOut({ callbackUrl: signInCallbackUrl('reason=idle') });
 		} catch {
-			window.location.href = signInCallbackUrl('reason=idle');
+			window.location.href = isDemo ? marketingSiteUrl('/') : signInCallbackUrl('reason=idle');
 		}
-	}, [clearTimers, signingOut]);
+	}, [clearTimers, isDemo, signingOut]);
 
 	const openWarning = useCallback(() => {
 		warningOpenRef.current = true;

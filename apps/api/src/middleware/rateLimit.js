@@ -73,3 +73,10 @@ export const uploadLimit = limiter({
     message: "Too many uploads. Try again in a few minutes.",
     keyGenerator: (req) => `upload:${req.user?.id ?? req.ip}`,
 });
+
+/** Public one-click demo enter. */
+export const demoEnterLimit = limiter({
+    windowMs: 15 * MINUTE,
+    limit: 20,
+    message: "Too many demo sign-ins. Try again in a few minutes.",
+});

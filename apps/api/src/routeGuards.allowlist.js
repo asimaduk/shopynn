@@ -9,6 +9,7 @@ const SELF = (reason) => ({ auth: true, reason });
 
 export const ROUTE_GUARD_ALLOWLIST = {
     "POST /users/login": PUBLIC("Sign-in."),
+    "POST /demo/enter": PUBLIC("One-click live demo; rate-limited; issues JWT for demo tenant only."),
     "POST /users/phone-login/send-otp": PUBLIC("Sign-in."),
     "POST /users/phone-login/verify": PUBLIC("Sign-in."),
     "POST /users/forgot-password": PUBLIC("Password recovery."),

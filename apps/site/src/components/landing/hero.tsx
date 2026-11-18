@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Apple, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SIGN_IN_URL } from "@/lib/config";
+import { DEMO_URL, SIGN_IN_URL } from "@/lib/config";
 
 export function Hero() {
   return (
@@ -48,6 +48,9 @@ export function Hero() {
             </Link>
           </Button>
           <Button size="lg" variant="outline" className="h-12 px-6" asChild>
+            <a href={DEMO_URL}>Try live demo</a>
+          </Button>
+          <Button size="lg" variant="ghost" className="h-12 px-6" asChild>
             <a href={SIGN_IN_URL}>Login</a>
           </Button>
           <Button size="lg" variant="ghost" className="h-12 px-4 gap-2 text-muted-foreground" asChild>

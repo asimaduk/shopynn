@@ -41,6 +41,7 @@ import {
     markAgentPayoutFailed,
     cancelCommission,
 } from "../controllers/agentPayout.js";
+import { blockDemoMoney } from "../middleware/blockDemoMoney.js";
 
 const router = express.Router();
 
@@ -68,11 +69,11 @@ const anyAgent = [
 
 router.get("/earnings", ...anyAgent, getMyEarnings);
 router.get("/payout-profile", ...anyAgent, getMyPayoutProfile);
-router.put("/payout-profile", ...anyAgent, requireStepUp, saveMyPayoutProfile);
+router.put("/payout-profile", ...anyAgent, requireStepUp, blockDemoMoney, saveMyPayoutProfile);
 
 router.get("/admin/payouts", ...payoutApprover, listAgentPayouts);
 router.post("/admin/payouts/prepare", ...payoutApprover, prepareAgentPayouts);
-router.post("/admin/payouts/:id/approve", ...payoutApprover, requireStepUp, approveAgentPayout);
+router.post("/admin/payouts/:id/approve", ...payoutApprover, requireStepUp, blockDemoMoney, approveAgentPayout);
 router.post("/admin/payouts/:id/reject", ...payoutApprover, rejectAgentPayout);
 router.post("/admin/payouts/:id/mark-failed", ...payoutApprover, markAgentPayoutFailed);
 router.post("/admin/commissions/:id/cancel", ...platformAdmin, cancelCommission);
@@ -181,6 +182,7 @@ router.post(
     requireFeature("merchants.operate"),
     requirePermission("merchants.operate"),
     requireMerchant,
+    blockDemoMoney,
     initiateTenantPayment
 );
 router.post(
@@ -190,6 +192,7 @@ router.post(
     requireFeature("merchants.operate"),
     requirePermission("merchants.operate"),
     requireMerchant,
+    blockDemoMoney,
     submitTenantPaymentOtp
 );
 router.get(

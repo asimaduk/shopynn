@@ -30,6 +30,7 @@ import {
     retryMyWithdrawal,
     updateMyPayoutProfile,
 } from "../controllers/settlement.js";
+import { blockDemoMoney } from "../middleware/blockDemoMoney.js";
 
 const router = express.Router();
 
@@ -94,6 +95,7 @@ router.put(
     requireFeature("payments.view"),
     requirePermission("payouts.manage"),
     requireStepUp,
+    blockDemoMoney,
     updateMyPayoutProfile
 );
 router.post(
@@ -103,6 +105,7 @@ router.post(
     requireFeature("payments.view"),
     requirePermission("payouts.manage"),
     requireStepUp,
+    blockDemoMoney,
     requestMyWithdrawal
 );
 router.post(
@@ -112,6 +115,7 @@ router.post(
     requireFeature("payments.view"),
     requirePermission("payouts.manage"),
     requireStepUp,
+    blockDemoMoney,
     retryMyWithdrawal
 );
 router.get(
@@ -177,6 +181,7 @@ router.patch(
     requireFeature("tenants.directory.view"),
     requirePermission("tenants.directory.view"),
     requireStepUp,
+    blockDemoMoney,
     approveAdminSettlement
 );
 router.patch(
@@ -193,6 +198,7 @@ router.patch(
     requireActiveSubscription,
     requireFeature("tenants.directory.view"),
     requirePermission("tenants.directory.view"),
+    blockDemoMoney,
     markAdminSettlementPaid
 );
 export default router;

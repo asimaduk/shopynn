@@ -4,6 +4,7 @@ import { FuseLayoutProps } from '@fuse/core/FuseLayout/FuseLayout';
 import FuseLayout from '@fuse/core/FuseLayout';
 import { useEffect, useMemo } from 'react';
 import OfflineBanner from './OfflineBanner';
+import DemoShopBanner from './DemoShopBanner';
 import themeLayouts from './theme-layouts/themeLayouts';
 import { endAuthTransition } from 'src/utils/authTransition';
 
@@ -54,6 +55,7 @@ function MainLayout(props: MainLayoutProps) {
 			layouts={themeLayouts}
 			settings={mergedSettings}
 		>
+			<DemoShopBanner />
 			<OfflineBanner />
 			{children}
 		</FuseLayout>

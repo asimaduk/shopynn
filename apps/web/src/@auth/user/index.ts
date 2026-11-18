@@ -53,6 +53,8 @@ export type User = {
 				quantity_threshold?: number;
 			};
 			momo_fee_payer?: 'customer' | 'shop';
+			/** Shared Shopynn Demo Store — public try-demo + field agents. */
+			demo?: boolean;
 		} | null;
 		plan_usage?: TenantPlanUsage;
 		subscription?: {

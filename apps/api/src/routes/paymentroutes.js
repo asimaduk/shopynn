@@ -19,6 +19,7 @@ import {
 import { requirePermission, requireAnyPermission } from "../middleware/requirePermission.js";
 import requireActiveSubscription from "../middleware/requireActiveSubscription.js";
 import requireFeature from "../middleware/requireFeature.js";
+import { blockDemoMoney } from "../middleware/blockDemoMoney.js";
 
 const router = express.Router();
 const requireOrderPaymentHistory = [
@@ -37,8 +38,8 @@ router.get("/pos-sale", ...requirePosSalePaymentHistory, getPosSalePayments);
 const canStartPayment = requireAnyPermission("sales.create", "payments.initiate", "subscription.manage", "orders.create");
 const posMomo = [requireActiveSubscription, requireAnyPermission("sales.create", "payments.initiate")];
 
-router.post("/initiate", canStartPayment, initiatePayment);
-router.post("/submit-otp", canStartPayment, submitOtp);
+router.post("/initiate", canStartPayment, blockDemoMoney, initiatePayment);
+router.post("/submit-otp", canStartPayment, blockDemoMoney, submitOtp);
 router.get("/pos-open", ...posMomo, getOpenPosMomoPayment);
 router.post("/pos-abandon", ...posMomo, abandonPosMomoPayment);
 router.post("/pos-park", ...posMomo, parkPosMomoPayment);

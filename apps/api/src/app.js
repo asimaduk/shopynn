@@ -10,6 +10,7 @@ import { requestContextMiddleware } from "./util/requestContext.js";
 import { startSubscriptionStatusJob } from "./jobs/subscriptionStatusJob.js";
 import { startDailySalesSummaryNotificationJob } from "./jobs/dailySalesSummaryNotificationJob.js";
 import { startAgentPayoutJob } from "./jobs/agentPayoutJob.js";
+import { startDemoStoreResetJob } from "./jobs/demoStoreResetJob.js";
 import { ensureBillingCatalogSeededService } from "./models/billingCatalog.js";
 import { backfillOrderSalesService } from "./models/orderSale.js";
 
@@ -75,6 +76,7 @@ app.use(errorhandling);
 startSubscriptionStatusJob();
 startDailySalesSummaryNotificationJob();
 startAgentPayoutJob();
+startDemoStoreResetJob();
 // Self-heal empty billing catalog after data restores (migrations already applied).
 ensureBillingCatalogSeededService().catch((err) => {
     console.error("startup billing catalog ensure failed:", err?.message || err);

@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { SIGN_IN_URL } from "@/lib/config";
+import { DEMO_URL, SIGN_IN_URL } from "@/lib/config";
 import { LANDING_NAV_LINKS, LANDING_SECTIONS } from "@/lib/landing-nav";
 
 export function Navbar() {
@@ -58,6 +58,9 @@ export function Navbar() {
 
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" className="hidden sm:inline-flex" asChild>
+              <a href={DEMO_URL}>Try demo</a>
+            </Button>
+            <Button variant="ghost" size="sm" className="hidden md:inline-flex" asChild>
               <a href={SIGN_IN_URL}>Login</a>
             </Button>
             <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90" asChild>

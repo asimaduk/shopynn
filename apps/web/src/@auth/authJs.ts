@@ -9,7 +9,7 @@ import type { Provider } from 'next-auth/providers';
 import Credentials from 'next-auth/providers/credentials';
 // import Facebook from 'next-auth/providers/facebook';
 // import Google from 'next-auth/providers/google';
-import { authGetUserData, authLoginUser } from './authApi';
+import { authEnterDemo, authGetUserData, authLoginUser } from './authApi';
 import { setGlobalHeaders } from '@/utils/apiFetch';
 
 function throwPasswordExpiredCredentials(): never {
@@ -71,6 +71,25 @@ const storage = createStorage({
 export const providers: Provider[] = [
 	Credentials({
 		async authorize(formInput, request) {
+			const ua = request?.headers?.get?.('user-agent') || undefined;
+			const mode = String(formInput.mode ?? '')
+				.trim()
+				.toLowerCase();
+
+			if (mode === 'demo') {
+				const res = await authEnterDemo(ua);
+				const resJson = await res.json();
+				if (resJson.status === 200 && resJson.data?.token && resJson.data?.email) {
+					const email = String(resJson.data.email).trim().toLowerCase();
+					return {
+						id: email,
+						email,
+						token: resJson.data.token as string
+					};
+				}
+				return null;
+			}
+
 			const emailNormalized = String(formInput.email ?? '')
 				.trim()
 				.toLowerCase();
@@ -80,7 +99,7 @@ export const providers: Provider[] = [
 					email: emailNormalized,
 					password: String(formInput.password ?? '').trim()
 				},
-				request?.headers?.get?.('user-agent') || undefined
+				ua
 			);
 
 			const resJson = await res.json();

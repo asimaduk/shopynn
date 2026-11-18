@@ -11,9 +11,18 @@ Local-only accounts from the API seed scripts. Do not use these passwords in pro
 | **Demo store owner** | `demo@shopynn.app` | `DemoStore2026!` | `npm run seed:demo-store -w @shopynn/api` |
 | **Demo field agent** | `demo-agent@shopynn.app` | `DemoAgent2026!` | `npm run seed:demo-store -w @shopynn/api` |
 
-## Dedicated Demo Store (field agents)
+## Dedicated Demo Store (field agents + public live demo)
 
-One shared **Shopynn Demo Store** (Premium) with Ghana retail catalog + ~6 months of activity. Field agents sign in as `demo-agent@shopynn.app` and walk shop owners through the app without touching real merchant data.
+One shared **Shopynn Demo Store** (Premium) with Ghana retail catalog + ~6 months of activity. Tenant `settings.demo = true`.
+
+| Who | How |
+|-----|-----|
+| Public (marketing site) | One-click **Try live demo** → web `/demo` → `POST /api/demo/enter` (no password on the site) |
+| Field agents | Sign in as `demo-agent@shopynn.app` / `DemoAgent2026!` (or owner password) and walk shop owners through the app |
+
+Visitors share one shop — concurrent edits are expected. MoMo initiate/OTP, withdrawals, and payouts are **blocked** on this tenant. A sticky banner in the web app explains the sandbox.
+
+**Nightly reset:** API cron at **03:00 Africa/Accra** reseeds catalog + activity (`DEMO_RESET_CRON` / `DEMO_RESET_TZ` / `DEMO_RESET_ENABLED`). Users and passwords are preserved. Disable with `DEMO_ENTER_ENABLED=false` (enter) or `DEMO_RESET_ENABLED=false` (reset).
 
 ```bash
 # Local
@@ -27,7 +36,7 @@ DATABASE_URL='postgresql://USER:PASS@HOST:PORT/railway?sslmode=require' \
 npm run seed:demo-store -w @shopynn/api -- --skip-catalog
 ```
 
-Re-run anytime to reset passwords and refresh demo data.
+Re-run anytime to reset passwords and refresh demo data (also sets `settings.demo`).
 
 **EC2 cutover:** the Railway truncate + EC2 restore wipes this tenant. After restore, re-run `seed:demo-store` (see [DB_IMPORT_EC2.md](./DB_IMPORT_EC2.md) §8).
 

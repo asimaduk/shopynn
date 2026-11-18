@@ -177,6 +177,7 @@ async function ensureCompanyProfile(tenantId) {
 		     phone = COALESCE(phone, $3),
 		     email = COALESCE(email, $4),
 		     notes = COALESCE(notes, 'Official Shopynn field-agent demo store. Do not use for real sales.'),
+		     settings = COALESCE(settings, '{}'::jsonb) || '{"demo": true}'::jsonb,
 		     updated_at = NOW()
 		 WHERE id = $1`,
 		[tenantId, DEMO_TENANT_NAME, OWNER.phone, OWNER.email]
