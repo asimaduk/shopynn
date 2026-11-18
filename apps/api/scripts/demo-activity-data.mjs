@@ -24,14 +24,100 @@ export const DEMO_SUPPLIERS = [
 	{ name: 'Local Market Provisions', manager: 'Auntie Mansa', phone: '233302100006', address: 'Makola' },
 ];
 
+/** UI lists `note` as Description — keep these shop-realistic and varied. */
 export const DEMO_EXPENSE_TEMPLATES = [
-	{ category: 'Utilities', description: 'Electricity bill (ECG)', amount: [180, 420], payment_method: 'MoMo' },
-	{ category: 'Utilities', description: 'Water bill', amount: [40, 120], payment_method: 'Cash' },
-	{ category: 'Rent', description: 'Shop rent', amount: [800, 1500], payment_method: 'Bank Transfer' },
-	{ category: 'Transport', description: 'Goods delivery / fuel', amount: [50, 200], payment_method: 'Cash' },
-	{ category: 'Salaries', description: 'Staff wages (partial)', amount: [300, 900], payment_method: 'MoMo' },
-	{ category: 'Maintenance', description: 'Shop repairs / cleaning', amount: [30, 150], payment_method: 'Cash' },
-	{ category: 'Marketing', description: 'Flyers / WhatsApp boost', amount: [20, 80], payment_method: 'MoMo' },
-	{ category: 'Supplies', description: 'Packaging / carrier bags', amount: [25, 100], payment_method: 'Cash' },
-	{ category: 'Internet', description: 'Data / Wi‑Fi for POS', amount: [40, 90], payment_method: 'MoMo' },
+	{
+		category: 'Utilities',
+		descriptions: [
+			'ECG prepaid units — Lapaz shop',
+			'Electricity top-up for cold fridge',
+			'ECG bill settlement (shop meter)',
+		],
+		amount: [180, 420],
+		payment_method: 'MoMo',
+	},
+	{
+		category: 'Utilities',
+		descriptions: [
+			'GWCL water bill — shop + wash area',
+			'Borehole pump electricity share',
+			'Water tanker fill for cleaning day',
+		],
+		amount: [40, 120],
+		payment_method: 'Cash',
+	},
+	{
+		category: 'Rent',
+		descriptions: [
+			'Monthly shop rent — Lapaz branch',
+			'Landlord rent (bank transfer)',
+			'Shop rent + service charge',
+		],
+		amount: [800, 1500],
+		payment_method: 'Bank Transfer',
+	},
+	{
+		category: 'Transport',
+		descriptions: [
+			'Fuel for supplier pickup (Tema)',
+			'Trotro / courier for customer delivery',
+			'Okada runs for urgent restock',
+			'Goods haulage from Makola',
+		],
+		amount: [50, 200],
+		payment_method: 'Cash',
+	},
+	{
+		category: 'Salaries',
+		descriptions: [
+			'Cashier weekly wage',
+			'Shop assistant salary (partial)',
+			'Weekend helper allowance',
+		],
+		amount: [300, 900],
+		payment_method: 'MoMo',
+	},
+	{
+		category: 'Maintenance',
+		descriptions: [
+			'Fridge gas refill & service',
+			'Shelf repair and paint touch-up',
+			'Daily cleaner stipend',
+			'POS printer cable replacement',
+		],
+		amount: [30, 150],
+		payment_method: 'Cash',
+	},
+	{
+		category: 'Marketing',
+		descriptions: [
+			'WhatsApp Status boost — weekend promo',
+			'Facebook ads for soft drinks deal',
+			'Flyer print for neighbourhood promo',
+			'Branded carrier bags for launch week',
+		],
+		amount: [20, 80],
+		payment_method: 'MoMo',
+	},
+	{
+		category: 'Supplies',
+		descriptions: [
+			'Packaging — carrier bags & tape',
+			'Receipt roll pack for POS',
+			'Cleaning supplies (detergent, mops)',
+			'Stationery — price tags & markers',
+		],
+		amount: [25, 100],
+		payment_method: 'Cash',
+	},
+	{
+		category: 'Internet',
+		descriptions: [
+			'MTN data for POS & MoMo',
+			'Vodafone broadband — shop Wi‑Fi',
+			'Router data bundle (monthly)',
+		],
+		amount: [40, 90],
+		payment_method: 'MoMo',
+	},
 ];

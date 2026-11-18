@@ -422,10 +422,12 @@ async function seedSixMonthActivity(client, { tenantId, userId, warehouseId, cus
 		}
 
 		// Expenses: a few per week
+		// Web Expenses table shows `note` as Description — keep that human-readable.
 		if (rand() < (isWeekend ? 0.15 : 0.4)) {
 			const tmpl = pick(rand, DEMO_EXPENSE_TEMPLATES);
 			const [lo, hi] = tmpl.amount;
 			const amount = money(lo + rand() * (hi - lo));
+			const label = pick(rand, tmpl.descriptions || [tmpl.description || tmpl.category]);
 			const createdAt = new Date(day);
 			createdAt.setHours(11 + randInt(rand, 0, 6), randInt(rand, 0, 59), 0, 0);
 			await client.query(
@@ -436,12 +438,12 @@ async function seedSixMonthActivity(client, { tenantId, userId, warehouseId, cus
 				[
 					uuidv4(),
 					amount,
-					tmpl.description,
-					'Demo seed expense',
+					label,
+					label,
 					tmpl.category,
 					tmpl.payment_method,
 					createdAt,
-					userId,
+					'Demo Owner',
 					tenantId,
 					userId,
 					warehouseId,
