@@ -28,7 +28,7 @@ One shared **Shopynn Demo Store** (Premium) with Ghana retail catalog + ~6 month
 - API blocks password change, staff CRUD, role edits, company profile update, uploads, invoice email, step-up/contact OTPs on the demo tenant (`DEMO_ACTION_BLOCKED`).
 - Money paths still blocked (`DEMO_MONEY_BLOCKED`).
 - Outbound email/SMS from a demo session is suppressed in `sendEmailService` / `sendSmsService`.
-- `DEMO_ENTER_SECRET` — required in production; web sends `X-Demo-Enter-Secret` (server-side only). Set the **same** value on API and web.
+- `DEMO_ENTER_SECRET` — same value on API + web (`X-Demo-Enter-Secret`, server-only). Enforcement is **opt-in**: set `DEMO_ENTER_REQUIRE_SECRET=true` on the API only after both sides have the matching secret (otherwise a Railway-only secret blocks `/demo`).
 - Optional Cloudflare Turnstile: set `TURNSTILE_SECRET_KEY` (API) + `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (web).
 - Nightly reset at **03:00 Africa/Accra** reseeds catalog + activity; users/passwords preserved.
 - Do **not** put real merchant data, real Paystack keys tied to live chargeable demos, or agent passwords on public pages.

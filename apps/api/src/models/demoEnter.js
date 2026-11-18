@@ -15,18 +15,40 @@ function configuredSecret() {
     return String(process.env.DEMO_ENTER_SECRET || "").trim();
 }
 
-function requireSecretInProduction() {
-    return process.env.NODE_ENV === "production" && !configuredSecret();
-}
-
 /**
  * Shared secret: only our web/server frontends should call enter.
  * Header `X-Demo-Enter-Secret` or body.demo_secret.
+ *
+ * Enforcement is opt-in via DEMO_ENTER_REQUIRE_SECRET=true so a Railway-only
+ * secret cannot lock out Vercel before the matching web env is set.
+ * When that flag is on, production also requires DEMO_ENTER_SECRET to be set.
  */
 function assertSharedSecret(reqLike) {
     const expected = configuredSecret();
+    const requireSecret = ["1", "true", "yes", "on"].includes(
+        String(process.env.DEMO_ENTER_REQUIRE_SECRET || "")
+            .trim()
+            .toLowerCase()
+    );
+
+    if (!requireSecret) {
+        if (expected) {
+            const headerVal =
+                typeof reqLike?.get === "function"
+                    ? reqLike.get("x-demo-enter-secret")
+                    : reqLike?.headers?.["x-demo-enter-secret"];
+            const provided = String(headerVal || reqLike?.body?.demo_secret || "").trim();
+            if (!provided || provided !== expected) {
+                console.warn(
+                    "[demo/enter] DEMO_ENTER_SECRET is set but request secret missing/mismatched; allowing because DEMO_ENTER_REQUIRE_SECRET is off."
+                );
+            }
+        }
+        return;
+    }
+
     if (!expected) {
-        if (requireSecretInProduction()) {
+        if (process.env.NODE_ENV === "production") {
             const err = new Error("Live demo is misconfigured (DEMO_ENTER_SECRET missing).");
             err.status = 503;
             err.code = "DEMO_ENTER_MISCONFIGURED";
