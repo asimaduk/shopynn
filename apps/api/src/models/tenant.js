@@ -7,13 +7,21 @@ import { seedDefaultStaffRolesService } from "./role.js";
 import { assertShopOwnerEmailVerified } from "./emailVerification.js";
 import { mergeTenantSettings, projectTenantSettings } from "../utils/bulkDiscount.js";
 import { sendEmailService } from "./mail.js";
-import { buildWelcomeEmail } from "../services/accountEmails.js";
+import { buildNewShopSignupNotifyEmail, buildWelcomeEmail } from "../services/accountEmails.js";
+import { getSignupNotificationEmailsService } from "./platformSettings.js";
+
+function planLabelFromSubscription(subscription) {
+    return (
+        { basic: "Starter", standard: "Business", premium: "Scale" }[
+            String(subscription?.name || "").toLowerCase()
+        ] ||
+        subscription?.name ||
+        "Free"
+    );
+}
 
 async function sendShopOwnerWelcomeEmail({ email, firstName, shopName, subscription }) {
-    const planLabel =
-        { basic: "Starter", standard: "Business", premium: "Scale" }[String(subscription?.name || "").toLowerCase()] ||
-        subscription?.name ||
-        "Free";
+    const planLabel = planLabelFromSubscription(subscription);
     const endsOn = subscription?.end_at
         ? new Date(subscription.end_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
         : null;
@@ -23,6 +31,38 @@ async function sendShopOwnerWelcomeEmail({ email, firstName, shopName, subscript
         receipient: email,
         from: "support",
         ...buildWelcomeEmail({ firstName, email, shopName, planLabel, isActive: subscription?.status === "active", endsOn }),
+    });
+}
+
+async function notifyOpsOfNewShopSignup({
+    shopName,
+    ownerName,
+    ownerEmail,
+    ownerPhone,
+    subscription,
+    source,
+    registrationMethod,
+    createdAt,
+}) {
+    const { emails } = await getSignupNotificationEmailsService();
+    if (!emails.length) return;
+
+    const content = buildNewShopSignupNotifyEmail({
+        shopName,
+        ownerName,
+        ownerEmail,
+        ownerPhone,
+        planLabel: planLabelFromSubscription(subscription),
+        source,
+        registrationMethod,
+        createdAt,
+    });
+
+    await sendEmailService({
+        sender_name: "Shopynn",
+        receipient: emails,
+        from: "support",
+        ...content,
     });
 }
 
@@ -161,16 +201,33 @@ export const createTenantService = async (payload) => {
     await ensureWalkInCustomerService(id, userResult.id);
     await seedDefaultStaffRolesService(id);
 
+    const shopName = name || organization;
+    const ownerName = [first_name, last_name].filter(Boolean).join(" ").trim();
+    const signupSource = skip_owner_email_verification ? "agent_onboard" : "self_serve";
+
     if (password) {
         sendShopOwnerWelcomeEmail({
             email: normalizedUserEmail,
             firstName: first_name,
-            shopName: name || organization,
+            shopName,
             subscription,
         }).catch((err) => {
             console.info(`[shop owner welcome] email=${normalizedUserEmail} mail=${err?.message || "n/a"}`);
         });
     }
+
+    notifyOpsOfNewShopSignup({
+        shopName,
+        ownerName,
+        ownerEmail: normalizedUserEmail,
+        ownerPhone: userPhoneForInsert,
+        subscription,
+        source: signupSource,
+        registrationMethod: registration_method,
+        createdAt: now,
+    }).catch((err) => {
+        console.info(`[shop signup notify] tenant=${id} mail=${err?.message || "n/a"}`);
+    });
 
     const row = await pool.query("SELECT * FROM tenants WHERE id = $1", [id]);
     return {

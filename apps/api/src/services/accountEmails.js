@@ -201,3 +201,70 @@ export function buildWelcomeEmail({ firstName, email, shopName, planLabel, isAct
         ].join("\n"),
     };
 }
+
+/** Ops alert when a new shop/tenant is created. */
+export function buildNewShopSignupNotifyEmail({
+    shopName,
+    ownerName,
+    ownerEmail,
+    ownerPhone,
+    planLabel,
+    source,
+    registrationMethod,
+    createdAt,
+}) {
+    const shop = shopName || "Unnamed shop";
+    const owner = ownerName || "—";
+    const sourceLabel =
+        source === "agent_onboard" ? "Agent onboard" : "Self-serve";
+    const when = createdAt
+        ? new Date(createdAt).toLocaleString("en-GB", {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+          })
+        : new Date().toLocaleString("en-GB");
+    const rows = [
+        ["Shop", escapeHtml(shop)],
+        ["Owner", escapeHtml(owner)],
+        ["Owner email", escapeHtml(ownerEmail || "—")],
+        ["Owner phone", escapeHtml(ownerPhone || "—")],
+        ["Plan", escapeHtml(planLabel || "—")],
+        ["Source", escapeHtml(sourceLabel)],
+    ];
+    if (registrationMethod) {
+        rows.push(["Registration method", escapeHtml(String(registrationMethod))]);
+    }
+    rows.push(["Signed up", escapeHtml(when)]);
+
+    return {
+        subject: `New shop signup: ${shop}`,
+        html: renderEmail({
+            heading: "New shop signup",
+            preheader: `${shop} just signed up (${sourceLabel}).`,
+            body: [
+                paragraph(`A new shop was created on Shopynn.`),
+                detailsTable(rows),
+                signoff(),
+            ],
+        }),
+        text: [
+            "New shop signup",
+            "",
+            `Shop: ${shop}`,
+            `Owner: ${owner}`,
+            `Owner email: ${ownerEmail || "—"}`,
+            `Owner phone: ${ownerPhone || "—"}`,
+            `Plan: ${planLabel || "—"}`,
+            `Source: ${sourceLabel}`,
+            registrationMethod ? `Registration method: ${registrationMethod}` : null,
+            `Signed up: ${when}`,
+            "",
+            "The Shopynn team",
+        ]
+            .filter((line) => line != null)
+            .join("\n"),
+    };
+}

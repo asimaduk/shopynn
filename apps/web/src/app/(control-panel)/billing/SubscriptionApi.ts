@@ -44,7 +44,14 @@ export type PaymentRecord = {
 	warehouse_name?: string;
 };
 
-const subscriptionTagTypes = ['payoutProfile', 'settlements', 'posPendingMomo', 'GoLiveNav', 'appVersions'] as const;
+const subscriptionTagTypes = [
+	'payoutProfile',
+	'settlements',
+	'posPendingMomo',
+	'GoLiveNav',
+	'appVersions',
+	'signupNotificationEmails'
+] as const;
 
 const SubscriptionApi = api.enhanceEndpoints({ addTagTypes: subscriptionTagTypes }).injectEndpoints({
 	endpoints: (build) => ({
@@ -162,6 +169,18 @@ const SubscriptionApi = api.enhanceEndpoints({ addTagTypes: subscriptionTagTypes
 		>({
 			query: (body) => ({ url: '/api/platform-settings/momo-payment-charge', method: 'PUT', body })
 		}),
+		getSignupNotificationEmails: build.query<{ emails: string[] }, void>({
+			query: () => ({ url: '/api/platform-settings/signup-notification-emails' }),
+			providesTags: ['signupNotificationEmails']
+		}),
+		updateSignupNotificationEmails: build.mutation<{ emails: string[] }, { emails: string } | { emails: string[] }>({
+			query: (body) => ({
+				url: '/api/platform-settings/signup-notification-emails',
+				method: 'PUT',
+				body
+			}),
+			invalidatesTags: ['signupNotificationEmails']
+		}),
 		getMySettlementSummary: build.query<
 			{
 				/** Net of MoMo refunds paid back through Paystack. */
@@ -233,6 +252,8 @@ export const {
 	useGetPosSalePaymentsQuery,
 	useGetMomoPaymentChargeQuery,
 	useUpdateMomoPaymentChargeMutation,
+	useGetSignupNotificationEmailsQuery,
+	useUpdateSignupNotificationEmailsMutation,
 	useGetAppVersionsQuery,
 	useCreateAppVersionMutation,
 	useUpdateAppVersionMutation,

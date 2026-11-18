@@ -1,8 +1,10 @@
 import { handleResponse } from "../util/handleresponse.js";
 import {
     getMomoPaymentChargeSettingsService,
+    getSignupNotificationEmailsService,
     getTenantMomoFeePayerService,
     updateMomoPaymentChargeSettingsService,
+    updateSignupNotificationEmailsService,
 } from "../models/platformSettings.js";
 
 /** Any authenticated user — needed for POS / checkout fee display. */
@@ -21,6 +23,25 @@ export const updateMomoPaymentCharge = async (req, res, next) => {
     try {
         const settings = await updateMomoPaymentChargeSettingsService(req.body || {}, req.user?.id);
         handleResponse(res, 200, "MoMo payment charge updated.", settings);
+    } catch (error) {
+        next(error);
+    }
+};
+
+/** Platform super admin — who gets emailed on new shop signup. */
+export const getSignupNotificationEmails = async (req, res, next) => {
+    try {
+        const settings = await getSignupNotificationEmailsService();
+        handleResponse(res, 200, "Signup notification emails.", settings);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const updateSignupNotificationEmails = async (req, res, next) => {
+    try {
+        const settings = await updateSignupNotificationEmailsService(req.body || {}, req.user?.id);
+        handleResponse(res, 200, "Signup notification emails updated.", settings);
     } catch (error) {
         next(error);
     }

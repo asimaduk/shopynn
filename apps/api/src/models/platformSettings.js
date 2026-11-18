@@ -6,6 +6,10 @@ import {
     getMomoFeePayerFromSettings,
     normalizeFeePayer,
 } from "../utils/platformMomoCharge.js";
+import {
+    SIGNUP_NOTIFICATION_EMAILS_KEY,
+    normalizeSignupNotificationEmails,
+} from "../utils/platformSignupNotify.js";
 
 export async function getPlatformSettingService(key) {
     const res = await pool.query(
@@ -59,4 +63,27 @@ export async function computeChargeForFaceAmountService(faceAmount, opts = {}) {
         ? normalizeFeePayer(opts.feePayer)
         : await getTenantMomoFeePayerService(opts.tenantId);
     return computePlatformCollectionCharge(faceAmount, settings, feePayer);
+}
+
+export async function getSignupNotificationEmailsService() {
+    const row = await getPlatformSettingService(SIGNUP_NOTIFICATION_EMAILS_KEY);
+    return normalizeSignupNotificationEmails(row?.value);
+}
+
+/**
+ * Update signup notification recipients.
+ * Accepts `{ emails: string[] }`, `{ emails: "a@x,b@y" }`, or a raw comma-separated string body.
+ */
+export async function updateSignupNotificationEmailsService(patch, updatedBy = null) {
+    let raw = patch;
+    if (patch && typeof patch === "object" && !Array.isArray(patch)) {
+        if (typeof patch.emails === "string" || Array.isArray(patch.emails)) {
+            raw = patch.emails;
+        } else if (patch.emails == null && typeof patch.value === "string") {
+            raw = patch.value;
+        }
+    }
+    const next = normalizeSignupNotificationEmails(raw);
+    await upsertPlatformSettingService(SIGNUP_NOTIFICATION_EMAILS_KEY, next, updatedBy);
+    return next;
 }

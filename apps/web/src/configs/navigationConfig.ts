@@ -424,6 +424,15 @@ const navigationConfig: FuseNavItemType[] = [
 				requiredFeatures: ['tenants.directory.view']
 			},
 			{
+				id: 'platform.signupNotifyEmails',
+				title: 'Signup notifications',
+				type: 'item',
+				icon: 'heroicons-outline:envelope',
+				url: '/tenants-directory/signup-notifications',
+				requiredPermissions: ['tenants.directory.view'],
+				requiredFeatures: ['tenants.directory.view']
+			},
+			{
 				id: 'platform.mobileAppVersions',
 				title: 'Mobile app versions',
 				type: 'item',
