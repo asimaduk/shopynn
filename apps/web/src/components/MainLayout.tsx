@@ -55,13 +55,15 @@ function MainLayout(props: MainLayoutProps) {
 			layouts={themeLayouts}
 			settings={mergedSettings}
 		>
-			{/* Keep page flex height intact when demo/offline banners show (POS panes need min-h-0 scroll). */}
+			{/* Keep page flex height intact when demo/offline banners show (POS panes need min-h-0 scroll).
+			    `relative` on the page slot contains absolute inset-0 shells (e.g. settings) so they
+			    cannot cover the banners. */}
 			<div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
-				<div className="shrink-0">
+				<div className="relative z-20 shrink-0">
 					<DemoShopBanner />
 					<OfflineBanner />
 				</div>
-				<div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
+				<div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
 			</div>
 		</FuseLayout>
 	);

@@ -19,8 +19,21 @@ export default function DemoShopBanner() {
 			className="rounded-none"
 			sx={{
 				py: 0.5,
-				'& .MuiAlert-message': { py: 0.75, fontSize: '0.8125rem' },
-				'& .MuiAlert-action': { pt: 0.25, alignItems: 'center' }
+				alignItems: { xs: 'flex-start', sm: 'center' },
+				'& .MuiAlert-message': {
+					py: 0.75,
+					fontSize: '0.8125rem',
+					minWidth: 0,
+					flex: '1 1 auto'
+				},
+				'& .MuiAlert-action': {
+					pt: { xs: 0.5, sm: 0.25 },
+					mr: 0,
+					ml: 1,
+					alignItems: 'center',
+					flexWrap: 'wrap',
+					gap: 0.5
+				}
 			}}
 			action={
 				<>
