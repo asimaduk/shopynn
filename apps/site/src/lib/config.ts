@@ -16,5 +16,6 @@ export const APP_STORE_LIVE = Boolean(import.meta.env.VITE_APP_STORE_URL?.trim()
 export const PLAY_STORE_LIVE = Boolean(import.meta.env.VITE_PLAY_STORE_URL?.trim());
 
 export const SOCIAL_LINKS = [
+  { name: "Facebook", href: "https://www.facebook.com/shopynn" },
   { name: "Instagram", href: "https://www.instagram.com/shopynn.app" },
 ] as const;

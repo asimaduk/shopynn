@@ -119,8 +119,8 @@ export function Footer() {
         </div>
 
         <div className="mt-12 pt-6 border-t border-border flex flex-col sm:flex-row gap-3 items-center justify-between text-xs text-muted-foreground">
-          <div>© {new Date().getFullYear()} Shopynn Inc. All rights reserved.</div>
-          <div>hello@shopynn.app · +233 (248) 882-990</div>
+          <div>© {new Date().getFullYear()} Spirit Orbit Software. All rights reserved.</div>
+          <div>cheqstock@gmail.com · +233 (248) 882-990</div>
         </div>
       </div>
     </footer>
