@@ -58,25 +58,22 @@ function initialsFromProductName(name: string): string {
 }
 
 type ProductHeaderProps = {
+	product?: EcommerceProduct | null;
+};
+
+type ProductFormFooterProps = {
 	updateProcessing: (val: boolean) => void;
 	product?: EcommerceProduct | null;
 };
 
-function ProductHeader({ updateProcessing, product }: ProductHeaderProps) {
+function ProductHeader({ product }: ProductHeaderProps) {
 	const routeParams = useParams<{ slug: string }>();
 	const { slug } = routeParams;
 	const isNew = slug === 'new';
 
-	const [createProduct] = useCreateECommerceProductMutation();
-	const [uploadImages] = useUploadProductImagesMutation();
-	const [saveProduct] = useUpdateECommerceProductMutation();
-	const [updateProductImages] = useUpdateProductImagesMutation();
-
 	const methods = useFormContext();
-	const { formState, watch, getValues } = methods;
-	const { isValid, dirtyFields } = formState;
+	const { watch } = methods;
 
-	const navigate = useNavigate();
 	const [bulkImportOpen, setBulkImportOpen] = useState(false);
 	const [shareStoreOpen, setShareStoreOpen] = useState(false);
 	const { data: authUser } = useUser();
@@ -123,178 +120,6 @@ function ProductHeader({ updateProcessing, product }: ProductHeaderProps) {
 		}
 		setShareStoreOpen(true);
 	};
-
-	function createSlug(slg: string) {
-		if (!slg) return '';
-		let rtn = `${slg}`.toLowerCase();
-		rtn = rtn.split(' ').join('-');
-		return rtn;
-	}
-
-	function base64toBlob(base64Data: string, contentType = '', sliceSize = 512) {
-		const byteCharacters = atob(base64Data);
-		const byteArrays = [];
-		for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
-			const slice = byteCharacters.slice(offset, offset + sliceSize);
-			const byteNumbers = new Array(slice.length);
-			for (let i = 0; i < slice.length; i++) {
-				byteNumbers[i] = slice.charCodeAt(i);
-			}
-			const byteArray = new Uint8Array(byteNumbers);
-			byteArrays.push(byteArray);
-		}
-		return new Blob(byteArrays, { type: contentType });
-	}
-
-	function handleUploadProductImages(formData: FormData, id: string, type: string) {
-		uploadImages(formData)
-			.then((resp) => {
-				const ids: string[] | undefined = resp.data?.ids;
-				if (!ids) {
-					updateProcessing(false);
-					toast.success('Product uploaded successfully.');
-					navigate(`/inventory/products`);
-				} else {
-					if (type === 'update') {
-						// Preserve existing slot order and fill first available slots with new uploads.
-						const slots = [
-							product?.thumbnail || '',
-							product?.picture1 || '',
-							product?.picture2 || '',
-							product?.picture3 || '',
-							product?.picture4 || ''
-						];
-
-						let nextUploadIdx = 0;
-						for (let i = 0; i < slots.length && nextUploadIdx < ids.length; i += 1) {
-							if (!slots[i]) {
-								slots[i] = ids[nextUploadIdx] || '';
-								nextUploadIdx += 1;
-							}
-						}
-
-						return updateProductImages({
-							id,
-							thumbnail: slots[0],
-							picture1: slots[1],
-							picture2: slots[2],
-							picture3: slots[3],
-							picture4: slots[4]
-						});
-					}
-					return updateProductImages({
-						id,
-						thumbnail: ids[0] || '',
-						picture1: ids[1] || '',
-						picture2: ids[2] || '',
-						picture3: ids[3] || '',
-						picture4: ids[4] || ''
-					});
-				}
-			})
-			.then(() => {
-				updateProcessing(false);
-				toast.success('Product uploaded with all images successfully.');
-				navigate(`/inventory/products`);
-			})
-			.catch((err: Error) => {
-				updateProcessing(false);
-				toast.error(`An error occurred. Please refresh and try again. Message: ${err.message}`);
-			});
-	}
-
-	function handleSaveProduct() {
-		updateProcessing(true);
-		const payload = getValues() as EcommerceProduct;
-		if (payload._tags) {
-			payload.tags = payload._tags?.split(',').map((t) => t.trim());
-		}
-
-		let imgs: { url: string }[] = [];
-		if (payload && payload.images) {
-			imgs = payload.images.filter((img) => typeof img === 'object') as { url: string }[];
-			delete payload.images;
-		}
-
-		payload.slug = createSlug(payload.name);
-
-		saveProduct(payload)
-			.then((res) => {
-				const data = res.data as { id?: string } | undefined;
-				if (data?.id) {
-					const formData = new FormData();
-					const productId = data.id;
-
-					const localImgs = imgs.filter((img) => typeof img === 'object' && img.url);
-					console.log('localImgs', localImgs);
-
-					localImgs.forEach((img, i) => {
-						const base64Image = img.url;
-						const contentType = base64Image.substring(5, base64Image.indexOf(';'));
-						const base64Data = base64Image.substring(base64Image.indexOf(',') + 1);
-						const blob = base64toBlob(base64Data, contentType);
-						formData.append(uuidv4(), blob);
-						if (i === localImgs.length - 1) {
-							handleUploadProductImages(formData, productId, 'update');
-						}
-					});
-
-					toast.success('Product updated successfully.');
-					navigate(`/inventory/products`);
-				} else {
-					toast.error('Attempt failed. Please try again.');
-				}
-			})
-			.catch((err: Error) => {
-				toast.error(`Product update failed. Message: ${err.message}`);
-			})
-			.finally(() => updateProcessing(false));
-	}
-
-	function handleCreateProduct() {
-		const newProduct = getValues() as EcommerceProduct;
-		let imgs: { url: string }[] = [];
-		if (newProduct && newProduct.images) {
-			imgs = newProduct.images as { url: string }[];
-			delete newProduct.images;
-		}
-		if (newProduct._tags) {
-			newProduct.tags = newProduct._tags?.split(',').map((t) => t.trim());
-		}
-		newProduct.slug = createSlug(newProduct.name);
-
-		updateProcessing(true);
-
-		createProduct(newProduct)
-			.unwrap()
-			.then((data: { id: string }) => {
-				if (imgs.length === 0) {
-					toast.success('Product uploaded successfully.');
-					navigate(`/inventory/products`);
-					updateProcessing(false);
-				} else {
-					const formData = new FormData();
-					imgs.forEach((img, i) => {
-						const base64Image = img.url;
-						const contentType = base64Image.substring(5, base64Image.indexOf(';'));
-						const base64Data = base64Image.substring(base64Image.indexOf(',') + 1);
-						const blob = base64toBlob(base64Data, contentType);
-						formData.append(uuidv4(), blob);
-						if (i === imgs.length - 1) {
-							handleUploadProductImages(formData, data.id, 'new');
-						}
-					});
-				}
-			})
-			.catch((err: { data?: { error?: string }; message?: string }) => {
-				updateProcessing(false);
-				if (err?.data?.error?.includes('sku_unique')) {
-					toast.error(`Product code is not unique: ${newProduct.sku}`);
-				} else {
-					toast.error(`An error occurred. Please try again. ${err.message}`);
-				}
-			});
-	}
 
 	return (
 		<Box
@@ -380,31 +205,6 @@ function ProductHeader({ updateProcessing, product }: ProductHeaderProps) {
 							Import
 						</Button>
 					)}
-					{isNew ? (
-						<Button
-							variant="contained"
-							color="secondary"
-							size="medium"
-							disabled={_.isEmpty(dirtyFields) || !isValid}
-							onClick={handleCreateProduct}
-							sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
-							startIcon={<FuseSvgIcon size={18}>heroicons-outline:plus</FuseSvgIcon>}
-						>
-							Create product
-						</Button>
-					) : (
-						<Button
-							variant="contained"
-							color="secondary"
-							size="medium"
-							disabled={_.isEmpty(dirtyFields) || !isValid}
-							onClick={handleSaveProduct}
-							sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
-							startIcon={<FuseSvgIcon size={18}>heroicons-outline:check</FuseSvgIcon>}
-						>
-							Save changes
-						</Button>
-					)}
 				</motion.div>
 			</Stack>
 			<ProductBulkImportDialog open={bulkImportOpen} onClose={() => setBulkImportOpen(false)} />
@@ -432,6 +232,256 @@ function ProductHeader({ updateProcessing, product }: ProductHeaderProps) {
 					<Button onClick={() => setShareStoreOpen(false)}>Cancel</Button>
 				</DialogActions>
 			</Dialog>
+		</Box>
+	);
+}
+
+/** Primary create/update CTA — place at bottom-right of the product form. */
+export function ProductFormFooter({ updateProcessing, product }: ProductFormFooterProps) {
+	const routeParams = useParams<{ slug: string }>();
+	const { slug } = routeParams;
+	const isNew = slug === 'new';
+	const { data: authUser } = useUser();
+
+	const [createProduct] = useCreateECommerceProductMutation();
+	const [uploadImages] = useUploadProductImagesMutation();
+	const [saveProduct] = useUpdateECommerceProductMutation();
+	const [updateProductImages] = useUpdateProductImagesMutation();
+
+	const methods = useFormContext();
+	const { formState, getValues } = methods;
+	const { isValid, dirtyFields } = formState;
+	const navigate = useNavigate();
+
+	function createSlug(slg: string) {
+		if (!slg) return '';
+		let rtn = `${slg}`.toLowerCase();
+		rtn = rtn.split(' ').join('-');
+		return rtn;
+	}
+
+	function base64toBlob(base64Data: string, contentType = '', sliceSize = 512) {
+		const byteCharacters = atob(base64Data);
+		const byteArrays = [];
+		for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+			const slice = byteCharacters.slice(offset, offset + sliceSize);
+			const byteNumbers = new Array(slice.length);
+			for (let i = 0; i < slice.length; i++) {
+				byteNumbers[i] = slice.charCodeAt(i);
+			}
+			const byteArray = new Uint8Array(byteNumbers);
+			byteArrays.push(byteArray);
+		}
+		return new Blob(byteArrays, { type: contentType });
+	}
+
+	function handleUploadProductImages(formData: FormData, id: string, type: string) {
+		uploadImages(formData)
+			.then((resp) => {
+				const ids: string[] | undefined = resp.data?.ids;
+				if (!ids) {
+					updateProcessing(false);
+					toast.success('Product uploaded successfully.');
+					navigate(`/inventory/products`);
+				} else {
+					if (type === 'update') {
+						const slots = [
+							product?.thumbnail || '',
+							product?.picture1 || '',
+							product?.picture2 || '',
+							product?.picture3 || '',
+							product?.picture4 || ''
+						];
+
+						let nextUploadIdx = 0;
+						for (let i = 0; i < slots.length && nextUploadIdx < ids.length; i += 1) {
+							if (!slots[i]) {
+								slots[i] = ids[nextUploadIdx] || '';
+								nextUploadIdx += 1;
+							}
+						}
+
+						return updateProductImages({
+							id,
+							thumbnail: slots[0],
+							picture1: slots[1],
+							picture2: slots[2],
+							picture3: slots[3],
+							picture4: slots[4]
+						});
+					}
+					return updateProductImages({
+						id,
+						thumbnail: ids[0] || '',
+						picture1: ids[1] || '',
+						picture2: ids[2] || '',
+						picture3: ids[3] || '',
+						picture4: ids[4] || ''
+					});
+				}
+			})
+			.then(() => {
+				updateProcessing(false);
+				toast.success('Product uploaded with all images successfully.');
+				navigate(`/inventory/products`);
+			})
+			.catch((err: Error) => {
+				updateProcessing(false);
+				toast.error(`An error occurred. Please refresh and try again. Message: ${err.message}`);
+			});
+	}
+
+	function handleSaveProduct() {
+		updateProcessing(true);
+		const payload = getValues() as EcommerceProduct;
+		if (payload._tags) {
+			payload.tags = payload._tags?.split(',').map((t) => t.trim());
+		}
+
+		let imgs: { url: string }[] = [];
+		if (payload && payload.images) {
+			imgs = payload.images.filter((img) => typeof img === 'object') as { url: string }[];
+			delete payload.images;
+		}
+
+		payload.slug = createSlug(payload.name);
+
+		saveProduct(payload)
+			.then((res) => {
+				const data = res.data as { id?: string } | undefined;
+				if (data?.id) {
+					const formData = new FormData();
+					const productId = data.id;
+
+					const localImgs = imgs.filter((img) => typeof img === 'object' && img.url);
+
+					localImgs.forEach((img, i) => {
+						const base64Image = img.url;
+						const contentType = base64Image.substring(5, base64Image.indexOf(';'));
+						const base64Data = base64Image.substring(base64Image.indexOf(',') + 1);
+						const blob = base64toBlob(base64Data, contentType);
+						formData.append(uuidv4(), blob);
+						if (i === localImgs.length - 1) {
+							handleUploadProductImages(formData, productId, 'update');
+						}
+					});
+
+					toast.success('Product updated successfully.');
+					navigate(`/inventory/products`);
+				} else {
+					toast.error('Attempt failed. Please try again.');
+				}
+			})
+			.catch((err: Error) => {
+				toast.error(`Product update failed. Message: ${err.message}`);
+			})
+			.finally(() => updateProcessing(false));
+	}
+
+	function handleCreateProduct() {
+		const newProduct = getValues() as EcommerceProduct & {
+			opening_quantity?: number | string;
+			warehouse_quantities?: { warehouse_id: string; quantity: number | string }[];
+		};
+		let imgs: { url: string }[] = [];
+		if (newProduct && newProduct.images) {
+			imgs = newProduct.images as { url: string }[];
+			delete newProduct.images;
+		}
+		if (newProduct._tags) {
+			newProduct.tags = newProduct._tags?.split(',').map((t) => t.trim());
+		}
+		newProduct.slug = createSlug(newProduct.name);
+
+		const qtyRows = (Array.isArray(newProduct.warehouse_quantities) ? newProduct.warehouse_quantities : [])
+			.filter((row) => row?.warehouse_id)
+			.map((row) => {
+				const qty = Number(row.quantity);
+				return {
+					warehouse_id: String(row.warehouse_id),
+					quantity: Number.isFinite(qty) ? Math.max(0, qty) : 0
+				};
+			});
+		const withStock = qtyRows.filter((row) => row.quantity > 0);
+		const homeWarehouseId = String(authUser?.warehouse?.id || '').trim();
+		newProduct.warehouse_quantities =
+			withStock.length > 0
+				? withStock
+				: homeWarehouseId
+					? [{ warehouse_id: homeWarehouseId, quantity: 0 }]
+					: [];
+		newProduct.opening_quantity = qtyRows.reduce((sum, row) => sum + row.quantity, 0);
+
+		updateProcessing(true);
+
+		createProduct(newProduct as EcommerceProduct)
+			.unwrap()
+			.then((data: { id: string }) => {
+				if (imgs.length === 0) {
+					toast.success('Product uploaded successfully.');
+					navigate(`/inventory/products`);
+					updateProcessing(false);
+				} else {
+					const formData = new FormData();
+					imgs.forEach((img, i) => {
+						const base64Image = img.url;
+						const contentType = base64Image.substring(5, base64Image.indexOf(';'));
+						const base64Data = base64Image.substring(base64Image.indexOf(',') + 1);
+						const blob = base64toBlob(base64Data, contentType);
+						formData.append(uuidv4(), blob);
+						if (i === imgs.length - 1) {
+							handleUploadProductImages(formData, data.id, 'new');
+						}
+					});
+				}
+			})
+			.catch((err: { data?: { error?: string }; message?: string }) => {
+				updateProcessing(false);
+				if (err?.data?.error?.includes('sku_unique')) {
+					toast.error(`Product code is not unique: ${newProduct.sku}`);
+				} else {
+					toast.error(`An error occurred. Please try again. ${err.message}`);
+				}
+			});
+	}
+
+	return (
+		<Box
+			className="flex justify-end px-4 py-4 sm:px-8"
+			sx={{
+				borderTop: '1px solid',
+				borderColor: 'divider',
+				bgcolor: (theme) => alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.45 : 0.75),
+				position: 'sticky',
+				bottom: 0,
+				zIndex: 2
+			}}
+		>
+			{isNew ? (
+				<Button
+					variant="contained"
+					color="secondary"
+					size="large"
+					disabled={_.isEmpty(dirtyFields) || !isValid}
+					onClick={handleCreateProduct}
+					sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, minWidth: 160 }}
+					startIcon={<FuseSvgIcon size={18}>heroicons-outline:plus</FuseSvgIcon>}
+				>
+					Create product
+				</Button>
+			) : (
+				<Button
+					variant="contained"
+					color="secondary"
+					size="large"
+					disabled={_.isEmpty(dirtyFields) || !isValid}
+					onClick={handleSaveProduct}
+					sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, minWidth: 160 }}
+					startIcon={<FuseSvgIcon size={18}>heroicons-outline:check</FuseSvgIcon>}
+				>
+					Save changes
+				</Button>
+			)}
 		</Box>
 	);
 }

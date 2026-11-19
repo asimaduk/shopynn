@@ -23,6 +23,7 @@ import { useCreateECommerceProductMutation } from '../../../ECommerceApi';
 import type { EcommerceProduct } from '../../../ECommerceApi';
 import ProductModel from '../../models/ProductModel';
 import useNavigate from '@fuse/hooks/useNavigate';
+import useUser from '@auth/useUser';
 
 export type ImportRow = {
 	name: string;
@@ -31,6 +32,8 @@ export type ImportRow = {
 	retail_price: string | number;
 	wholesale_price: string | number;
 	unit: string;
+	/** Opening stock for the user's current store */
+	quantity: string | number;
 };
 
 function createSlug(slg: string) {
@@ -38,6 +41,12 @@ function createSlug(slg: string) {
 	let rtn = `${slg}`.toLowerCase();
 	rtn = rtn.split(' ').join('-');
 	return rtn;
+}
+
+function parseOpeningQty(raw: unknown): number {
+	if (raw === '' || raw == null) return 0;
+	const n = Number(raw);
+	return Number.isFinite(n) ? Math.max(0, n) : 0;
 }
 
 function mapSheetRows(json: Record<string, unknown>[]): ImportRow[] {
@@ -49,17 +58,28 @@ function mapSheetRows(json: Record<string, unknown>[]): ImportRow[] {
 		wholesale_price: (row.Wholesale ?? row.WholesalePrice ?? row.wholesale_price ?? row['Wholesale Price'] ?? '') as
 			| string
 			| number,
-		unit: (row.Unit ?? row.unit ?? 'pcs') as string
+		unit: (row.Unit ?? row.unit ?? 'pcs') as string,
+		quantity: (row.Quantity ??
+			row.quantity ??
+			row['Opening Stock'] ??
+			row['Opening stock'] ??
+			row.opening_quantity ??
+			0) as string | number
 	}));
 }
 
-function buildCreatePayload(row: ImportRow, rowIndex: number): Partial<EcommerceProduct> {
+function buildCreatePayload(
+	row: ImportRow,
+	rowIndex: number,
+	warehouseId?: string | null
+): Partial<EcommerceProduct> {
 	const name = String(row.name).trim();
 	const slug = createSlug(name) || `import-${Date.now()}-${rowIndex}`;
 	const unitPrice = parseFloat(String(row.retail_price)) || 0;
 	const wholesaleRaw = row.wholesale_price;
 	const altPrice =
 		wholesaleRaw !== '' && wholesaleRaw != null ? parseFloat(String(wholesaleRaw)) || 0 : 0;
+	const openingQty = parseOpeningQty(row.quantity);
 
 	const base = ProductModel({
 		name,
@@ -71,10 +91,16 @@ function buildCreatePayload(row: ImportRow, rowIndex: number): Partial<Ecommerce
 		_tags: '',
 		reorder_quantity: 0,
 		slug,
-		unit: String(row.unit || 'pcs').trim()
+		unit: String(row.unit || 'pcs').trim(),
+		opening_quantity: openingQty
 	} as Partial<EcommerceProduct>);
 
-	const payload = { ...base } as Partial<EcommerceProduct> & { bar_code?: string | null; unit?: string };
+	const payload = { ...base } as Partial<EcommerceProduct> & {
+		bar_code?: string | null;
+		unit?: string;
+		opening_quantity?: number;
+		warehouse_quantities?: { warehouse_id: string; quantity: number }[];
+	};
 	payload.tags = [];
 	if (payload._tags) {
 		payload.tags = String(payload._tags)
@@ -84,6 +110,11 @@ function buildCreatePayload(row: ImportRow, rowIndex: number): Partial<Ecommerce
 	}
 	delete (payload as { images?: unknown }).images;
 	payload.bar_code = String(row.barcode || '').trim() || null;
+	payload.opening_quantity = openingQty;
+	const whId = String(warehouseId || '').trim();
+	if (whId) {
+		payload.warehouse_quantities = [{ warehouse_id: whId, quantity: openingQty }];
+	}
 	return payload;
 }
 
@@ -94,6 +125,8 @@ type ProductBulkImportDialogProps = {
 
 function ProductBulkImportDialog({ open, onClose }: ProductBulkImportDialogProps) {
 	const navigate = useNavigate();
+	const { data: authUser } = useUser();
+	const warehouseId = authUser?.warehouse?.id ? String(authUser.warehouse.id) : null;
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const [createProduct] = useCreateECommerceProductMutation();
 	const [fileName, setFileName] = useState('');
@@ -204,7 +237,7 @@ function ProductBulkImportDialog({ open, onClose }: ProductBulkImportDialogProps
 				if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
 					continue;
 				}
-				const payload = buildCreatePayload(row, idx);
+				const payload = buildCreatePayload(row, idx, warehouseId);
 				try {
 					await createProduct(payload as EcommerceProduct).unwrap();
 					ok++;
@@ -241,9 +274,10 @@ function ProductBulkImportDialog({ open, onClose }: ProductBulkImportDialogProps
 			</DialogTitle>
 			<DialogContent dividers>
 				<Typography variant="body2" color="text.secondary" className="mb-3">
-					Use the same columns as the mobile app: Name, SKU, Barcode, RetailPrice, WholesalePrice, Unit.
-					Retail price is required. Compatible with exported sheets that use Name, SKU, Retail, Wholesale, RoL
-					— map or rename columns to match.
+					Use the same columns as the mobile app: Name, SKU, Barcode, RetailPrice, WholesalePrice, Unit,
+					Quantity. Retail price is required. Quantity is optional opening stock for your current store.
+					Compatible with exported sheets that use Name, SKU, Retail, Wholesale, RoL — map or rename columns
+					to match.
 				</Typography>
 
 				<Box
@@ -263,7 +297,8 @@ function ProductBulkImportDialog({ open, onClose }: ProductBulkImportDialogProps
 								{ col: 'Barcode', req: 'No', ex: '8901234567890' },
 								{ col: 'RetailPrice', req: 'Yes', ex: '5.50' },
 								{ col: 'WholesalePrice', req: 'No', ex: '4.20' },
-								{ col: 'Unit', req: 'No', ex: 'pcs' }
+								{ col: 'Unit', req: 'No', ex: 'pcs' },
+								{ col: 'Quantity', req: 'No', ex: '24' }
 							].map((r) => (
 								<TableRow key={r.col}>
 									<TableCell width="28%">{r.col}</TableCell>
@@ -318,6 +353,7 @@ function ProductBulkImportDialog({ open, onClose }: ProductBulkImportDialogProps
 										<TableCell>Name</TableCell>
 										<TableCell>SKU</TableCell>
 										<TableCell align="right">Retail</TableCell>
+										<TableCell align="right">Qty</TableCell>
 										<TableCell>Unit</TableCell>
 									</TableRow>
 								</TableHead>
@@ -340,6 +376,7 @@ function ProductBulkImportDialog({ open, onClose }: ProductBulkImportDialogProps
 											<TableCell>{row.name || '—'}</TableCell>
 											<TableCell>{row.sku || '—'}</TableCell>
 											<TableCell align="right">{row.retail_price ?? '—'}</TableCell>
+											<TableCell align="right">{row.quantity ?? 0}</TableCell>
 											<TableCell>{row.unit || 'pcs'}</TableCell>
 										</TableRow>
 									))}

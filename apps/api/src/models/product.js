@@ -585,6 +585,9 @@ export const createProductService = async (payload) => {
         creator_id,
         tags,
         warehouse_quantities,
+        warehouse_id,
+        opening_quantity,
+        quantity,
         reorder_quantity,
         batch_number,
         serial_number,
@@ -629,22 +632,45 @@ export const createProductService = async (payload) => {
         ]
     ).catch(rethrowDuplicateSku);
 
-    if(warehouse_quantities) {
-        for(const warehouse_quantity of warehouse_quantities) {
-            const { warehouse_id, quantity } = warehouse_quantity;
-            const inv_id = uuidv4();
-            await pool.query(`
-                INSERT INTO inventories (id, quantity_available, minimum_stock_level, product_id, warehouse_id, batch_number, serial_number, creator_id, tenant_id, created_at) 
+    // Opening stock: prefer explicit per-warehouse rows; otherwise seed the user's warehouse
+    // so the product is sellable/adjustable without a purchase receive first.
+    let qtyRows = Array.isArray(warehouse_quantities)
+        ? warehouse_quantities.filter((row) => row && row.warehouse_id)
+        : [];
+    if (qtyRows.length === 0 && warehouse_id) {
+        const opening = Number(opening_quantity ?? quantity ?? 0);
+        qtyRows = [
+            {
+                warehouse_id,
+                quantity: Number.isFinite(opening) ? Math.max(0, opening) : 0,
+            },
+        ];
+    }
+    for (const warehouse_quantity of qtyRows) {
+        const whId = warehouse_quantity.warehouse_id;
+        const qtyRaw = Number(warehouse_quantity.quantity ?? 0);
+        const qty = Number.isFinite(qtyRaw) ? Math.max(0, qtyRaw) : 0;
+        const inv_id = uuidv4();
+        await pool.query(
+            `
+                INSERT INTO inventories (id, quantity_available, minimum_stock_level, product_id, warehouse_id, batch_number, serial_number, creator_id, tenant_id, created_at)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
-                [inv_id, quantity, Number(reorder_quantity) || 0, id, warehouse_id, batch_number, serial_number, creator_id, tenant_id, new Date()])
-        }
+            [
+                inv_id,
+                qty,
+                Number(reorder_quantity) || 0,
+                id,
+                whId,
+                batch_number,
+                serial_number,
+                creator_id,
+                tenant_id,
+                new Date(),
+            ]
+        );
     }
 
     const newProduct = result.rows[0];
-    // const newId = uuidv4();
-    // const inv = await pool.query("INSERT INTO inventories (id, minimum_stock_level, product_id, created_at) VALUES ($1, $2, $3, $4) RETURNING id",[newId, reorder_quantity, newProduct.id, new Date()]);
-    // console.log('inv,,,',inv);
-
     return newProduct;
 }
 

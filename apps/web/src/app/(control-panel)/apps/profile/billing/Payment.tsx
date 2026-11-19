@@ -19,11 +19,39 @@ import NavLinkAdapter from '@fuse/core/NavLinkAdapter';
 import FuseLoading from '@fuse/core/FuseLoading';
 import useUser from '@auth/useUser';
 import { canManageSubscription } from '@auth/permissions';
-import { useGetCurrentSubscriptionQuery, useInitiatePaymentMutation, useLazyVerifyPaymentQuery } from '../../../billing/SubscriptionApi';
+import {
+	useGetCurrentSubscriptionQuery,
+	useInitiatePaymentMutation,
+	useLazyVerifyPaymentQuery,
+	useSubmitPaymentOtpMutation
+} from '../../../billing/SubscriptionApi';
 import { alpha, useTheme } from '@mui/material/styles';
 import { MOMO_NETWORK_OPTIONS } from '@/utils/momoNetworks';
 
 type TabValue = 'card' | 'mobile';
+type MobileStep = 'form' | 'pending' | 'otp' | 'success';
+
+function paymentGatewayStatus(res: any): string {
+	const nested = res?.data?.status;
+	const top = res?.status;
+	if (typeof nested === 'string' && nested.trim()) return nested.trim().toLowerCase();
+	if (typeof top === 'string' && top.trim() && Number.isNaN(Number(top))) return top.trim().toLowerCase();
+	return '';
+}
+
+function needsOtp(status: unknown, displayText: unknown) {
+	const st = String(status || '').toLowerCase();
+	if (st === 'send_otp' || st === 'otp' || st === 'send_pin' || st === 'pay_offline') return true;
+	return /\botp\b|\bvoucher\b|\*110#/.test(String(displayText || '').toLowerCase());
+}
+
+function isPaidStatus(status: string) {
+	return ['success', 'paid', 'completed'].includes(status);
+}
+
+function isFailedStatus(status: string) {
+	return ['failed', 'abandoned', 'reversed', 'cancelled', 'canceled', 'error'].includes(status);
+}
 
 export default function Payment() {
 	const theme = useTheme();
@@ -47,14 +75,18 @@ export default function Payment() {
 	if (!canCheckout) return <FuseLoading />;
 	const { data: sub, isLoading: loadingSub } = useGetCurrentSubscriptionQuery();
 	const [initiatePayment, { isLoading: initiating }] = useInitiatePaymentMutation();
+	const [submitPaymentOtp, { isLoading: submittingOtp }] = useSubmitPaymentOtpMutation();
 	const [verifyPayment, { isFetching: verifying }] = useLazyVerifyPaymentQuery();
 	const [tab, setTab] = useState<TabValue>('mobile');
 	const [phone, setPhone] = useState('');
 	const [phoneError, setPhoneError] = useState<string | null>(null);
 	const [submitError, setSubmitError] = useState<string | null>(null);
 	const [network, setNetwork] = useState('');
-	const [mobileStep, setMobileStep] = useState<'form' | 'pending' | 'success'>('form');
+	const [mobileStep, setMobileStep] = useState<MobileStep>('form');
 	const [paymentReference, setPaymentReference] = useState<string | null>(null);
+	const [otp, setOtp] = useState('');
+	const [statusText, setStatusText] = useState('');
+	const isTelecel = network === 'vod';
 
 	// useEffect(() => {
 	// 	if (mobileStep !== 'pending') return;
@@ -89,12 +121,51 @@ export default function Payment() {
 		}
 	};
 
+	const resetMobileCheckout = () => {
+		setPaymentReference(null);
+		setOtp('');
+		setStatusText('');
+		setMobileStep('form');
+	};
+
+	const applyGatewayResult = (res: any, fallbackPending: string) => {
+		const ref = res?.transaction_ref || res?.data?.transaction_ref || paymentReference;
+		if (ref) setPaymentReference(ref);
+		const status = paymentGatewayStatus(res);
+		const display = res?.display_text || res?.data?.display_text || res?.message;
+
+		if (isPaidStatus(status)) {
+			setStatusText(display || 'Payment successful.');
+			setMobileStep('success');
+			return;
+		}
+		if (isFailedStatus(status)) {
+			resetMobileCheckout();
+			setSubmitError(display || 'Payment failed. Please try again.');
+			return;
+		}
+		if (needsOtp(status, display)) {
+			setStatusText(
+				display ||
+					(isTelecel
+						? 'Enter the Telecel voucher from *110# to continue.'
+						: 'Enter the OTP sent to this number (new payee verification).')
+			);
+			setMobileStep('otp');
+			return;
+		}
+		setStatusText(display || fallbackPending);
+		setMobileStep('pending');
+	};
+
 	const handleMobileSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setSubmitError(null);
+		setStatusText('');
+		setOtp('');
 		const digitsOnly = phone.replace(/\D/g, '');
 		if (digitsOnly.length !== 10 || !network) {
-			setPhoneError('Phone number must be exactly 10 digits.');
+			setPhoneError(digitsOnly.length !== 10 ? 'Phone number must be exactly 10 digits.' : 'Select a mobile network.');
 			return;
 		}
 		setPhoneError(null);
@@ -108,16 +179,37 @@ export default function Payment() {
 				provider: network,
 				subscription_id: subscriptionIdForPayment
 			}).unwrap();
-			if (res?.transaction_ref) {
-				setPaymentReference(res.transaction_ref);
-				setMobileStep('pending');
-			} else {
+			const ref = res?.transaction_ref || res?.data?.transaction_ref;
+			if (!ref) {
 				setMobileStep('form');
 				setSubmitError(res?.message || 'Could not initiate mobile money payment. Please try again.');
+				return;
 			}
+			setPaymentReference(ref);
+			applyGatewayResult(res, 'Approve the MoMo prompt on your phone, then check status.');
 		} catch (err: any) {
 			setMobileStep('form');
 			setSubmitError(err?.data?.message || err?.data?.error || 'Could not initiate mobile money payment. Please try again.');
+		}
+	};
+
+	const handleSubmitOtp = async (e?: React.FormEvent) => {
+		e?.preventDefault();
+		if (!paymentReference) {
+			setSubmitError('Missing payment reference. Please initiate payment again.');
+			return;
+		}
+		const code = otp.trim();
+		if (!code) {
+			setSubmitError(isTelecel ? 'Enter the Telecel voucher from *110#.' : 'Enter the OTP from your phone.');
+			return;
+		}
+		setSubmitError(null);
+		try {
+			const res: any = await submitPaymentOtp({ reference: paymentReference, otp: code }).unwrap();
+			applyGatewayResult(res, 'OTP submitted — waiting for confirmation…');
+		} catch (err: any) {
+			setSubmitError(err?.data?.message || err?.data?.error || 'OTP failed. Check the code and try again.');
 		}
 	};
 
@@ -130,18 +222,17 @@ export default function Payment() {
 		verifyPayment(paymentReference)
 			.unwrap()
 			.then((res: any) => {
-				const status = String(res?.status || '').toLowerCase();
-				if (status === 'success' || status === 'completed') {
-					setMobileStep('success');
-					return;
+				const status = paymentGatewayStatus(res);
+				const display = res?.display_text || res?.data?.display_text;
+				applyGatewayResult(res, 'Payment is still pending. Approve on your phone and check again.');
+				if (
+					!isPaidStatus(status) &&
+					!isFailedStatus(status) &&
+					!needsOtp(status, display) &&
+					!isTelecel
+				) {
+					setSubmitError('Payment is still pending. Please approve on your phone and check again.');
 				}
-				if (status === 'failed' || status === 'error') {
-					setMobileStep('form');
-					setSubmitError('Payment failed. Please try again.');
-					return;
-				}
-				setMobileStep('pending');
-				setSubmitError('Payment is still pending. Please approve on your phone and check again.');
 			})
 			.catch((err: any) => {
 				setSubmitError(err?.data?.message || err?.data?.error || 'Unable to verify payment right now. Please try again.');
@@ -224,7 +315,11 @@ export default function Payment() {
 							<Box
 								component="button"
 								type="button"
-								onClick={() => { setTab('mobile'); setMobileStep('form'); }}
+								onClick={() => {
+									setTab('mobile');
+									resetMobileCheckout();
+									setSubmitError(null);
+								}}
 								className="flex items-center gap-3 w-full p-3 rounded-lg border transition-all outline-none cursor-pointer text-left"
 								sx={{
 									borderColor: tab === 'mobile' ? 'primary.main' : 'divider',
@@ -451,18 +546,98 @@ export default function Payment() {
 										<CircularProgress size={48} />
 										<Typography fontWeight="500">Waiting for payment confirmation…</Typography>
 										<Typography variant="body2" color="text.secondary">
-											Check your phone and approve the payment. If confirmation is delayed, use the button below to check status.
+											{statusText ||
+												'Check your phone and approve the payment. If confirmation is delayed, use the button below to check status.'}
 										</Typography>
-										<Button
-											variant="outlined"
-											color="primary"
-											onClick={handleCheckStatus}
-											disabled={verifying}
-											startIcon={<FuseSvgIcon size={18}>heroicons-outline:arrow-path</FuseSvgIcon>}
-										>
-											{verifying ? 'Checking...' : 'Check status'}
-										</Button>
+										<Box className="flex flex-wrap justify-center gap-2">
+											<Button
+												variant="outlined"
+												color="primary"
+												onClick={handleCheckStatus}
+												disabled={verifying || submittingOtp}
+												startIcon={<FuseSvgIcon size={18}>heroicons-outline:arrow-path</FuseSvgIcon>}
+											>
+												{verifying ? 'Checking...' : 'Check status'}
+											</Button>
+											<Button
+												variant="text"
+												color="inherit"
+												onClick={() => {
+													resetMobileCheckout();
+													setSubmitError(null);
+												}}
+												disabled={verifying || submittingOtp}
+											>
+												Start over
+											</Button>
+										</Box>
 									</Box>
+								)}
+								{mobileStep === 'otp' && (
+									<form onSubmit={handleSubmitOtp} className="flex flex-col gap-4">
+										<Alert severity="info">
+											{statusText ||
+												(isTelecel
+													? 'Telecel requires a voucher from *110# before the charge can complete.'
+													: 'This number needs a one-time OTP (common for first-time / new payees). Enter the code from your phone.')}
+										</Alert>
+										<TextField
+											label={isTelecel ? 'Telecel voucher (*110#)' : 'OTP code'}
+											value={otp}
+											onChange={(e) => setOtp(e.target.value)}
+											fullWidth
+											autoFocus
+											required
+											placeholder={isTelecel ? 'Voucher code' : '6-digit OTP'}
+											helperText={
+												paymentReference
+													? `Reference: ${paymentReference}`
+													: 'Submit the code to continue the MoMo charge.'
+											}
+											InputProps={{
+												startAdornment: (
+													<InputAdornment position="start">
+														<FuseSvgIcon size={20} color="action">
+															heroicons-outline:key
+														</FuseSvgIcon>
+													</InputAdornment>
+												)
+											}}
+										/>
+										<Button
+											type="submit"
+											variant="contained"
+											color="primary"
+											fullWidth
+											size="large"
+											disabled={submittingOtp || !otp.trim()}
+											startIcon={<FuseSvgIcon size={20}>heroicons-outline:check</FuseSvgIcon>}
+										>
+											{submittingOtp ? 'Submitting…' : isTelecel ? 'Submit voucher' : 'Submit OTP'}
+										</Button>
+										<Box className="flex flex-wrap gap-2">
+											<Button
+												variant="outlined"
+												color="primary"
+												onClick={handleCheckStatus}
+												disabled={verifying || submittingOtp}
+												startIcon={<FuseSvgIcon size={18}>heroicons-outline:arrow-path</FuseSvgIcon>}
+											>
+												{verifying ? 'Checking...' : 'Check status'}
+											</Button>
+											<Button
+												variant="text"
+												color="inherit"
+												onClick={() => {
+													resetMobileCheckout();
+													setSubmitError(null);
+												}}
+												disabled={verifying || submittingOtp}
+											>
+												Start over
+											</Button>
+										</Box>
+									</form>
 								)}
 								{mobileStep === 'success' && (
 									<Box className="py-8 flex flex-col items-center gap-4 text-center">

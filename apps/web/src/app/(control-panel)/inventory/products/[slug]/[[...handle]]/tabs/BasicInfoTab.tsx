@@ -1,4 +1,5 @@
 import { useEffect, useMemo, type ReactNode } from 'react';
+import { useParams } from 'next/navigation';
 import TextField from '@mui/material/TextField';
 import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
@@ -10,6 +11,8 @@ import { alpha } from '@mui/material/styles';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import { useGetProductCategoriesQuery } from '../../../../ECommerceApi';
+import { useGetWarehousesQuery } from '../../../../../setups/warehouses/WarehouseApi';
+import useUser from '@auth/useUser';
 
 type SectionCardProps = {
 	title: string;
@@ -58,15 +61,40 @@ function categoriesFormValueToOptions(raw: unknown, options: CategoryOption[]): 
 }
 
 function BasicInfoTab() {
+	const routeParams = useParams<{ slug: string }>();
+	const isNew = routeParams?.slug === 'new';
+	const { data: user } = useUser();
+	const homeStoreName = user?.warehouse?.name || 'your store';
 	const { data: categories } = useGetProductCategoriesQuery(null, { refetchOnMountOrArgChange: true });
+	const { data: warehouses = [] } = useGetWarehousesQuery(null, {
+		skip: !isNew,
+		refetchOnMountOrArgChange: true
+	});
 	const methods = useFormContext();
 	const { control, formState, setValue, getValues } = methods;
 	const { errors } = formState;
 	const productType = useWatch({ control, name: 'product_type' });
+	const allowsFractional = useWatch({ control, name: 'allows_fractional_qty' });
+	const warehouseQuantities = useWatch({ control, name: 'warehouse_quantities' }) as
+		| { warehouse_id?: string; quantity?: number | string }[]
+		| undefined;
 
 	const textFieldSx = {
 		'& .MuiOutlinedInput-root': { borderRadius: 2 }
 	};
+
+	const warehouseOptions = useMemo(() => {
+		if (!Array.isArray(warehouses)) return [];
+		return warehouses
+			.filter((w) => w != null && w.id != null)
+			.map((w) => ({
+				id: String(w.id),
+				name: String(w.name || 'Store'),
+				location: w.location ? String(w.location) : ''
+			}));
+	}, [warehouses]);
+
+	const multiStore = warehouseOptions.length > 1;
 
 	const categoryOptions = useMemo((): CategoryOption[] => {
 		if (!Array.isArray(categories)) return [];
@@ -74,6 +102,53 @@ function BasicInfoTab() {
 			.filter((ct: any) => ct != null && ct.id != null && ct.name != null)
 			.map((ct: any) => ({ id: ct.id, name: String(ct.name) }));
 	}, [categories]);
+
+	useEffect(() => {
+		if (!isNew || warehouseOptions.length === 0) return;
+		const existing = Array.isArray(getValues('warehouse_quantities'))
+			? (getValues('warehouse_quantities') as { warehouse_id?: string; quantity?: number | string }[])
+			: [];
+		const byId = new Map(
+			existing
+				.filter((row) => row?.warehouse_id)
+				.map((row) => [String(row.warehouse_id), Number(row.quantity) || 0])
+		);
+		const next = warehouseOptions.map((w) => ({
+			warehouse_id: w.id,
+			quantity: byId.has(w.id) ? Math.max(0, byId.get(w.id) || 0) : 0
+		}));
+		const sameLength = existing.length === next.length;
+		const sameIds =
+			sameLength && next.every((row, i) => String(existing[i]?.warehouse_id || '') === row.warehouse_id);
+		if (!sameIds) {
+			setValue('warehouse_quantities', next, { shouldDirty: false });
+		}
+	}, [isNew, warehouseOptions, getValues, setValue]);
+
+	const setWarehouseQty = (warehouseId: string, raw: string) => {
+		const current = Array.isArray(getValues('warehouse_quantities'))
+			? ([...(getValues('warehouse_quantities') as { warehouse_id?: string; quantity?: number | string }[])] as {
+					warehouse_id: string;
+					quantity: number | string;
+				}[])
+			: warehouseOptions.map((w) => ({ warehouse_id: w.id, quantity: 0 }));
+		const idx = current.findIndex((row) => String(row.warehouse_id) === warehouseId);
+		const quantity =
+			raw === '' ? '' : Number.isFinite(Number(raw)) ? Math.max(0, Number(raw)) : 0;
+		if (idx >= 0) {
+			current[idx] = { warehouse_id: warehouseId, quantity };
+		} else {
+			current.push({ warehouse_id: warehouseId, quantity });
+		}
+		setValue('warehouse_quantities', current, { shouldDirty: true, shouldValidate: true });
+		const total = current.reduce((sum, row) => sum + (Number(row.quantity) || 0), 0);
+		setValue('opening_quantity', total, { shouldDirty: true });
+	};
+
+	const qtyForWarehouse = (warehouseId: string) => {
+		const row = (warehouseQuantities || []).find((r) => String(r?.warehouse_id || '') === warehouseId);
+		return row?.quantity ?? 0;
+	};
 
 	useEffect(() => {
 		if (productType !== 'fabric') return;
@@ -96,7 +171,7 @@ function BasicInfoTab() {
 	}, [productType, getValues, setValue]);
 
 	return (
-		<>
+		<Box className="flex flex-col gap-4 sm:gap-5">
 		<SectionCard title="Product details" icon="heroicons-outline:cube">
 			<Box
 				sx={{
@@ -288,6 +363,141 @@ function BasicInfoTab() {
 			</Box>
 		</SectionCard>
 
+		{isNew ? (
+			<SectionCard title="Opening stock" icon="heroicons-outline:archive-box">
+				<Box className="flex flex-col gap-3">
+					<Typography variant="body2" color="text.secondary">
+						{multiStore ? (
+							<>
+								Enter how many units you already have at each store. Leave 0 for stores with no stock
+								yet. Ongoing restocks should still use Purchases or Adjustments.
+							</>
+						) : (
+							<>
+								Set how many units you already have at <strong>{homeStoreName}</strong>. Leave 0 if you
+								will receive stock later via purchase. Ongoing restocks should still use Purchases or
+								Adjustments.
+							</>
+						)}
+					</Typography>
+
+					{warehouseOptions.length === 0 ? (
+						<Typography variant="body2" color="text.secondary">
+							Loading stores…
+						</Typography>
+					) : (
+						<Box className="flex flex-col gap-2">
+							{multiStore ? (
+								<Box className="flex items-center justify-between px-1">
+									<Typography variant="caption" color="text.secondary">
+										Store
+									</Typography>
+									<Typography variant="caption" color="text.secondary">
+										Qty on hand
+									</Typography>
+								</Box>
+							) : null}
+							{warehouseOptions.map((w) => (
+								<Box
+									key={w.id}
+									className="flex items-center gap-3"
+									sx={{
+										border: '1px solid',
+										borderColor: 'divider',
+										borderRadius: 2,
+										px: 2,
+										py: 1.5
+									}}
+								>
+									<Box className="min-w-0 flex-1">
+										<Typography variant="body2" fontWeight={600} noWrap>
+											{w.name}
+										</Typography>
+										{w.location ? (
+											<Typography variant="caption" color="text.secondary" noWrap display="block">
+												{w.location}
+											</Typography>
+										) : null}
+									</Box>
+									<TextField
+										value={qtyForWarehouse(w.id)}
+										onChange={(e) => setWarehouseQty(w.id, e.target.value)}
+										label={multiStore ? undefined : 'Quantity on hand'}
+										type="number"
+										variant="outlined"
+										size="small"
+										sx={{
+											...textFieldSx,
+											width: multiStore ? 120 : '100%',
+											maxWidth: multiStore ? 140 : undefined,
+											flexShrink: 0
+										}}
+										inputProps={{
+											min: 0,
+											step: allowsFractional ? 0.01 : 1,
+											'aria-label': `Opening quantity for ${w.name}`
+										}}
+									/>
+								</Box>
+							))}
+						</Box>
+					)}
+				</Box>
+			</SectionCard>
+		) : null}
+
+		<SectionCard title="Description & categories" icon="heroicons-outline:document-text">
+			<Box className="flex flex-col gap-4">
+				<Controller
+					name="description"
+					control={control}
+					render={({ field }) => (
+						<TextField
+							{...field}
+							value={field.value ?? ''}
+							required
+							id="description"
+							label="Description"
+							type="text"
+							multiline
+							minRows={5}
+							variant="outlined"
+							fullWidth
+							sx={textFieldSx}
+						/>
+					)}
+				/>
+
+				<Controller
+					name="categories"
+					control={control}
+					render={({ field: { onChange, value } }) => (
+						<Autocomplete<CategoryOption, true>
+							multiple
+							options={categoryOptions}
+							value={categoriesFormValueToOptions(value, categoryOptions)}
+							onChange={(_, newValue) => {
+								onChange(newValue.map((c) => c.id));
+							}}
+							getOptionLabel={(option) => option.name}
+							isOptionEqualToValue={(a, b) => String(a.id) === String(b.id)}
+							fullWidth
+							renderInput={(params) => (
+								<TextField
+									{...params}
+									placeholder="Select categories"
+									label="Categories"
+									variant="outlined"
+									sx={textFieldSx}
+									InputLabelProps={{ shrink: true }}
+								/>
+							)}
+						/>
+					)}
+				/>
+			</Box>
+		</SectionCard>
+
 		<SectionCard title="Pay over time" icon="heroicons-outline:banknotes">
 			<Box className="flex flex-col gap-4">
 				<Controller
@@ -341,59 +551,7 @@ function BasicInfoTab() {
 				/>
 			</Box>
 		</SectionCard>
-
-		<SectionCard title="Description & categories" icon="heroicons-outline:document-text">
-			<Box className="flex flex-col gap-4">
-				<Controller
-					name="description"
-					control={control}
-					render={({ field }) => (
-						<TextField
-							{...field}
-							value={field.value ?? ''}
-							required
-							id="description"
-							label="Description"
-							type="text"
-							multiline
-							minRows={5}
-							variant="outlined"
-							fullWidth
-							sx={textFieldSx}
-						/>
-					)}
-				/>
-
-				<Controller
-					name="categories"
-					control={control}
-					render={({ field: { onChange, value } }) => (
-						<Autocomplete<CategoryOption, true>
-							multiple
-							options={categoryOptions}
-							value={categoriesFormValueToOptions(value, categoryOptions)}
-							onChange={(_, newValue) => {
-								onChange(newValue.map((c) => c.id));
-							}}
-							getOptionLabel={(option) => option.name}
-							isOptionEqualToValue={(a, b) => String(a.id) === String(b.id)}
-							fullWidth
-							renderInput={(params) => (
-								<TextField
-									{...params}
-									placeholder="Select categories"
-									label="Categories"
-									variant="outlined"
-									sx={textFieldSx}
-									InputLabelProps={{ shrink: true }}
-								/>
-							)}
-						/>
-					)}
-				/>
-			</Box>
-		</SectionCard>
-		</>
+		</Box>
 	);
 }
 

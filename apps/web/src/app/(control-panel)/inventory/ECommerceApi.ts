@@ -429,6 +429,10 @@ export type EcommerceProduct = {
 	taxRate: number;
 	comparedPrice: number;
 	quantity: number;
+	/** Opening stock on create (mapped to warehouse_quantities for opening_warehouse_id). */
+	opening_quantity?: number;
+	opening_warehouse_id?: string;
+	warehouse_quantities?: { warehouse_id: string; quantity: number }[];
 	inventory: number;
 	sku: string;
 	unit: string;

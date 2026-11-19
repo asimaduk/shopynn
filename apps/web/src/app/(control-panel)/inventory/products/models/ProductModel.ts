@@ -20,6 +20,10 @@ const ProductModel = (data: PartialDeep<EcommerceProduct>) =>
 		taxRate: 0,
 		comparedPrice: 0,
 		quantity: 0,
+		/** Opening stock on create (mapped to warehouse_quantities for opening_warehouse_id). */
+		opening_quantity: 0,
+		opening_warehouse_id: '',
+		warehouse_quantities: [] as { warehouse_id: string; quantity: number }[],
 		sku: '',
 		unit: 'units',
 		product_type: 'standard',

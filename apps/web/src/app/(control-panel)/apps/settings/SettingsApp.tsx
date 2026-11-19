@@ -22,8 +22,8 @@ function SettingsApp(props: SettingsAppProps) {
 					}
 				})}
 			/>
-			{/* Flex fill (not absolute inset-0) so DemoShopBanner above stays visible on mobile. */}
-			<div className="relative flex h-full min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
+			{/* Flow in MainLayout’s scroll slot (not absolute inset-0 over the demo banner). */}
+			<div className="relative w-full min-h-full">
 				<div className="mx-auto w-full max-w-5xl p-3 pb-16 md:p-8 lg:p-12">
 					<SettingsAppHeader className="mb-6 md:mb-8" />
 					{children}

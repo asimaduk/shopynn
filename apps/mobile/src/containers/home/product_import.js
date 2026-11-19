@@ -77,6 +77,13 @@ const ProductImport = ({ navigation }) => {
                 wholesale_price:
                     row.WholesalePrice || row.wholesale_price || row['Wholesale Price'] || '',
                 unit: row.Unit || row.unit || 'pcs',
+                quantity:
+                    row.Quantity ??
+                    row.quantity ??
+                    row['Opening Stock'] ??
+                    row['Opening stock'] ??
+                    row.opening_quantity ??
+                    0,
             }));
             setRows(mapped);
             setSelectedIndexes(mapped.map((_, idx) => idx)); // default select all
@@ -100,11 +107,14 @@ const ProductImport = ({ navigation }) => {
                 if (!row.name || !row.retail_price) {
                     continue;
                 }
+                const openingRaw = Number(row.quantity);
+                const openingQty = Number.isFinite(openingRaw) ? Math.max(0, openingRaw) : 0;
+                const unitPrice = parseFloat(row.retail_price) || 0;
                 const payload = {
                     name: String(row.name).trim(),
-                    description: '',
-                    retail_price: parseFloat(row.retail_price) || 0,
-                    wholesale_price: row.wholesale_price
+                    description: '-',
+                    unit_price: unitPrice,
+                    alt_price: row.wholesale_price
                         ? parseFloat(row.wholesale_price) || null
                         : null,
                     sku: String(row.sku || '').trim(),
@@ -112,11 +122,10 @@ const ProductImport = ({ navigation }) => {
                     batch_number: null,
                     expiry_date: null,
                     reorder_quantity: null,
-                    tags: '',
-                    initial_stock: 0,
+                    tags: [],
+                    opening_quantity: openingQty,
                     unit: String(row.unit || 'pcs').trim(),
                     categories: [],
-                    images: [],
                 };
                 await productsApi.create(payload);
             }
@@ -166,7 +175,7 @@ const ProductImport = ({ navigation }) => {
                         style={{ marginTop: 2 }}
                     />
                     <AppText
-                        label={`Retail: ${item.retail_price || '-'} · Unit: ${item.unit || 'pcs'}`}
+                        label={`Retail: ${item.retail_price || '-'} · Qty: ${item.quantity ?? 0} · Unit: ${item.unit || 'pcs'}`}
                         color={colors.textTertiary}
                         fontSize={11}
                         style={{ marginTop: 2 }}
@@ -214,6 +223,7 @@ const ProductImport = ({ navigation }) => {
                             { col: 'RetailPrice', required: 'Yes', example: '5.50' },
                             { col: 'WholesalePrice', required: 'No', example: '4.20' },
                             { col: 'Unit', required: 'No', example: 'pcs' },
+                            { col: 'Quantity', required: 'No', example: '24' },
                         ].map((row) => (
                             <View
                                 key={row.col}

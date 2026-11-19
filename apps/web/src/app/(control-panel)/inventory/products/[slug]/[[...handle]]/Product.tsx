@@ -19,7 +19,7 @@ import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import PageBreadcrumb from 'src/components/PageBreadcrumb';
 import FuseTabs from 'src/components/tabs/FuseTabs';
 import FuseTab from 'src/components/tabs/FuseTab';
-import ProductHeader from './ProductHeader';
+import ProductHeader, { ProductFormFooter } from './ProductHeader';
 import BasicInfoTab from './tabs/BasicInfoTab';
 import PricingTab from './tabs/PricingTab';
 import ProductImagesTab from './tabs/ProductImagesTab';
@@ -171,7 +171,7 @@ function Product() {
 										: `0 20px 40px ${alpha(theme.palette.common.black, 0.06)}, 0 0 1px ${alpha(theme.palette.common.black, 0.08)}`
 							}}
 						>
-							<ProductHeader updateProcessing={updateProcessing} product={product} />
+							<ProductHeader product={product} />
 
 							<Box
 								sx={{
@@ -203,6 +203,8 @@ function Product() {
 									<PricingTab />
 								</div>
 							</Box>
+
+							<ProductFormFooter updateProcessing={updateProcessing} product={product} />
 						</Paper>
 					</motion.div>
 				</Box>
