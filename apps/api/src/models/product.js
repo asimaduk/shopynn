@@ -5,6 +5,8 @@ import {
 } from "./transfer.js";
 import { deleteS3Objects, keyHasPrefix, tenantImagePrefix } from "../util/s3Delete.js";
 import { normalizeProductRow, toNum } from "../util/productNormalize.js";
+import { defaultMinimumStockLevel } from "../util/reorderLevel.js";
+import { normalizeReferenceCode } from "../constants/referenceCode.js";
 
 export const getAllProductsCountService = async (user) => {
     const result = await pool.query(`SELECT COUNT(id) FROM products WHERE tenant_id = $1`, [user.tenant_id]);
@@ -668,11 +670,296 @@ export const createProductService = async (payload) => {
                 new Date(),
             ]
         );
+        if (qty > 0) {
+            await logOpeningStockMovement({
+                product_id: id,
+                warehouse_id: whId,
+                quantity: qty,
+                system_quantity: 0,
+                tenant_id,
+                creator_id,
+            });
+        }
     }
 
     const newProduct = result.rows[0];
     return newProduct;
 }
+
+async function resolveImportWarehouseId({
+    tenant_id,
+    store_code,
+    store,
+    warehouse_id,
+    fallback_warehouse_id,
+}) {
+    const explicitId = String(warehouse_id || "").trim();
+    if (explicitId) {
+        const owned = await pool.query(
+            `SELECT id FROM warehouses WHERE id = $1 AND tenant_id = $2 LIMIT 1`,
+            [explicitId, tenant_id]
+        );
+        if (!owned.rowCount) {
+            const err = new Error("Store was not found in your shop.");
+            err.status = 400;
+            throw err;
+        }
+        return owned.rows[0].id;
+    }
+
+    const rawCode = String(store_code || store || "").trim();
+    if (rawCode) {
+        const normalized = normalizeReferenceCode(rawCode);
+        if (normalized) {
+            const byCode = await pool.query(
+                `SELECT warehouse_id
+                 FROM warehouse_reference_codes
+                 WHERE tenant_id = $1
+                   AND lower(reference_code) = lower($2)
+                   AND coalesce(is_active, true) = true
+                 LIMIT 1`,
+                [tenant_id, normalized]
+            );
+            if (byCode.rowCount) return byCode.rows[0].warehouse_id;
+        }
+
+        const byName = await pool.query(
+            `SELECT id
+             FROM warehouses
+             WHERE tenant_id = $1 AND lower(name) = lower($2)
+             LIMIT 1`,
+            [tenant_id, rawCode]
+        );
+        if (byName.rowCount) return byName.rows[0].id;
+
+        // Also try raw lowercased code even if it failed pattern validation length-wise
+        // (e.g. short internal labels) against reference_codes table.
+        const byRawCode = await pool.query(
+            `SELECT warehouse_id
+             FROM warehouse_reference_codes
+             WHERE tenant_id = $1
+               AND lower(reference_code) = lower($2)
+               AND coalesce(is_active, true) = true
+             LIMIT 1`,
+            [tenant_id, rawCode.toLowerCase()]
+        );
+        if (byRawCode.rowCount) return byRawCode.rows[0].warehouse_id;
+
+        const err = new Error(
+            `Unknown store "${rawCode}". Use a store reference code or exact store name from your shop.`
+        );
+        err.status = 400;
+        throw err;
+    }
+
+    const fallback = String(fallback_warehouse_id || "").trim();
+    if (!fallback) {
+        const err = new Error("No store was provided for opening stock.");
+        err.status = 400;
+        throw err;
+    }
+    return fallback;
+}
+
+async function findProductBySkuService(tenant_id, sku) {
+    const normalized = normalizeSku(sku);
+    if (!normalized) return null;
+    const result = await pool.query(
+        `SELECT id, name, sku
+         FROM products
+         WHERE tenant_id = $1 AND lower(sku) = lower($2)
+         LIMIT 1`,
+        [tenant_id, normalized]
+    );
+    return result.rows[0] || null;
+}
+
+/**
+ * Audit-only opening-stock movement (does not change inventory — caller already did).
+ * Shows up in product transactions as type 2 / Opening.
+ */
+async function logOpeningStockMovement({
+    product_id,
+    warehouse_id,
+    quantity,
+    system_quantity = null,
+    tenant_id,
+    creator_id,
+    db = pool,
+}) {
+    const qty = Number(quantity);
+    if (!product_id || !warehouse_id || !tenant_id || !Number.isFinite(qty) || qty <= 0) {
+        return null;
+    }
+    const now = new Date();
+    const adjustmentId = uuidv4();
+    const detailId = uuidv4();
+    await db.query(
+        `INSERT INTO adjustments (
+            id, number_of_items, total_amount, reference_number, tenant_id, warehouse_id, notes, creator_id, created_at
+         ) VALUES ($1, 1, 0, NULL, $2, $3, $4, $5, $6)`,
+        [adjustmentId, tenant_id, warehouse_id, "Opening stock", creator_id || null, now]
+    );
+    await db.query(
+        `INSERT INTO adjustmentdetails (
+            id, adjustment_id, product_id, quantity, system_quantity, adjustment_type, category, comment, created_at
+         ) VALUES ($1, $2, $3, $4, $5, 'addition', NULL, $6, $7)`,
+        [detailId, adjustmentId, product_id, qty, system_quantity, "Opening stock", now]
+    );
+    return { adjustment_id: adjustmentId, detail_id: detailId };
+}
+
+/**
+ * Add opening stock for an existing product at one warehouse.
+ * Inserts an inventory row when missing; otherwise adds to quantity_available.
+ */
+export const addProductOpeningStockService = async ({
+    product_id,
+    warehouse_id,
+    quantity,
+    tenant_id,
+    creator_id,
+    reorder_quantity = 0,
+}) => {
+    const qtyRaw = Number(quantity);
+    const qty = Number.isFinite(qtyRaw) ? Math.max(0, qtyRaw) : 0;
+    if (!product_id || !warehouse_id || !tenant_id) {
+        const err = new Error("product_id, warehouse_id, and tenant_id are required.");
+        err.status = 400;
+        throw err;
+    }
+
+    const existing = await pool.query(
+        `SELECT id, quantity_available
+         FROM inventories
+         WHERE product_id = $1 AND warehouse_id = $2 AND tenant_id = $3
+         LIMIT 1`,
+        [product_id, warehouse_id, tenant_id]
+    );
+
+    if (existing.rowCount) {
+        if (qty <= 0) {
+            return {
+                inventory_id: existing.rows[0].id,
+                quantity_available: Number(existing.rows[0].quantity_available) || 0,
+                added: 0,
+            };
+        }
+        const systemQuantity = Number(existing.rows[0].quantity_available) || 0;
+        const updated = await pool.query(
+            `UPDATE inventories
+             SET quantity_available = quantity_available + $1, updated_at = $2
+             WHERE id = $3
+             RETURNING id, quantity_available`,
+            [qty, new Date(), existing.rows[0].id]
+        );
+        await logOpeningStockMovement({
+            product_id,
+            warehouse_id,
+            quantity: qty,
+            system_quantity: systemQuantity,
+            tenant_id,
+            creator_id,
+        });
+        return {
+            inventory_id: updated.rows[0].id,
+            quantity_available: Number(updated.rows[0].quantity_available) || 0,
+            added: qty,
+        };
+    }
+
+    if (qty <= 0) {
+        return { inventory_id: null, quantity_available: 0, added: 0 };
+    }
+
+    const invId = uuidv4();
+    const minLevel =
+        Number(reorder_quantity) ||
+        (await defaultMinimumStockLevel(pool, tenant_id, product_id)) ||
+        0;
+    await pool.query(
+        `INSERT INTO inventories (
+            id, quantity_available, minimum_stock_level, product_id, warehouse_id,
+            creator_id, tenant_id, created_at, updated_at
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)`,
+        [invId, qty, minLevel, product_id, warehouse_id, creator_id, tenant_id, new Date()]
+    );
+    await logOpeningStockMovement({
+        product_id,
+        warehouse_id,
+        quantity: qty,
+        system_quantity: 0,
+        tenant_id,
+        creator_id,
+    });
+    return { inventory_id: invId, quantity_available: qty, added: qty };
+};
+
+/**
+ * Bulk-import one sheet row: create product if SKU is new, otherwise add opening stock
+ * at the resolved store for the existing product.
+ */
+export const importProductRowService = async (payload) => {
+    const tenant_id = payload.tenant_id;
+    const creator_id = payload.creator_id;
+    const openingQty = Number(payload.opening_quantity ?? payload.quantity ?? 0);
+    const quantity = Number.isFinite(openingQty) ? Math.max(0, openingQty) : 0;
+
+    const warehouseId = await resolveImportWarehouseId({
+        tenant_id,
+        store_code: payload.store_code ?? payload.StoreCode ?? payload.storeCode,
+        store: payload.store ?? payload.Store ?? payload.warehouse_name,
+        warehouse_id: payload.import_warehouse_id,
+        fallback_warehouse_id: payload.warehouse_id,
+    });
+
+    const sku = normalizeSku(payload.sku);
+    if (!sku) {
+        const err = new Error("SKU is required for bulk import.");
+        err.status = 400;
+        throw err;
+    }
+
+    const existing = await findProductBySkuService(tenant_id, sku);
+    if (existing) {
+        const stock = await addProductOpeningStockService({
+            product_id: existing.id,
+            warehouse_id: warehouseId,
+            quantity,
+            tenant_id,
+            creator_id,
+            reorder_quantity: payload.reorder_quantity,
+        });
+        return {
+            id: existing.id,
+            sku: existing.sku,
+            created: false,
+            stock_added: stock.added,
+            warehouse_id: warehouseId,
+            message:
+                stock.added > 0
+                    ? "Opening stock added to existing product."
+                    : "Product already exists; no stock change.",
+        };
+    }
+
+    const created = await createProductService({
+        ...payload,
+        sku,
+        warehouse_id: warehouseId,
+        opening_quantity: quantity,
+        warehouse_quantities: [{ warehouse_id: warehouseId, quantity }],
+    });
+
+    return {
+        id: created.id,
+        sku,
+        created: true,
+        stock_added: quantity,
+        warehouse_id: warehouseId,
+        message: "Product created with opening stock.",
+    };
+};
 
 export const updateProductService = async (payload) => {
     const { id } = payload;

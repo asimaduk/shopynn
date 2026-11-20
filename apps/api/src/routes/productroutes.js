@@ -1,5 +1,5 @@
 import express from "express";
-import { createProduct, getAllProducts, getProductsByCategory, updateProduct, updateProductImages, uploadProductImages, changeProductPrice, getProductById, deleteProduct, getProductBySlug, changeProductStatus, getAllTransfers, createTransfer, receiveTransfer, getAllTransferById, getAllProductsCount, getProductsForExport, getCatalog, getCatalogProductById } from "../controllers/product.js";
+import { createProduct, importProductRow, getAllProducts, getProductsByCategory, updateProduct, updateProductImages, uploadProductImages, changeProductPrice, getProductById, deleteProduct, getProductBySlug, changeProductStatus, getAllTransfers, createTransfer, receiveTransfer, getAllTransferById, getAllProductsCount, getProductsForExport, getCatalog, getCatalogProductById } from "../controllers/product.js";
 import { uploadImages } from "../controllers/image.js";
 import { requireAnyPermission, requirePermission } from "../middleware/requirePermission.js";
 import requireFeature from "../middleware/requireFeature.js";
@@ -8,6 +8,7 @@ import { blockDemoSensitive } from "../middleware/blockDemoSensitive.js";
 const router = express.Router();
 
 router.post("/", requirePermission("products.create"), createProduct);
+router.post("/import-row", requirePermission("products.create"), importProductRow);
 router.put("/toggle-status", requirePermission("products.toggle_status"), changeProductStatus);
 router.post("/change-price", requirePermission("products.change_price"), changeProductPrice);
 router.get("/", requirePermission("products.view"), getAllProducts);

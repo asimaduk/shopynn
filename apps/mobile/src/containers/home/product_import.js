@@ -84,6 +84,18 @@ const ProductImport = ({ navigation }) => {
                     row['Opening stock'] ??
                     row.opening_quantity ??
                     0,
+                store_code: String(
+                    row.StoreCode ||
+                        row.store_code ||
+                        row['Store Code'] ||
+                        row.Store ||
+                        row.store ||
+                        row.Warehouse ||
+                        row.warehouse ||
+                        row.Reference ||
+                        row.reference_code ||
+                        ''
+                ).trim(),
             }));
             setRows(mapped);
             setSelectedIndexes(mapped.map((_, idx) => idx)); // default select all
@@ -110,6 +122,11 @@ const ProductImport = ({ navigation }) => {
                 const openingRaw = Number(row.quantity);
                 const openingQty = Number.isFinite(openingRaw) ? Math.max(0, openingRaw) : 0;
                 const unitPrice = parseFloat(row.retail_price) || 0;
+                const sku = String(row.sku || '').trim();
+                if (!sku) {
+                    continue;
+                }
+                const storeCode = String(row.store_code || '').trim();
                 const payload = {
                     name: String(row.name).trim(),
                     description: '-',
@@ -117,7 +134,7 @@ const ProductImport = ({ navigation }) => {
                     alt_price: row.wholesale_price
                         ? parseFloat(row.wholesale_price) || null
                         : null,
-                    sku: String(row.sku || '').trim(),
+                    sku,
                     bar_code: String(row.barcode || '').trim() || null,
                     batch_number: null,
                     expiry_date: null,
@@ -126,8 +143,9 @@ const ProductImport = ({ navigation }) => {
                     opening_quantity: openingQty,
                     unit: String(row.unit || 'pcs').trim(),
                     categories: [],
+                    store_code: storeCode || undefined,
                 };
-                await productsApi.create(payload);
+                await productsApi.importRow(payload);
             }
             AppAlert.alert('Imported', 'Selected products have been imported.', [
                 { text: 'OK', onPress: () => navigation.goBack() },
@@ -175,7 +193,7 @@ const ProductImport = ({ navigation }) => {
                         style={{ marginTop: 2 }}
                     />
                     <AppText
-                        label={`Retail: ${item.retail_price || '-'} · Qty: ${item.quantity ?? 0} · Unit: ${item.unit || 'pcs'}`}
+                        label={`Retail: ${item.retail_price || '-'} · Qty: ${item.quantity ?? 0} · Store: ${item.store_code || 'Current'} · Unit: ${item.unit || 'pcs'}`}
                         color={colors.textTertiary}
                         fontSize={11}
                         style={{ marginTop: 2 }}
@@ -196,7 +214,7 @@ const ProductImport = ({ navigation }) => {
                         label={
                             fileName
                                 ? `Selected file: ${fileName}`
-                                : 'Upload an Excel (.xlsx, .xls) or CSV file with product data.'
+                                : 'Upload an Excel (.xlsx, .xls) or CSV file with product data. Optional StoreCode targets opening stock; same SKU on another store adds stock instead of duplicating the product.'
                         }
                         color={colors.text}
                         fontSize={13}
@@ -218,12 +236,13 @@ const ProductImport = ({ navigation }) => {
                         </View>
                         {[
                             { col: 'Name', required: 'Yes', example: 'Coca Cola 330ml' },
-                            { col: 'SKU', required: 'No', example: 'CC-330-01' },
+                            { col: 'SKU', required: 'Yes', example: 'CC-330-01' },
                             { col: 'Barcode', required: 'No', example: '8901234567890' },
                             { col: 'RetailPrice', required: 'Yes', example: '5.50' },
                             { col: 'WholesalePrice', required: 'No', example: '4.20' },
                             { col: 'Unit', required: 'No', example: 'pcs' },
                             { col: 'Quantity', required: 'No', example: '24' },
+                            { col: 'StoreCode', required: 'No', example: 'accra-main' },
                         ].map((row) => (
                             <View
                                 key={row.col}

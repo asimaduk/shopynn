@@ -500,6 +500,8 @@ export const products = {
         }
     },
     create: (body) => axios.post('/products', body).then((res) => getData(res)),
+    /** Bulk sheet row: create product or add opening stock to an existing SKU at a store. */
+    importRow: (body) => axios.post('/products/import-row', body).then((res) => getData(res)),
     update: (id, body) => axios.put(`/products/${id}`, body).then((res) => getData(res)),
     /** Body: { id, thumbnail, picture1, picture2, picture3, picture4 } — use null to clear a slot */
     updateImages: (body) => axios.post('/products/update-images', body).then((res) => getData(res)),

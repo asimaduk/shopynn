@@ -1,4 +1,4 @@
-import { createProductService, deleteProductService, getAllProductsService, getProductsByCategoryService, getProductByIdService, getProductBySlugService, updateProductImagesService, updateProductService, toggleProductStatusService, changeProductPriceService, getAllTransfersService, createTransferService, getTransferByIdService, getAllProductsCountService, getProductsForExportService, getCatalogService, getCatalogProductByIdService } from "../models/product.js";
+import { createProductService, deleteProductService, getAllProductsService, getProductsByCategoryService, getProductByIdService, getProductBySlugService, updateProductImagesService, updateProductService, toggleProductStatusService, changeProductPriceService, getAllTransfersService, createTransferService, getTransferByIdService, getAllProductsCountService, getProductsForExportService, getCatalogService, getCatalogProductByIdService, importProductRowService } from "../models/product.js";
 import { receiveTransferService } from "../models/transfer.js";
 import { createAuditLogService } from "../models/auditLog.js";
 import { handleResponse } from "../util/handleresponse.js";
@@ -13,6 +13,19 @@ export const createProduct = async (req, res, next) => {
         const newProduct = await createProductService(req.body);
         handleResponse(res, 201, "Product creation success.", newProduct);
     } catch (error) {
+        next(error);
+    }
+}
+
+/** Bulk sheet row: create product or add opening stock to an existing SKU at a store. */
+export const importProductRow = async (req, res, next) => {
+    try {
+        const result = await importProductRowService(req.body);
+        handleResponse(res, result.created ? 201 : 200, result.message, result);
+    } catch (error) {
+        if (error?.status) {
+            return handleResponse(res, error.status, error.message);
+        }
         next(error);
     }
 }

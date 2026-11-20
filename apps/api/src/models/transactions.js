@@ -55,6 +55,56 @@ const buildPurchaseDetailsWhere = (tenant_id, productSlug, startDate, endDate, p
 const saleDetailsSelect = "SELECT saledetails.id, saledetails.sale_id, saledetails.product_id, saledetails.quantity, saledetails.created_at, saledetails.unit_price, sales.invoice_number, products.name, products.thumbnail, warehouses.name as warehouse, users.first_name, users.last_name FROM saledetails LEFT JOIN sales ON saledetails.sale_id = sales.id LEFT JOIN products ON saledetails.product_id = products.id LEFT JOIN warehouses ON saledetails.warehouse_id = warehouses.id LEFT JOIN users ON saledetails.creator_id = users.id";
 const purchaseDetailsSelect = "SELECT purchasedetails.id, purchasedetails.purchase_id, purchasedetails.product_id, purchasedetails.quantity, purchasedetails.created_at, purchasedetails.unit_price, purchases.invoice_number, products.name, products.thumbnail, warehouses.name as warehouse, users.first_name, users.last_name FROM purchasedetails LEFT JOIN purchases ON purchasedetails.purchase_id = purchases.id LEFT JOIN products ON purchasedetails.product_id = products.id LEFT JOIN warehouses ON purchasedetails.warehouse_id = warehouses.id LEFT JOIN users ON purchasedetails.creator_id = users.id";
 
+const buildOpeningStockWhere = (tenant_id, productSlug, startDate, endDate, productNameSearch, productId) => {
+    const conditions = [
+        "a.tenant_id = $1",
+        "ad.adjustment_type = 'addition'",
+        "(ad.comment ILIKE 'Opening stock%' OR a.notes ILIKE 'Opening stock%')",
+    ];
+    const params = [tenant_id];
+    let i = 2;
+
+    if (productId) {
+        conditions.push(`ad.product_id = $${i++}`);
+        params.push(productId);
+    }
+    if (productSlug) {
+        conditions.push(`products.slug = $${i++}`);
+        params.push(productSlug);
+    }
+    if (startDate && endDate) {
+        conditions.push(`ad.created_at BETWEEN $${i} AND $${i + 1}`);
+        params.push(startDate, endDate);
+        i += 2;
+    }
+    if (productNameSearch && String(productNameSearch).trim()) {
+        conditions.push(`products.name ILIKE $${i++}`);
+        params.push(`%${String(productNameSearch).trim()}%`);
+    }
+
+    return { where: conditions.join(" AND "), params };
+};
+
+const openingStockSelect = `SELECT
+    ad.id,
+    a.id AS adjustment_id,
+    ad.product_id,
+    ad.quantity,
+    ad.created_at,
+    COALESCE(products.unit_price, 0) AS unit_price,
+    COALESCE(a.reference_number, 'Opening') AS invoice_number,
+    products.name,
+    products.thumbnail,
+    warehouses.name AS warehouse,
+    users.first_name,
+    users.last_name,
+    a.notes
+ FROM adjustmentdetails ad
+ JOIN adjustments a ON a.id = ad.adjustment_id
+ LEFT JOIN products ON ad.product_id = products.id
+ LEFT JOIN warehouses ON a.warehouse_id = warehouses.id
+ LEFT JOIN users ON a.creator_id = users.id`;
+
 export const getAllTransactionsService = async (productSlug, startDate, endDate, tenant_id, requestQuery = {}) => {
     // console.log('requestQuery',requestQuery);
     const productNameSearch = requestQuery?.name ?? requestQuery?.search ?? requestQuery?.q;
@@ -62,9 +112,11 @@ export const getAllTransactionsService = async (productSlug, startDate, endDate,
     const arr = [];
     const saleWhere = buildSaleDetailsWhere(tenant_id, productSlug, startDate, endDate, productNameSearch, productId);
     const purchaseWhere = buildPurchaseDetailsWhere(tenant_id, productSlug, startDate, endDate, productNameSearch, productId);
+    const openingWhere = buildOpeningStockWhere(tenant_id, productSlug, startDate, endDate, productNameSearch, productId);
 
     let result1 = [];
     let result2 = [];
+    let result3 = [];
 
     if (requestQuery.type === 'all' || requestQuery.type === 'sale') {
         result1 = await pool.query(`${saleDetailsSelect} WHERE ${saleWhere.where}`, saleWhere.params);
@@ -77,6 +129,16 @@ export const getAllTransactionsService = async (productSlug, startDate, endDate,
         result2 = await pool.query(`${purchaseDetailsSelect} WHERE ${purchaseWhere.where}`, purchaseWhere.params);
         if (result2.rowCount > 0) {
             arr.push(...result2.rows.map((r) => ({ ...r, type: 1 })));
+        }
+        result3 = await pool.query(`${openingStockSelect} WHERE ${openingWhere.where}`, openingWhere.params);
+        if (result3.rowCount > 0) {
+            arr.push(
+                ...result3.rows.map((r) => ({
+                    ...r,
+                    type: 2,
+                    notes: r.notes || "Opening stock",
+                }))
+            );
         }
     }
 

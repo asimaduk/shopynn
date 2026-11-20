@@ -77,7 +77,16 @@ function toDisplayTransaction(t) {
     if (!t) return null;
     const type = `${t.type}`.toLowerCase();
     const isSale = type === '0' || type === 0 || type === 'sale' || type == 0;
-    const displayType = isSale ? 'sale' : 'stock_in';
+    const isOpening =
+        type === '2' ||
+        type == 2 ||
+        type === 'opening' ||
+        String(t.notes || t.note || '')
+            .toLowerCase()
+            .startsWith('opening stock') ||
+        String(t.invoice_number || '')
+            .toLowerCase() === 'opening';
+    const displayType = isSale ? 'sale' : isOpening ? 'opening' : 'stock_in';
     const rawDate = t.created_at;
     const dateObj = rawDate ? new Date(rawDate) : new Date();
     const dateStr = isNaN(dateObj.getTime())
@@ -98,8 +107,8 @@ function toDisplayTransaction(t) {
         _amount: amountNum,
         date: dateStr,
         user: userName || '—',
-        notes: t.notes || t.note || '',
-        invoice_number: t.invoice_number || t.invoiceNumber || t.id || '—',
+        notes: t.notes || t.note || (isOpening ? 'Opening stock' : ''),
+        invoice_number: t.invoice_number || t.invoiceNumber || (isOpening ? 'Opening' : t.id) || '—',
         warehouse: t.warehouse || '',
     };
 }
@@ -176,7 +185,10 @@ const ProductTransactions = ({ navigation, route }) => {
             });
         }
         if (typeFilter !== 'all') {
-            result = result.filter((t) => t.type === typeFilter);
+            result = result.filter((t) => {
+                if (typeFilter === 'stock_in') return t.type === 'stock_in' || t.type === 'opening';
+                return t.type === typeFilter;
+            });
         }
         return result;
     }, [data, searchQuery, typeFilter]);
@@ -184,7 +196,7 @@ const ProductTransactions = ({ navigation, route }) => {
     // Summary stats — quantity-first (this screen is about stock movement)
     const summary = useMemo(() => {
         const sales = filteredData.filter((t) => t.type === 'sale');
-        const purchases = filteredData.filter((t) => t.type === 'stock_in');
+        const purchases = filteredData.filter((t) => t.type === 'stock_in' || t.type === 'opening');
         const soldQty = sales.reduce((sum, t) => sum + (Number(t._quantity) || 0), 0);
         const boughtQty = purchases.reduce((sum, t) => sum + (Number(t._quantity) || 0), 0);
         const salesTotal = sales.reduce((sum, t) => sum + (Number(t._amount) || 0), 0);
@@ -413,7 +425,8 @@ const ProductTransactions = ({ navigation, route }) => {
 
         filteredData.forEach((item) => {
             const typeClass = item.type === 'sale' ? 'type-sale' : 'type-stock_in';
-            const typeLabel = item.type === 'sale' ? 'Sale' : 'Stock In';
+            const typeLabel =
+                item.type === 'sale' ? 'Sale' : item.type === 'opening' ? 'Opening' : 'Stock In';
             html += `
             <tr>
                 <td>${escapeHtml(item.id || '')}</td>
@@ -431,7 +444,7 @@ const ProductTransactions = ({ navigation, route }) => {
 
         // Calculate summary
         const sales = filteredData.filter((t) => t.type === 'sale');
-        const stockIn = filteredData.filter((t) => t.type === 'stock_in');
+        const stockIn = filteredData.filter((t) => t.type === 'stock_in' || t.type === 'opening');
         const salesTotal = sales.reduce((sum, t) => sum + (Number(t._amount) || 0), 0);
         const stockInTotal = stockIn.reduce((sum, t) => sum + (Number(t._amount) || 0), 0);
 

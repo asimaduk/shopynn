@@ -43,27 +43,48 @@ function TransactionsTable({ transactions }: Props) {
 			{
 				accessorKey: 'type',
 				header: 'Type',
-				accessorFn: (row) => (
-					<div className="flex items-center">
-						{row.type === 1 ? (
-							<FuseSvgIcon className="text-green-500" size={20}>
-								heroicons-outline:check-circle
-							</FuseSvgIcon>
-						) : (
+				accessorFn: (row) => {
+					const t = Number(row.type);
+					if (t === 2) {
+						return (
+							<div className="flex items-center">
+								<FuseSvgIcon className="text-green-500" size={20}>
+									heroicons-outline:archive-box
+								</FuseSvgIcon>
+								<span className="ml-4">Opening</span>
+							</div>
+						);
+					}
+					if (t === 1) {
+						return (
+							<div className="flex items-center">
+								<FuseSvgIcon className="text-green-500" size={20}>
+									heroicons-outline:check-circle
+								</FuseSvgIcon>
+								<span className="ml-4">Received</span>
+							</div>
+						);
+					}
+					return (
+						<div className="flex items-center">
 							<FuseSvgIcon className="text-red-500" size={20}>
 								heroicons-outline:minus-circle
 							</FuseSvgIcon>
-						)}
-						{row.type === 1 ? <span className="ml-4">Received</span> : <span className="ml-4">Sold</span>}
-					</div>
-				)
+							<span className="ml-4">Sold</span>
+						</div>
+					);
+				}
 			},
 			{
 				accessorKey: 'name',
 				header: 'Name',
 				Cell: ({ row }) => {
+					const t = Number(row.original.type);
+					if (t === 2) {
+						return <span>{row.original.name}</span>;
+					}
 					const href =
-						row.original.type === 1
+						t === 1
 							? `/trading/purchases/${row.original.purchase_id}`
 							: `/trading/sales/${row.original.sale_id}`;
 					return (

@@ -8,13 +8,14 @@ import { formatCurrency } from '../../utils/format';
 
 const TransactionItem = ({ item, onPress }) => {
     const { colors } = useTheme();
+    const isOpening = item.type === 'opening';
     const isPurchase = item.type === 'stock_in' || item.type === 'purchase';
-    const typeLabel = isPurchase ? 'Purchase' : 'Sale';
-    const typeColor = isPurchase ? (config.GREEN_COLOR || colors.success) : colors.error;
-    const typeBg = isPurchase ? colors.successLight : colors.errorLight;
+    const typeLabel = isOpening ? 'Opening' : isPurchase ? 'Purchase' : 'Sale';
+    const typeColor = isOpening || isPurchase ? (config.GREEN_COLOR || colors.success) : colors.error;
+    const typeBg = isOpening || isPurchase ? colors.successLight : colors.errorLight;
     const qtyNum = Number(String(item.quantity).replace(/[^0-9.-]/g, ''));
     const qtyAbs = formatQty(item.quantity);
-    const qtyLabel = `${isPurchase ? '+' : '−'}${qtyAbs}`;
+    const qtyLabel = `${isOpening || isPurchase ? '+' : '−'}${qtyAbs}`;
     const unitLabel = qtyNum === 1 ? 'unit' : 'units';
     const unitPrice = Number(item.unit_price);
     const unitPriceLabel = Number.isFinite(unitPrice) ? formatCurrency(unitPrice) : null;
@@ -30,7 +31,11 @@ const TransactionItem = ({ item, onPress }) => {
         >
             <View style={styles.topRow}>
                 <View style={[styles.typePill, { backgroundColor: typeBg }]}>
-                    <Lucide name={isPurchase ? 'truck' : 'shopping-cart'} size={14} color={typeColor} />
+                    <Lucide
+                        name={isOpening ? 'archive' : isPurchase ? 'truck' : 'shopping-cart'}
+                        size={14}
+                        color={typeColor}
+                    />
                     <AppText label={typeLabel} fontSize={12} variant={1} color={typeColor} style={{ marginLeft: 5 }} />
                 </View>
                 <View style={styles.qtyBlock}>

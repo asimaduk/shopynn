@@ -46,6 +46,13 @@ function rowKind(t: ProductTransaction): 'sale' | 'stock_in' {
 	return Number(t.type) === 0 ? 'sale' : 'stock_in';
 }
 
+function rowTypeLabel(t: ProductTransaction): string {
+	const n = Number(t.type);
+	if (n === 2) return 'Opening';
+	if (n === 1) return 'Stock In';
+	return 'Sale';
+}
+
 export default function Transactions() {
 	const theme = useTheme();
 	const searchParams = useSearchParams();
@@ -125,7 +132,7 @@ export default function Transactions() {
 		}
 		const ws = XLSX.utils.json_to_sheet(
 			filteredRows.map((p) => ({
-				Type: rowKind(p) === 'stock_in' ? 'Stock In' : 'Sale',
+				Type: rowTypeLabel(p),
 				Name: p.name,
 				QTY: p.quantity,
 				'Unit price': p.unit_price,

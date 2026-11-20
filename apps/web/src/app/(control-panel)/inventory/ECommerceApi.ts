@@ -79,6 +79,18 @@ const ECommerceApi = api
 				}),
 				invalidatesTags: ['eCommerce_products', 'eCommerce_product']
 			}),
+			/** Bulk sheet row: create product or add opening stock to an existing SKU at a store. */
+			importECommerceProductRow: build.mutation<
+				{ id: string; created: boolean; stock_added: number; warehouse_id: string; message?: string },
+				Record<string, unknown>
+			>({
+				query: (row) => ({
+					url: `/api/products/import-row`,
+					method: 'POST',
+					body: row
+				}),
+				invalidatesTags: ['eCommerce_products', 'eCommerce_product']
+			}),
 			uploadProductImages: build.mutation<any, any>({
 				query: (imgs) => ({
 					url: `/api/images`,
@@ -322,6 +334,7 @@ export type DeleteECommerceOrdersApiArg = string[]; // Orders id
 /** Inventory line from `GET /api/transactions` (same shape as legacy product rows). */
 export type ProductTransaction = {
 	id?: string;
+	/** 0 = sale, 1 = purchase/stock in, 2 = opening stock */
 	type: number;
 	name?: string;
 	quantity?: number;
@@ -332,6 +345,7 @@ export type ProductTransaction = {
 	warehouse?: string;
 	sale_id?: string;
 	purchase_id?: string;
+	adjustment_id?: string;
 	thumbnail?: string;
 	invoice_number?: string;
 	notes?: string;
@@ -518,6 +532,7 @@ export const {
 	useUpdateECommerceProductMutation,
 	useDeleteECommerceProductMutation,
 	useCreateECommerceProductMutation,
+	useImportECommerceProductRowMutation,
 	useUploadProductImagesMutation,
 	useUpdateProductImagesMutation,
 	useGetProductCategoryQuery,

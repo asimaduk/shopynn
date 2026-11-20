@@ -19,11 +19,8 @@ import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import toast from 'react-hot-toast';
-import { useCreateECommerceProductMutation } from '../../../ECommerceApi';
-import type { EcommerceProduct } from '../../../ECommerceApi';
-import ProductModel from '../../models/ProductModel';
+import { useImportECommerceProductRowMutation } from '../../../ECommerceApi';
 import useNavigate from '@fuse/hooks/useNavigate';
-import useUser from '@auth/useUser';
 
 export type ImportRow = {
 	name: string;
@@ -32,8 +29,10 @@ export type ImportRow = {
 	retail_price: string | number;
 	wholesale_price: string | number;
 	unit: string;
-	/** Opening stock for the user's current store */
+	/** Opening stock quantity */
 	quantity: string | number;
+	/** Store reference code or exact store name; blank = current store */
+	store_code: string;
 };
 
 function createSlug(slg: string) {
@@ -64,15 +63,23 @@ function mapSheetRows(json: Record<string, unknown>[]): ImportRow[] {
 			row['Opening Stock'] ??
 			row['Opening stock'] ??
 			row.opening_quantity ??
-			0) as string | number
+			0) as string | number,
+		store_code: String(
+			row.StoreCode ??
+				row.store_code ??
+				row['Store Code'] ??
+				row.Store ??
+				row.store ??
+				row.Warehouse ??
+				row.warehouse ??
+				row.Reference ??
+				row.reference_code ??
+				''
+		).trim()
 	}));
 }
 
-function buildCreatePayload(
-	row: ImportRow,
-	rowIndex: number,
-	warehouseId?: string | null
-): Partial<EcommerceProduct> {
+function buildImportPayload(row: ImportRow, rowIndex: number): Record<string, unknown> {
 	const name = String(row.name).trim();
 	const slug = createSlug(name) || `import-${Date.now()}-${rowIndex}`;
 	const unitPrice = parseFloat(String(row.retail_price)) || 0;
@@ -80,42 +87,24 @@ function buildCreatePayload(
 	const altPrice =
 		wholesaleRaw !== '' && wholesaleRaw != null ? parseFloat(String(wholesaleRaw)) || 0 : 0;
 	const openingQty = parseOpeningQty(row.quantity);
+	const sku = String(row.sku || '').trim();
+	const storeCode = String(row.store_code || '').trim();
 
-	const base = ProductModel({
+	return {
 		name,
 		description: '-',
-		sku: String(row.sku || '').trim() || `AUTO-${Date.now()}-${rowIndex}`,
+		sku,
 		unit_price: unitPrice,
 		alt_price: altPrice,
 		categories: [],
-		_tags: '',
+		tags: [],
 		reorder_quantity: 0,
 		slug,
 		unit: String(row.unit || 'pcs').trim(),
-		opening_quantity: openingQty
-	} as Partial<EcommerceProduct>);
-
-	const payload = { ...base } as Partial<EcommerceProduct> & {
-		bar_code?: string | null;
-		unit?: string;
-		opening_quantity?: number;
-		warehouse_quantities?: { warehouse_id: string; quantity: number }[];
+		bar_code: String(row.barcode || '').trim() || null,
+		opening_quantity: openingQty,
+		store_code: storeCode || undefined
 	};
-	payload.tags = [];
-	if (payload._tags) {
-		payload.tags = String(payload._tags)
-			.split(',')
-			.map((t) => t.trim())
-			.filter(Boolean);
-	}
-	delete (payload as { images?: unknown }).images;
-	payload.bar_code = String(row.barcode || '').trim() || null;
-	payload.opening_quantity = openingQty;
-	const whId = String(warehouseId || '').trim();
-	if (whId) {
-		payload.warehouse_quantities = [{ warehouse_id: whId, quantity: openingQty }];
-	}
-	return payload;
 }
 
 type ProductBulkImportDialogProps = {
@@ -125,10 +114,8 @@ type ProductBulkImportDialogProps = {
 
 function ProductBulkImportDialog({ open, onClose }: ProductBulkImportDialogProps) {
 	const navigate = useNavigate();
-	const { data: authUser } = useUser();
-	const warehouseId = authUser?.warehouse?.id ? String(authUser.warehouse.id) : null;
 	const fileInputRef = useRef<HTMLInputElement>(null);
-	const [createProduct] = useCreateECommerceProductMutation();
+	const [importRow] = useImportECommerceProductRowMutation();
 	const [fileName, setFileName] = useState('');
 	const [rows, setRows] = useState<ImportRow[]>([]);
 	const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -220,8 +207,10 @@ function ProductBulkImportDialog({ open, onClose }: ProductBulkImportDialogProps
 			return;
 		}
 		setLoading(true);
-		let ok = 0;
+		let created = 0;
+		let stocked = 0;
 		let failed = 0;
+		let lastError = '';
 		try {
 			const indices = [...selected].sort((a, b) => a - b);
 			for (const idx of indices) {
@@ -237,22 +226,40 @@ function ProductBulkImportDialog({ open, onClose }: ProductBulkImportDialogProps
 				if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
 					continue;
 				}
-				const payload = buildCreatePayload(row, idx, warehouseId);
-				try {
-					await createProduct(payload as EcommerceProduct).unwrap();
-					ok++;
-				} catch {
+				if (!String(row.sku || '').trim()) {
 					failed++;
+					lastError = 'SKU is required on every row.';
+					continue;
+				}
+				const payload = buildImportPayload(row, idx);
+				try {
+					const result = await importRow(payload).unwrap();
+					if (result?.created) created++;
+					else if ((result?.stock_added ?? 0) > 0) stocked++;
+					else created++; // existing SKU with no stock change still counts as handled
+				} catch (err: unknown) {
+					failed++;
+					const e = err as { data?: { message?: string }; message?: string };
+					lastError = e?.data?.message || e?.message || lastError;
 				}
 			}
+			const ok = created + stocked;
 			if (ok > 0) {
-				toast.success(`Imported ${ok} product${ok === 1 ? '' : 's'}${failed ? ` (${failed} failed or skipped)` : ''}.`);
+				const parts = [
+					created ? `${created} created` : null,
+					stocked ? `${stocked} stocked at store` : null,
+					failed ? `${failed} failed` : null
+				].filter(Boolean);
+				toast.success(`Import done${parts.length ? `: ${parts.join(', ')}` : ''}.`);
 				resetState();
 				onClose();
 				navigate('/inventory/products');
 			} else {
 				toast.error(
-					failed ? 'No products were imported. Check required fields and duplicate SKUs.' : 'Nothing to import.'
+					lastError ||
+						(failed
+							? 'No products were imported. Check required fields, store codes, and SKUs.'
+							: 'Nothing to import.')
 				);
 			}
 		} finally {
@@ -274,10 +281,10 @@ function ProductBulkImportDialog({ open, onClose }: ProductBulkImportDialogProps
 			</DialogTitle>
 			<DialogContent dividers>
 				<Typography variant="body2" color="text.secondary" className="mb-3">
-					Use the same columns as the mobile app: Name, SKU, Barcode, RetailPrice, WholesalePrice, Unit,
-					Quantity. Retail price is required. Quantity is optional opening stock for your current store.
-					Compatible with exported sheets that use Name, SKU, Retail, Wholesale, RoL — map or rename columns
-					to match.
+					Columns: Name, SKU, Barcode, RetailPrice, WholesalePrice, Unit, Quantity, StoreCode. Name, SKU, and
+					retail price are required. Quantity is optional opening stock. StoreCode is optional (store
+					reference code or exact store name); blank uses your current store. Same SKU on another store row
+					adds stock to that store instead of creating a duplicate product.
 				</Typography>
 
 				<Box
@@ -293,12 +300,13 @@ function ProductBulkImportDialog({ open, onClose }: ProductBulkImportDialogProps
 						<TableBody>
 							{[
 								{ col: 'Name', req: 'Yes', ex: 'Coca Cola 330ml' },
-								{ col: 'SKU', req: 'No', ex: 'CC-330-01' },
+								{ col: 'SKU', req: 'Yes', ex: 'CC-330-01' },
 								{ col: 'Barcode', req: 'No', ex: '8901234567890' },
 								{ col: 'RetailPrice', req: 'Yes', ex: '5.50' },
 								{ col: 'WholesalePrice', req: 'No', ex: '4.20' },
 								{ col: 'Unit', req: 'No', ex: 'pcs' },
-								{ col: 'Quantity', req: 'No', ex: '24' }
+								{ col: 'Quantity', req: 'No', ex: '24' },
+								{ col: 'StoreCode', req: 'No', ex: 'accra-main' }
 							].map((r) => (
 								<TableRow key={r.col}>
 									<TableCell width="28%">{r.col}</TableCell>
@@ -354,6 +362,7 @@ function ProductBulkImportDialog({ open, onClose }: ProductBulkImportDialogProps
 										<TableCell>SKU</TableCell>
 										<TableCell align="right">Retail</TableCell>
 										<TableCell align="right">Qty</TableCell>
+										<TableCell>Store</TableCell>
 										<TableCell>Unit</TableCell>
 									</TableRow>
 								</TableHead>
@@ -377,6 +386,7 @@ function ProductBulkImportDialog({ open, onClose }: ProductBulkImportDialogProps
 											<TableCell>{row.sku || '—'}</TableCell>
 											<TableCell align="right">{row.retail_price ?? '—'}</TableCell>
 											<TableCell align="right">{row.quantity ?? 0}</TableCell>
+											<TableCell>{row.store_code || 'Current'}</TableCell>
 											<TableCell>{row.unit || 'pcs'}</TableCell>
 										</TableRow>
 									))}
