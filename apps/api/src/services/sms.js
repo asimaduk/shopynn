@@ -6,13 +6,16 @@
  *   SMS_CLIENT_ID=...          # or SMS_API_KEY
  *   SMS_CLIENT_SECRET=...      # or SMS_API_SECRET
  *   SMS_SENDER_ID=Shopynn      # approved sender ID
- *   SMS_HUBTEL_URL=https://smsc.hubtel.com/v1/messages/send  # optional override
+ *   SMS_HUBTEL_URL=https://sms.hubtel.com/v1/messages/send  # optional override
+ *
+ * Hubtel send uses GET with clientid/clientsecret/from/to/content query params
+ * (same shape as Hubtel's account test URL on sms.hubtel.com).
  *
  * Placeholders (not implemented yet):
  *   SMS_PROVIDER=africastalking|twilio
  */
 
-const HUBTEL_DEFAULT_URL = "https://smsc.hubtel.com/v1/messages/send";
+const HUBTEL_DEFAULT_URL = "https://sms.hubtel.com/v1/messages/send";
 
 function providerName() {
     return String(process.env.SMS_PROVIDER || "")
@@ -64,17 +67,18 @@ async function sendViaHubtel({ to, message }) {
 
     const base = String(process.env.SMS_HUBTEL_URL || HUBTEL_DEFAULT_URL).trim() || HUBTEL_DEFAULT_URL;
     const url = new URL(base);
-    url.searchParams.set("From", from);
-    url.searchParams.set("To", phone);
-    url.searchParams.set("Content", message);
+    // Match Hubtel liaison test URL: clientid/clientsecret/from/to/content as query params.
+    url.searchParams.set("clientid", clientId);
+    url.searchParams.set("clientsecret", clientSecret);
+    url.searchParams.set("from", from);
+    url.searchParams.set("to", phone);
+    url.searchParams.set("content", message);
 
-    const auth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
     let res;
     try {
         res = await fetch(url.toString(), {
             method: "GET",
             headers: {
-                Authorization: `Basic ${auth}`,
                 Accept: "application/json",
             },
         });
