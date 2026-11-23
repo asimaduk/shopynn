@@ -168,6 +168,18 @@ function WarehouseHeader({ locations = [], updateProcessing, blockCreate = false
 					>
 						Warehouses
 					</Button>
+					{!isNew ? (
+						<Button
+							variant="outlined"
+							component={Link}
+							to={`/setups/warehouses/${warehouseId}/view`}
+							size="medium"
+							sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
+							startIcon={<FuseSvgIcon size={18}>heroicons-outline:eye</FuseSvgIcon>}
+						>
+							View
+						</Button>
+					) : null}
 					{isNew ? (
 						<Button
 							variant="contained"

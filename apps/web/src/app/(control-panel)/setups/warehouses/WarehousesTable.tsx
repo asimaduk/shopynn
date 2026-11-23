@@ -5,6 +5,7 @@ import { ListItemIcon, MenuItem, Paper } from '@mui/material';
 import { Warehouse } from './WarehouseApi';
 import { WAREHOUSE_PRINTER_OPTIONS } from './models/WarehouseModel';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
+import Link from '@fuse/core/Link';
 import useNavigate from '@fuse/hooks/useNavigate';
 
 type WarehousesTableProps = {
@@ -50,9 +51,13 @@ function WarehousesTable({ data: warehouses, isLoading }: WarehousesTableProps) 
 				muiTableBodyCellProps: { sx: { pl: 3 } },
 				accessorFn: (row) => row.name ?? '',
 				Cell: ({ row }) => (
-					<div className="flex flex-wrap space-x-0.5">
-						<span>{row.original.name}</span>
-					</div>
+					<Link
+						to={`/setups/warehouses/${row.original.id}/view`}
+						className="font-medium"
+						sx={{ textDecoration: 'underline' }}
+					>
+						{row.original.name != null ? String(row.original.name) : '—'}
+					</Link>
 				)
 			},
 			{
@@ -139,9 +144,21 @@ function WarehousesTable({ data: warehouses, isLoading }: WarehousesTableProps) 
 				initialState={{ density: 'compact' }}
 				enableRowSelection={false}
 				globalFilterFn="contains"
-				renderRowActionMenuItems={({ closeMenu, row, table }) => [
+				renderRowActionMenuItems={({ closeMenu, row }) => [
 					<MenuItem
-						key={0}
+						key="view"
+						onClick={() => {
+							navigate(`/setups/warehouses/${row.original.id}/view`);
+							closeMenu();
+						}}
+					>
+						<ListItemIcon>
+							<FuseSvgIcon>heroicons-outline:eye</FuseSvgIcon>
+						</ListItemIcon>
+						View
+					</MenuItem>,
+					<MenuItem
+						key="edit"
 						onClick={() => {
 							navigate(`/setups/warehouses/${row.original.id}`);
 							closeMenu();
