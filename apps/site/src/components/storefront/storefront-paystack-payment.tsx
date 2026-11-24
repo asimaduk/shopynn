@@ -18,11 +18,27 @@ import {
   submitOrderPaymentOtp,
   verifyStorefrontPayment,
 } from "@/lib/storefront-api";
+import { cn } from "@/lib/utils";
 
 const MOMO_NETWORKS = [
-  { id: "mtn", label: "MTN", provider: "mtn" },
-  { id: "telecel", label: "Telecel", provider: "vod" },
-  { id: "airteltigo", label: "AirtelTigo", provider: "tgo" },
+  {
+    id: "mtn",
+    label: "MTN",
+    provider: "mtn",
+    iconSrc: "/assets/images/networks/mtnmomo.png",
+  },
+  {
+    id: "telecel",
+    label: "Telecel",
+    provider: "vod",
+    iconSrc: "/assets/images/networks/telecelcash.png",
+  },
+  {
+    id: "airteltigo",
+    label: "AT Money",
+    provider: "tgo",
+    iconSrc: "/assets/images/networks/atmoney.png",
+  },
 ] as const;
 
 function toLocalMomoPhone(raw: string) {
@@ -359,18 +375,38 @@ export function StorefrontPaystackPayment({
         <>
           <div className="space-y-2">
             <Label>Network</Label>
-            <div className="flex flex-wrap gap-2">
-              {MOMO_NETWORKS.map((n) => (
-                <Button
-                  key={n.id}
-                  type="button"
-                  size="sm"
-                  variant={provider === n.provider ? "default" : "outline"}
-                  onClick={() => setProvider(n.provider)}
-                >
-                  {n.label}
-                </Button>
-              ))}
+            <div className="grid grid-cols-3 gap-2">
+              {MOMO_NETWORKS.map((n) => {
+                const active = provider === n.provider;
+                return (
+                  <button
+                    key={n.id}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setProvider(n.provider)}
+                    className={cn(
+                      "flex flex-col items-center gap-1.5 rounded-xl border-2 px-2 py-2.5 transition-colors",
+                      active
+                        ? "border-primary bg-primary/5"
+                        : "border-border bg-background hover:bg-muted/40",
+                    )}
+                  >
+                    <img
+                      src={n.iconSrc}
+                      alt=""
+                      className="h-9 w-9 object-contain"
+                    />
+                    <span
+                      className={cn(
+                        "text-[11px] font-semibold leading-tight",
+                        active ? "text-foreground" : "text-muted-foreground",
+                      )}
+                    >
+                      {n.label}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
           <div className="space-y-2">
