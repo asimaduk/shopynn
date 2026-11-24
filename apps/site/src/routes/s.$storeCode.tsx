@@ -45,7 +45,7 @@ function StorefrontLayout() {
         <main>
           <Outlet />
         </main>
-        <Toaster position="bottom-center" />
+        <Toaster position="top-center" richColors closeButton />
       </div>
     </ThemeProvider>
   );

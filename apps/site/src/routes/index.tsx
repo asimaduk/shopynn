@@ -69,7 +69,7 @@ function Index() {
         </main>
         <Footer />
         <ChatWidget />
-        <Toaster position="top-center" />
+        <Toaster position="top-center" richColors closeButton />
       </div>
     </ThemeProvider>
   );

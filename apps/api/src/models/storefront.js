@@ -425,16 +425,8 @@ export async function ensureStorefrontCustomer({
                 err.code = "PHONE_NOT_CUSTOMER";
                 throw err;
             }
-            // Attach to this tenant if different? Multi-tenant phone is hard —
-            // if existing user on another tenant, throw.
-            if (userRes.rows[0].tenant_id && userRes.rows[0].tenant_id !== store.tenant_id) {
-                const err = new Error(
-                    "This phone is already registered with another shop. Contact support or use a different number."
-                );
-                err.status = 409;
-                err.code = "PHONE_OTHER_TENANT";
-                throw err;
-            }
+            // Customer-only phones can shop multiple tenants via customer_profiles.
+            // Keep users.tenant_id as the first shop they joined; order JWT uses this store.
             if (firstName || lastName) {
                 await client.query(
                     `UPDATE users SET
@@ -456,6 +448,14 @@ export async function ensureStorefrontCustomer({
                     [store.warehouse_id, store.tenant_id, userId]
                 );
             }
+            // Ensure Customer role exists on this store's tenant (roles are tenant-scoped).
+            const roleId = await ensureCustomerRoleWithPermissions(client, store.tenant_id);
+            await client.query(
+                `INSERT INTO user_roles (id, user_id, role_id, assigned_by, created_at)
+                 VALUES ($1, $2, $3, $2, now())
+                 ON CONFLICT (user_id, role_id) DO NOTHING`,
+                [uuidv4(), userId, roleId]
+            );
         } else {
             if (!firstName || !lastName) {
                 const err = new Error("First and last name are required for new customers.");
