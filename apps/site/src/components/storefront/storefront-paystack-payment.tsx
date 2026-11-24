@@ -79,9 +79,11 @@ export function StorefrontPaystackPayment({
   const [method, setMethod] = useState<"mobile_money" | "card">("mobile_money");
   const [provider, setProvider] = useState<(typeof MOMO_NETWORKS)[number]["provider"]>("mtn");
   const [momoPhone, setMomoPhone] = useState(() => toLocalMomoPhone(defaultPhone) || "");
+  const [telecelVoucher, setTelecelVoucher] = useState("");
   const [busy, setBusy] = useState(false);
   const [needOtp, setNeedOtp] = useState(false);
   const [otp, setOtp] = useState("");
+  const isTelecel = provider === "vod";
   const [txRef, setTxRef] = useState<string | null>(() =>
     initialPendingReference ? String(initialPendingReference).trim() || null : null,
   );
@@ -255,6 +257,12 @@ export function StorefrontPaystackPayment({
         setBusy(false);
         return;
       }
+      const voucher = telecelVoucher.trim();
+      if (isTelecel && !voucher) {
+        toast.error("Dial *110# to generate a Telecel Cash voucher, then enter it here.");
+        setBusy(false);
+        return;
+      }
 
       const res = await initiateOrderPayment(token, orderId, {
         payment_method: "mobile_money",
@@ -266,7 +274,39 @@ export function StorefrontPaystackPayment({
       const reference = res.transaction_ref || null;
       setTxRef(reference);
       if (reference) patchOrderPayContext(orderId, { pending_reference: reference });
-      setHint(res.display_text || "Approve the prompt on your phone, or enter the voucher/OTP if asked.");
+
+      if (isTelecel && voucher && reference) {
+        try {
+          const otpRes = await submitOrderPaymentOtp(token, orderId, {
+            reference,
+            otp: voucher,
+          });
+          const otpStatus = String(otpRes.status || "").toLowerCase();
+          if (otpStatus === "success" || otpStatus === "paid") {
+            const settled = await settlePaidViaVerify(reference);
+            if (settled) return;
+          }
+          setHint(
+            otpRes.display_text ||
+              "Telecel voucher submitted. Confirm on your phone if prompted, then check status.",
+          );
+          toast.message("Voucher submitted — waiting for confirmation.");
+          void pollUntilPaid(reference);
+          return;
+        } catch (e) {
+          setNeedOtp(true);
+          setOtp(voucher);
+          setHint(
+            e instanceof ApiError
+              ? e.message
+              : "Could not submit voucher. Check the code and try again below.",
+          );
+          toast.error(e instanceof ApiError ? e.message : "Could not submit Telecel voucher.");
+          return;
+        }
+      }
+
+      setHint(res.display_text || "Approve the prompt on your phone, or enter the OTP if asked.");
       const status = String(res.status || "").toLowerCase();
       if ((status === "success" || status === "paid") && reference) {
         // Settle on server via verify — do not trust initiate status alone.
@@ -290,8 +330,8 @@ export function StorefrontPaystackPayment({
   };
 
   const submitOtp = async () => {
-    if (!txRef || otp.length < 4) {
-      toast.error("Enter the OTP or voucher code.");
+    if (!txRef || otp.trim().length < 4) {
+      toast.error(isTelecel ? "Enter the Telecel voucher from *110#." : "Enter the OTP code.");
       return;
     }
     setBusy(true);
@@ -383,7 +423,11 @@ export function StorefrontPaystackPayment({
                     key={n.id}
                     type="button"
                     aria-pressed={active}
-                    onClick={() => setProvider(n.provider)}
+                    onClick={() => {
+                      setProvider(n.provider);
+                      if (n.provider !== "vod") setTelecelVoucher("");
+                      setNeedOtp(false);
+                    }}
                     className={cn(
                       "flex flex-col items-center gap-1.5 rounded-xl border-2 px-2 py-2.5 transition-colors",
                       active
@@ -420,6 +464,24 @@ export function StorefrontPaystackPayment({
               className="h-11"
             />
           </div>
+          {isTelecel ? (
+            <div className="space-y-2">
+              <Label htmlFor="telecel-voucher">Telecel voucher (*110#)</Label>
+              <Input
+                id="telecel-voucher"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={telecelVoucher}
+                onChange={(e) => setTelecelVoucher(e.target.value.replace(/\s/g, ""))}
+                placeholder="Enter voucher from *110#"
+                className="h-11"
+              />
+              <p className="text-xs text-muted-foreground">
+                Dial *110# on this Telecel line to generate a Cash voucher, then enter it here before
+                paying.
+              </p>
+            </div>
+          ) : null}
         </>
       ) : (
         <p className="text-xs text-muted-foreground">
@@ -437,21 +499,39 @@ export function StorefrontPaystackPayment({
 
       {needOtp ? (
         <div className="space-y-3">
-          <Label>OTP / voucher</Label>
-          <InputOTP maxLength={8} value={otp} onChange={setOtp}>
-            <InputOTPGroup>
-              {Array.from({ length: 6 }).map((_, i) => (
-                <InputOTPSlot key={i} index={i} />
-              ))}
-            </InputOTPGroup>
-          </InputOTP>
+          <Label>{isTelecel ? "Telecel voucher (*110#)" : "OTP code"}</Label>
+          {isTelecel ? (
+            <Input
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\s/g, ""))}
+              placeholder="Re-enter voucher if needed"
+              className="h-11"
+            />
+          ) : (
+            <InputOTP maxLength={8} value={otp} onChange={setOtp}>
+              <InputOTPGroup>
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <InputOTPSlot key={i} index={i} />
+                ))}
+              </InputOTPGroup>
+            </InputOTP>
+          )}
           <Button className="w-full" size="lg" disabled={busy} onClick={submitOtp}>
             {busy ? <Loader2 className="animate-spin" /> : null}
-            Confirm payment · {formatGhs(charge.charge_amount)}
+            {isTelecel
+              ? `Submit voucher · ${formatGhs(charge.charge_amount)}`
+              : `Confirm payment · ${formatGhs(charge.charge_amount)}`}
           </Button>
         </div>
       ) : (
-        <Button className="w-full" size="lg" disabled={busy} onClick={startPay}>
+        <Button
+          className="w-full"
+          size="lg"
+          disabled={busy || (method === "mobile_money" && isTelecel && !telecelVoucher.trim())}
+          onClick={startPay}
+        >
           {busy ? <Loader2 className="animate-spin" /> : null}
           {method === "card"
             ? `Continue to Paystack · ${formatGhs(charge.charge_amount)}`
