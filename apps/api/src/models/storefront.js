@@ -270,9 +270,14 @@ export async function sendStorefrontPhoneOtpService({ phone, reference_code }) {
         client.release();
     }
 
+    const storeLabel = String(store.store?.name || store.company?.name || "")
+        .trim()
+        .slice(0, 40);
     const sms = await sendSmsService({
         to: normalized,
-        message: `Your Shopynn code is ${code}. It expires in 10 minutes.`,
+        message: storeLabel
+            ? `Shopynn: Your code for ${storeLabel} is ${code}. Expires in 10 minutes.`
+            : `Shopynn: Your verification code is ${code}. Expires in 10 minutes.`,
     });
 
     if (!sms.ok) {
@@ -501,12 +506,18 @@ export async function ensureStorefrontCustomer({
         let profileId = profileRes.rows[0]?.id;
         if (!profileId) {
             profileId = uuidv4();
-            await client.query(
+            const inserted = await client.query(
                 `INSERT INTO customer_profiles (
                     id, user_id, tenant_id, signup_reference_code, default_warehouse_id, profile_type, created_at, updated_at
-                 ) VALUES ($1, $2, $3, $4, $5, 'customer', now(), now())`,
+                 ) VALUES ($1, $2, $3, $4, $5, 'customer', now(), now())
+                 ON CONFLICT (user_id, tenant_id) DO UPDATE
+                   SET updated_at = now(),
+                       signup_reference_code = COALESCE(customer_profiles.signup_reference_code, EXCLUDED.signup_reference_code),
+                       default_warehouse_id = COALESCE(customer_profiles.default_warehouse_id, EXCLUDED.default_warehouse_id)
+                 RETURNING id`,
                 [profileId, userId, store.tenant_id, store.reference_code, store.warehouse_id]
             );
+            profileId = inserted.rows[0].id;
         }
 
         await client.query(

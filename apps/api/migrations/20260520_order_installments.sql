@@ -40,13 +40,14 @@ CREATE TABLE IF NOT EXISTS warehouse_reference_codes (
 
 CREATE TABLE IF NOT EXISTS customer_profiles (
     id varchar(40) PRIMARY KEY,
-    user_id varchar(40) NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    user_id varchar(40) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     tenant_id varchar(40) NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     signup_reference_code varchar(80),
     default_warehouse_id varchar(40) REFERENCES warehouses(id),
     profile_type varchar(20) DEFAULT 'customer',
     created_at timestamp,
-    updated_at timestamp
+    updated_at timestamp,
+    UNIQUE (user_id, tenant_id)
 );
 
 CREATE TABLE IF NOT EXISTS customer_store_access (

@@ -218,14 +218,21 @@ export const signupCustomerProfileService = async (user, payload = {}) => {
             [user.id, user.tenant_id]
         );
 
-        const profileId = existing.rows[0]?.id || uuidv4();
-        if (existing.rowCount === 0) {
-            await client.query(
+        let profileId = existing.rows[0]?.id;
+        if (!profileId) {
+            profileId = uuidv4();
+            const inserted = await client.query(
                 `INSERT INTO customer_profiles (
                     id, user_id, tenant_id, signup_reference_code, default_warehouse_id, profile_type, created_at, updated_at
-                ) VALUES ($1, $2, $3, $4, $5, 'customer', now(), now())`,
+                ) VALUES ($1, $2, $3, $4, $5, 'customer', now(), now())
+                ON CONFLICT (user_id, tenant_id) DO UPDATE
+                  SET signup_reference_code = EXCLUDED.signup_reference_code,
+                      default_warehouse_id = EXCLUDED.default_warehouse_id,
+                      updated_at = now()
+                RETURNING id`,
                 [profileId, user.id, user.tenant_id, referenceCode, storeRef.warehouse_id]
             );
+            profileId = inserted.rows[0].id;
         } else {
             await client.query(
                 `UPDATE customer_profiles

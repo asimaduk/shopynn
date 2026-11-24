@@ -11,7 +11,7 @@ import {
   Trash2,
   Truck,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { GetTheAppNote } from "@/components/storefront/get-the-app-note";
 import { StorefrontPaystackPayment } from "@/components/storefront/storefront-paystack-payment";
@@ -308,6 +308,7 @@ export function StorefrontCheckout({
   const [notes, setNotes] = useState("");
   const [payMode, setPayMode] = useState<"now" | "later">(payLater ? "later" : "now");
   const [busy, setBusy] = useState(false);
+  const verifyingOtpRef = useRef(false);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [booted, setBooted] = useState(false);
   const [placed, setPlaced] = useState<{
@@ -483,14 +484,17 @@ export function StorefrontCheckout({
     }
   };
 
-  const verifyOtp = async () => {
-    if (otp.length < 6) {
+  const verifyOtp = async (codeOverride?: string) => {
+    const code = String(codeOverride ?? otp).trim();
+    if (code.length < 6) {
       toast.error("Enter the 6-digit code.");
       return;
     }
+    if (verifyingOtpRef.current || busy) return;
+    verifyingOtpRef.current = true;
     setBusy(true);
     try {
-      const res = await verifyStorefrontOtp(storeCode, phone, otp);
+      const res = await verifyStorefrontOtp(storeCode, phone, code);
       writeSession(storeCode, {
         phone: res.phone,
         session_token: res.session_token,
@@ -513,6 +517,14 @@ export function StorefrontCheckout({
       toast.error(e instanceof ApiError ? e.message : "Invalid code.");
     } finally {
       setBusy(false);
+      verifyingOtpRef.current = false;
+    }
+  };
+
+  const onOtpChange = (value: string) => {
+    setOtp(value);
+    if (value.length === 6) {
+      void verifyOtp(value);
     }
   };
 
@@ -803,7 +815,12 @@ export function StorefrontCheckout({
                 Sent to <span className="font-medium text-foreground">{phone}</span>
               </p>
               <div className="mt-6 flex justify-center sm:justify-start">
-                <InputOTP maxLength={6} value={otp} onChange={setOtp}>
+                <InputOTP
+                  maxLength={6}
+                  value={otp}
+                  onChange={onOtpChange}
+                  disabled={busy}
+                >
                   <InputOTPGroup>
                     {Array.from({ length: 6 }).map((_, i) => (
                       <InputOTPSlot key={i} index={i} />
@@ -814,8 +831,8 @@ export function StorefrontCheckout({
               <Button
                 className="mt-6 h-12 w-full rounded-full text-base font-semibold"
                 size="lg"
-                disabled={busy}
-                onClick={verifyOtp}
+                disabled={busy || otp.length < 6}
+                onClick={() => void verifyOtp()}
               >
                 {busy ? <Loader2 className="animate-spin" /> : null}
                 Verify & continue
