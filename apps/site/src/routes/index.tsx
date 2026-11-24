@@ -8,7 +8,7 @@ import { Features } from "@/components/landing/features";
 import { HowItWorks } from "@/components/landing/how-it-works";
 // import { DashboardPreview } from "@/components/landing/dashboard-preview";
 import { MobileApp } from "@/components/landing/mobile-app";
-import { Testimonials } from "@/components/landing/testimonials";
+// import { Testimonials } from "@/components/landing/testimonials";
 import { Pricing } from "@/components/landing/pricing";
 import { FAQ } from "@/components/landing/faq";
 import { CtaContact } from "@/components/landing/cta-contact";
@@ -62,7 +62,7 @@ function Index() {
           <HowItWorks />
           {/* <DashboardPreview /> */}
           <MobileApp />
-          <Testimonials />
+          {/* <Testimonials /> */}
           <Pricing />
           <FAQ />
           <CtaContact />
