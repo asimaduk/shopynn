@@ -21,6 +21,7 @@
     "package:bundle:mac": "bash packaging/bundle/prepare-bundle.sh mac",
     "package:bundle:win": "bash packaging/bundle/prepare-bundle.sh win",
     "package:mac": "bash packaging/mac/build-pkg.sh",
-    "package:win": "bash packaging/bundle/prepare-bundle.sh win && echo Open packaging/windows/shopynn-print.iss in Inno Setup on Windows to compile the installer."
+    "package:win": "bash packaging/bundle/prepare-bundle.sh win && echo Open packaging/windows/shopynn-print.iss in Inno Setup on Windows to compile the installer.",
+    "publish:release": "node packaging/publish-release.mjs"
   }
 }

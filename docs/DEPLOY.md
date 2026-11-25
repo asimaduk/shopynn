@@ -117,10 +117,12 @@ Do not force-push rewritten history onto the old remotes.
 ### Merchant packages
 - **macOS:** `npm run package:mac -w @shopynn/print` → `apps/print/packaging/dist/ShopynnPrint-*.pkg`
 - **Windows:** `npm run package:bundle:win -w @shopynn/print`, then compile `apps/print/packaging/windows/shopynn-print.iss` with Inno Setup on a Windows machine → `ShopynnPrintSetup-*.exe`
+- **Publish to S3 (in-app downloads):** `npm run publish:release -w @shopynn/print`  
+  Uploads to `print-agent/` on the product images bucket, updates `apps/web/public/downloads/print-agent/latest.json` (commit that file), and sets `print-agent/latest.json` on S3 for the dashboard download buttons.
 
 After install, merchants set the checkout PC’s LAN IP in:
 - Mobile: **More → Print agent**
-- Web: **Apps → Settings → Invoice & Receipt** (Print agent section)
+- Web: **Apps → Settings → Invoice & Receipt** (Print agent section — includes Windows/macOS download buttons)
 
 **Windows USB:** many printers still need a one-time [Zadig](https://zadig.akeo.ie/) **WinUSB** install so libusb can open the device. The installer finish page and `WINDOWS_USB_DRIVER.txt` cover this.
 

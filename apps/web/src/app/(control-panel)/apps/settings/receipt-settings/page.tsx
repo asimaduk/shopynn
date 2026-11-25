@@ -26,6 +26,12 @@ import {
 	savePrintAgentConfig
 } from '@/utils/printAgent';
 import {
+	fetchPrintAgentManifest,
+	formatPrintAgentBytes,
+	PRINT_AGENT_ZADIG_URL,
+	type PrintAgentManifest
+} from '@/utils/printAgentDownloads';
+import {
 	DEFAULT_INVOICE_PREFIX,
 	DEFAULT_INVOICE_REGISTER_CODE,
 	DEFAULT_INVOICE_NEXT_NUMBER,
@@ -112,10 +118,21 @@ export default function ReceiptSettingsPage() {
 	const [statusMessage, setStatusMessage] = useState('');
 	const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 	const [dirty, setDirty] = useState(false);
+	const [printManifest, setPrintManifest] = useState<PrintAgentManifest | null>(null);
 
 	useEffect(() => {
 		setCompanyName(initialCompany);
 	}, [initialCompany]);
+
+	useEffect(() => {
+		let cancelled = false;
+		fetchPrintAgentManifest().then((manifest) => {
+			if (!cancelled) setPrintManifest(manifest);
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, []);
 
 	useEffect(() => {
 		const cfg = loadPrintAgentConfig();
@@ -412,10 +429,59 @@ export default function ReceiptSettingsPage() {
 							Quick setup
 						</Typography>
 						<Box component="ol" className="m-0 list-decimal space-y-1.5 pl-4 text-sm" sx={{ color: 'text.secondary' }}>
-							<li>Install and start Shopynn Print on the PC with the USB thermal printer.</li>
+							<li>Download and install Shopynn Print on the PC with the USB thermal printer.</li>
 							<li>Enter that PC’s LAN IP below (same Wi‑Fi/LAN as this browser).</li>
-							<li>Test connection, then save. Use 127.0.0.1 only when browsing on that same PC.</li>
+							<li>Print the pairing code, enter it here, test connection, then save.</li>
 						</Box>
+
+						<Typography variant="subtitle2" fontWeight={700} className="mb-2 mt-4">
+							Download installer
+							{printManifest?.version ? (
+								<Typography component="span" variant="caption" color="text.secondary" className="ml-2 font-normal">
+									v{printManifest.version}
+								</Typography>
+							) : null}
+						</Typography>
+						<Box className="flex flex-wrap gap-2">
+							{(
+								[
+									{ id: 'windows' as const, label: 'Windows (.exe)', icon: 'heroicons-outline:computer-desktop' },
+									{ id: 'macos' as const, label: 'macOS (.pkg)', icon: 'heroicons-outline:cube' }
+								] as const
+							).map((os) => {
+								const platform = printManifest?.platforms?.[os.id];
+								const sizeLabel = formatPrintAgentBytes(platform?.size);
+								return (
+									<Button
+										key={os.id}
+										component={platform ? 'a' : 'button'}
+										href={platform?.url}
+										download={platform ? platform.filename : undefined}
+										target={platform ? '_blank' : undefined}
+										rel={platform ? 'noopener noreferrer' : undefined}
+										variant="contained"
+										color="secondary"
+										disabled={!platform}
+										startIcon={<FuseSvgIcon size={18}>{os.icon}</FuseSvgIcon>}
+									>
+										{platform
+											? `${os.label}${sizeLabel ? ` · ${sizeLabel}` : ''}`
+											: `${os.label} · unavailable`}
+									</Button>
+								);
+							})}
+						</Box>
+						<Typography variant="caption" color="text.secondary" className="mt-2 block">
+							Run the installer on the checkout PC (not your phone). On Windows, if the USB printer is not
+							detected after install, install WinUSB with{' '}
+							<a href={printManifest?.zadig_url || PRINT_AGENT_ZADIG_URL} target="_blank" rel="noopener noreferrer">
+								Zadig
+							</a>
+							.
+							{!printManifest?.platforms?.windows
+								? ' Windows installer will appear here once published.'
+								: null}
+						</Typography>
 					</Box>
 
 					<Box className="grid gap-4 sm:grid-cols-[1fr_140px]">

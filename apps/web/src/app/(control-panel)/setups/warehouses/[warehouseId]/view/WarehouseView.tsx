@@ -16,8 +16,9 @@ import FuseLoading from '@fuse/core/FuseLoading';
 import { useParams } from 'next/navigation';
 import PageBreadcrumb from 'src/components/PageBreadcrumb';
 import { useGetWarehouseQuery, type Warehouse } from '../../WarehouseApi';
-import { WAREHOUSE_PRINTER_OPTIONS } from '../../models/WarehouseModel';
+import { WAREHOUSE_PRINTER_OPTIONS, normalizeWarehousePrinterType } from '../../models/WarehouseModel';
 import { formatGhsCurrency } from '@/app/(control-panel)/dashboards/analytics/daily-sales/formatGhsCurrency';
+import { PRINT_AGENT_RECEIPT_SETTINGS_PATH } from '@/utils/printAgentDownloads';
 
 function initialsFromName(name: string): string {
 	const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -327,9 +328,31 @@ export default function WarehouseView() {
 										</Typography>
 									</ProfileField>
 									<ProfileField icon="heroicons-outline:printer" label="Printer">
-										<Typography variant="body1" fontWeight={600}>
-											{printerLabel(warehouse.printer_type)}
-										</Typography>
+										<Box>
+											<Typography variant="body1" fontWeight={600}>
+												{printerLabel(warehouse.printer_type)}
+											</Typography>
+											{normalizeWarehousePrinterType(warehouse.printer_type) === 'thermal' ? (
+												<Button
+													component={Link}
+													to={PRINT_AGENT_RECEIPT_SETTINGS_PATH}
+													size="small"
+													color="secondary"
+													sx={{
+														mt: 0.75,
+														px: 0,
+														minWidth: 0,
+														textTransform: 'none',
+														fontWeight: 600
+													}}
+													startIcon={
+														<FuseSvgIcon size={16}>heroicons-outline:arrow-down-tray</FuseSvgIcon>
+													}
+												>
+													Set up / download print agent
+												</Button>
+											) : null}
+										</Box>
 									</ProfileField>
 									<ProfileField icon="heroicons-outline:banknotes" label="Minimum order amount">
 										<Typography variant="body1" fontWeight={600}>

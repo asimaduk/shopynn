@@ -99,6 +99,20 @@ npm run package:bundle:win -w @shopynn/print
 
 Output lands in `apps/print/packaging/dist/` (gitignored).
 
+## Publish downloads (dashboard)
+
+Merchants download installers from **Settings → Invoice & Receipt** (and from a Thermal warehouse’s “Set up / download print agent” link). Artifacts are stored on S3 under `print-agent/`.
+
+```bash
+# Requires apps/api/.env S3_* + AWS_* credentials (same bucket as product images).
+# Place ShopynnPrint-<version>.pkg and/or ShopynnPrintSetup-<version>.exe in packaging/dist/
+npm run publish:release -w @shopynn/print
+```
+
+This uploads versioned + `latest/` objects (public-read), writes
+`apps/web/public/downloads/print-agent/latest.json`, and refreshes
+`s3://…/print-agent/latest.json`. Commit the updated `latest.json` after publishing.
+
 ## Troubleshooting
 - **Not reachable from phone** — same Wi‑Fi, correct LAN IP, firewall allows 3001, agent bound to `0.0.0.0`.
 - **No USB printer (Windows)** — install WinUSB with Zadig (see above); then restart the service.
