@@ -117,8 +117,8 @@ Do not force-push rewritten history onto the old remotes.
 ### Merchant packages
 - **macOS:** `npm run package:mac -w @shopynn/print` → `apps/print/packaging/dist/ShopynnPrint-*.pkg`
 - **Windows:** `npm run package:bundle:win -w @shopynn/print`, then compile `apps/print/packaging/windows/shopynn-print.iss` with Inno Setup on a Windows machine → `ShopynnPrintSetup-*.exe`
-- **Publish to S3 (in-app downloads):** `npm run publish:release -w @shopynn/print`  
-  Uploads to `print-agent/` on the product images bucket, updates `apps/web/public/downloads/print-agent/latest.json` (commit that file), and sets `print-agent/latest.json` on S3 for the dashboard download buttons.
+- **Publish installers (in-app downloads):** `npm run publish:release -w @shopynn/print`  
+  Uploads private `print-agent/` objects, updates `apps/web/public/downloads/print-agent/latest.json` (commit that file). Dashboard links go through `https://api.shopynn.app/api/public/print-agent/download/{macos|windows}` so bucket URLs are never shown.
 
 After install, merchants set the checkout PC’s LAN IP in:
 - Mobile: **More → Print agent**

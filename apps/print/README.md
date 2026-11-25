@@ -101,7 +101,12 @@ Output lands in `apps/print/packaging/dist/` (gitignored).
 
 ## Publish downloads (dashboard)
 
-Merchants download installers from **Settings → Invoice & Receipt** (and from a Thermal warehouse’s “Set up / download print agent” link). Artifacts are stored on S3 under `print-agent/`.
+Merchants download installers from **Settings → Invoice & Receipt** (and from a Thermal warehouse’s “Set up / download print agent” link).
+
+Installers are stored privately under object storage key prefix `print-agent/`. The dashboard only shows API URLs:
+
+- Manifest: `https://api.shopynn.app/api/public/print-agent/latest`
+- Download: `https://api.shopynn.app/api/public/print-agent/download/macos|windows`
 
 ```bash
 # Requires apps/api/.env S3_* + AWS_* credentials (same bucket as product images).
@@ -109,9 +114,9 @@ Merchants download installers from **Settings → Invoice & Receipt** (and from 
 npm run publish:release -w @shopynn/print
 ```
 
-This uploads versioned + `latest/` objects (public-read), writes
-`apps/web/public/downloads/print-agent/latest.json`, and refreshes
-`s3://…/print-agent/latest.json`. Commit the updated `latest.json` after publishing.
+This uploads private versioned objects, writes the API-facing
+`apps/web/public/downloads/print-agent/latest.json`, and refreshes the
+internal storage manifest. Commit the updated `latest.json` after publishing.
 
 ## Troubleshooting
 - **Not reachable from phone** — same Wi‑Fi, correct LAN IP, firewall allows 3001, agent bound to `0.0.0.0`.

@@ -31,6 +31,8 @@ export const ROUTE_GUARD_ALLOWLIST = {
     "GET /public/chat/session/:token": PUBLIC("Marketing site chat; visitor token."),
     "POST /public/chat/session/:token/messages": PUBLIC("Marketing site chat; visitor token."),
     "GET /public/billing/catalog": PUBLIC("Public plan prices."),
+    "GET /public/print-agent/latest": PUBLIC("Shopynn Print installer manifest."),
+    "GET /public/print-agent/download/:platform": PUBLIC("Shopynn Print installer download."),
     "GET /public/store/:code": PUBLIC("Public storefront."),
     "GET /public/store/:code/catalog": PUBLIC("Public storefront."),
     "GET /public/store/:code/products/:productId": PUBLIC("Public storefront."),

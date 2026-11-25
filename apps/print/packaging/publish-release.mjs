@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 /**
- * Publish Shopynn Print installers to S3 and refresh the in-app manifest.
+ * Publish Shopynn Print installers to object storage and refresh manifests.
+ *
+ * Client-facing URLs are always api.shopynn.app proxies — never raw bucket URLs.
+ * Storage objects use private ACL; the API streams downloads with credentials.
  *
  * Prerequisites:
  *   - apps/api/.env with S3_BUCKET_NAME, S3_BUCKET_REGION (or S3_REGION), AWS_ACCESSKEYID, AWS_SECRETACCESSKEY
@@ -8,12 +11,12 @@
  *       ShopynnPrint-<version>.pkg
  *       ShopynnPrintSetup-<version>.exe
  *
- * Usage (from repo root or apps/print):
+ * Usage:
  *   node apps/print/packaging/publish-release.mjs
  *   node apps/print/packaging/publish-release.mjs --dry-run
  */
 import { createHash } from "crypto";
-import { createReadStream, existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { createReadStream, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createRequire } from "module";
@@ -25,6 +28,7 @@ const distDir = path.join(__dirname, "dist");
 const webManifestDir = path.join(repoRoot, "apps/web/public/downloads/print-agent");
 const webManifestPath = path.join(webManifestDir, "latest.json");
 const dryRun = process.argv.includes("--dry-run");
+const manifestOnly = process.argv.includes("--manifest-only");
 
 function loadEnvFile(filePath) {
 	if (!existsSync(filePath)) return;
@@ -59,6 +63,7 @@ const bucket = process.env.S3_BUCKET_NAME;
 const region = process.env.S3_BUCKET_REGION || process.env.S3_REGION || "us-east-1";
 const accessKeyId = process.env.AWS_ACCESSKEYID;
 const secretAccessKey = process.env.AWS_SECRETACCESSKEY;
+const apiPublicOrigin = (process.env.API_PUBLIC_URL || "https://api.shopynn.app").replace(/\/$/, "");
 
 if (!bucket || !accessKeyId || !secretAccessKey) {
 	console.error(
@@ -91,59 +96,55 @@ function sha256File(filePath) {
 	});
 }
 
-function publicObjectUrl(key) {
-	const encoded = key.split("/").map(encodeURIComponent).join("/");
-	if (region === "us-east-1") {
-		return `https://${bucket}.s3.amazonaws.com/${encoded}`;
-	}
-	return `https://${bucket}.s3.${region}.amazonaws.com/${encoded}`;
+function publicDownloadUrl(platform) {
+	return `${apiPublicOrigin}/api/public/print-agent/download/${platform}`;
+}
+
+function s3Client() {
+	return new S3Client({
+		region,
+		credentials: { accessKeyId, secretAccessKey },
+	});
 }
 
 async function uploadBuffer(key, body, contentType, cacheControl) {
 	if (dryRun) {
-		console.log(`[dry-run] put s3://${bucket}/${key} (${body.length || body.byteLength || "stream"} bytes)`);
-		return publicObjectUrl(key);
+		console.log(`[dry-run] put s3://${bucket}/${key}`);
+		return;
 	}
-	const client = new S3Client({
-		region,
-		credentials: { accessKeyId, secretAccessKey },
-	});
-	await client.send(
+	console.log(`Uploading ${key}…`);
+	await s3Client().send(
 		new PutObjectCommand({
 			Bucket: bucket,
 			Key: key,
 			Body: body,
 			ContentType: contentType,
-			ACL: "public-read",
 			CacheControl: cacheControl,
 		})
 	);
-	return publicObjectUrl(key);
+	console.log(`Uploaded ${key}`);
 }
 
 async function uploadFile(key, filePath, contentType, cacheControl) {
 	if (dryRun) {
 		console.log(`[dry-run] put s3://${bucket}/${key} from ${filePath}`);
-		return publicObjectUrl(key);
+		return;
 	}
-	const client = new S3Client({
-		region,
-		credentials: { accessKeyId, secretAccessKey },
-	});
-	await client.send(
+	console.log(`Uploading ${key} from ${path.basename(filePath)}…`);
+	await s3Client().send(
 		new PutObjectCommand({
 			Bucket: bucket,
 			Key: key,
 			Body: createReadStream(filePath),
 			ContentType: contentType,
-			ACL: "public-read",
 			CacheControl: cacheControl,
 		})
 	);
-	return publicObjectUrl(key);
+	console.log(`Uploaded ${key}`);
 }
 
-const platforms = {};
+const storagePlatforms = {};
+const publicPlatforms = {};
 const publishedAt = new Date().toISOString();
 
 for (const [id, meta] of Object.entries(PLATFORM_FILES)) {
@@ -152,59 +153,83 @@ for (const [id, meta] of Object.entries(PLATFORM_FILES)) {
 		console.warn(`Skipping ${meta.label}: missing ${filePath}`);
 		continue;
 	}
+	console.log(`Hashing ${meta.filename}…`);
 	const sha256 = await sha256File(filePath);
+	const size = statSync(filePath).size;
 	const versionKey = `print-agent/${version}/${meta.filename}`;
 	const latestKey = `print-agent/latest/${meta.filename}`;
-	const url = await uploadFile(
-		versionKey,
-		filePath,
-		meta.contentType,
-		"public, max-age=31536000, immutable"
-	);
-	await uploadFile(latestKey, filePath, meta.contentType, "public, max-age=300");
-	platforms[id] = {
+	if (!manifestOnly) {
+		await uploadFile(versionKey, filePath, meta.contentType, "private, max-age=31536000");
+		await uploadFile(latestKey, filePath, meta.contentType, "private, max-age=300");
+	} else {
+		console.log(`--manifest-only: keeping existing object ${versionKey}`);
+	}
+
+	storagePlatforms[id] = {
 		filename: meta.filename,
-		url,
+		storage_key: versionKey,
 		sha256,
-		size: require("fs").statSync(filePath).size,
+		size,
 	};
-	console.log(`Uploaded ${meta.label}: ${url}`);
+	publicPlatforms[id] = {
+		filename: meta.filename,
+		url: publicDownloadUrl(id),
+		sha256,
+		size,
+	};
+	console.log(`${meta.label} ready → ${publicDownloadUrl(id)}`);
 	console.log(`  sha256 ${sha256}`);
 }
 
-if (!platforms.macos && !platforms.windows) {
+if (!Object.keys(storagePlatforms).length) {
 	console.error("No installers found in packaging/dist. Build packages first.");
 	process.exit(1);
 }
 
-const manifest = {
+const notes =
+	"Install on the checkout PC with the USB thermal printer, then pair from Settings → Invoice & Receipt.";
+
+/** Internal catalog (includes storage_key). Served only to the API. */
+const storageManifest = {
 	schema_version: 1,
 	name: "Shopynn Print",
 	version,
 	published_at: publishedAt,
 	zadig_url: ZADIG_URL,
-	notes:
-		"Install on the checkout PC with the USB thermal printer, then pair from Settings → Invoice & Receipt.",
-	platforms,
+	notes,
+	platforms: storagePlatforms,
 };
 
-const manifestJson = `${JSON.stringify(manifest, null, 2)}\n`;
+/** Client catalog — API proxy URLs only. */
+const publicManifest = {
+	schema_version: 1,
+	name: "Shopynn Print",
+	version,
+	published_at: publishedAt,
+	zadig_url: ZADIG_URL,
+	notes,
+	platforms: publicPlatforms,
+};
+
+const storageJson = `${JSON.stringify(storageManifest, null, 2)}\n`;
+const publicJson = `${JSON.stringify(publicManifest, null, 2)}\n`;
+
 mkdirSync(webManifestDir, { recursive: true });
-writeFileSync(webManifestPath, manifestJson, "utf8");
+writeFileSync(webManifestPath, publicJson, "utf8");
 console.log(`Wrote ${webManifestPath}`);
 
-const manifestUrl = await uploadBuffer(
+await uploadBuffer(
 	"print-agent/latest.json",
-	Buffer.from(manifestJson, "utf8"),
+	Buffer.from(storageJson, "utf8"),
 	"application/json; charset=utf-8",
-	"public, max-age=60"
+	"private, max-age=60"
 );
 await uploadBuffer(
 	`print-agent/${version}/latest.json`,
-	Buffer.from(manifestJson, "utf8"),
+	Buffer.from(storageJson, "utf8"),
 	"application/json; charset=utf-8",
-	"public, max-age=31536000, immutable"
+	"private, max-age=31536000"
 );
 
-console.log(`Manifest CDN: ${manifestUrl}`);
+console.log(`API manifest: ${apiPublicOrigin}/api/public/print-agent/latest`);
 console.log(dryRun ? "Dry run complete." : "Publish complete.");

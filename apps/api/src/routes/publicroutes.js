@@ -20,6 +20,10 @@ import {
     publicCreateStorefrontOrder,
     publicVerifyStorefrontOrderPayment,
 } from "../controllers/storefront.js";
+import {
+    publicGetPrintAgentLatest,
+    publicDownloadPrintAgent,
+} from "../controllers/printAgentDownloads.js";
 
 import { otpSendLimit, credentialCheckLimit, publicFormLimit, publicChatMessageLimit } from "../middleware/rateLimit.js";
 
@@ -35,6 +39,10 @@ router.get("/chat/session/:token", publicGetSiteChat);
 router.post("/chat/session/:token/messages", publicChatMessageLimit, publicSendSiteChatMessage);
 
 router.get("/billing/catalog", getBillingCatalogPublic);
+
+// Shopynn Print installers (binaries proxied; clients never see object-storage URLs)
+router.get("/print-agent/latest", publicGetPrintAgentLatest);
+router.get("/print-agent/download/:platform", publicFormLimit, publicDownloadPrintAgent);
 
 // WhatsApp / mobile-web storefront (no auth)
 router.get("/store/:code", publicGetStore);

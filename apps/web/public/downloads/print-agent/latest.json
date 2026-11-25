@@ -2,13 +2,13 @@
   "schema_version": 1,
   "name": "Shopynn Print",
   "version": "1.0.0",
-  "published_at": "2026-11-25T08:50:37.099Z",
+  "published_at": "2026-11-25T09:14:05.125Z",
   "zadig_url": "https://zadig.akeo.ie/",
   "notes": "Install on the checkout PC with the USB thermal printer, then pair from Settings → Invoice & Receipt.",
   "platforms": {
     "macos": {
       "filename": "ShopynnPrint-1.0.0.pkg",
-      "url": "https://ims-products-images-bucket.s3.amazonaws.com/print-agent/1.0.0/ShopynnPrint-1.0.0.pkg",
+      "url": "https://api.shopynn.app/api/public/print-agent/download/macos",
       "sha256": "ac882cc97565cd888d4dd313846e51ac42ad96045184f5cd7ac6ca236a588d94",
       "size": 46650923
     }

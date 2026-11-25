@@ -1,4 +1,6 @@
-/** In-app Shopynn Print installer manifest (S3 + local public fallback). */
+/** In-app Shopynn Print installer manifest (API proxy — no object-storage URLs). */
+
+import { URLS } from '@/configs/settingsConfig';
 
 export type PrintAgentPlatformId = 'macos' | 'windows';
 
@@ -22,30 +24,45 @@ export type PrintAgentManifest = {
 export const PRINT_AGENT_ZADIG_URL = 'https://zadig.akeo.ie/';
 export const PRINT_AGENT_RECEIPT_SETTINGS_PATH = '/apps/settings/receipt-settings';
 
-/** Public S3 manifest written by `npm run publish:release -w @shopynn/print`. */
-export const PRINT_AGENT_CDN_MANIFEST_URL =
-	'https://ims-products-images-bucket.s3.amazonaws.com/print-agent/latest.json';
-
 const LOCAL_MANIFEST_PATH = '/downloads/print-agent/latest.json';
 
-function remoteManifestUrl(): string | null {
-	const fromEnv = String(process.env.NEXT_PUBLIC_PRINT_AGENT_MANIFEST_URL || '').trim();
-	return fromEnv || null;
+function apiManifestUrl(): string {
+	return `${URLS.serverUrl}/public/print-agent/latest`;
+}
+
+function withApiDownloadUrls(manifest: PrintAgentManifest): PrintAgentManifest {
+	const platforms: PrintAgentManifest['platforms'] = {};
+	for (const id of ['macos', 'windows'] as const) {
+		const row = manifest.platforms?.[id];
+		if (!row?.filename) continue;
+		platforms[id] = {
+			...row,
+			url: `${URLS.serverUrl}/public/print-agent/download/${id}`
+		};
+	}
+	return { ...manifest, platforms };
+}
+
+function parseManifestPayload(json: unknown): PrintAgentManifest | null {
+	const root = json as { data?: PrintAgentManifest } & PrintAgentManifest;
+	const data = (root?.data && typeof root.data === 'object' ? root.data : root) as PrintAgentManifest;
+	if (!data?.version || !data?.platforms) return null;
+	return withApiDownloadUrls(data);
 }
 
 export async function fetchPrintAgentManifest(): Promise<PrintAgentManifest | null> {
 	const candidates = [
-		remoteManifestUrl(),
-		PRINT_AGENT_CDN_MANIFEST_URL,
+		String(process.env.NEXT_PUBLIC_PRINT_AGENT_MANIFEST_URL || '').trim() || null,
+		apiManifestUrl(),
 		LOCAL_MANIFEST_PATH
 	].filter(Boolean) as string[];
+
 	for (const url of candidates) {
 		try {
 			const res = await fetch(url, { cache: 'no-store' });
 			if (!res.ok) continue;
-			const data = (await res.json()) as PrintAgentManifest;
-			if (!data?.version || !data?.platforms) continue;
-			return data;
+			const parsed = parseManifestPayload(await res.json());
+			if (parsed) return parsed;
 		} catch {
 			/* try next */
 		}
