@@ -46,3 +46,4 @@ apps/mobile/vendor/
 *.pem
 .vercel
 .railway
+ShopynnPrint-*.pkg

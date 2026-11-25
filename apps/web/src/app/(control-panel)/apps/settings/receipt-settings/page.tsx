@@ -28,6 +28,8 @@ import {
 import {
 	fetchPrintAgentManifest,
 	formatPrintAgentBytes,
+	printAgentMacInstallCommandUrl,
+	printAgentMacTerminalCommand,
 	PRINT_AGENT_ZADIG_URL,
 	type PrintAgentManifest
 } from '@/utils/printAgentDownloads';
@@ -119,6 +121,7 @@ export default function ReceiptSettingsPage() {
 	const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 	const [dirty, setDirty] = useState(false);
 	const [printManifest, setPrintManifest] = useState<PrintAgentManifest | null>(null);
+	const [macCmdCopied, setMacCmdCopied] = useState(false);
 
 	useEffect(() => {
 		setCompanyName(initialCompany);
@@ -133,6 +136,19 @@ export default function ReceiptSettingsPage() {
 			cancelled = true;
 		};
 	}, []);
+
+	const macTerminalCommand =
+		printManifest?.macos_terminal_command || printAgentMacTerminalCommand();
+
+	const copyMacTerminalCommand = async () => {
+		try {
+			await navigator.clipboard.writeText(macTerminalCommand);
+			setMacCmdCopied(true);
+			window.setTimeout(() => setMacCmdCopied(false), 2000);
+		} catch {
+			setMacCmdCopied(false);
+		}
+	};
 
 	useEffect(() => {
 		const cfg = loadPrintAgentConfig();
@@ -435,18 +451,65 @@ export default function ReceiptSettingsPage() {
 						</Box>
 
 						<Typography variant="subtitle2" fontWeight={700} className="mb-2 mt-4">
-							Download installer
+							Install on this checkout Mac
 							{printManifest?.version ? (
 								<Typography component="span" variant="caption" color="text.secondary" className="ml-2 font-normal">
 									v{printManifest.version}
 								</Typography>
 							) : null}
 						</Typography>
+						{printManifest?.platforms?.macos ? (
+							<Box
+								className="mb-3 rounded-lg p-3"
+								sx={{
+									bgcolor: (theme) =>
+										alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.4 : 1),
+									border: '1px solid',
+									borderColor: 'divider'
+								}}
+							>
+								<Typography variant="body2" fontWeight={600} className="mb-1">
+									Recommended: Terminal (avoids macOS “could not verify” block)
+								</Typography>
+								<Typography variant="caption" color="text.secondary" className="mb-2 block">
+									1. Open <strong>Terminal</strong> on this Mac → 2. Paste the command → 3. Press Return →
+									finish the installer prompts.
+								</Typography>
+								<Box
+									className="mb-2 overflow-x-auto rounded-md px-2.5 py-2 font-mono text-xs"
+									sx={{ bgcolor: (theme) => alpha(theme.palette.common.black, 0.06) }}
+								>
+									{macTerminalCommand}
+								</Box>
+								<Box className="flex flex-wrap gap-2">
+									<Button
+										type="button"
+										size="small"
+										variant="contained"
+										color="secondary"
+										onClick={copyMacTerminalCommand}
+										startIcon={<FuseSvgIcon size={16}>heroicons-outline:clipboard-document</FuseSvgIcon>}
+									>
+										{macCmdCopied ? 'Copied' : 'Copy command'}
+									</Button>
+									<Button
+										component="a"
+										size="small"
+										variant="outlined"
+										href={printAgentMacInstallCommandUrl()}
+										download="Install Shopynn Print.command"
+										startIcon={<FuseSvgIcon size={16}>heroicons-outline:arrow-down-tray</FuseSvgIcon>}
+									>
+										Download .command helper
+									</Button>
+								</Box>
+							</Box>
+						) : null}
 						<Box className="flex flex-wrap gap-2">
 							{(
 								[
 									{ id: 'windows' as const, label: 'Windows (.exe)', icon: 'heroicons-outline:computer-desktop' },
-									{ id: 'macos' as const, label: 'macOS (.pkg)', icon: 'heroicons-outline:cube' }
+									{ id: 'macos' as const, label: 'macOS .pkg (advanced)', icon: 'heroicons-outline:cube' }
 								] as const
 							).map((os) => {
 								const platform = printManifest?.platforms?.[os.id];
@@ -459,8 +522,7 @@ export default function ReceiptSettingsPage() {
 										download={platform ? platform.filename : undefined}
 										target={platform ? '_blank' : undefined}
 										rel={platform ? 'noopener noreferrer' : undefined}
-										variant="contained"
-										color="secondary"
+										variant="outlined"
 										disabled={!platform}
 										startIcon={<FuseSvgIcon size={18}>{os.icon}</FuseSvgIcon>}
 									>
@@ -472,7 +534,8 @@ export default function ReceiptSettingsPage() {
 							})}
 						</Box>
 						<Typography variant="caption" color="text.secondary" className="mt-2 block">
-							Run the installer on the checkout PC (not your phone). On Windows, if the USB printer is not
+							Run install on the checkout PC (not your phone). Direct .pkg download may be blocked by macOS
+							Gatekeeper — use the Terminal command above instead. On Windows, if the USB printer is not
 							detected after install, install WinUSB with{' '}
 							<a href={printManifest?.zadig_url || PRINT_AGENT_ZADIG_URL} target="_blank" rel="noopener noreferrer">
 								Zadig

@@ -22,6 +22,8 @@ import {
 } from "../controllers/storefront.js";
 import {
     publicGetPrintAgentLatest,
+    publicGetMacosInstallScript,
+    publicGetMacosInstallCommand,
     publicDownloadPrintAgent,
 } from "../controllers/printAgentDownloads.js";
 
@@ -42,7 +44,9 @@ router.get("/billing/catalog", getBillingCatalogPublic);
 
 // Shopynn Print installers (binaries proxied; clients never see object-storage URLs)
 router.get("/print-agent/latest", publicGetPrintAgentLatest);
-router.get("/print-agent/download/:platform", publicFormLimit, publicDownloadPrintAgent);
+router.get("/print-agent/install-macos.sh", publicGetMacosInstallScript);
+router.get("/print-agent/install-macos.command", publicGetMacosInstallCommand);
+router.get("/print-agent/download/:platform", publicDownloadPrintAgent);
 
 // WhatsApp / mobile-web storefront (no auth)
 router.get("/store/:code", publicGetStore);

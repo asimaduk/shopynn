@@ -32,6 +32,8 @@ export const ROUTE_GUARD_ALLOWLIST = {
     "POST /public/chat/session/:token/messages": PUBLIC("Marketing site chat; visitor token."),
     "GET /public/billing/catalog": PUBLIC("Public plan prices."),
     "GET /public/print-agent/latest": PUBLIC("Shopynn Print installer manifest."),
+    "GET /public/print-agent/install-macos.sh": PUBLIC("Shopynn Print macOS Terminal install script."),
+    "GET /public/print-agent/install-macos.command": PUBLIC("Shopynn Print macOS double-click install helper."),
     "GET /public/print-agent/download/:platform": PUBLIC("Shopynn Print installer download."),
     "GET /public/store/:code": PUBLIC("Public storefront."),
     "GET /public/store/:code/catalog": PUBLIC("Public storefront."),

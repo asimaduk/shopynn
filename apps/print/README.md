@@ -21,11 +21,24 @@ On-prem USB thermal receipt agent. Runs on the checkout PC (not Railway/Vercel).
 ## Merchant install
 
 ### macOS
-1. Open `ShopynnPrint-<version>.pkg` (built via `npm run package:mac`).
-2. Complete the installer (admin password).
-3. Plug in the USB thermal printer.
-4. In Shopynn mobile: **More → Print agent** → enter this Mac’s LAN IP → **Print pairing code** → type the printed code → **Test connection** → Save.
-5. Set the warehouse printer type to **Thermal**.
+**Recommended (ordinary users):** open **Terminal** and paste:
+
+```bash
+curl -fsSL https://api.shopynn.app/api/public/print-agent/install-macos.sh | bash
+```
+
+That downloads via `curl` (no Gatekeeper quarantine), opens the installer, and saves the package under Downloads. Finish the prompts (admin password).
+
+Or from **Settings → Invoice & Receipt**: **Copy command**, or download the **Install Shopynn Print.command** helper (double-click; if blocked once, Control-click → Open).
+
+Direct `.pkg` browser download is advanced-only — macOS often blocks unsigned packages.
+
+Then:
+1. Plug in the USB thermal printer.
+2. In Shopynn: **Settings → Invoice & Receipt** (or mobile **More → Print agent**) → LAN IP → pair → test → save.
+3. Set the warehouse printer type to **Thermal**.
+
+Long-term: Apple Developer ID signing + notarization removes the Terminal step.
 
 Uninstall:
 ```bash

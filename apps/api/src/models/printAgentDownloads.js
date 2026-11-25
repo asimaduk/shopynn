@@ -21,6 +21,71 @@ export function printAgentManifestPublicUrl() {
     return `${apiPublicOrigin()}/api/public/print-agent/latest`;
 }
 
+export function printAgentMacInstallScriptUrl() {
+    return `${apiPublicOrigin()}/api/public/print-agent/install-macos.sh`;
+}
+
+export function printAgentMacInstallCommandUrl() {
+    return `${apiPublicOrigin()}/api/public/print-agent/install-macos.command`;
+}
+
+/** One-liner merchants paste into Terminal.app (curl is not Gatekeeper-quarantined). */
+export function printAgentMacTerminalCommand() {
+    return `curl -fsSL ${printAgentMacInstallScriptUrl()} | bash`;
+}
+
+/** Embedded so Railway (apps/api-only deploy) can serve it without apps/print. */
+export function getMacosInstallScriptService() {
+    const api = apiPublicOrigin();
+    return `#!/usr/bin/env bash
+# Shopynn Print — macOS install helper (avoids Gatekeeper quarantine from browser downloads).
+# Run in Terminal.app:
+#   curl -fsSL ${api}/api/public/print-agent/install-macos.sh | bash
+set -euo pipefail
+
+API_BASE="\${SHOPYNN_API_BASE:-${api}}"
+API_BASE="\${API_BASE%/}"
+DOWNLOAD_URL="\${API_BASE}/api/public/print-agent/download/macos"
+WORKDIR="\${TMPDIR:-/tmp}/shopynn-print-install-$$"
+PKG="\${WORKDIR}/ShopynnPrint.pkg"
+KEEP="\${HOME}/Downloads/ShopynnPrint-install.pkg"
+
+cleanup() { rm -rf "\${WORKDIR}" 2>/dev/null || true; }
+trap cleanup EXIT
+
+mkdir -p "\${WORKDIR}"
+echo "Downloading Shopynn Print…"
+if ! curl -fL --progress-bar -o "\${PKG}" "\${DOWNLOAD_URL}"; then
+  echo "Download failed. Check your internet connection and try again." >&2
+  exit 1
+fi
+
+xattr -cr "\${PKG}" 2>/dev/null || true
+mkdir -p "\${HOME}/Downloads"
+cp "\${PKG}" "\${KEEP}"
+xattr -cr "\${KEEP}" 2>/dev/null || true
+
+echo "Opening the installer…"
+open "\${KEEP}"
+
+echo ""
+echo "Installer opened. Finish the prompts (admin password), then in Shopynn:"
+echo "  Settings → Invoice & Receipt → enter this Mac's LAN IP → pair → save."
+echo "Package saved at: \${KEEP}"
+`;
+}
+
+export function getMacosInstallCommandFileService() {
+    const api = apiPublicOrigin();
+    return `#!/bin/bash
+# Double-click to install Shopynn Print (opens Terminal).
+# If macOS blocks this file once: Control-click → Open → Open.
+curl -fsSL "${api}/api/public/print-agent/install-macos.sh" | bash
+echo ""
+read -r -p "Press Return to close…"
+`;
+}
+
 function toPublicPlatform(platformId, row) {
     if (!row || !row.filename) return null;
     return {

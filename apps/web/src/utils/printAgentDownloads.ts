@@ -19,6 +19,8 @@ export type PrintAgentManifest = {
 	zadig_url?: string;
 	notes?: string;
 	platforms: Partial<Record<PrintAgentPlatformId, PrintAgentPlatform>>;
+	macos_terminal_command?: string;
+	macos_install_script_url?: string;
 };
 
 export const PRINT_AGENT_ZADIG_URL = 'https://zadig.akeo.ie/';
@@ -28,6 +30,19 @@ const LOCAL_MANIFEST_PATH = '/downloads/print-agent/latest.json';
 
 function apiManifestUrl(): string {
 	return `${URLS.serverUrl}/public/print-agent/latest`;
+}
+
+export function printAgentMacInstallScriptUrl(): string {
+	return `${URLS.serverUrl}/public/print-agent/install-macos.sh`;
+}
+
+export function printAgentMacInstallCommandUrl(): string {
+	return `${URLS.serverUrl}/public/print-agent/install-macos.command`;
+}
+
+/** Paste into Terminal.app — curl downloads skip Gatekeeper quarantine. */
+export function printAgentMacTerminalCommand(): string {
+	return `curl -fsSL ${printAgentMacInstallScriptUrl()} | bash`;
 }
 
 function withApiDownloadUrls(manifest: PrintAgentManifest): PrintAgentManifest {
@@ -40,7 +55,12 @@ function withApiDownloadUrls(manifest: PrintAgentManifest): PrintAgentManifest {
 			url: `${URLS.serverUrl}/public/print-agent/download/${id}`
 		};
 	}
-	return { ...manifest, platforms };
+	return {
+		...manifest,
+		platforms,
+		macos_terminal_command: manifest.macos_terminal_command || printAgentMacTerminalCommand(),
+		macos_install_script_url: manifest.macos_install_script_url || printAgentMacInstallScriptUrl()
+	};
 }
 
 function parseManifestPayload(json: unknown): PrintAgentManifest | null {
