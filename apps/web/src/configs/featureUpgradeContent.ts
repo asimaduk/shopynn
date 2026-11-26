@@ -74,8 +74,8 @@ const FEATURE_PREFIX_COPY: Record<string, UpgradeCopy> = {
 	},
 	'purchase_orders.': {
 		featureTitle: 'Purchase orders',
-		description: 'PO workflow from order to receive against supplier deliveries.',
-		bullets: ['Create POs', 'Receive stock', 'Supplier tracking']
+		description: 'Formal PO workflow is not available yet. Use Purchases for supplier stock receipts today.',
+		bullets: ['Coming soon', 'Use Purchases for receipts', 'Supplier tracking planned']
 	},
 	'payments.view': {
 		featureTitle: 'Order payments',

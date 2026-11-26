@@ -43,7 +43,6 @@ import Customers from '../containers/settings/customers';
 import Expenditures from '../containers/settings/expenditures';
 import Suppliers from '../containers/settings/suppliers';
 import Reports from '../containers/settings/reports';
-import StockSummary from '../containers/settings/stock_summary';
 import ReportDetail from '../containers/settings/report_detail';
 import NotificationsSetup from '../containers/settings/notifications_setup';
 import AboutApp from '../containers/settings/about_app';
@@ -490,7 +489,6 @@ function MainNavigator({ user, onNavigationStateChange }) {
                 <Stack.Screen name="Expenditures" component={Expenditures} options={{ headerShown: false }} />
                 <Stack.Screen name="Suppliers" component={Suppliers} options={{ headerShown: false }} />
                 <Stack.Screen name="Reports" component={Reports} options={{ headerShown: false }} />
-                <Stack.Screen name="StockSummary" component={StockSummary} options={{ headerShown: false }} />
                 <Stack.Screen name="ReportDetail" component={ReportDetail} options={{ headerShown: false }} />
                 <Stack.Screen name="NotificationsSetup" component={NotificationsSetup} options={{ headerShown: false }} />
                 <Stack.Screen name="Subscription" component={Subscription} options={{ headerShown: false }} />

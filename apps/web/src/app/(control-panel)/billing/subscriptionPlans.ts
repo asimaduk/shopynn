@@ -77,7 +77,7 @@ export const CHOOSEABLE_SUBSCRIPTION_PLANS: readonly ChooseablePlan[] = [
 			'Stock transfers & adjustments',
 			'Stock counts',
 			'Reorder list, expiring stock & low-stock alerts',
-			'Purchase orders (create & receive stock)',
+			'Supplier purchases & stock receipts',
 			'Roles & permissions',
 			'Staff notifications · locations within branches'
 		]
@@ -94,8 +94,8 @@ export const CHOOSEABLE_SUBSCRIPTION_PLANS: readonly ChooseablePlan[] = [
 			'Customer online orders (store queue, fulfilment & delivery)',
 			'Audit logs',
 			'Order payment history · order export',
-			'Order analytics & automation',
-			'Multi-store order routing'
+			'Product catalog CSV export',
+			'Priority WhatsApp support'
 		]
 	}
 ];

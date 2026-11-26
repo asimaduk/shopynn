@@ -104,6 +104,17 @@ const ProfileApi = api.enhanceEndpoints({ addTagTypes: ['user_sessions'] }).inje
 		revokeMyOtherSessions: build.mutation<unknown, void>({
 			query: () => ({ url: '/api/users/me/sessions/revoke-others', method: 'POST' }),
 			invalidatesTags: ['user_sessions']
+		}),
+		/** Logged-in password change (requires current permanent password). */
+		resetMyPassword: build.mutation<
+			unknown,
+			{ old_password: string; password: string }
+		>({
+			query: (body) => ({
+				url: '/api/users/reset-password',
+				method: 'POST',
+				body
+			})
 		})
 	}),
 	overrideExisting: false
@@ -119,7 +130,8 @@ export const {
 	useGetMyMtdSalesQuery,
 	useGetMySessionsQuery,
 	useRevokeMySessionMutation,
-	useRevokeMyOtherSessionsMutation
+	useRevokeMyOtherSessionsMutation,
+	useResetMyPasswordMutation
 } = ProfileApi;
 
 export default ProfileApi;

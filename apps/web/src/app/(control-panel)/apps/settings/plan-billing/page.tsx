@@ -1,3 +1,6 @@
-import PlanBillingTab from './PlanBillingTab';
+import { redirect } from 'next/navigation';
 
-export default PlanBillingTab;
+/** Fuse mock billing form — real subscription/billing lives on profile. */
+export default function SettingsPlanBillingPage() {
+	redirect('/apps/profile');
+}

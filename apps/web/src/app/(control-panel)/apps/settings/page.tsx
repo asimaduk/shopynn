@@ -1,8 +1,7 @@
 import { redirect } from 'next/navigation';
 
 function SettingsApp() {
-	redirect(`/apps/settings/account`);
-	return null;
+	redirect('/apps/settings/receipt-settings');
 }
 
 export default SettingsApp;

@@ -3,7 +3,15 @@ import { apiService as api } from 'src/store/apiService';
 import FuseUtils from '@fuse/utils';
 import { selectSearchText } from './contactsAppSlice';
 
-export const addTagTypes = ['contacts_item', 'contacts', 'contacts_tag', 'contacts_tags', 'countries'] as const;
+export const addTagTypes = [
+	'contacts_item',
+	'contacts',
+	'contacts_tag',
+	'contacts_tags',
+	'countries',
+	'contact_payments',
+	'contact_sales'
+] as const;
 const COUNTRIES: Country[] = [
 	{ id: 'gh', title: 'Ghana', iso: 'GH', code: '+233' },
 	{ id: 'ng', title: 'Nigeria', iso: 'NG', code: '+234' },
@@ -86,6 +94,44 @@ const ContactsApi = api
 					data: { id: queryArg.tag?.id || FuseUtils.generateGUID(), title: queryArg.tag?.title || 'Tag' }
 				}),
 				invalidatesTags: ['contacts_tags']
+			}),
+			getContactPayments: build.query<ContactPayment[], GetContactPaymentsArg>({
+				query: ({ contactId, startDate, endDate }) => {
+					const params = new URLSearchParams();
+					if (startDate) params.set('startDate', startDate);
+					if (endDate) params.set('endDate', endDate);
+					const qs = params.toString();
+					return {
+						url: `/api/payments/customer/${encodeURIComponent(contactId)}${qs ? `?${qs}` : ''}`
+					};
+				},
+				transformResponse: (response: unknown) => {
+					if (Array.isArray(response)) return response as ContactPayment[];
+					if (response && typeof response === 'object' && Array.isArray((response as any).items)) {
+						return (response as any).items as ContactPayment[];
+					}
+					return [];
+				},
+				providesTags: (_r, _e, arg) => [{ type: 'contact_payments', id: arg.contactId }]
+			}),
+			getContactSales: build.query<ContactSale[], GetContactSalesArg>({
+				query: ({ contactId, startDate, endDate }) => {
+					const params = new URLSearchParams();
+					if (startDate) params.set('startDate', startDate);
+					if (endDate) params.set('endDate', endDate);
+					const qs = params.toString();
+					return {
+						url: `/api/customers/${encodeURIComponent(contactId)}/sales${qs ? `?${qs}` : ''}`
+					};
+				},
+				transformResponse: (response: unknown) => {
+					if (Array.isArray(response)) return response as ContactSale[];
+					if (response && typeof response === 'object' && Array.isArray((response as any).items)) {
+						return (response as any).items as ContactSale[];
+					}
+					return [];
+				},
+				providesTags: (_r, _e, arg) => [{ type: 'contact_sales', id: arg.contactId }]
 			})
 		}),
 		overrideExisting: false
@@ -163,6 +209,42 @@ export type Contact = {
 	store_credit_balance?: number | string | null;
 };
 
+export type ContactPayment = {
+	id: string;
+	amount?: number | string;
+	payment_method_type?: string | null;
+	payment_number?: string | null;
+	transaction_ref?: string | null;
+	status?: string | null;
+	created_at?: string;
+	source?: string | null;
+};
+
+export type ContactSale = {
+	id: string;
+	invoice_number?: string | null;
+	total_amount?: number | string;
+	discount_amount?: number | string;
+	number_of_items?: number | string;
+	current_status?: string | null;
+	sale_date?: string | null;
+	created_at?: string;
+	attendant_first_name?: string | null;
+	attendant_last_name?: string | null;
+};
+
+export type GetContactPaymentsArg = {
+	contactId: string;
+	startDate?: string;
+	endDate?: string;
+};
+
+export type GetContactSalesArg = {
+	contactId: string;
+	startDate?: string;
+	endDate?: string;
+};
+
 export type Tag = {
 	id: string;
 	title: string;
@@ -194,7 +276,9 @@ export const {
 	useUpdateContactsTagMutation,
 	useDeleteContactsTagMutation,
 	useGetContactsTagsQuery,
-	useCreateContactsTagMutation
+	useCreateContactsTagMutation,
+	useGetContactPaymentsQuery,
+	useGetContactSalesQuery
 } = ContactsApi;
 
 export type ContactsApiType = {

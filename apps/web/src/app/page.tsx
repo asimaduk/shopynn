@@ -214,7 +214,7 @@ function MainPage() {
 		redirect('/inventory/products');
 	}
 	if (hasPermissionCodes(user, 'settings.view')) {
-		redirect('/apps/settings/account');
+		redirect('/apps/settings/receipt-settings');
 	}
 
 	return <NoAppAccessYet />;

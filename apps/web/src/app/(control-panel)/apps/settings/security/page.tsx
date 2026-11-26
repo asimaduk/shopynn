@@ -1,3 +1,6 @@
-import SecurityTab from './SecurityTab';
+import { redirect } from 'next/navigation';
 
-export default SecurityTab;
+/** Fuse mock security form — real password change lives under profile. */
+export default function SettingsSecurityPage() {
+	redirect('/apps/profile/change-password');
+}

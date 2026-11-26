@@ -15,8 +15,8 @@ export const GO_LIVE_STEPS: GoLiveStep[] = [
 		id: 'store',
 		title: 'Confirm your store',
 		description: 'Check the shop name and branch on Company profile / Stores.',
-		href: '/apps/settings/account',
-		cta: 'Open account settings'
+		href: '/company-profile',
+		cta: 'Open company profile'
 	},
 	{
 		id: 'products',

@@ -38,14 +38,6 @@ const ECommerceApi = api
 				// providesTags: ['eCommerce_products'],
 				// keepUnusedDataFor: 3
 			}),
-			deleteECommerceProducts: build.mutation<DeleteECommerceProductsApiResponse, DeleteECommerceProductsApiArg>({
-				query: (productIds) => ({
-					url: `/api/mock/ecommerce/products`,
-					method: 'DELETE',
-					body: productIds
-				}),
-				invalidatesTags: ['eCommerce_products']
-			}),
 			getECommerceProduct: build.query<GetECommerceProductApiResponse, GetECommerceProductApiArg>({
 				query: (productId) => ({
 					url: `/api/products/${productId}`
@@ -295,9 +287,6 @@ export type GetProductCategoriesApiArg = void;
 export type GetProductCategoryApiResponse = /** status 200 OK */ ProductCategory;
 export type GetProductCategoryApiArg = string;
 
-export type DeleteECommerceProductsApiResponse = unknown;
-export type DeleteECommerceProductsApiArg = string[]; /** Product ids */
-
 export type GetECommerceProductApiResponse = /** status 200 OK */ EcommerceProduct;
 export type GetECommerceProductApiArg = string;
 
@@ -527,7 +516,6 @@ export type EcommerceOrder = {
 
 export const {
 	useGetECommerceProductsQuery,
-	useDeleteECommerceProductsMutation,
 	useGetECommerceProductQuery,
 	useUpdateECommerceProductMutation,
 	useDeleteECommerceProductMutation,

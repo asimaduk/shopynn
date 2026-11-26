@@ -1,5 +1,9 @@
 import { FuseNavItemType } from '@fuse/core/FuseNavigation/types/FuseNavItemType';
 
+/**
+ * Settings sub-nav. Account / Security / Plan & Billing / Team were Fuse mocks;
+ * those routes now redirect to profile / staff. Keep only real settings surfaces here.
+ */
 const SettingsAppNavigation: FuseNavItemType = {
 	id: 'apps.settings',
 	title: 'Settings',
@@ -8,43 +12,11 @@ const SettingsAppNavigation: FuseNavItemType = {
 	url: '/apps/settings',
 	children: [
 		{
-			id: 'apps.settings.account',
-			icon: 'heroicons-outline:user-circle',
-			title: 'Account',
-			type: 'item',
-			url: '/apps/settings/account',
-			subtitle: 'Manage your public profile and private information'
-		},
-		{
-			id: 'apps.settings.security',
-			icon: 'heroicons-outline:lock-closed',
-			title: 'Security',
-			type: 'item',
-			url: '/apps/settings/security',
-			subtitle: 'Manage your password and 2-step verification preferences'
-		},
-		{
-			id: 'apps.settings.planBilling',
-			icon: 'heroicons-outline:credit-card',
-			title: 'Plan & Billing',
-			type: 'item',
-			url: '/apps/settings/plan-billing',
-			subtitle: 'Manage your subscription plan, payment method and billing information'
-		},
-		{
-			id: 'apps.settings.team',
-			icon: 'heroicons-outline:user-group',
-			title: 'Team',
-			type: 'item',
-			url: '/apps/settings/team',
-			subtitle: 'Manage your existing team and change roles/permissions'
-		},
-		{
 			id: 'apps.settings.users',
 			icon: 'heroicons-outline:users',
 			title: 'Users',
 			type: 'item',
-			url: '/apps/settings/users',
+			url: '/users/staff',
 			subtitle: 'Create, edit, disable users and assign roles and permissions'
 		},
 		{
@@ -65,7 +37,7 @@ const SettingsAppNavigation: FuseNavItemType = {
 			requiredPermissions: ['data_export.view'],
 			featureFlag: 'dataExportBackup',
 			subtitle: 'Download your product catalog as CSV'
-		},
+		}
 	]
 };
 

@@ -7,12 +7,12 @@ import { SectionHeading } from "./section-heading";
 const features = [
   { icon: Activity, title: "Real-time inventory", desc: "Live stock counts that update across every branch and channel instantly." },
   { icon: ShoppingCart, title: "Customer ordering portal", desc: "Branded web storefront where customers can browse and order directly." },
-  { icon: Smartphone, title: "Mobile ordering app", desc: "Native iOS & Android apps with push notifications and live tracking." },
-  { icon: BarChart3, title: "Sales analytics", desc: "Beautiful dashboards with cohorts, top SKUs, and forecast trends." },
+  { icon: Smartphone, title: "Mobile ordering app", desc: "Native iOS & Android apps with push notifications and order status updates." },
+  { icon: BarChart3, title: "Sales analytics", desc: "Dashboards with daily totals, top products, and sales by staff or customer." },
   { icon: Building2, title: "Multi-branch support", desc: "Manage warehouses, stores and stock transfers from one place." },
-  { icon: ScanLine, title: "Barcode scanning", desc: "Scan to receive, sell or audit — works with any USB or Bluetooth scanner." },
-  { icon: BellRing, title: "Low stock alerts", desc: "Smart thresholds and AI predictions so you never run out again." },
-  { icon: Zap, title: "Fast checkout / POS", desc: "Sub-second checkout, split payments, receipts, and offline mode." },
+  { icon: ScanLine, title: "Barcode scanning", desc: "Scan to receive, sell or audit — phone camera or Bluetooth scanners." },
+  { icon: BellRing, title: "Low stock alerts", desc: "Reorder thresholds and low-stock lists so you restock before you run out." },
+  { icon: Zap, title: "Fast checkout / POS", desc: "Cash, MoMo and credit at the till, with receipts and offline cash sales on mobile." },
 ];
 
 export function Features() {

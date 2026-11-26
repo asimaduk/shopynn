@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import GlobalStyles from '@mui/material/GlobalStyles';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
@@ -14,12 +14,17 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
+import Chip from '@mui/material/Chip';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import NavLinkAdapter from '@fuse/core/NavLinkAdapter';
 import FuseLoading from '@fuse/core/FuseLoading';
 import DateRangeDialog from '@fuse/core/FuseDateSelection';
 import { useParams } from 'next/navigation';
-import { useGetContactsItemQuery } from '../../ContactsApi';
+import {
+	useGetContactPaymentsQuery,
+	useGetContactsItemQuery
+} from '../../ContactsApi';
+import { formatGhsCurrency } from '@/app/(control-panel)/dashboards/analytics/daily-sales/formatGhsCurrency';
 
 type DateRange = { startDate: string; endDate: string } | null;
 
@@ -31,6 +36,16 @@ function formatDateRange(dates: DateRange): string {
 	return `${months[start.getMonth()]} ${start.getDate()} – ${months[end.getMonth()]} ${end.getDate()}`;
 }
 
+function formatMethod(raw?: string | null): string {
+	const v = String(raw || '').trim().toLowerCase();
+	if (!v) return 'Payment';
+	if (v === 'mobile_money' || v === 'momo') return 'MoMo';
+	if (v === 'store_credit') return 'Store credit';
+	if (v === 'card') return 'Card';
+	if (v === 'cash') return 'Cash';
+	return raw || 'Payment';
+}
+
 export default function ContactPaymentsPage() {
 	const { contactId } = useParams<{ contactId: string }>();
 	const { data: contact, isLoading, isError } = useGetContactsItemQuery(contactId ?? '', { skip: !contactId });
@@ -40,13 +55,24 @@ export default function ContactPaymentsPage() {
 	const [page, setPage] = useState(0);
 	const [rowsPerPage, setRowsPerPage] = useState(10);
 
-	// TODO: replace with API data filtered by dateRange; then paginate
-	const filteredData = useMemo(() => [], [dateRange]);
-	const paginatedData = useMemo(
-		() => filteredData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
-		[filteredData, page, rowsPerPage]
+	const {
+		data: payments = [],
+		isLoading: paymentsLoading,
+		isFetching,
+		isError: paymentsError
+	} = useGetContactPaymentsQuery(
+		{
+			contactId: contactId ?? '',
+			startDate: dateRange?.startDate,
+			endDate: dateRange?.endDate
+		},
+		{ skip: !contactId }
 	);
-	const emptyRows = Math.max(0, rowsPerPage - paginatedData.length);
+
+	const paginatedData = useMemo(
+		() => payments.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+		[payments, page, rowsPerPage]
+	);
 
 	const handlePageChange = (_: unknown, newPage: number) => setPage(newPage);
 	const handleRowsPerPageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -103,24 +129,27 @@ export default function ContactPaymentsPage() {
 								'&:hover': { bgcolor: 'action.selected' }
 							}}
 						>
-							<FuseSvgIcon size={20} color="action">heroicons-outline:calendar-days</FuseSvgIcon>
+							<FuseSvgIcon size={20} color="action">
+								heroicons-outline:calendar-days
+							</FuseSvgIcon>
 							<Typography variant="body2" color="text.secondary" fontWeight={500}>
 								{formatDateRange(dateRange)}
 							</Typography>
-							{dateRange && (
+							{dateRange ? (
 								<Tooltip title="Clear date filter">
 									<IconButton
 										size="small"
 										onClick={(e) => {
 											e.stopPropagation();
 											setDateRange(null);
+											setPage(0);
 										}}
 										sx={{ ml: 0.5, p: 0.25 }}
 									>
 										<FuseSvgIcon size={16}>heroicons-outline:x-mark</FuseSvgIcon>
 									</IconButton>
 								</Tooltip>
-							)}
+							) : null}
 						</Box>
 						<Button
 							component={NavLinkAdapter}
@@ -137,10 +166,17 @@ export default function ContactPaymentsPage() {
 				<Box className="max-w-4xl w-full mx-auto">
 					<Paper variant="outlined" className="rounded-xl overflow-hidden" sx={{ borderColor: 'divider' }}>
 						<Box className="flex items-center gap-2 p-4 border-b" sx={{ borderColor: 'divider' }}>
-							<FuseSvgIcon size={22} color="action">heroicons-outline:banknotes</FuseSvgIcon>
+							<FuseSvgIcon size={22} color="action">
+								heroicons-outline:banknotes
+							</FuseSvgIcon>
 							<Typography variant="subtitle1" fontWeight="600">
 								Payments
 							</Typography>
+							{(paymentsLoading || isFetching) && (
+								<Typography variant="caption" color="text.secondary" className="ml-auto">
+									Loading…
+								</Typography>
+							)}
 						</Box>
 						<Table size="medium">
 							<TableHead>
@@ -153,42 +189,61 @@ export default function ContactPaymentsPage() {
 								</TableRow>
 							</TableHead>
 							<TableBody>
-								{/* TODO: replace with API data - use contactId to fetch payments; map paginatedData to rows */}
-								{paginatedData.length === 0 ? (
+								{paymentsError ? (
 									<TableRow>
 										<TableCell colSpan={5} align="center" sx={{ py: 6 }}>
-											<FuseSvgIcon size={48} color="action" sx={{ opacity: 0.5, display: 'block', mx: 'auto', mb: 1 }}>
+											<Typography color="error">Could not load payments.</Typography>
+										</TableCell>
+									</TableRow>
+								) : paginatedData.length === 0 && !paymentsLoading ? (
+									<TableRow>
+										<TableCell colSpan={5} align="center" sx={{ py: 6 }}>
+											<FuseSvgIcon
+												size={48}
+												color="action"
+												sx={{ opacity: 0.5, display: 'block', mx: 'auto', mb: 1 }}
+											>
 												heroicons-outline:banknotes
 											</FuseSvgIcon>
 											<Typography color="text.secondary">No payments yet</Typography>
 											<Typography variant="caption" color="text.secondary">
-												Payments for this customer will appear here
+												Collections and gateway payments for this customer appear here
 											</Typography>
 										</TableCell>
 									</TableRow>
 								) : (
-									<>
-										{paginatedData.map((row: { id: string; date: string; amount: string; method: string; status: string; reference: string }, index: number) => (
-											<TableRow key={row.id ?? index}>
-												<TableCell>{new Date(row.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</TableCell>
-												<TableCell>{row.amount}</TableCell>
-												<TableCell>{row.method}</TableCell>
-												<TableCell>{row.status}</TableCell>
-												<TableCell>{row.reference ?? '—'}</TableCell>
-											</TableRow>
-										))}
-										{emptyRows > 0 && (
-											<TableRow style={{ height: 53 * emptyRows }}>
-												<TableCell colSpan={5} />
-											</TableRow>
-										)}
-									</>
+									paginatedData.map((row) => (
+										<TableRow key={row.id}>
+											<TableCell>
+												{row.created_at
+													? new Date(row.created_at).toLocaleString('en-US', {
+															month: 'short',
+															day: 'numeric',
+															year: 'numeric',
+															hour: '2-digit',
+															minute: '2-digit'
+														})
+													: '—'}
+											</TableCell>
+											<TableCell>{formatGhsCurrency(Number(row.amount) || 0, 2, 2)}</TableCell>
+											<TableCell>
+												<Box className="flex items-center gap-1">
+													{formatMethod(row.payment_method_type)}
+													{row.source === 'pos_sale' ? (
+														<Chip size="small" label="POS" variant="outlined" />
+													) : null}
+												</Box>
+											</TableCell>
+											<TableCell>{row.status || '—'}</TableCell>
+											<TableCell>{row.transaction_ref || row.payment_number || '—'}</TableCell>
+										</TableRow>
+									))
 								)}
 							</TableBody>
 						</Table>
 						<TablePagination
 							component="div"
-							count={filteredData.length}
+							count={payments.length}
 							page={page}
 							onPageChange={handlePageChange}
 							rowsPerPage={rowsPerPage}
@@ -202,7 +257,10 @@ export default function ContactPaymentsPage() {
 			<DateRangeDialog
 				open={dateDialogOpen}
 				handleClose={(dates: DateRange) => {
-					if (dates) setDateRange(dates);
+					if (dates) {
+						setDateRange(dates);
+						setPage(0);
+					}
 					setDateDialogOpen(false);
 				}}
 			/>

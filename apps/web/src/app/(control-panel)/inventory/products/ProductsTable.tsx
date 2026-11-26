@@ -10,7 +10,7 @@ import Link from '@fuse/core/Link';
 import Typography from '@mui/material/Typography';
 import clsx from 'clsx';
 import Button from '@mui/material/Button';
-import ECommerceApi, { EcommerceProduct, useChangeProductPriceMutation, useDeleteECommerceProductsMutation, useToggleProductStatusMutation } from '../ECommerceApi';
+import ECommerceApi, { EcommerceProduct, useChangeProductPriceMutation, useToggleProductStatusMutation } from '../ECommerceApi';
 import toast from 'react-hot-toast';
 import store from '@/store/store';
 import { URLS } from '@/configs/settingsConfig';
@@ -21,7 +21,6 @@ function ProductsTable() {
 	const navigate = useNavigate();
 
 	//let { data: _products, isLoading, refetch } = useGetECommerceProductsQuery(null,{refetchOnMountOrArgChange: true});
-	const [removeProducts] = useDeleteECommerceProductsMutation();
 	const [toggleProductStatus] = useToggleProductStatusMutation();
 	const [changeProductPrice, { isLoading: changingPrice }] = useChangeProductPriceMutation();
 	const [products, setProducts] = useState([]);
@@ -373,30 +372,6 @@ function ProductsTable() {
 					</MenuItem>
 					
 				]}
-				renderTopToolbarCustomActions={({ table }) => {
-					const { rowSelection } = table.getState();
-
-					if (Object.keys(rowSelection).length === 0) {
-						return null;
-					}
-
-					return (
-						<Button
-							variant="contained"
-							size="small"
-							onClick={() => {
-								const selectedRows = table.getSelectedRowModel().rows;
-								removeProducts(selectedRows.map((row) => row.original.id));
-								table.resetRowSelection();
-							}}
-							className="flex shrink min-w-9 ltr:mr-2 rtl:ml-2"
-							color="secondary"
-						>
-							<FuseSvgIcon size={16}>heroicons-outline:trash</FuseSvgIcon>
-							<span className="hidden sm:flex mx-2">Delete selected items</span>
-						</Button>
-					);
-				}}
 			/>
 			<Dialog open={priceDialogOpen} onClose={() => !changingPrice && setPriceDialogOpen(false)} maxWidth="xs" fullWidth>
 				<DialogTitle>Change product price</DialogTitle>

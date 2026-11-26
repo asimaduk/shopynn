@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import GlobalStyles from '@mui/material/GlobalStyles';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
@@ -19,7 +19,8 @@ import NavLinkAdapter from '@fuse/core/NavLinkAdapter';
 import FuseLoading from '@fuse/core/FuseLoading';
 import DateRangeDialog from '@fuse/core/FuseDateSelection';
 import { useParams } from 'next/navigation';
-import { useGetContactsItemQuery } from '../../ContactsApi';
+import { useGetContactSalesQuery, useGetContactsItemQuery } from '../../ContactsApi';
+import { formatGhsCurrency } from '@/app/(control-panel)/dashboards/analytics/daily-sales/formatGhsCurrency';
 
 type DateRange = { startDate: string; endDate: string } | null;
 
@@ -40,13 +41,24 @@ export default function ContactTransactionsPage() {
 	const [page, setPage] = useState(0);
 	const [rowsPerPage, setRowsPerPage] = useState(10);
 
-	// TODO: replace with API data filtered by dateRange; then paginate
-	const filteredData = useMemo(() => [], [dateRange]);
-	const paginatedData = useMemo(
-		() => filteredData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
-		[filteredData, page, rowsPerPage]
+	const {
+		data: sales = [],
+		isLoading: salesLoading,
+		isFetching,
+		isError: salesError
+	} = useGetContactSalesQuery(
+		{
+			contactId: contactId ?? '',
+			startDate: dateRange?.startDate,
+			endDate: dateRange?.endDate
+		},
+		{ skip: !contactId }
 	);
-	const emptyRows = Math.max(0, rowsPerPage - paginatedData.length);
+
+	const paginatedData = useMemo(
+		() => sales.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+		[sales, page, rowsPerPage]
+	);
 
 	const handlePageChange = (_: unknown, newPage: number) => setPage(newPage);
 	const handleRowsPerPageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -82,7 +94,7 @@ export default function ContactTransactionsPage() {
 						</Box>
 						<div>
 							<Typography variant="h5" fontWeight="bold">
-								Transaction history
+								Sales history
 							</Typography>
 							<Typography variant="body2" color="text.secondary">
 								{contactName}
@@ -103,24 +115,27 @@ export default function ContactTransactionsPage() {
 								'&:hover': { bgcolor: 'action.selected' }
 							}}
 						>
-							<FuseSvgIcon size={20} color="action">heroicons-outline:calendar-days</FuseSvgIcon>
+							<FuseSvgIcon size={20} color="action">
+								heroicons-outline:calendar-days
+							</FuseSvgIcon>
 							<Typography variant="body2" color="text.secondary" fontWeight={500}>
 								{formatDateRange(dateRange)}
 							</Typography>
-							{dateRange && (
+							{dateRange ? (
 								<Tooltip title="Clear date filter">
 									<IconButton
 										size="small"
 										onClick={(e) => {
 											e.stopPropagation();
 											setDateRange(null);
+											setPage(0);
 										}}
 										sx={{ ml: 0.5, p: 0.25 }}
 									>
 										<FuseSvgIcon size={16}>heroicons-outline:x-mark</FuseSvgIcon>
 									</IconButton>
 								</Tooltip>
-							)}
+							) : null}
 						</Box>
 						<Button
 							component={NavLinkAdapter}
@@ -137,10 +152,17 @@ export default function ContactTransactionsPage() {
 				<Box className="max-w-4xl w-full mx-auto">
 					<Paper variant="outlined" className="rounded-xl overflow-hidden" sx={{ borderColor: 'divider' }}>
 						<Box className="flex items-center gap-2 p-4 border-b" sx={{ borderColor: 'divider' }}>
-							<FuseSvgIcon size={22} color="action">heroicons-outline:document-text</FuseSvgIcon>
+							<FuseSvgIcon size={22} color="action">
+								heroicons-outline:document-text
+							</FuseSvgIcon>
 							<Typography variant="subtitle1" fontWeight="600">
-								Transactions
+								Sales
 							</Typography>
+							{(salesLoading || isFetching) && (
+								<Typography variant="caption" color="text.secondary" className="ml-auto">
+									Loading…
+								</Typography>
+							)}
 						</Box>
 						<Table size="medium">
 							<TableHead>
@@ -153,42 +175,63 @@ export default function ContactTransactionsPage() {
 								</TableRow>
 							</TableHead>
 							<TableBody>
-								{/* TODO: replace with API data - use contactId to fetch transactions; map paginatedData to rows */}
-								{paginatedData.length === 0 ? (
+								{salesError ? (
 									<TableRow>
 										<TableCell colSpan={5} align="center" sx={{ py: 6 }}>
-											<FuseSvgIcon size={48} color="action" sx={{ opacity: 0.5, display: 'block', mx: 'auto', mb: 1 }}>
+											<Typography color="error">Could not load sales.</Typography>
+										</TableCell>
+									</TableRow>
+								) : paginatedData.length === 0 && !salesLoading ? (
+									<TableRow>
+										<TableCell colSpan={5} align="center" sx={{ py: 6 }}>
+											<FuseSvgIcon
+												size={48}
+												color="action"
+												sx={{ opacity: 0.5, display: 'block', mx: 'auto', mb: 1 }}
+											>
 												heroicons-outline:document-text
 											</FuseSvgIcon>
-											<Typography color="text.secondary">No transactions yet</Typography>
+											<Typography color="text.secondary">No sales yet</Typography>
 											<Typography variant="caption" color="text.secondary">
-												Transactions for this customer will appear here
+												POS sales for this customer appear here
 											</Typography>
 										</TableCell>
 									</TableRow>
 								) : (
-									<>
-										{paginatedData.map((row: { id: string; date: string; type: string; reference: string; amount: string; status: string }, index: number) => (
-											<TableRow key={row.id ?? index}>
-												<TableCell>{new Date(row.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</TableCell>
-												<TableCell>{row.type}</TableCell>
-												<TableCell>{row.reference}</TableCell>
-												<TableCell>{row.amount}</TableCell>
-												<TableCell>{row.status}</TableCell>
+									paginatedData.map((row) => {
+										const when = row.sale_date || row.created_at;
+										return (
+											<TableRow
+												key={row.id}
+												hover
+												sx={{ cursor: 'pointer' }}
+												component={NavLinkAdapter}
+												to={`/trading/sales/${row.id}`}
+											>
+												<TableCell>
+													{when
+														? new Date(when).toLocaleDateString('en-US', {
+																month: 'short',
+																day: 'numeric',
+																year: 'numeric'
+															})
+														: '—'}
+												</TableCell>
+												<TableCell>Sale</TableCell>
+												<TableCell>{row.invoice_number || row.id.slice(0, 8)}</TableCell>
+												<TableCell>
+													{formatGhsCurrency(Number(row.total_amount) || 0, 2, 2)}
+												</TableCell>
+												<TableCell>{row.current_status || '—'}</TableCell>
 											</TableRow>
-										))}
-										{emptyRows > 0 && (
-											<TableRow style={{ height: 53 * emptyRows }}>
-												<TableCell colSpan={5} />
-											</TableRow>
-										)}
-									</>
+										);
+									})
 								)}
 							</TableBody>
 						</Table>
 						<TablePagination
 							component="div"
-							count={filteredData.length}
+							count={sales.length}
 							page={page}
 							onPageChange={handlePageChange}
 							rowsPerPage={rowsPerPage}
@@ -202,7 +245,10 @@ export default function ContactTransactionsPage() {
 			<DateRangeDialog
 				open={dateDialogOpen}
 				handleClose={(dates: DateRange) => {
-					if (dates) setDateRange(dates);
+					if (dates) {
+						setDateRange(dates);
+						setPage(0);
+					}
 					setDateDialogOpen(false);
 				}}
 			/>

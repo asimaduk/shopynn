@@ -74,8 +74,8 @@ export function MobileApp() {
 
           <ul className="mt-6 space-y-3 text-sm">
             <li className="flex items-center gap-3"><BellRing className="h-4 w-4 text-primary" /> Real-time push notifications</li>
-            <li className="flex items-center gap-3"><MapPin className="h-4 w-4 text-[var(--orange)]" /> Live order & delivery tracking</li>
-            <li className="flex items-center gap-3"><QrCode className="h-4 w-4 text-primary" /> Offline-first with auto-sync</li>
+            <li className="flex items-center gap-3"><MapPin className="h-4 w-4 text-[var(--orange)]" /> Order status updates as you prepare and complete</li>
+            <li className="flex items-center gap-3"><QrCode className="h-4 w-4 text-primary" /> Browse, cart and MoMo checkout</li>
           </ul>
 
           <div className="mt-8 flex flex-wrap gap-3">

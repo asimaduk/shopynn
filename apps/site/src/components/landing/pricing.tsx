@@ -32,7 +32,7 @@ const STATIC_PLANS = [
       "Up to 5 branches · up to 12 users",
       "Everything in Starter",
       "Transfers, adjustments & stock counts",
-      "Purchase orders · roles & permissions",
+      "Supplier purchases · roles & permissions",
       "Reorder & expiry lists · notifications",
     ],
     cta: "Start now",

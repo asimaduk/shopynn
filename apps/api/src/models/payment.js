@@ -198,30 +198,77 @@ export const getPaymentsByTenantIdService = async (user, tenant_id, requestQuery
 };
 
 export const getPaymentsByCustomerIdService = async (user, customer_id, requestQuery = {}) => {
-    const conditions = ["p.tenant_id = $1", "p.customer_id = $2"];
     const params = [user.tenant_id, customer_id];
     let paramIndex = 3;
+    let dateClause = "";
+    let saleDateClause = "";
+    let statusClause = "";
 
     if (requestQuery.startDate && requestQuery.endDate) {
-        conditions.push(`p.created_at BETWEEN $${paramIndex} AND $${paramIndex + 1}`);
+        dateClause = ` AND p.created_at BETWEEN $${paramIndex} AND $${paramIndex + 1}`;
+        saleDateClause = ` AND sp.created_at BETWEEN $${paramIndex} AND $${paramIndex + 1}`;
         params.push(requestQuery.startDate, requestQuery.endDate);
         paramIndex += 2;
     }
 
-    const status = requestQuery.status;
-    if (status !== undefined && status !== null && status !== "") {
-        conditions.push(`p.status = $${paramIndex}`);
-        params.push(String(status).trim());
+    const statusRaw = requestQuery.status;
+    const status = statusRaw !== undefined && statusRaw !== null && String(statusRaw).trim() !== ""
+        ? String(statusRaw).trim().toLowerCase()
+        : "";
+    if (status) {
+        statusClause = ` AND lower(coalesce(p.status, '')) = $${paramIndex}`;
+        params.push(status);
+        paramIndex += 1;
     }
 
-    const where = conditions.join(" AND ");
+    // Include POS cash/credit collections (sale_payments). Skip rows already linked to a
+    // payments record so MoMo gateway collections are not doubled.
+    const includePosCollections =
+        !status || status === "completed" || status === "success" || status === "paid";
+
+    const posUnion = includePosCollections
+        ? `
+            UNION ALL
+            SELECT sp.id,
+                   sp.amount,
+                   coalesce(sp.payment_method, 'cash') AS payment_method_type,
+                   sp.payment_number,
+                   coalesce(sp.payment_reference, s.invoice_number) AS transaction_ref,
+                   'completed'::text AS status,
+                   sp.created_at,
+                   u.first_name AS creator_first_name,
+                   u.last_name AS creator_last_name,
+                   'pos_sale'::text AS source
+            FROM sale_payments sp
+            INNER JOIN sales s ON s.id = sp.sale_id AND s.tenant_id = sp.tenant_id
+            LEFT JOIN users u ON sp.recorded_by = u.id
+            WHERE sp.tenant_id = $1
+              AND s.customer_id = $2
+              AND sp.payments_id IS NULL
+              ${saleDateClause}
+        `
+        : "";
+
     const query = `
-        SELECT p.id, p.amount, p.payment_method_type, p.payment_number, p.transaction_ref, p.status, p.created_at,
-               u.first_name AS creator_first_name, u.last_name AS creator_last_name
-        FROM payments p
-        LEFT JOIN users u ON p.creator_id = u.id
-        WHERE ${where}
-        ORDER BY p.created_at DESC
+        SELECT * FROM (
+            SELECT p.id,
+                   p.amount,
+                   coalesce(p.payment_method_type, 'payment') AS payment_method_type,
+                   p.payment_number,
+                   p.transaction_ref,
+                   coalesce(p.status, 'completed') AS status,
+                   p.created_at,
+                   u.first_name AS creator_first_name,
+                   u.last_name AS creator_last_name,
+                   'gateway'::text AS source
+            FROM payments p
+            LEFT JOIN users u ON p.creator_id = u.id
+            WHERE p.tenant_id = $1 AND p.customer_id = $2
+              ${dateClause}
+              ${statusClause}
+            ${posUnion}
+        ) payments_union
+        ORDER BY created_at DESC
     `;
     const result = await pool.query(query, params);
     return result.rows;

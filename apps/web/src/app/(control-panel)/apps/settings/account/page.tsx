@@ -1,3 +1,6 @@
-import AccountTab from './AccountTab';
+import { redirect } from 'next/navigation';
 
-export default AccountTab;
+/** Fuse mock account form — real profile lives under /apps/profile. */
+export default function SettingsAccountPage() {
+	redirect('/apps/profile');
+}

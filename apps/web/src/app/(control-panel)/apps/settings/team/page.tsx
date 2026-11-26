@@ -1,3 +1,6 @@
-import TeamTab from './TeamTab';
+import { redirect } from 'next/navigation';
 
-export default TeamTab;
+/** Fuse mock team list — real staff management lives under Users. */
+export default function SettingsTeamPage() {
+	redirect('/users/staff');
+}

@@ -6,28 +6,54 @@ import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
+import Alert from '@mui/material/Alert';
 import InputAdornment from '@mui/material/InputAdornment';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import FuseSvgIcon from '@fuse/core/FuseSvgIcon';
 import Link from '@fuse/core/Link';
+import { useResetMyPasswordMutation } from '../ProfileApi';
+import { signOut } from 'next-auth/react';
+import { signInCallbackUrl } from '@auth/signOutUrl';
 
 export default function ChangePasswordPage() {
 	const router = useRouter();
+	const [resetPassword, { isLoading: submitting }] = useResetMyPasswordMutation();
 	const [currentPassword, setCurrentPassword] = useState('');
 	const [newPassword, setNewPassword] = useState('');
 	const [confirmPassword, setConfirmPassword] = useState('');
-	const [submitting, setSubmitting] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+	const [success, setSuccess] = useState(false);
 
-	const handleSubmit = (e: React.FormEvent) => {
+	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		if (newPassword !== confirmPassword) return;
-		setSubmitting(true);
-		// TODO: call change-password API
-		setTimeout(() => {
-			setSubmitting(false);
-			router.push('/apps/profile');
-		}, 500);
+		setError(null);
+		if (newPassword.length < 8) {
+			setError('New password must be at least 8 characters.');
+			return;
+		}
+		if (newPassword !== confirmPassword) {
+			setError('Passwords do not match.');
+			return;
+		}
+		try {
+			await resetPassword({
+				old_password: currentPassword,
+				password: newPassword
+			}).unwrap();
+			setSuccess(true);
+			// Token version bumps on password change — force a clean sign-in.
+			window.setTimeout(() => {
+				void signOut({ callbackUrl: signInCallbackUrl('reason=password-changed') });
+			}, 1200);
+		} catch (err: any) {
+			const message =
+				err?.data?.message ||
+				err?.error ||
+				(typeof err?.data === 'string' ? err.data : null) ||
+				'Could not update password.';
+			setError(String(message));
+		}
 	};
 
 	return (
@@ -63,93 +89,118 @@ export default function ChangePasswordPage() {
 				</Box>
 				<div className="w-full flex justify-center">
 					<Box className="max-w-md w-full">
-					<Paper className="p-6 rounded-xl shadow-sm">
-						<Box className="flex items-center gap-2 mb-4">
-							<FuseSvgIcon size={24} color="action">heroicons-outline:lock-closed</FuseSvgIcon>
-							<Typography variant="subtitle1" fontWeight="600">
-								Password details
-							</Typography>
-						</Box>
-						<form onSubmit={handleSubmit} className="flex flex-col gap-4">
-							<TextField
-								label="Current password"
-								type="password"
-								value={currentPassword}
-								onChange={(e) => setCurrentPassword(e.target.value)}
-								fullWidth
-								required
-								autoComplete="current-password"
-								InputProps={{
-									startAdornment: (
-										<InputAdornment position="start">
-											<FuseSvgIcon size={20} color="action">heroicons-outline:key</FuseSvgIcon>
-										</InputAdornment>
-									)
-								}}
-							/>
-							<TextField
-								label="New password"
-								type="password"
-								value={newPassword}
-								onChange={(e) => setNewPassword(e.target.value)}
-								fullWidth
-								required
-								autoComplete="new-password"
-								InputProps={{
-									startAdornment: (
-										<InputAdornment position="start">
-											<FuseSvgIcon size={20} color="action">heroicons-outline:lock-open</FuseSvgIcon>
-										</InputAdornment>
-									)
-								}}
-							/>
-							<TextField
-								label="Confirm new password"
-								type="password"
-								value={confirmPassword}
-								onChange={(e) => setConfirmPassword(e.target.value)}
-								fullWidth
-								required
-								autoComplete="new-password"
-								error={newPassword !== '' && newPassword !== confirmPassword}
-								helperText={
-									newPassword !== '' && newPassword !== confirmPassword
-										? 'Passwords do not match'
-										: ''
-								}
-								InputProps={{
-									startAdornment: (
-										<InputAdornment position="start">
-											<FuseSvgIcon size={20} color="action">heroicons-outline:check-circle</FuseSvgIcon>
-										</InputAdornment>
-									)
-								}}
-							/>
-							<Box className="flex gap-2 pt-2">
-								<Button
-									type="button"
-									variant="outlined"
-									onClick={() => router.push('/apps/profile')}
-								>
-									Cancel
-								</Button>
-								<Button
-									type="submit"
-									variant="contained"
-									color="primary"
-									disabled={
-										submitting ||
-										!currentPassword ||
-										!newPassword ||
-										newPassword !== confirmPassword
-									}
-									startIcon={<FuseSvgIcon size={18}>heroicons-outline:key</FuseSvgIcon>}
-								>
-									{submitting ? 'Updating…' : 'Update password'}
-								</Button>
+						<Paper className="p-6 rounded-xl shadow-sm">
+							<Box className="flex items-center gap-2 mb-4">
+								<FuseSvgIcon size={24} color="action">
+									heroicons-outline:lock-closed
+								</FuseSvgIcon>
+								<Typography variant="subtitle1" fontWeight="600">
+									Password details
+								</Typography>
 							</Box>
-						</form>
-					</Paper>
+							{error ? (
+								<Alert severity="error" className="mb-3" sx={{ borderRadius: 2 }}>
+									{error}
+								</Alert>
+							) : null}
+							{success ? (
+								<Alert severity="success" className="mb-3" sx={{ borderRadius: 2 }}>
+									Password updated. Signing you out so you can sign in with the new password…
+								</Alert>
+							) : null}
+							<form onSubmit={handleSubmit} className="flex flex-col gap-4">
+								<TextField
+									label="Current password"
+									type="password"
+									value={currentPassword}
+									onChange={(e) => setCurrentPassword(e.target.value)}
+									fullWidth
+									required
+									disabled={submitting || success}
+									autoComplete="current-password"
+									InputProps={{
+										startAdornment: (
+											<InputAdornment position="start">
+												<FuseSvgIcon size={20} color="action">
+													heroicons-outline:key
+												</FuseSvgIcon>
+											</InputAdornment>
+										)
+									}}
+								/>
+								<TextField
+									label="New password"
+									type="password"
+									value={newPassword}
+									onChange={(e) => setNewPassword(e.target.value)}
+									fullWidth
+									required
+									disabled={submitting || success}
+									autoComplete="new-password"
+									helperText="At least 8 characters"
+									InputProps={{
+										startAdornment: (
+											<InputAdornment position="start">
+												<FuseSvgIcon size={20} color="action">
+													heroicons-outline:lock-open
+												</FuseSvgIcon>
+											</InputAdornment>
+										)
+									}}
+								/>
+								<TextField
+									label="Confirm new password"
+									type="password"
+									value={confirmPassword}
+									onChange={(e) => setConfirmPassword(e.target.value)}
+									fullWidth
+									required
+									disabled={submitting || success}
+									autoComplete="new-password"
+									error={newPassword !== '' && newPassword !== confirmPassword}
+									helperText={
+										newPassword !== '' && newPassword !== confirmPassword
+											? 'Passwords do not match'
+											: ''
+									}
+									InputProps={{
+										startAdornment: (
+											<InputAdornment position="start">
+												<FuseSvgIcon size={20} color="action">
+													heroicons-outline:check-circle
+												</FuseSvgIcon>
+											</InputAdornment>
+										)
+									}}
+								/>
+								<Box className="flex gap-2 pt-2">
+									<Button
+										type="button"
+										variant="outlined"
+										disabled={submitting || success}
+										onClick={() => router.push('/apps/profile')}
+									>
+										Cancel
+									</Button>
+									<Button
+										type="submit"
+										variant="contained"
+										color="primary"
+										disabled={
+											submitting ||
+											success ||
+											!currentPassword ||
+											!newPassword ||
+											newPassword.length < 8 ||
+											newPassword !== confirmPassword
+										}
+										startIcon={<FuseSvgIcon size={18}>heroicons-outline:key</FuseSvgIcon>}
+									>
+										{submitting ? 'Updating…' : 'Update password'}
+									</Button>
+								</Box>
+							</form>
+						</Paper>
 					</Box>
 				</div>
 			</div>
